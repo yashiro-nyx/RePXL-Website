@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="400" height="500" viewBox="0 0 400 500">
+  <defs>
+    <linearGradient id="kodak-bg" x1="0" y1="0" x2="0.4" y2="1">
+      <stop offset="0%" stop-color="#2a2520"/>
+      <stop offset="100%" stop-color="#121012"/>
+    </linearGradient>
+  </defs>
+  <rect width="400" height="500" fill="url(#kodak-bg)" rx="6"/>
+  <rect x="90" y="110" width="220" height="170" fill="#3d3530" rx="10"/>
+  <circle cx="200" cy="195" r="45" fill="#1a1618" stroke="#C98A2B" stroke-width="2.5"/>
+  <circle cx="200" cy="195" r="28" fill="#2a2428"/>
+  <rect x="100" y="80" width="45" height="20" fill="#C98A2B" rx="4"/>
+
+</svg>

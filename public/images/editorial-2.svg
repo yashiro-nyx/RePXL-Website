@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="350" height="450" viewBox="0 0 350 450">
+  <defs>
+    <linearGradient id="e2bg" x1="0" y1="0" x2="0.5" y2="1">
+      <stop offset="0%" stop-color="#EBD3CE" stop-opacity="0.3"/>
+      <stop offset="100%" stop-color="#16131a"/>
+    </linearGradient>
+  </defs>
+  <rect width="350" height="450" fill="url(#e2bg)" rx="8"/>
+  <rect x="30" y="50" width="290" height="200" fill="#3d3538" rx="4"/>
+  <rect x="50" y="70" width="100" height="70" fill="#5A6E4E" rx="2"/>
+  <rect x="170" y="70" width="130" height="70" fill="#C98A2B" opacity="0.4" rx="2"/>
+  <rect x="50" y="160" width="250" height="70" fill="#2a2428" rx="2"/>
+  <rect x="30" y="280" width="290" height="5" fill="#3d3538" rx="2.5"/>
+  <rect x="50" y="300" width="250" height="5" fill="#3d3538" rx="2.5"/>
+  <rect x="70" y="320" width="210" height="5" fill="#3d3538" rx="2.5"/>
+  <text x="175" y="400" text-anchor="middle" font-family="monospace" font-size="10" fill="#8C8580">Nikon Coolpix 3200 · 2004</text>
+</svg>

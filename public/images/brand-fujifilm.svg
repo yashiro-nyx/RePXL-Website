@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="400" height="500" viewBox="0 0 400 500">
+  <defs>
+    <linearGradient id="fuji-bg" x1="0" y1="0" x2="0.3" y2="1">
+      <stop offset="0%" stop-color="#1e2520"/>
+      <stop offset="100%" stop-color="#121012"/>
+    </linearGradient>
+  </defs>
+  <rect width="400" height="500" fill="url(#fuji-bg)" rx="6"/>
+  <rect x="80" y="100" width="240" height="180" fill="#2d3530" rx="10"/>
+  <circle cx="200" cy="190" r="48" fill="#1a1618" stroke="#5A6E4E" stroke-width="2.5"/>
+  <circle cx="200" cy="190" r="30" fill="#2a2428"/>
+  <rect x="270" y="110" width="30" height="20" fill="#5A6E4E" rx="3"/>
+
+</svg>

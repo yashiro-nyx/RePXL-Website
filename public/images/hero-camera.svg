@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="480" height="480" viewBox="0 0 480 480">
+  <rect width="480" height="480" fill="#2a2428" rx="24"/>
+  <rect x="100" y="130" width="280" height="210" fill="#3d3538" rx="16"/>
+  <circle cx="240" cy="235" r="75" fill="#1a1618" stroke="#5a5055" stroke-width="4"/>
+  <circle cx="240" cy="235" r="55" fill="#2a2428" stroke="#6b6065" stroke-width="2"/>
+  <circle cx="240" cy="235" r="30" fill="#121012"/>
+  <rect x="320" y="148" width="35" height="22" fill="#C22C2C" rx="4"/>
+  <rect x="130" y="95" width="90" height="32" fill="#3d3538" rx="6"/>
+  <rect x="155" y="102" width="40" height="18" fill="#1a1618" rx="3"/>
+  <circle cx="360" cy="160" r="6" fill="#5A6E4E"/>
+  <text x="240" y="390" text-anchor="middle" font-family="monospace" font-size="12" fill="#8C8580">DIGICAM · 2004</text>
+  <rect x="160" y="410" width="160" height="8" fill="#3d3538" rx="4"/>
+</svg>

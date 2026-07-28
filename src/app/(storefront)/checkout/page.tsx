@@ -1,0 +1,592 @@
+'use client'
+
+import { useState, useRef, useEffect } from 'react'
+import Link from 'next/link'
+import { useRouter } from 'next/navigation'
+import { Container } from '@/components/layout/Container'
+import { Button, ConditionBadge, LegalModal } from '@/components/ui'
+import { useAuthStore } from '@/stores/authStore'
+import { useCartStore } from '@/stores/cartStore'
+import { useProductStore } from '@/stores/productStore'
+import { useOrderHistoryStore } from '@/stores/orderHistoryStore'
+import { useAddressStore } from '@/stores/addressStore'
+import { termsContent, privacyContent } from '@/data/legal'
+import type { Product, CartItem } from '@/types'
+
+// Fallback if cart is empty
+const fallbackItems: CartItem[] = [
+  { slug: 'canon-powershot-a520', quantity: 1 },
+  { slug: 'fujifilm-finepix-f30', quantity: 1 },
+  { slug: 'panasonic-lumix-dmc-fz7', quantity: 1 },
+]
+
+type PaymentMethod = 'card' | 'gcash' | 'paypal'
+
+interface CourierOption {
+  id: string
+  name: string
+  price: number
+  estimate: string
+}
+
+const couriers: CourierOption[] = [
+  { id: 'jnt', name: 'J&T Express', price: 6, estimate: '2–3 business days' },
+  { id: 'lbc', name: 'LBC Express', price: 8, estimate: '1–2 business days' },
+  { id: 'ninja', name: 'Ninja Van', price: 5, estimate: '3–5 business days' },
+  { id: 'grab', name: 'Grab Express', price: 12, estimate: 'Same day (metro only)' },
+]
+
+interface FormErrors {
+  fullName?: string
+  email?: string
+  address?: string
+  city?: string
+  postalCode?: string
+  phone?: string
+  cardNumber?: string
+  cardExpiry?: string
+  cardCvc?: string
+  agreeTerms?: string
+}
+
+interface OrderConfirmation {
+  orderNumber: string
+  fullName: string
+  address: string
+  city: string
+  postalCode: string
+  paymentMethod: PaymentMethod
+  courier: CourierOption
+  date: string
+}
+
+// Validation helpers
+function isValidEmail(value: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)
+}
+function isValidPhone(value: string): boolean {
+  const digits = value.replace(/[\s\-+()]/g, '')
+  return /^\d{7,15}$/.test(digits)
+}
+function isValidPostalCode(value: string): boolean {
+  return /^\d{4,6}$/.test(value.replace(/\s/g, ''))
+}
+function isValidCardNumber(value: string): boolean {
+  return /^\d{16}$/.test(value.replace(/\s/g, ''))
+}
+function isValidExpiry(value: string): boolean {
+  const match = value.trim().match(/^(\d{2})\s*\/\s*(\d{2})$/)
+  if (!match) return false
+  const month = parseInt(match[1], 10)
+  const year = parseInt(match[2], 10) + 2000
+  if (month < 1 || month > 12) return false
+  const now = new Date()
+  const expiry = new Date(year, month)
+  return expiry > now
+}
+function isValidCvc(value: string): boolean {
+  return /^\d{3,4}$/.test(value.trim())
+}
+function isNonEmpty(value: string): boolean {
+  return value.trim().length > 0
+}
+
+const paymentLabels: Record<PaymentMethod, string> = {
+  card: 'Credit / Debit Card',
+  gcash: 'GCash',
+  paypal: 'PayPal',
+}
+
+export default function CheckoutPage() {
+  const isLoggedIn = useAuthStore((s) => s.isLoggedIn)
+  const userName = `${useAuthStore((s) => s.firstName)} ${useAuthStore((s) => s.lastName)}`.trim()
+  const userEmail = useAuthStore((s) => s.userEmail)
+  const userPhone = useAuthStore((s) => s.userPhone)
+  const hydrateAuth = useAuthStore((s) => s.hydrate)
+  const router = useRouter()
+
+  const cartItemsRaw = useCartStore((s) => s.items)
+  const clearCart = useCartStore((s) => s.clearCart)
+  const addOrder = useOrderHistoryStore((s) => s.addOrder)
+  const allProducts = useProductStore((s) => s.products)
+
+  const addresses = useAddressStore((s) => s.addresses)
+  const defaultAddress = addresses.find((a) => a.isDefault)
+
+  // Resolve cart slugs to live product data (use fallback if empty)
+  const itemsToResolve = cartItemsRaw.length > 0 ? cartItemsRaw : fallbackItems
+  const cartItems = itemsToResolve.map((item) => {
+    const product = allProducts.find((p) => p.slug === item.slug)
+    return product ? { product, quantity: item.quantity } : null
+  }).filter(Boolean) as { product: Product; quantity: number }[]
+
+  const [hydrated, setHydrated] = useState(false)
+
+  useEffect(() => {
+    hydrateAuth()
+    useCartStore.getState().hydrate()
+    useProductStore.getState().hydrate()
+    useAddressStore.getState().hydrate()
+    useOrderHistoryStore.getState().hydrate()
+    setHydrated(true)
+  }, [hydrateAuth])
+
+  const [confirmation, setConfirmation] = useState<OrderConfirmation | null>(null)
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('card')
+  const [selectedCourier, setSelectedCourier] = useState<string>(couriers[0].id)
+  const [agreeTerms, setAgreeTerms] = useState(false)
+  const [errors, setErrors] = useState<FormErrors>({})
+  const [termsModalOpen, setTermsModalOpen] = useState(false)
+  const [privacyModalOpen, setPrivacyModalOpen] = useState(false)
+  const [prefilled, setPrefilled] = useState(false)
+  const formRef = useRef<HTMLFormElement>(null)
+
+  // Pre-fill from profile + default address once hydrated
+  useEffect(() => {
+    if (!hydrated || prefilled || !formRef.current) return
+
+    const form = formRef.current
+    const setVal = (id: string, value: string) => {
+      const el = form.querySelector(`#${id}`) as HTMLInputElement | null
+      if (el && !el.value) {
+        // Use native setter to properly trigger React's synthetic events
+        const nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')?.set
+        nativeInputValueSetter?.call(el, value)
+        el.dispatchEvent(new Event('input', { bubbles: true }))
+      }
+    }
+
+    // From profile
+    if (userName) setVal('full-name', userName)
+    if (userEmail) setVal('email', userEmail)
+    if (userPhone) setVal('phone', userPhone)
+
+    // From default address (overrides profile name if address has its own)
+    if (defaultAddress) {
+      if (defaultAddress.fullName) setVal('full-name', defaultAddress.fullName)
+      if (defaultAddress.address) setVal('address', defaultAddress.address)
+      if (defaultAddress.city) setVal('city', defaultAddress.city)
+      if (defaultAddress.postalCode) setVal('postal-code', defaultAddress.postalCode)
+      if (defaultAddress.phone) setVal('phone', defaultAddress.phone)
+    }
+
+    setPrefilled(true)
+  }, [hydrated, prefilled, userName, userEmail, userPhone, defaultAddress])
+
+  const courier = couriers.find((c) => c.id === selectedCourier)!
+  const subtotal = cartItems.reduce((sum, item) => sum + item.product.price * item.quantity, 0)
+  const total = subtotal + courier.price
+
+  const validate = (): FormErrors => {
+    const form = formRef.current
+    if (!form) return {}
+    const get = (id: string) => (form.querySelector(`#${id}`) as HTMLInputElement)?.value ?? ''
+    const newErrors: FormErrors = {}
+
+    if (!isNonEmpty(get('full-name'))) newErrors.fullName = 'Full name is required.'
+    if (!isValidEmail(get('email'))) newErrors.email = 'Enter a valid email address.'
+    if (!isNonEmpty(get('address'))) newErrors.address = 'Street address is required.'
+    if (!isNonEmpty(get('city'))) newErrors.city = 'City is required.'
+    if (!isValidPostalCode(get('postal-code'))) newErrors.postalCode = 'Enter a valid postal code (4–6 digits).'
+    if (!isValidPhone(get('phone'))) newErrors.phone = 'Enter a valid phone number (digits, 7–15 characters).'
+
+    if (paymentMethod === 'card') {
+      if (!isValidCardNumber(get('card-number'))) newErrors.cardNumber = 'Enter a valid 16-digit card number.'
+      if (!isValidExpiry(get('card-expiry'))) newErrors.cardExpiry = 'Enter a valid, non-expired date (MM/YY).'
+      if (!isValidCvc(get('card-cvc'))) newErrors.cardCvc = 'Enter a valid 3 or 4-digit CVC.'
+    }
+
+    if (!agreeTerms) newErrors.agreeTerms = 'You must agree to the Terms of Service and Privacy Policy.'
+
+    return newErrors
+  }
+
+  const focusFirstError = (errs: FormErrors) => {
+    const fieldMap: Record<string, string> = {
+      fullName: 'full-name', email: 'email', address: 'address',
+      city: 'city', postalCode: 'postal-code', phone: 'phone',
+      cardNumber: 'card-number', cardExpiry: 'card-expiry', cardCvc: 'card-cvc',
+      agreeTerms: 'agree-terms',
+    }
+    for (const key of Object.keys(errs) as (keyof FormErrors)[]) {
+      if (errs[key]) {
+        const el = formRef.current?.querySelector(`#${fieldMap[key]}`) as HTMLInputElement | null
+        el?.focus()
+        break
+      }
+    }
+  }
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    const newErrors = validate()
+    setErrors(newErrors)
+    if (Object.keys(newErrors).length > 0) { focusFirstError(newErrors); return }
+
+    const form = formRef.current!
+    const get = (id: string) => (form.querySelector(`#${id}`) as HTMLInputElement)?.value ?? ''
+
+    const now = new Date()
+    const dateStr = now.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
+
+    const orderNum = `RPX-${Date.now().toString(36).toUpperCase().slice(-6)}`
+
+    setConfirmation({
+      orderNumber: orderNum,
+      fullName: get('full-name'),
+      address: get('address'),
+      city: get('city'),
+      postalCode: get('postal-code'),
+      paymentMethod,
+      courier,
+      date: dateStr,
+    })
+
+    // Save to order history
+    addOrder({
+      orderNumber: orderNum,
+      date: dateStr,
+      items: cartItems.map((i) => i.product),
+      subtotal,
+      shippingCost: courier.price,
+      total: subtotal + courier.price,
+      courierName: courier.name,
+      courierEstimate: courier.estimate,
+      paymentMethod: paymentLabels[paymentMethod],
+      fullName: get('full-name'),
+      address: get('address'),
+      city: get('city'),
+      postalCode: get('postal-code'),
+      status: 'Processing',
+    })
+
+    clearCart()
+    window.scrollTo({ top: 0 })
+  }
+
+  // ─── Auth gate ───
+  // If not logged in and no confirmation, redirect to cart immediately
+  useEffect(() => {
+    if (hydrated && !isLoggedIn && !confirmation) {
+      router.push('/cart')
+    }
+  }, [hydrated, isLoggedIn, confirmation, router])
+
+  // ─── Confirmation state ───
+  if (confirmation) {
+    return (
+      <div className="min-h-screen bg-repixl-bg pb-16 pt-24">
+        <Container>
+          <div className="mx-auto max-w-lg text-center">
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-repixl-success/10">
+              <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-repixl-success"><path d="M20 6 9 17l-5-5" /></svg>
+            </div>
+
+            <h1 className="mt-6 font-display text-display-md text-repixl-text-light">Order confirmed</h1>
+            <p className="mt-2 text-sm text-repixl-text-light/70">
+              Thanks for your purchase, {confirmation.fullName.split(' ')[0]}. Your cameras are on their way.
+            </p>
+
+            {/* Order number + date */}
+            <div className="mt-6 inline-block rounded border border-repixl-muted/20 bg-repixl-charcoal px-4 py-2">
+              <p className="font-mono text-[10px] uppercase tracking-widest text-repixl-muted">Order Number</p>
+              <p className="mt-1 font-mono text-lg font-semibold text-repixl-text-light">{confirmation.orderNumber}</p>
+              <p className="mt-1 font-mono text-[10px] text-repixl-muted">{confirmation.date}</p>
+            </div>
+
+            {/* Order details */}
+            <div className="mt-8 space-y-4 text-left">
+              {/* Shipping details */}
+              <div className="rounded-lg border border-repixl-muted/10 bg-repixl-charcoal p-5">
+                <h2 className="font-mono text-[10px] uppercase tracking-widest text-repixl-muted">Shipping to</h2>
+                <p className="mt-2 text-sm text-repixl-text-light">{confirmation.fullName}</p>
+                <p className="text-sm text-repixl-text-light/70">{confirmation.address}</p>
+                <p className="text-sm text-repixl-text-light/70">{confirmation.city}, {confirmation.postalCode}</p>
+              </div>
+
+              {/* Payment + courier */}
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div className="rounded-lg border border-repixl-muted/10 bg-repixl-charcoal p-5">
+                  <h2 className="font-mono text-[10px] uppercase tracking-widest text-repixl-muted">Payment</h2>
+                  <p className="mt-2 text-sm text-repixl-text-light">{paymentLabels[confirmation.paymentMethod]}</p>
+                </div>
+                <div className="rounded-lg border border-repixl-muted/10 bg-repixl-charcoal p-5">
+                  <h2 className="font-mono text-[10px] uppercase tracking-widest text-repixl-muted">Delivery</h2>
+                  <p className="mt-2 text-sm text-repixl-text-light">{confirmation.courier.name}</p>
+                  <p className="text-xs text-repixl-muted">{confirmation.courier.estimate}</p>
+                </div>
+              </div>
+
+              {/* Items ordered */}
+              <div className="rounded-lg border border-repixl-muted/10 bg-repixl-charcoal p-5">
+                <h2 className="font-mono text-[10px] uppercase tracking-widest text-repixl-muted">Items ordered</h2>
+                <ul className="mt-4 space-y-3">
+                  {cartItems.map((item) => (
+                    <li key={item.product.slug} className="flex items-center gap-3">
+                      <div className="h-10 w-10 flex-shrink-0 overflow-hidden rounded bg-repixl-bg">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={item.product.image} alt={item.product.name} className="h-full w-full object-contain" />
+                      </div>
+                      <span className="flex-1 text-sm text-repixl-text-light">{item.product.name}{item.quantity > 1 ? ` ×${item.quantity}` : ''}</span>
+                      <span className="font-mono text-sm text-repixl-text-light">${item.product.price * item.quantity}</span>
+                    </li>
+                  ))}
+                </ul>
+                <dl className="mt-4 space-y-1 border-t border-repixl-muted/10 pt-3">
+                  <div className="flex justify-between text-sm">
+                    <dt className="text-repixl-muted">Subtotal</dt>
+                    <dd className="font-mono text-repixl-text-light">${subtotal}</dd>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <dt className="text-repixl-muted">Shipping ({confirmation.courier.name})</dt>
+                    <dd className="font-mono text-repixl-text-light">${confirmation.courier.price}</dd>
+                  </div>
+                  <div className="flex justify-between border-t border-repixl-muted/10 pt-2">
+                    <dt className="text-sm font-medium text-repixl-text-light">Total</dt>
+                    <dd className="font-display text-xl font-bold text-repixl-text-light">${subtotal + confirmation.courier.price}</dd>
+                  </div>
+                </dl>
+              </div>
+            </div>
+
+            <div className="mt-8 flex flex-col items-center gap-3">
+              <Link href="/account/orders"><Button variant="primary" size="md">View Order History</Button></Link>
+              <Link href="/products" className="text-sm text-repixl-muted hover:text-repixl-text-light">Continue shopping</Link>
+            </div>
+          </div>
+        </Container>
+      </div>
+    )
+  }
+
+  // ─── Checkout form ───
+  // Don't render if not logged in (redirect happening above) or not yet hydrated
+  if (!hydrated || !isLoggedIn) return null
+
+  return (
+    <div className="min-h-screen bg-repixl-bg pb-16 pt-24">
+      <Container>
+        <h1 className="font-display text-display-md text-repixl-text-light md:text-display-lg">Checkout</h1>
+        <p className="mt-1 text-sm text-repixl-muted">Complete your order below.</p>
+
+        <form ref={formRef} onSubmit={handleSubmit} noValidate className="mt-8 grid grid-cols-1 gap-10 lg:grid-cols-3">
+          {/* Left: Shipping + Courier + Payment */}
+          <div className="space-y-10 lg:col-span-2">
+            {/* Shipping info */}
+            <section>
+              <h2 className="font-mono text-[10px] uppercase tracking-widest text-repixl-muted">Shipping Information</h2>
+              <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <FieldWrapper id="full-name" label="Full Name" error={errors.fullName} className="sm:col-span-2">
+                  <input id="full-name" type="text" autoComplete="name" className={inputClass(errors.fullName)} />
+                </FieldWrapper>
+                <FieldWrapper id="email" label="Email Address" error={errors.email} className="sm:col-span-2">
+                  <input id="email" type="email" autoComplete="email" className={inputClass(errors.email)} />
+                </FieldWrapper>
+                <FieldWrapper id="address" label="Street Address" error={errors.address} className="sm:col-span-2">
+                  <input id="address" type="text" autoComplete="street-address" className={inputClass(errors.address)} />
+                </FieldWrapper>
+                <FieldWrapper id="city" label="City" error={errors.city}>
+                  <input id="city" type="text" autoComplete="address-level2" className={inputClass(errors.city)} />
+                </FieldWrapper>
+                <FieldWrapper id="postal-code" label="Postal Code" error={errors.postalCode}>
+                  <input id="postal-code" type="text" inputMode="numeric" autoComplete="postal-code" className={inputClass(errors.postalCode)} />
+                </FieldWrapper>
+                <FieldWrapper id="phone" label="Phone Number" error={errors.phone}>
+                  <input id="phone" type="tel" inputMode="tel" autoComplete="tel" className={inputClass(errors.phone)} />
+                </FieldWrapper>
+              </div>
+            </section>
+
+            {/* Delivery courier */}
+            <section>
+              <h2 className="font-mono text-[10px] uppercase tracking-widest text-repixl-muted">Delivery Courier</h2>
+              <fieldset className="mt-5">
+                <legend className="sr-only">Select delivery courier</legend>
+                <div className="space-y-2">
+                  {couriers.map((c) => (
+                    <label
+                      key={c.id}
+                      className={`flex cursor-pointer items-center justify-between rounded border px-4 py-3 transition-colors ${
+                        selectedCourier === c.id
+                          ? 'border-repixl-red bg-repixl-red/10'
+                          : 'border-repixl-muted/20 hover:border-repixl-muted/40'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <input
+                          type="radio"
+                          name="courier"
+                          value={c.id}
+                          checked={selectedCourier === c.id}
+                          onChange={() => setSelectedCourier(c.id)}
+                          className="sr-only"
+                        />
+                        <div
+                          className={`flex h-4 w-4 items-center justify-center rounded-full border ${
+                            selectedCourier === c.id ? 'border-repixl-red' : 'border-repixl-muted/40'
+                          }`}
+                        >
+                          {selectedCourier === c.id && <span className="h-2 w-2 rounded-full bg-repixl-red" />}
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-repixl-text-light">{c.name}</p>
+                          <p className="font-mono text-[10px] text-repixl-muted">{c.estimate}</p>
+                        </div>
+                      </div>
+                      <span className="font-mono text-sm font-medium text-repixl-text-light">${c.price}</span>
+                    </label>
+                  ))}
+                </div>
+              </fieldset>
+            </section>
+
+            {/* Payment method */}
+            <section>
+              <h2 className="font-mono text-[10px] uppercase tracking-widest text-repixl-muted">Payment Method</h2>
+              <fieldset className="mt-5">
+                <legend className="sr-only">Select payment method</legend>
+                <div className="flex flex-wrap gap-3">
+                  {([
+                    { id: 'card' as const, label: 'Credit / Debit Card' },
+                    { id: 'gcash' as const, label: 'GCash' },
+                    { id: 'paypal' as const, label: 'PayPal' },
+                  ]).map((method) => (
+                    <label
+                      key={method.id}
+                      className={`flex cursor-pointer items-center gap-2 rounded border px-4 py-2.5 text-sm transition-colors ${
+                        paymentMethod === method.id
+                          ? 'border-repixl-red bg-repixl-red/10 text-repixl-text-light'
+                          : 'border-repixl-muted/20 text-repixl-text-light/70 hover:border-repixl-muted/40'
+                      }`}
+                    >
+                      <input type="radio" name="payment-method" value={method.id} checked={paymentMethod === method.id} onChange={() => setPaymentMethod(method.id)} className="sr-only" />
+                      {method.label}
+                    </label>
+                  ))}
+                </div>
+              </fieldset>
+
+              {paymentMethod === 'card' && (
+                <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-3">
+                  <FieldWrapper id="card-number" label="Card Number" error={errors.cardNumber} className="sm:col-span-3">
+                    <input id="card-number" type="text" inputMode="numeric" placeholder="1234 5678 9012 3456" autoComplete="cc-number" className={`font-mono ${inputClass(errors.cardNumber)}`} />
+                  </FieldWrapper>
+                  <FieldWrapper id="card-expiry" label="Expiry Date" error={errors.cardExpiry} className="sm:col-span-2">
+                    <input id="card-expiry" type="text" placeholder="MM / YY" autoComplete="cc-exp" className={`font-mono ${inputClass(errors.cardExpiry)}`} />
+                  </FieldWrapper>
+                  <FieldWrapper id="card-cvc" label="CVC" error={errors.cardCvc}>
+                    <input id="card-cvc" type="text" inputMode="numeric" placeholder="123" autoComplete="cc-csc" className={`font-mono ${inputClass(errors.cardCvc)}`} />
+                  </FieldWrapper>
+                </div>
+              )}
+
+              {paymentMethod === 'gcash' && (
+                <div className="mt-5 rounded border border-repixl-muted/10 bg-repixl-charcoal p-4">
+                  <p className="text-sm text-repixl-text-light/70">You&apos;ll be redirected to GCash to complete payment after placing your order.</p>
+                </div>
+              )}
+              {paymentMethod === 'paypal' && (
+                <div className="mt-5 rounded border border-repixl-muted/10 bg-repixl-charcoal p-4">
+                  <p className="text-sm text-repixl-text-light/70">You&apos;ll be redirected to PayPal to complete payment after placing your order.</p>
+                </div>
+              )}
+            </section>
+          </div>
+
+          {/* Right: Order review + submit */}
+          <aside className="lg:col-span-1">
+            <div className="sticky top-24 rounded-lg border border-repixl-muted/10 bg-repixl-charcoal p-6">
+              <h2 className="font-mono text-[10px] uppercase tracking-widest text-repixl-muted">Order Review</h2>
+
+              <ul className="mt-5 space-y-3">
+                {cartItems.map((item) => (
+                  <li key={item.product.slug} className="flex items-center gap-3">
+                    <div className="h-12 w-12 flex-shrink-0 overflow-hidden rounded bg-repixl-bg">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={item.product.image} alt={item.product.name} className="h-full w-full object-contain" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-xs font-medium text-repixl-text-light">{item.product.name}{item.quantity > 1 ? ` ×${item.quantity}` : ''}</p>
+                      <ConditionBadge condition={item.product.condition} className="mt-0.5 origin-left scale-90" />
+                    </div>
+                    <span className="font-mono text-sm text-repixl-text-light">${item.product.price * item.quantity}</span>
+                  </li>
+                ))}
+              </ul>
+
+              <dl className="mt-5 space-y-2 border-t border-repixl-muted/10 pt-4">
+                <div className="flex justify-between text-sm">
+                  <dt className="text-repixl-text-light/70">Subtotal</dt>
+                  <dd className="font-mono text-repixl-text-light">${subtotal}</dd>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <dt className="text-repixl-text-light/70">Shipping ({courier.name})</dt>
+                  <dd className="font-mono text-repixl-text-light">${courier.price}</dd>
+                </div>
+                <div className="flex justify-between border-t border-repixl-muted/10 pt-2">
+                  <dt className="text-sm font-medium text-repixl-text-light">Total</dt>
+                  <dd className="font-display text-xl font-bold text-repixl-text-light">${total}</dd>
+                </div>
+              </dl>
+
+              <Button type="submit" variant="primary" size="lg" className="mt-6 w-full">Place Order</Button>
+
+              {/* Terms agreement checkbox */}
+              <div className="mt-4">
+                <label className="flex cursor-pointer items-start gap-2">
+                  <input
+                    id="agree-terms"
+                    type="checkbox"
+                    checked={agreeTerms}
+                    onChange={(e) => setAgreeTerms(e.target.checked)}
+                    className="mt-0.5 h-3.5 w-3.5 rounded border-repixl-muted/30 bg-repixl-bg text-repixl-red focus:ring-repixl-red/30"
+                  />
+                  <span className="text-[11px] leading-tight text-repixl-muted">
+                    I agree to the{' '}
+                    <button type="button" onClick={() => setTermsModalOpen(true)} className="text-repixl-text-light/80 underline hover:text-repixl-text-light">Terms of Service</button>
+                    {' '}and{' '}
+                    <button type="button" onClick={() => setPrivacyModalOpen(true)} className="text-repixl-text-light/80 underline hover:text-repixl-text-light">Privacy Policy</button>.
+                  </span>
+                </label>
+                {errors.agreeTerms && <p className="mt-1 text-xs text-red-400" role="alert">{errors.agreeTerms}</p>}
+              </div>
+
+              {/* Legal modals */}
+              <LegalModal
+                isOpen={termsModalOpen}
+                onClose={() => setTermsModalOpen(false)}
+                title="Terms of Service"
+                content={termsContent}
+                onAgree={() => setAgreeTerms(true)}
+              />
+              <LegalModal
+                isOpen={privacyModalOpen}
+                onClose={() => setPrivacyModalOpen(false)}
+                title="Privacy Policy"
+                content={privacyContent}
+              />
+            </div>
+          </aside>
+        </form>
+      </Container>
+    </div>
+  )
+}
+
+// --- Helper components ---
+
+function FieldWrapper({ id, label, error, className = '', children }: { id: string; label: string; error?: string; className?: string; children: React.ReactNode }) {
+  return (
+    <div className={className}>
+      <label htmlFor={id} className="mb-1 block text-xs text-repixl-text-light/70">{label}</label>
+      {children}
+      {error && <p className="mt-1 text-xs text-red-400" role="alert">{error}</p>}
+    </div>
+  )
+}
+
+function inputClass(error?: string): string {
+  return `w-full rounded border px-3 py-2.5 text-sm text-repixl-text-light placeholder:text-repixl-muted/50 focus:outline-none ${
+    error ? 'border-red-400/60 bg-red-400/5 focus:border-red-400' : 'border-repixl-muted/20 bg-repixl-charcoal focus:border-repixl-muted/50'
+  }`
+}

@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="400" height="500" viewBox="0 0 400 500">
+  <defs>
+    <linearGradient id="canon-bg" x1="0" y1="0" x2="0.3" y2="1">
+      <stop offset="0%" stop-color="#2a2225"/>
+      <stop offset="100%" stop-color="#121012"/>
+    </linearGradient>
+  </defs>
+  <rect width="400" height="500" fill="url(#canon-bg)" rx="6"/>
+  <rect x="80" y="100" width="240" height="180" fill="#3d3538" rx="12"/>
+  <circle cx="200" cy="190" r="55" fill="#1a1618" stroke="#6b6065" stroke-width="2.5"/>
+  <circle cx="200" cy="190" r="35" fill="#2a2428"/>
+  <rect x="280" y="115" width="25" height="16" fill="#C22C2C" rx="3"/>
+
+</svg>

@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="400" height="500" viewBox="0 0 400 500">
+  <defs>
+    <linearGradient id="sony-bg" x1="0" y1="0" x2="0.7" y2="1">
+      <stop offset="0%" stop-color="#252028"/>
+      <stop offset="100%" stop-color="#121012"/>
+    </linearGradient>
+  </defs>
+  <rect width="400" height="500" fill="url(#sony-bg)" rx="6"/>
+  <rect x="60" y="120" width="280" height="160" fill="#35303a" rx="14"/>
+  <rect x="140" y="140" width="120" height="80" fill="#1a1618" rx="6"/>
+  <circle cx="200" cy="180" r="28" fill="#2a2428" stroke="#8C8580" stroke-width="1.5"/>
+  <rect x="270" y="135" width="50" height="30" fill="#3d3538" rx="4"/>
+
+</svg>
