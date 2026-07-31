@@ -258,6 +258,7 @@ export default function CheckoutPage() {
       city: get('city'),
       postalCode: get('postal-code'),
       status: 'Processing',
+      userEmail: useAuthStore.getState().userEmail,
     })
 
     clearCart()

@@ -7,6 +7,12 @@
     @apply bg-repixl-bg text-repixl-text-light antialiased;
   }
 
+  /* Dark mode — customer storefront keeps its dark palette by default */
+  /* Light mode applies warm bone background */
+  html.light body {
+    @apply bg-repixl-bone text-repixl-text-dark;
+  }
+
   /* Smooth scrolling, respects reduced-motion */
   html {
     scroll-behavior: smooth;

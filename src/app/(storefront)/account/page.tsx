@@ -187,7 +187,9 @@ function ProfileTab() {
 
 // ─── Orders Tab ───
 function OrdersTab() {
-  const orders = useOrderHistoryStore((s) => s.orders)
+  const allOrders = useOrderHistoryStore((s) => s.orders)
+  const userEmail = useAuthStore((s) => s.userEmail)
+  const orders = allOrders.filter((o) => o.userEmail === userEmail)
   const [detailOrder, setDetailOrder] = useState<Order | null>(null)
   const allProducts = useProductStore((s) => s.products)
 

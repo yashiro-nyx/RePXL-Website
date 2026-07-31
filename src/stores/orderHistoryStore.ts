@@ -18,6 +18,7 @@ export interface Order {
   city: string
   postalCode: string
   status: 'Processing' | 'Shipped' | 'Delivered'
+  userEmail?: string
 }
 
 interface OrderHistoryState {

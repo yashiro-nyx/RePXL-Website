@@ -7,6 +7,7 @@ import { CornerBracket, LoginRequiredModal } from '@/components/ui'
 import { useAuthStore } from '@/stores/authStore'
 import { useCartStore } from '@/stores/cartStore'
 import { useWishlistStore } from '@/stores/wishlistStore'
+import { ThemeToggle } from '@/components/ThemeToggle'
 
 export function Navbar() {
   const [searchOpen, setSearchOpen] = useState(false)
@@ -97,6 +98,8 @@ export function Navbar() {
 
           {/* Icon cluster */}
           <div className="flex items-center gap-4">
+            {/* Theme toggle */}
+            <ThemeToggle className="text-repixl-text-light/80 hover:text-repixl-text-light" />
             {/* Search */}
             <div className="relative flex items-center">
               {searchOpen && (

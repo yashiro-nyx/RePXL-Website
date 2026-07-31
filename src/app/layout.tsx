@@ -3,6 +3,7 @@ import { Inter, JetBrains_Mono } from 'next/font/google'
 import { ConditionalNavbar } from '@/components/layout/ConditionalNavbar'
 import { GlobalToast } from '@/components/ui/GlobalToast'
 import { AuthProvider } from '@/components/auth/AuthProvider'
+import { ThemeProvider } from '@/components/ThemeProvider'
 import './globals.css'
 
 // General Sans via Fontshare CDN — loaded as a local font from the CDN URL
@@ -50,11 +51,13 @@ export default function RootLayout({
         />
       </head>
       <body className="font-body">
-        <AuthProvider>
-          <ConditionalNavbar />
-          <GlobalToast />
-          {children}
-        </AuthProvider>
+        <ThemeProvider>
+          <AuthProvider>
+            <ConditionalNavbar />
+            <GlobalToast />
+            {children}
+          </AuthProvider>
+        </ThemeProvider>
       </body>
     </html>
   )

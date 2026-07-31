@@ -1,6 +1,7 @@
 'use client'
 
 import { create } from 'zustand'
+import { useAuthStore } from './authStore'
 
 const MAX_COMPARE = 3
 
@@ -12,6 +13,15 @@ interface CompareState {
   hydrate: () => void
 }
 
+function getKey() {
+  const email = useAuthStore.getState().userEmail
+  return email ? `repixl-compare-${email}` : 'repixl-compare-guest'
+}
+
+function persist(slugs: string[]) {
+  localStorage.setItem(getKey(), JSON.stringify(slugs))
+}
+
 export const useCompareStore = create<CompareState>((set, get) => ({
   slugs: [],
 
@@ -20,28 +30,24 @@ export const useCompareStore = create<CompareState>((set, get) => ({
     if (slugs.includes(slug)) return 'already'
     if (slugs.length >= MAX_COMPARE) return 'full'
     const updated = [...slugs, slug]
-    localStorage.setItem('repixl-compare', JSON.stringify(updated))
-    set({ slugs: updated })
+    persist(updated); set({ slugs: updated })
     return 'added'
   },
 
   removeFromCompare: (slug) => {
     const updated = get().slugs.filter((s) => s !== slug)
-    localStorage.setItem('repixl-compare', JSON.stringify(updated))
-    set({ slugs: updated })
+    persist(updated); set({ slugs: updated })
   },
 
   isInCompare: (slug) => get().slugs.includes(slug),
 
   hydrate: () => {
     try {
-      const stored = localStorage.getItem('repixl-compare')
+      const stored = localStorage.getItem(getKey())
       if (stored) {
         const slugs: string[] = JSON.parse(stored)
         set({ slugs: slugs.slice(0, MAX_COMPARE) })
-      }
-    } catch {
-      // ignore
-    }
+      } else { set({ slugs: [] }) }
+    } catch { set({ slugs: [] }) }
   },
 }))
