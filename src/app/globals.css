@@ -3,33 +3,80 @@
 @tailwind utilities;
 
 @layer base {
-  html {
+  :root {
+    /* Theme tokens — dark mode (default) */
+    --color-bg: #050303;
+    --color-text: #F5F1EC;
+    --color-text-secondary: #8C8580;
+    --color-panel: #16131a;
+    --color-panel-hover: #1e1a24;
+    --color-border: rgba(140, 133, 128, 0.1);
+    --color-border-strong: rgba(140, 133, 128, 0.2);
+    --color-input-bg: #121012;
+    --color-red: #C22C2C;
+    --color-red-hover: #a82525;
+    --color-success: #5A6E4E;
+    --color-warning: #C98A2B;
     --burn-opacity: 1;
-    background-color: #050303;
+    --grain-opacity: 0.12;
+    --grain-blend: overlay;
+  }
+
+  [data-theme="light"] {
+    --color-bg: #faf7f2;
+    --color-text: #1a1610;
+    --color-text-secondary: #6b6357;
+    --color-panel: #ffffff;
+    --color-panel-hover: #f5f0ea;
+    --color-border: rgba(30, 25, 20, 0.08);
+    --color-border-strong: rgba(30, 25, 20, 0.15);
+    --color-input-bg: #f5f0ea;
+    --color-red: #b52a2a;
+    --color-red-hover: #9a2222;
+    --color-success: #4a7a3a;
+    --color-warning: #b07520;
+    --burn-opacity: 0;
+    --grain-opacity: 0.06;
+    --grain-blend: multiply;
+  }
+
+  html {
+    background-color: var(--color-bg);
     background-image:
       linear-gradient(90deg, rgb(200 20 10 / calc(0.9 * var(--burn-opacity))) 0%, rgb(160 30 10 / calc(0.5 * var(--burn-opacity))) 8%, rgb(80 15 10 / calc(0.2 * var(--burn-opacity))) 15%, transparent 22%),
       linear-gradient(270deg, rgb(180 30 10 / calc(0.4 * var(--burn-opacity))) 0%, transparent 10%);
     background-blend-mode: screen;
     background-attachment: fixed;
     scroll-behavior: smooth;
+    transition: background-color 0.3s ease;
+  }
+
+  [data-theme="light"] {
+    background-color: #faf7f2;
+    background-image:
+      radial-gradient(ellipse 55% 45% at -5% 5%, rgba(199,58,46,0.28) 0%, rgba(199,58,46,0.10) 35%, transparent 65%),
+      radial-gradient(ellipse 45% 35% at 105% 95%, rgba(232,149,107,0.24) 0%, transparent 60%);
+    background-blend-mode: normal;
+    background-attachment: fixed;
+    background-repeat: no-repeat;
   }
 
   body {
     @apply antialiased;
     background: transparent;
-    color: #F5F1EC;
+    color: var(--color-text);
     position: relative;
   }
 
-  /* Film grain overlay — rough texture on the burn edges */
+  /* Film grain overlay */
   body::before {
     content: '';
     position: fixed;
     inset: 0;
     z-index: 9999;
     pointer-events: none;
-    opacity: 0.12;
-    mix-blend-mode: overlay;
+    opacity: var(--grain-opacity);
+    mix-blend-mode: var(--grain-blend);
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
     background-repeat: repeat;
   }
@@ -64,13 +111,131 @@
 html:has(.burn-subtle) {
   --burn-opacity: 0.4;
 }
+[data-theme="light"] html:has(.burn-subtle),
+[data-theme="light"]:has(.burn-subtle) {
+  --burn-opacity: 0;
+}
 
 /* Minimal burn for backend/admin login screens */
 html:has(.burn-minimal) {
   --burn-opacity: 0.15;
 }
+[data-theme="light"] html:has(.burn-minimal),
+[data-theme="light"]:has(.burn-minimal) {
+  --burn-opacity: 0;
+}
 
 /* Scroll lock fallback for modals */
 body.scroll-locked {
   overflow: hidden;
+}
+
+/* Theme-aware overrides for core Tailwind colors used site-wide */
+@layer utilities {
+  .theme-bg { background-color: var(--color-bg); }
+  .theme-text { color: var(--color-text); }
+  .theme-text-secondary { color: var(--color-text-secondary); }
+  .theme-panel { background-color: var(--color-panel); }
+  .theme-border { border-color: var(--color-border); }
+}
+
+/* Light mode overrides — remap all dark-theme classes */
+[data-theme="light"] {
+  /* Core text */
+  .text-repixl-text-light { color: #1a1610; }
+  .text-repixl-muted { color: #6b6357; }
+
+  /* Backgrounds */
+  .bg-repixl-bg { background-color: #f5f0ea; }
+  .bg-repixl-charcoal { background-color: #ffffff; }
+
+  /* Borders */
+  .border-repixl-muted\/10 { border-color: rgba(30, 25, 20, 0.08); }
+  .border-repixl-muted\/20 { border-color: rgba(30, 25, 20, 0.12); }
+  .border-repixl-muted\/30 { border-color: rgba(30, 25, 20, 0.18); }
+  .hover\:border-repixl-muted\/30:hover { border-color: rgba(30, 25, 20, 0.18); }
+
+  /* Panels / inputs */
+  .bg-repixl-bg\/50 { background-color: rgba(245, 240, 234, 0.5); }
+  .bg-repixl-bg\/60 { background-color: rgba(245, 240, 234, 0.6); }
+  .bg-repixl-bg\/80 { background-color: rgba(245, 240, 234, 0.8); }
+  .bg-repixl-bg\/90 { background-color: rgba(245, 240, 234, 0.9); }
+  .bg-repixl-bg\/40 { background-color: rgba(245, 240, 234, 0.4); }
+
+  /* Border solid muted (used on secondary buttons) */
+  .border-repixl-muted { border-color: rgba(107, 99, 87, 0.35); }
+
+  /* Active state for ghost buttons */
+  .active\:bg-white\/5:active { background-color: rgba(0, 0, 0, 0.05); }
+
+  /* Placeholder text */
+  .placeholder\:text-repixl-muted\/50::placeholder { color: rgba(107, 99, 87, 0.5); }
+  .placeholder\:text-repixl-muted\/60::placeholder { color: rgba(107, 99, 87, 0.6); }
+  .placeholder\:text-repixl-muted::placeholder { color: #6b6357; }
+
+  /* White text on light backgrounds — only override when NOT on bg-repixl-red */
+  .bg-repixl-bg\/80.text-repixl-text-light { color: #1a1610; }
+
+  /* Navbar header */
+  .from-repixl-bg\/80 { --tw-gradient-from: rgba(250, 247, 242, 0.8); }
+
+  /* Hover background variants */
+  .hover\:bg-repixl-charcoal:hover { background-color: #f5f0ea; }
+  .hover\:bg-repixl-bg:hover { background-color: #f0ebe5; }
+
+  /* Text opacity variants */
+  .text-repixl-text-light\/70 { color: rgba(26, 22, 16, 0.7); }
+  .text-repixl-text-light\/80 { color: rgba(26, 22, 16, 0.8); }
+  .text-repixl-text-light\/60 { color: rgba(26, 22, 16, 0.6); }
+  .text-repixl-text-light\/50 { color: rgba(26, 22, 16, 0.5); }
+
+  /* Hover text variants */
+  .hover\:text-repixl-text-light:hover { color: #1a1610; }
+
+  /* Hover border variants */
+  .hover\:border-repixl-text-light:hover { border-color: #1a1610; }
+  .hover\:border-repixl-muted\/50:hover { border-color: rgba(107, 99, 87, 0.5); }
+  .hover\:border-repixl-muted\/60:hover { border-color: rgba(107, 99, 87, 0.6); }
+  .hover\:border-repixl-red\/50:hover { border-color: rgba(181, 42, 42, 0.5); }
+
+  /* Focus border variants */
+  .focus\:border-repixl-muted\/50:focus { border-color: rgba(107, 99, 87, 0.5); }
+  .focus\:border-repixl-red\/30:focus { border-color: rgba(181, 42, 42, 0.3); }
+  .focus\:border-repixl-red\/50:focus { border-color: rgba(181, 42, 42, 0.5); }
+
+  /* Muted text variants */
+  .text-repixl-muted\/50 { color: rgba(107, 99, 87, 0.5); }
+  .text-repixl-muted\/60 { color: rgba(107, 99, 87, 0.6); }
+  .text-repixl-muted\/40 { color: rgba(107, 99, 87, 0.4); }
+
+  /* Background muted variants */
+  .bg-repixl-muted\/40 { background-color: rgba(107, 99, 87, 0.4); }
+  .bg-repixl-muted\/15 { background-color: rgba(107, 99, 87, 0.15); }
+  .bg-repixl-muted\/10 { background-color: rgba(107, 99, 87, 0.1); }
+  .bg-repixl-muted\/5 { background-color: rgba(107, 99, 87, 0.05); }
+
+  /* Red brand color stays the same but slightly deeper for contrast on light */
+  .bg-repixl-red { background-color: #b52a2a; }
+  .text-repixl-red { color: #b52a2a; }
+  .border-repixl-red\/20 { border-color: rgba(181, 42, 42, 0.2); }
+  .border-repixl-red\/30 { border-color: rgba(181, 42, 42, 0.3); }
+  .bg-repixl-red\/10 { background-color: rgba(181, 42, 42, 0.1); }
+  .bg-repixl-red\/5 { background-color: rgba(181, 42, 42, 0.05); }
+  .hover\:bg-repixl-red\/10:hover { background-color: rgba(181, 42, 42, 0.1); }
+
+  /* Charcoal panel variants */
+  .bg-repixl-charcoal\/30 { background-color: rgba(255, 255, 255, 0.3); }
+
+  /* White text on components like buttons stays white */
+  .bg-repixl-red .text-white,
+  button.bg-repixl-red { color: #ffffff; }
+
+  /* Rose text */
+  .text-repixl-rose { color: #8b3a3a; }
+
+  /* Decorative background text — flip from faint white to faint dark */
+  .text-white\/\[0\.04\] { color: rgba(26, 22, 16, 0.04); }
+
+  /* Body color override */
+  color: #1a1610;
 }

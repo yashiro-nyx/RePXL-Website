@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { CornerBracket, LoginRequiredModal } from '@/components/ui'
+import { ThemeToggle } from '@/components/ui/ThemeToggle'
 import { useAuthStore } from '@/stores/authStore'
 import { useCartStore } from '@/stores/cartStore'
 import { useWishlistStore } from '@/stores/wishlistStore'
@@ -99,6 +100,9 @@ export function Navbar() {
 
           {/* Icon cluster */}
           <div className="flex items-center gap-4">
+            {/* Theme toggle */}
+            <ThemeToggle />
+
             {/* Search */}
             <div className="relative flex items-center">
               {searchOpen && (

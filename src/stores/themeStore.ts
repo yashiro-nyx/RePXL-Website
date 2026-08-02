@@ -2,28 +2,45 @@
 
 import { create } from 'zustand'
 
+type Theme = 'dark' | 'light'
+
 interface ThemeState {
-  isDark: boolean
-  toggle: () => void
+  theme: Theme
+  setTheme: (theme: Theme) => void
+  toggleTheme: () => void
   hydrate: () => void
 }
 
 export const useThemeStore = create<ThemeState>((set, get) => ({
-  isDark: true,
+  theme: 'dark',
 
-  toggle: () => {
-    const newVal = !get().isDark
-    localStorage.setItem('repixl-theme', newVal ? 'dark' : 'light')
-    document.documentElement.classList.toggle('light', !newVal)
-    document.documentElement.classList.toggle('dark', newVal)
-    set({ isDark: newVal })
+  setTheme: (theme) => {
+    document.documentElement.setAttribute('data-theme', theme)
+    localStorage.setItem('repixl-theme', theme)
+    set({ theme })
+  },
+
+  toggleTheme: () => {
+    const next = get().theme === 'dark' ? 'light' : 'dark'
+    get().setTheme(next)
   },
 
   hydrate: () => {
-    const stored = localStorage.getItem('repixl-theme')
-    const isDark = stored !== 'light'
-    document.documentElement.classList.toggle('light', !isDark)
-    document.documentElement.classList.toggle('dark', isDark)
-    set({ isDark })
+    // 1. Check localStorage
+    const stored = localStorage.getItem('repixl-theme') as Theme | null
+    if (stored === 'light' || stored === 'dark') {
+      document.documentElement.setAttribute('data-theme', stored)
+      set({ theme: stored })
+      return
+    }
+    // 2. Check OS preference
+    if (window.matchMedia('(prefers-color-scheme: light)').matches) {
+      document.documentElement.setAttribute('data-theme', 'light')
+      set({ theme: 'light' })
+      return
+    }
+    // 3. Default to dark
+    document.documentElement.setAttribute('data-theme', 'dark')
+    set({ theme: 'dark' })
   },
 }))
