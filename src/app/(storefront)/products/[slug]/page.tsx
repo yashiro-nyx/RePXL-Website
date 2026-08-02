@@ -110,7 +110,7 @@ export default function ProductDetailPage() {
     .slice(0, 4)
 
   return (
-    <div className="min-h-screen bg-repixl-bg pt-24 pb-16">
+    <div className="min-h-screen pt-24 pb-16">
       <Container>
         {/* Breadcrumb */}
         <nav aria-label="Breadcrumb" className="mb-8">

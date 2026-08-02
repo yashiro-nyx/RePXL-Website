@@ -2,12 +2,13 @@
 
 import { useState, useEffect } from 'react'
 import { useOrderHistoryStore } from '@/stores/orderHistoryStore'
+import { useArchivedCustomerStore } from '@/stores/archivedCustomerStore'
 
 const mockCustomers = [
   { id: '1', name: 'Mia Rodriguez', email: 'mia.rodriguez@gmail.com', role: 'User' },
   { id: '2', name: 'Jordan Torres', email: 'jordan.torres@yahoo.com', role: 'User' },
-  { id: '3', name: 'Alyssa Kim', email: 'alyssa.kim@outlook.com', role: 'User' },
-  { id: '4', name: 'Sam Davis', email: 'sam.davis@gmail.com', role: 'User' },
+  { id: '3', name: 'Sam Davis', email: 'sam.davis@gmail.com', role: 'User' },
+  { id: '4', name: 'Alyssa Kim', email: 'alyssa.kim@outlook.com', role: 'User' },
   { id: '5', name: 'Chris Lee', email: 'chris.lee@hotmail.com', role: 'User' },
   { id: '6', name: 'Taylor Morgan', email: 'taylor.morgan@gmail.com', role: 'User' },
   { id: '7', name: 'Riley Nash', email: 'riley.nash@yahoo.com', role: 'User' },
@@ -15,6 +16,14 @@ const mockCustomers = [
   { id: '9', name: 'Morgan Park', email: 'morgan.park@outlook.com', role: 'User' },
   { id: '10', name: 'Avery Chen', email: 'avery.chen@gmail.com', role: 'User' },
 ]
+
+const statusStyles: Record<string, string> = {
+  Processing: 'bg-amber-500/15 text-amber-400 border-amber-500/30',
+  Shipped: 'bg-blue-500/15 text-blue-400 border-blue-500/30',
+  Delivered: 'bg-green-500/15 text-green-400 border-green-500/30',
+  Completed: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30',
+  Cancelled: 'bg-red-500/15 text-red-400 border-red-500/30',
+}
 
 function censorName(name: string) { return name.split(' ').map((p) => p[0] + '*'.repeat(Math.max(p.length - 1, 4))).join(' ') }
 function censorEmail(email: string) {
@@ -26,43 +35,62 @@ function censorEmail(email: string) {
 export default function AdminCustomersPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [ordersModal, setOrdersModal] = useState<string | null>(null)
+  const [confirmArchive, setConfirmArchive] = useState<string | null>(null)
   const orders = useOrderHistoryStore((s) => s.orders)
+  const archiveCustomer = useArchivedCustomerStore((s) => s.archiveCustomer)
+  const archivedCustomers = useArchivedCustomerStore((s) => s.archivedCustomers)
 
-  useEffect(() => { useOrderHistoryStore.getState().hydrate() }, [])
+  useEffect(() => {
+    useOrderHistoryStore.getState().hydrate()
+    useArchivedCustomerStore.getState().hydrate()
+  }, [])
 
-  const filtered = mockCustomers.filter((c) => !searchQuery.trim() || c.name.toLowerCase().includes(searchQuery.toLowerCase()) || c.email.toLowerCase().includes(searchQuery.toLowerCase()))
-  const customerOrders = ordersModal ? orders.filter((o) => o.fullName.toLowerCase().includes(mockCustomers.find((c) => c.id === ordersModal)?.name.split(' ')[0].toLowerCase() || '')) : []
+  // Filter out already-archived customers
+  const archivedIds = archivedCustomers.map((c) => c.id)
+  const activeCustomers = mockCustomers.filter((c) => !archivedIds.includes(c.id))
+
+  const filtered = activeCustomers.filter((c) => !searchQuery.trim() || c.name.toLowerCase().includes(searchQuery.toLowerCase()) || c.email.toLowerCase().includes(searchQuery.toLowerCase()))
+  const customerOrders = ordersModal ? orders.filter((o) => o.fullName.toLowerCase().includes(activeCustomers.find((c) => c.id === ordersModal)?.name.split(' ')[0].toLowerCase() || '')) : []
+
+  const handleArchive = (id: string) => {
+    const customer = activeCustomers.find((c) => c.id === id)
+    if (customer) {
+      archiveCustomer(customer)
+    }
+    setConfirmArchive(null)
+  }
 
   return (
     <div>
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-repixl-text-dark">Account List</h1>
-          <p className="mt-0.5 text-sm text-gray-500">{mockCustomers.length} registered customers</p>
+          <h1 className="text-2xl font-bold text-repixl-text-light">Account List</h1>
+          <p className="mt-0.5 text-sm text-repixl-muted">{activeCustomers.length} registered customers</p>
         </div>
       </div>
 
       <div className="mt-5 relative max-w-sm">
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"><circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" /></svg>
-        <input type="search" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Search customers..." className="w-full rounded-xl border border-gray-200 bg-white py-2 pl-10 pr-4 text-sm text-gray-700 placeholder:text-gray-400 shadow-sm focus:border-repixl-red/30 focus:outline-none" />
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="absolute left-3 top-1/2 -translate-y-1/2 text-repixl-muted"><circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" /></svg>
+        <input type="search" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Search customers..." className="w-full rounded-xl border border-repixl-muted/20 bg-repixl-charcoal py-2 pl-10 pr-4 text-sm text-repixl-text-light/80 placeholder:text-repixl-muted shadow-sm focus:border-repixl-red/30 focus:outline-none" />
       </div>
 
-      <div className="mt-4 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+      <div className="mt-4 overflow-hidden rounded-2xl border border-repixl-muted/20 bg-repixl-charcoal shadow-sm">
         <table className="w-full text-left text-sm">
-          <thead className="border-b border-gray-100 bg-gray-50/70">
-            <tr>{['Name', 'Email', 'Password', 'Role', 'Actions'].map((h) => <th key={h} className="px-5 py-3.5 text-[10px] font-semibold uppercase tracking-wider text-gray-500">{h}</th>)}</tr>
+          <thead className="border-b border-repixl-muted/10 bg-repixl-bg/50">
+            <tr>{['Name', 'Email', 'Password', 'Role', 'Actions'].map((h) => <th key={h} className="px-5 py-3.5 text-[10px] font-semibold uppercase tracking-wider text-repixl-muted">{h}</th>)}</tr>
           </thead>
-          <tbody className="divide-y divide-gray-100">
+          <tbody className="divide-y divide-repixl-muted/10">
+            {filtered.length === 0 && <tr><td colSpan={5} className="px-5 py-12 text-center text-sm text-repixl-muted">No customers found.</td></tr>}
             {filtered.map((c) => (
-              <tr key={c.id} className="transition-colors hover:bg-gray-50/60">
-                <td className="px-5 py-3.5 font-mono text-sm font-medium text-gray-800">{censorName(c.name)}</td>
-                <td className="px-5 py-3.5 font-mono text-sm text-gray-500">{censorEmail(c.email)}</td>
-                <td className="px-5 py-3.5 font-mono tracking-widest text-gray-400">••••••••</td>
-                <td className="px-5 py-3.5"><span className="rounded-full bg-gray-100 px-2.5 py-1 text-[11px] font-medium text-gray-600">{c.role}</span></td>
+              <tr key={c.id} className="transition-colors hover:bg-repixl-bg/60">
+                <td className="px-5 py-3.5 font-mono text-sm font-medium text-repixl-text-light">{censorName(c.name)}</td>
+                <td className="px-5 py-3.5 font-mono text-sm text-repixl-muted">{censorEmail(c.email)}</td>
+                <td className="px-5 py-3.5 font-mono tracking-widest text-repixl-muted">••••••••</td>
+                <td className="px-5 py-3.5"><span className="rounded-full bg-repixl-muted/15 px-2.5 py-1 text-[11px] font-medium text-repixl-text-light">{c.role}</span></td>
                 <td className="px-5 py-3.5">
                   <div className="flex items-center gap-2">
                     <button onClick={() => setOrdersModal(c.id)} className="rounded-lg bg-repixl-red/5 px-2.5 py-1 text-xs font-medium text-repixl-red hover:bg-repixl-red/10">Orders</button>
-                    <button className="flex h-7 w-7 items-center justify-center rounded-lg bg-amber-50 text-amber-500 hover:bg-amber-100">
+                    <button onClick={() => setConfirmArchive(c.id)} className="flex h-7 w-7 items-center justify-center rounded-lg bg-amber-500/10 text-amber-500 hover:bg-amber-500/20">
                       <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect width="20" height="5" x="2" y="3" rx="1" /><path d="M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8" /><path d="M10 12h4" /></svg>
                     </button>
                   </div>
@@ -72,21 +100,38 @@ export default function AdminCustomersPage() {
           </tbody>
         </table>
       </div>
-      <p className="mt-3 text-xs text-gray-400">Showing {filtered.length} of {mockCustomers.length} users</p>
+      <p className="mt-3 text-xs text-repixl-muted">Showing {filtered.length} of {activeCustomers.length} users</p>
+
+      {/* Archive confirmation */}
+      {confirmArchive && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="w-80 rounded-2xl border border-repixl-muted/20 bg-repixl-charcoal p-6 shadow-2xl">
+            <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-amber-500/10">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-amber-500"><rect width="20" height="5" x="2" y="3" rx="1" /><path d="M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8" /><path d="M10 12h4" /></svg>
+            </div>
+            <p className="text-center font-semibold text-repixl-text-light">Archive this user?</p>
+            <p className="mt-1 text-center text-xs text-repixl-muted">They will be moved to Archived Users and can be restored later.</p>
+            <div className="mt-4 flex gap-3">
+              <button onClick={() => handleArchive(confirmArchive)} className="flex-1 rounded-xl bg-amber-500 px-4 py-2 text-sm font-medium text-white hover:bg-amber-600">Archive</button>
+              <button onClick={() => setConfirmArchive(null)} className="flex-1 rounded-xl border border-repixl-muted/20 px-4 py-2 text-sm text-repixl-muted hover:text-repixl-text-light">Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {ordersModal && (
         <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/40 p-4 pt-16 backdrop-blur-sm">
-          <div className="w-full max-w-lg rounded-2xl border border-gray-200 bg-white shadow-2xl">
-            <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4">
-              <h2 className="font-bold text-repixl-text-dark">Orders for {censorName(mockCustomers.find((c) => c.id === ordersModal)?.name || '')}</h2>
-              <button onClick={() => setOrdersModal(null)} className="text-gray-400 hover:text-gray-600"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg></button>
+          <div className="w-full max-w-lg rounded-2xl border border-repixl-muted/20 bg-repixl-charcoal shadow-2xl">
+            <div className="flex items-center justify-between border-b border-repixl-muted/10 px-6 py-4">
+              <h2 className="font-bold text-repixl-text-light">Orders for {censorName(activeCustomers.find((c) => c.id === ordersModal)?.name || '')}</h2>
+              <button onClick={() => setOrdersModal(null)} className="text-repixl-muted hover:text-repixl-text-light/70"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg></button>
             </div>
             <div className="p-6">
-              {customerOrders.length === 0 ? <p className="py-8 text-center text-sm text-gray-400">No orders found.</p> : (
+              {customerOrders.length === 0 ? <p className="py-8 text-center text-sm text-repixl-muted">No orders found.</p> : (
                 <table className="w-full text-sm">
-                  <thead className="border-b border-gray-100"><tr>{['ID', 'Total', 'Status', 'Date'].map((h) => <th key={h} className="pb-2 text-left text-[10px] font-semibold uppercase tracking-wider text-gray-400">{h}</th>)}</tr></thead>
-                  <tbody className="divide-y divide-gray-100">
-                    {customerOrders.map((o) => <tr key={o.orderNumber} className="hover:bg-gray-50"><td className="py-2 font-mono text-xs font-semibold text-repixl-red">#{o.orderNumber.replace('RPX-', '')}</td><td className="py-2 font-mono text-sm text-gray-800">${o.total}</td><td className="py-2"><span className="rounded-full bg-green-50 px-2 py-0.5 text-[10px] font-medium text-green-600">{o.status}</span></td><td className="py-2 text-xs text-gray-400">{o.date}</td></tr>)}
+                  <thead className="border-b border-repixl-muted/10"><tr>{['ID', 'Total', 'Status', 'Date'].map((h) => <th key={h} className="pb-2 text-left text-[10px] font-semibold uppercase tracking-wider text-repixl-muted">{h}</th>)}</tr></thead>
+                  <tbody className="divide-y divide-repixl-muted/10">
+                    {customerOrders.map((o) => <tr key={o.orderNumber} className="hover:bg-repixl-bg"><td className="py-2 font-mono text-xs font-semibold text-repixl-red">#{o.orderNumber.replace('RPX-', '')}</td><td className="py-2 font-mono text-sm text-repixl-text-light">${o.total.toFixed(2)}</td><td className="py-2"><span className={`rounded-full border px-2 py-0.5 text-[10px] font-medium ${statusStyles[o.status] || 'text-repixl-muted'}`}>{o.status}</span></td><td className="py-2 text-xs text-repixl-muted">{o.date}</td></tr>)}
                   </tbody>
                 </table>
               )}

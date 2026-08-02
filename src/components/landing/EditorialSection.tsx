@@ -26,7 +26,7 @@ export function EditorialSection() {
   return (
     <section
       ref={sectionRef}
-      className="relative overflow-hidden bg-repixl-bg py-32 md:py-48"
+      className="relative overflow-hidden py-32 md:py-48"
     >
       <Container className="relative">
         <div className="grid grid-cols-1 items-center gap-12 md:grid-cols-12 md:gap-8">

@@ -25,7 +25,7 @@ const companyLinks = [
 
 export function Footer() {
   return (
-    <footer className="border-t border-repixl-muted/10 bg-repixl-bg pt-16 pb-8">
+    <footer className="border-t border-repixl-muted/10 pt-16 pb-8">
       <Container>
         {/* Main grid */}
         <div className="grid grid-cols-1 gap-10 sm:grid-cols-2 lg:grid-cols-5">

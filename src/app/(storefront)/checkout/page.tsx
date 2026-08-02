@@ -276,7 +276,7 @@ export default function CheckoutPage() {
   // ─── Confirmation state ───
   if (confirmation) {
     return (
-      <div className="min-h-screen bg-repixl-bg pb-16 pt-24">
+      <div className="burn-subtle min-h-screen pb-16 pt-24">
         <Container>
           <div className="mx-auto max-w-lg text-center">
             <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-repixl-success/10">
@@ -365,7 +365,7 @@ export default function CheckoutPage() {
   if (!hydrated || !isLoggedIn) return null
 
   return (
-    <div className="min-h-screen bg-repixl-bg pb-16 pt-24">
+    <div className="burn-subtle min-h-screen pb-16 pt-24">
       <Container>
         <h1 className="font-display text-display-md text-repixl-text-light md:text-display-lg">Checkout</h1>
         <p className="mt-1 text-sm text-repixl-muted">Complete your order below.</p>

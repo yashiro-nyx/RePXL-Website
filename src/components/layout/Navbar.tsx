@@ -7,7 +7,6 @@ import { CornerBracket, LoginRequiredModal } from '@/components/ui'
 import { useAuthStore } from '@/stores/authStore'
 import { useCartStore } from '@/stores/cartStore'
 import { useWishlistStore } from '@/stores/wishlistStore'
-import { ThemeToggle } from '@/components/ThemeToggle'
 
 export function Navbar() {
   const [searchOpen, setSearchOpen] = useState(false)
@@ -81,10 +80,12 @@ export function Navbar() {
         <nav className="mx-auto flex max-w-container items-center justify-between px-6 py-4 md:px-10 lg:px-16">
           {/* Logo */}
           <Link href="/" className="relative">
-            <CornerBracket size={8} className="px-2 py-1">
+            <CornerBracket size={8} className="relative px-2 py-1">
               <span className="font-display text-lg font-semibold tracking-tight text-repixl-text-light">
                 RePIXL
               </span>
+              {/* Glowing REC dot — inside the bracket, upper-right */}
+              <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-repixl-red" style={{ animation: 'glow 2s ease-in-out infinite' }} />
             </CornerBracket>
           </Link>
 
@@ -98,8 +99,6 @@ export function Navbar() {
 
           {/* Icon cluster */}
           <div className="flex items-center gap-4">
-            {/* Theme toggle */}
-            <ThemeToggle className="text-repixl-text-light/80 hover:text-repixl-text-light" />
             {/* Search */}
             <div className="relative flex items-center">
               {searchOpen && (

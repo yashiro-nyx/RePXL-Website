@@ -86,7 +86,7 @@ export function TrustStrip() {
   const reducedMotion = useReducedMotion()
 
   return (
-    <section className="relative z-10 border-y border-repixl-muted/10 bg-repixl-bg py-6">
+    <section className="relative z-10 border-y border-repixl-muted/10 py-6">
       <Container>
         <motion.div
           initial={reducedMotion ? { opacity: 1 } : { opacity: 0 }}

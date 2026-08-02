@@ -22,20 +22,15 @@ export default function AboutPage() {
   }
 
   return (
-    <div className="bg-repixl-bg">
-      {/* Hero-lite — gradient background */}
-      <section
-        className="relative overflow-hidden pb-20 pt-32 md:pb-28 md:pt-40"
-        style={{
-          background: 'linear-gradient(175deg, #EBD3CE 0%, #6b4a4a 30%, #16131a 65%, #121012 100%)',
-        }}
-      >
+    <div>
+      {/* Hero-lite */}
+      <section className="relative overflow-hidden pb-20 pt-32 md:pb-28 md:pt-40">
         <Container>
           <motion.div {...fadeUp} className="mx-auto max-w-2xl text-center">
-            <span className="font-mono text-xs uppercase tracking-widest text-repixl-muted">
+            <span className="mb-5 block font-mono text-xs uppercase tracking-widest text-repixl-muted">
               — About RePIXL
             </span>
-            <CornerBracket size={14} color="rgba(245, 241, 236, 0.25)" className="mx-auto mt-5 inline-block px-6 py-4">
+            <CornerBracket size={14} color="rgba(245, 241, 236, 0.25)" className="inline-block px-6 py-4">
               <h1 className="font-display text-display-lg text-repixl-text-light md:text-display-xl">
                 By collectors,
                 <br />
@@ -48,8 +43,6 @@ export default function AboutPage() {
             </p>
           </motion.div>
         </Container>
-        {/* Bottom fade */}
-        <div className="absolute bottom-0 left-0 right-0 h-24" style={{ background: 'linear-gradient(to bottom, transparent, #121012)' }} />
       </section>
 
       {/* Our Story — editorial split layout */}

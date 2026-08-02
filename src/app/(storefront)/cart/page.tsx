@@ -66,7 +66,7 @@ export default function CartPage() {
 
   if (resolvedItems.length === 0) {
     return (
-      <div className="min-h-screen bg-repixl-bg pb-16 pt-24">
+      <div className="burn-subtle min-h-screen pb-16 pt-24">
         <Container>
           <div className="flex flex-col items-center justify-center py-24 text-center">
             <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" className="text-repixl-muted/40"><circle cx="8" cy="21" r="1" /><circle cx="19" cy="21" r="1" /><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12" /></svg>
@@ -80,7 +80,7 @@ export default function CartPage() {
   }
 
   return (
-    <div className="min-h-screen bg-repixl-bg pb-16 pt-24">
+    <div className="burn-subtle min-h-screen pb-16 pt-24">
       <Container>
         <h1 className="font-display text-display-md text-repixl-text-light md:text-display-lg">Your Cart</h1>
         <p className="mt-1 text-sm text-repixl-muted">{totalQty} {totalQty === 1 ? 'item' : 'items'}</p>

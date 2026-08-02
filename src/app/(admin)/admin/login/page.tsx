@@ -68,31 +68,31 @@ export default function AdminLoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-slate-900 px-4">
+    <div className="burn-minimal flex min-h-screen items-center justify-center px-4">
       <div className="w-full max-w-sm">
         <div className="mb-8 text-center">
-          <p className="font-mono text-sm font-bold text-slate-200">
-            RePIXL <span className="text-blue-400">Admin</span>
+          <p className="font-mono text-sm font-bold text-repixl-text-light">
+            RePIXL <span className="text-repixl-red">Admin</span>
           </p>
         </div>
 
-        <div className="rounded-lg border border-slate-700/50 bg-slate-800/50 p-6 md:p-8">
-          <h1 className="text-center font-mono text-lg font-semibold text-slate-100">
+        <div className="rounded-lg border border-repixl-muted/20 bg-repixl-charcoal p-6 md:p-8">
+          <h1 className="text-center font-mono text-lg font-semibold text-repixl-text-light">
             Admin Sign In
           </h1>
-          <p className="mt-1 text-center text-xs text-slate-500">
+          <p className="mt-1 text-center text-xs text-repixl-muted">
             Access the store management dashboard.
           </p>
 
           {errors.auth && (
-            <div className="mt-4 rounded border border-red-500/30 bg-red-500/10 px-3 py-2">
-              <p className="text-xs text-red-400" role="alert">{errors.auth}</p>
+            <div className="mt-4 rounded border border-red-500/30 bg-repixl-red/10 px-3 py-2">
+              <p className="text-xs text-repixl-red" role="alert">{errors.auth}</p>
             </div>
           )}
 
           <form onSubmit={handleSubmit} noValidate className="mt-6 space-y-4">
             <div>
-              <label htmlFor="admin-email" className="mb-1 block text-xs text-slate-400">
+              <label htmlFor="admin-email" className="mb-1 block text-xs text-repixl-muted">
                 Admin Email
               </label>
               <input
@@ -102,17 +102,17 @@ export default function AdminLoginPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="you@repixl-admin.com"
-                className={`w-full rounded border px-3 py-2.5 text-sm text-slate-100 placeholder:text-slate-600 focus:outline-none ${
+                className={`w-full rounded border px-3 py-2.5 text-sm text-repixl-text-light placeholder:text-repixl-muted focus:outline-none ${
                   errors.email || errors.auth
-                    ? 'border-red-500/50 bg-red-500/5 focus:border-red-500'
-                    : 'border-slate-700 bg-slate-900 focus:border-blue-500'
+                    ? 'border-repixl-red/30 bg-repixl-red/10 focus:border-red-500'
+                    : 'border-repixl-muted/20 bg-repixl-bg focus:border-repixl-red/50'
                 }`}
               />
-              {errors.email && <p className="mt-1 text-xs text-red-400" role="alert">{errors.email}</p>}
+              {errors.email && <p className="mt-1 text-xs text-repixl-red" role="alert">{errors.email}</p>}
             </div>
 
             <div>
-              <label htmlFor="admin-password" className="mb-1 block text-xs text-slate-400">
+              <label htmlFor="admin-password" className="mb-1 block text-xs text-repixl-muted">
                 Password
               </label>
               <input
@@ -121,18 +121,18 @@ export default function AdminLoginPage() {
                 autoComplete="current-password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className={`w-full rounded border px-3 py-2.5 text-sm text-slate-100 placeholder:text-slate-600 focus:outline-none ${
+                className={`w-full rounded border px-3 py-2.5 text-sm text-repixl-text-light placeholder:text-repixl-muted focus:outline-none ${
                   errors.password || errors.auth
-                    ? 'border-red-500/50 bg-red-500/5 focus:border-red-500'
-                    : 'border-slate-700 bg-slate-900 focus:border-blue-500'
+                    ? 'border-repixl-red/30 bg-repixl-red/10 focus:border-red-500'
+                    : 'border-repixl-muted/20 bg-repixl-bg focus:border-repixl-red/50'
                 }`}
               />
-              {errors.password && <p className="mt-1 text-xs text-red-400" role="alert">{errors.password}</p>}
+              {errors.password && <p className="mt-1 text-xs text-repixl-red" role="alert">{errors.password}</p>}
             </div>
 
             <button
               type="submit"
-              className="mt-2 w-full rounded bg-blue-600 py-2.5 text-sm font-medium text-white transition-colors hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50"
+              className="mt-2 w-full rounded bg-repixl-red py-2.5 text-sm font-medium text-white transition-colors hover:bg-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-repixl-red/30"
             >
               Sign In to Dashboard
             </button>

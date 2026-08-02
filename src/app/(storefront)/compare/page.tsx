@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo, useEffect, useRef } from 'react'
+import { Suspense, useState, useMemo, useEffect, useRef } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { Container } from '@/components/layout/Container'
@@ -11,7 +11,7 @@ import type { Product } from '@/types'
 
 const MAX_COMPARE = 3
 
-export default function ComparePage() {
+function CompareContent() {
   const searchParams = useSearchParams()
   const paramSlugs = (searchParams.get('items') ?? '').split(',').filter(Boolean)
 
@@ -19,7 +19,6 @@ export default function ComparePage() {
   const storeAdd = useCompareStore((s) => s.addToCompare)
   const storeRemove = useCompareStore((s) => s.removeFromCompare)
 
-  // On mount, hydrate store and seed from URL params if store is empty
   useEffect(() => {
     useCompareStore.getState().hydrate()
     useProductStore.getState().hydrate()
@@ -38,20 +37,14 @@ export default function ComparePage() {
   const [pickerOpen, setPickerOpen] = useState(false)
   const pickerRef = useRef<HTMLDivElement>(null)
 
-  // Focus trap and Escape for picker
   useEffect(() => {
     if (!pickerOpen) return
     const el = pickerRef.current
     if (!el) return
-
     const searchInput = el.querySelector('input')
     searchInput?.focus()
-
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        setPickerOpen(false)
-        setSearchQuery('')
-      }
+      if (e.key === 'Escape') { setPickerOpen(false); setSearchQuery('') }
     }
     document.addEventListener('keydown', handleKeyDown)
     return () => document.removeEventListener('keydown', handleKeyDown)
@@ -85,11 +78,8 @@ export default function ComparePage() {
     setPickerOpen(false)
   }
 
-  const removeCamera = (slug: string) => {
-    storeRemove(slug)
-  }
+  const removeCamera = (slug: string) => { storeRemove(slug) }
 
-  // Spec rows for the table
   const specRows: { label: string; getValue: (p: Product) => string }[] = [
     { label: 'Price', getValue: (p) => `$${p.price}` },
     { label: 'Condition', getValue: (p) => p.condition.charAt(0).toUpperCase() + p.condition.slice(1) },
@@ -102,7 +92,7 @@ export default function ComparePage() {
   ]
 
   return (
-    <div className="min-h-screen bg-repixl-bg pb-16 pt-24">
+    <div className="min-h-screen pb-16 pt-24">
       <Container>
         <h1 className="font-display text-display-md text-repixl-text-light md:text-display-lg">
           Compare Cameras
@@ -111,40 +101,21 @@ export default function ComparePage() {
           Select up to {MAX_COMPARE} cameras to compare side by side.
         </p>
 
-        {/* Empty state */}
         {selectedProducts.length === 0 && !pickerOpen && (
           <div className="mt-16 flex flex-col items-center text-center">
-            <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" className="text-repixl-muted/40">
-              <rect width="18" height="18" x="3" y="3" rx="2" />
-              <path d="M12 3v18" />
-            </svg>
-            <p className="mt-4 font-display text-display-sm text-repixl-text-light/60">
-              No cameras selected
-            </p>
-            <p className="mt-1 text-sm text-repixl-muted">
-              Add cameras below to start comparing specs.
-            </p>
-            <Button
-              variant="primary"
-              size="md"
-              className="mt-6"
-              onClick={() => setPickerOpen(true)}
-            >
-              Add a Camera
-            </Button>
+            <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" className="text-repixl-muted/40"><rect width="18" height="18" x="3" y="3" rx="2" /><path d="M12 3v18" /></svg>
+            <p className="mt-4 font-display text-display-sm text-repixl-text-light/60">No cameras selected</p>
+            <p className="mt-1 text-sm text-repixl-muted">Add cameras below to start comparing specs.</p>
+            <Button variant="primary" size="md" className="mt-6" onClick={() => setPickerOpen(true)}>Add a Camera</Button>
           </div>
         )}
 
-        {/* Comparison table */}
         {selectedProducts.length > 0 && (
           <div className="mt-8 overflow-x-auto">
             <table className="w-full min-w-[600px] border-collapse">
-              {/* Header: product thumbnails + names */}
               <thead>
                 <tr>
-                  <th className="w-36 border-b border-repixl-muted/10 p-3 text-left font-mono text-[10px] uppercase tracking-widest text-repixl-muted">
-                    Camera
-                  </th>
+                  <th className="w-36 border-b border-repixl-muted/10 p-3 text-left font-mono text-[10px] uppercase tracking-widest text-repixl-muted">Camera</th>
                   {selectedProducts.map((product) => (
                     <th key={product.slug} className="border-b border-repixl-muted/10 p-3 text-center">
                       <div className="flex flex-col items-center gap-2">
@@ -152,55 +123,33 @@ export default function ComparePage() {
                           {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img src={product.image} alt={product.name} className="h-full w-full object-contain" />
                         </Link>
-                        <Link href={`/products/${product.slug}`} className="text-xs font-medium text-repixl-text-light hover:underline">
-                          {product.name}
-                        </Link>
+                        <Link href={`/products/${product.slug}`} className="text-xs font-medium text-repixl-text-light hover:underline">{product.name}</Link>
                         <ConditionBadge condition={product.condition} />
-                        <button
-                          type="button"
-                          onClick={() => removeCamera(product.slug)}
-                          aria-label={`Remove ${product.name} from comparison`}
-                          className="mt-2 inline-flex items-center gap-1 rounded border border-repixl-muted/20 px-2 py-1 text-xs text-repixl-text-light/70 transition-colors hover:border-repixl-red/50 hover:text-repixl-red"
-                        >
-                          <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg>
+                        <button type="button" onClick={() => removeCamera(product.slug)} aria-label={`Remove ${product.name}`} className="mt-2 inline-flex items-center gap-1 rounded border border-repixl-muted/20 px-2 py-1 text-xs text-repixl-text-light/70 transition-colors hover:border-repixl-red/50 hover:text-repixl-red">
+                          <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg>
                           Remove
                         </button>
                       </div>
                     </th>
                   ))}
-                  {/* Add column if under max */}
                   {selectedProducts.length < MAX_COMPARE && (
                     <th className="border-b border-repixl-muted/10 p-3 text-center align-middle">
-                      <button
-                        type="button"
-                        onClick={() => setPickerOpen(true)}
-                        className="mx-auto flex h-20 w-20 flex-col items-center justify-center rounded border border-dashed border-repixl-muted/30 text-repixl-muted transition-colors hover:border-repixl-muted/60 hover:text-repixl-text-light"
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M5 12h14" /><path d="M12 5v14" />
-                        </svg>
+                      <button type="button" onClick={() => setPickerOpen(true)} className="mx-auto flex h-20 w-20 flex-col items-center justify-center rounded border border-dashed border-repixl-muted/30 text-repixl-muted transition-colors hover:border-repixl-muted/60 hover:text-repixl-text-light">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M5 12h14" /><path d="M12 5v14" /></svg>
                         <span className="mt-1 text-[9px]">Add</span>
                       </button>
                     </th>
                   )}
                 </tr>
               </thead>
-
-              {/* Spec rows */}
               <tbody>
                 {specRows.map((row) => (
                   <tr key={row.label}>
-                    <td className="border-b border-repixl-muted/5 p-3 font-mono text-[10px] uppercase tracking-wider text-repixl-muted">
-                      {row.label}
-                    </td>
+                    <td className="border-b border-repixl-muted/5 p-3 font-mono text-[10px] uppercase tracking-wider text-repixl-muted">{row.label}</td>
                     {selectedProducts.map((product) => (
-                      <td key={product.slug} className="border-b border-repixl-muted/5 p-3 text-center font-mono text-sm text-repixl-text-light">
-                        {row.getValue(product)}
-                      </td>
+                      <td key={product.slug} className="border-b border-repixl-muted/5 p-3 text-center font-mono text-sm text-repixl-text-light">{row.getValue(product)}</td>
                     ))}
-                    {selectedProducts.length < MAX_COMPARE && (
-                      <td className="border-b border-repixl-muted/5 p-3" />
-                    )}
+                    {selectedProducts.length < MAX_COMPARE && <td className="border-b border-repixl-muted/5 p-3" />}
                   </tr>
                 ))}
               </tbody>
@@ -208,45 +157,21 @@ export default function ComparePage() {
           </div>
         )}
 
-        {/* Camera picker */}
         {pickerOpen && (
           <div ref={pickerRef} role="dialog" aria-label="Add a camera to compare" className="mt-8 rounded-lg border border-repixl-muted/10 bg-repixl-charcoal p-5">
             <div className="flex items-center justify-between">
-              <h2 className="font-mono text-[10px] uppercase tracking-widest text-repixl-muted">
-                Add a camera to compare
-              </h2>
-              <button
-                type="button"
-                onClick={() => { setPickerOpen(false); setSearchQuery('') }}
-                className="text-xs text-repixl-muted hover:text-repixl-text-light"
-              >
-                Cancel
-              </button>
+              <h2 className="font-mono text-[10px] uppercase tracking-widest text-repixl-muted">Add a camera to compare</h2>
+              <button type="button" onClick={() => { setPickerOpen(false); setSearchQuery('') }} className="text-xs text-repixl-muted hover:text-repixl-text-light">Cancel</button>
             </div>
-
             <div className="mt-3">
               <label htmlFor="compare-search" className="sr-only">Search cameras</label>
-              <input
-                id="compare-search"
-                type="search"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search by name or brand..."
-                className="w-full rounded border border-repixl-muted/20 bg-repixl-bg px-3 py-2 text-sm text-repixl-text-light placeholder:text-repixl-muted/50 focus:border-repixl-muted/50 focus:outline-none"
-              />
+              <input id="compare-search" type="search" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Search by name or brand..." className="w-full rounded border border-repixl-muted/20 bg-repixl-bg px-3 py-2 text-sm text-repixl-text-light placeholder:text-repixl-muted/50 focus:border-repixl-muted/50 focus:outline-none" />
             </div>
-
             <ul className="mt-3 max-h-64 space-y-1 overflow-y-auto">
-              {availableProducts.length === 0 && (
-                <li className="py-4 text-center text-sm text-repixl-muted">No cameras match your search.</li>
-              )}
+              {availableProducts.length === 0 && <li className="py-4 text-center text-sm text-repixl-muted">No cameras match your search.</li>}
               {availableProducts.map((product) => (
                 <li key={product.slug}>
-                  <button
-                    type="button"
-                    onClick={() => addCamera(product.slug)}
-                    className="flex w-full items-center gap-3 rounded px-3 py-2 text-left transition-colors hover:bg-repixl-bg"
-                  >
+                  <button type="button" onClick={() => addCamera(product.slug)} className="flex w-full items-center gap-3 rounded px-3 py-2 text-left transition-colors hover:bg-repixl-bg">
                     <div className="h-10 w-10 flex-shrink-0 overflow-hidden rounded bg-repixl-bg">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img src={product.image} alt={product.name} className="h-full w-full object-contain" />
@@ -263,15 +188,20 @@ export default function ComparePage() {
           </div>
         )}
 
-        {/* Quick-add if table is showing but picker is closed */}
         {selectedProducts.length > 0 && selectedProducts.length < MAX_COMPARE && !pickerOpen && (
           <div className="mt-6">
-            <Button variant="secondary" size="sm" onClick={() => setPickerOpen(true)}>
-              + Add another camera
-            </Button>
+            <Button variant="secondary" size="sm" onClick={() => setPickerOpen(true)}>+ Add another camera</Button>
           </div>
         )}
       </Container>
     </div>
+  )
+}
+
+export default function ComparePage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen pb-16 pt-24"><Container><p className="text-sm text-repixl-muted">Loading...</p></Container></div>}>
+      <CompareContent />
+    </Suspense>
   )
 }

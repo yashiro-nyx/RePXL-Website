@@ -38,15 +38,6 @@ export function Hero() {
 
   return (
     <section className="relative flex min-h-screen items-center justify-center overflow-hidden">
-      {/* Gradient background: dusty rose → charcoal */}
-      <div
-        className="absolute inset-0 -z-20"
-        style={{
-          background:
-            'linear-gradient(175deg, #EBD3CE 0%, #6b4a4a 35%, #16131a 70%, #121012 100%)',
-        }}
-      />
-
       {/* Oversized semi-transparent background type */}
       <div
         className="pointer-events-none absolute inset-0 -z-10 flex select-none items-center justify-center"
@@ -133,34 +124,34 @@ export function Hero() {
 
         {/* Right column: hero camera + polaroid accent */}
         <div className="relative mt-16 flex items-center justify-center md:mt-0 md:w-1/2">
-          {/* Main camera product shot — tilted, explicit sizing container */}
+          {/* Main camera product shot — tilted, with warm rim-light */}
           <motion.div
             variants={fadeIn}
             className="relative z-10 h-[320px] w-[320px] md:h-[420px] md:w-[420px] lg:h-[480px] lg:w-[480px]"
-            style={{ transform: 'rotate(-4deg)' }}
+            style={{ transform: 'rotate(-4deg)', filter: 'drop-shadow(0 0 40px rgba(255, 60, 60, 0.15)) drop-shadow(0 20px 40px rgba(0,0,0,0.5))' }}
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src="/images/hero-camera.svg"
               alt="Vintage digital camera — featured product"
-              className="h-full w-full drop-shadow-2xl"
+              className="h-full w-full"
             />
           </motion.div>
 
-          {/* Polaroid-style sample photo accent — floats offset */}
+          {/* Polaroid-style sample photo accent — anchored inside the container */}
           <motion.div
             variants={fadeSlideUp}
-            className="absolute -bottom-6 -right-2 z-20 md:-right-8 md:bottom-4"
-            style={{ transform: 'rotate(6deg)' }}
+            className="absolute bottom-8 right-4 z-20 md:bottom-12 md:right-8"
+            style={{ transform: 'rotate(5deg)' }}
           >
-            <div className="overflow-hidden rounded-sm bg-white p-2 shadow-xl">
+            <div className="rounded bg-white p-2.5 shadow-[0_8px_30px_rgba(0,0,0,0.5),0_2px_8px_rgba(0,0,0,0.3)]">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src="/images/hero-sample-photo.svg"
                 alt="Sample photo taken with a vintage digicam"
-                className="h-28 w-28 object-cover md:h-36 md:w-36"
+                className="h-24 w-24 object-cover md:h-32 md:w-32"
               />
-              <p className="mt-1 text-center font-mono text-[9px] text-repixl-text-dark/50">
+              <p className="mt-1.5 text-center font-mono text-[9px] text-repixl-text-dark/60">
                 Shot on CyberShot · ISO 100
               </p>
             </div>
@@ -179,13 +170,6 @@ export function Hero() {
         </div>
       </motion.div>
 
-      {/* Bottom fade into next section */}
-      <div
-        className="absolute bottom-0 left-0 right-0 h-32"
-        style={{
-          background: 'linear-gradient(to bottom, transparent, #121012)',
-        }}
-      />
     </section>
   )
 }

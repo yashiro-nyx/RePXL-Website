@@ -89,12 +89,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   logout: () => {
-    const email = get().userEmail
-    // Clear per-user session data
+    // Only clear the session — do NOT clear per-user data (cart/wishlist/compare)
+    // so it persists when the user logs back in
     localStorage.removeItem('repixl-session')
-    localStorage.removeItem(`repixl-cart-${email}`)
-    localStorage.removeItem(`repixl-wishlist-${email}`)
-    localStorage.removeItem(`repixl-compare-${email}`)
     set({ isLoggedIn: false, firstName: '', lastName: '', userEmail: '', userPhone: '', role: 'customer', isSuperAdmin: false })
   },
 

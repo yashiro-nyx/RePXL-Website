@@ -14,11 +14,11 @@ const mockLogs = [
 ]
 
 const actionStyles: Record<string, string> = {
-  Create: 'bg-green-50 text-green-700 border-green-200',
-  Update: 'bg-blue-50 text-blue-700 border-blue-200',
-  Delete: 'bg-red-50 text-red-600 border-red-200',
-  Login: 'bg-amber-50 text-amber-700 border-amber-200',
-  Logout: 'bg-gray-100 text-gray-600 border-gray-200',
+  Create: 'bg-green-500/15 text-green-400 border-green-500/30',
+  Update: 'bg-blue-500/15 text-blue-400 border-blue-500/30',
+  Delete: 'bg-red-500/15 text-red-400 border-red-500/30',
+  Login: 'bg-amber-500/15 text-amber-400 border-amber-500/30',
+  Logout: 'bg-repixl-muted/15 text-repixl-text-light/70 border-repixl-muted/20',
 }
 
 export default function AdminLogsPage() {
@@ -35,64 +35,64 @@ export default function AdminLogsPage() {
 
   return (
     <div>
-      <div><h1 className="text-2xl font-bold text-repixl-text-dark">Activity Logs</h1><p className="mt-0.5 text-sm text-gray-500">Audit trail of all admin actions.</p></div>
+      <div><h1 className="text-2xl font-bold text-repixl-text-light">Activity Logs</h1><p className="mt-0.5 text-sm text-repixl-muted">Audit trail of all admin actions.</p></div>
 
       <div className="mt-5 flex gap-3">
-        <select value={entityFilter} onChange={(e) => setEntityFilter(e.target.value)} className="rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm text-gray-700 shadow-sm focus:outline-none">
+        <select value={entityFilter} onChange={(e) => setEntityFilter(e.target.value)} className="rounded-xl border border-repixl-muted/20 bg-repixl-charcoal px-4 py-2 text-sm text-repixl-text-light/80 shadow-sm focus:outline-none">
           <option value="">All Entities</option>
           {['Camera', 'Order', 'Voucher', 'Admin'].map((e) => <option key={e} value={e}>{e}</option>)}
         </select>
-        <select value={actionFilter} onChange={(e) => setActionFilter(e.target.value)} className="rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm text-gray-700 shadow-sm focus:outline-none">
+        <select value={actionFilter} onChange={(e) => setActionFilter(e.target.value)} className="rounded-xl border border-repixl-muted/20 bg-repixl-charcoal px-4 py-2 text-sm text-repixl-text-light/80 shadow-sm focus:outline-none">
           <option value="">All Actions</option>
           {['Create', 'Update', 'Delete', 'Login', 'Logout'].map((a) => <option key={a} value={a}>{a}</option>)}
         </select>
       </div>
 
-      <div className="mt-4 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+      <div className="mt-4 overflow-hidden rounded-2xl border border-repixl-muted/20 bg-repixl-charcoal shadow-sm">
         <table className="w-full text-left text-sm">
-          <thead className="border-b border-gray-100 bg-gray-50/70">
-            <tr>{['Date & Time', 'Action', 'Entity', 'Name', 'Admin', 'Description', 'Details'].map((h) => <th key={h} className="px-5 py-3.5 text-[10px] font-semibold uppercase tracking-wider text-gray-500">{h}</th>)}</tr>
+          <thead className="border-b border-repixl-muted/10 bg-repixl-bg/50">
+            <tr>{['Date & Time', 'Action', 'Entity', 'Name', 'Admin', 'Description', 'Details'].map((h) => <th key={h} className="px-5 py-3.5 text-[10px] font-semibold uppercase tracking-wider text-repixl-muted">{h}</th>)}</tr>
           </thead>
-          <tbody className="divide-y divide-gray-100">
-            {filtered.length === 0 && <tr><td colSpan={7} className="px-5 py-12 text-center text-sm text-gray-400">No logs match.</td></tr>}
+          <tbody className="divide-y divide-repixl-muted/10">
+            {filtered.length === 0 && <tr><td colSpan={7} className="px-5 py-12 text-center text-sm text-repixl-muted">No logs match.</td></tr>}
             {filtered.map((log) => (
-              <tr key={log.id} className="transition-colors hover:bg-gray-50/60">
-                <td className="px-5 py-3.5 text-xs text-gray-400">{log.date}</td>
+              <tr key={log.id} className="transition-colors hover:bg-repixl-bg/60">
+                <td className="px-5 py-3.5 text-xs text-repixl-muted">{log.date}</td>
                 <td className="px-5 py-3.5"><span className={`rounded-full border px-2.5 py-1 text-[10px] font-semibold ${actionStyles[log.action] || ''}`}>{log.action}</span></td>
-                <td className="px-5 py-3.5 text-xs text-gray-600">{log.entity}</td>
-                <td className="px-5 py-3.5 text-sm font-medium text-gray-800">{log.entityName}</td>
-                <td className="px-5 py-3.5 text-xs text-gray-500">{log.admin}</td>
-                <td className="px-5 py-3.5 text-xs text-gray-500">{log.description}</td>
-                <td className="px-5 py-3.5"><button onClick={() => setDetailsId(log.id)} className="flex h-7 w-7 items-center justify-center rounded-lg bg-gray-100 text-gray-500 hover:bg-repixl-red/5 hover:text-repixl-red"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" /><circle cx="12" cy="12" r="3" /></svg></button></td>
+                <td className="px-5 py-3.5 text-xs text-repixl-text-light/70">{log.entity}</td>
+                <td className="px-5 py-3.5 text-sm font-medium text-repixl-text-light">{log.entityName}</td>
+                <td className="px-5 py-3.5 text-xs text-repixl-muted">{log.admin}</td>
+                <td className="px-5 py-3.5 text-xs text-repixl-muted">{log.description}</td>
+                <td className="px-5 py-3.5"><button onClick={() => setDetailsId(log.id)} className="flex h-7 w-7 items-center justify-center rounded-lg bg-repixl-muted/10 text-repixl-muted hover:bg-repixl-red/5 hover:text-repixl-red"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" /><circle cx="12" cy="12" r="3" /></svg></button></td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
-      <p className="mt-3 text-xs text-gray-400">Showing {filtered.length} logs</p>
+      <p className="mt-3 text-xs text-repixl-muted">Showing {filtered.length} logs</p>
 
       {detailLog && (
         <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/40 p-4 pt-16 backdrop-blur-sm">
-          <div className="w-full max-w-2xl rounded-2xl border border-gray-200 bg-white shadow-2xl">
-            <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4">
-              <h2 className="font-bold text-repixl-text-dark">Audit Log Details</h2>
-              <button onClick={() => setDetailsId(null)} className="text-gray-400 hover:text-gray-600"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg></button>
+          <div className="w-full max-w-2xl rounded-2xl border border-repixl-muted/20 bg-repixl-charcoal shadow-2xl">
+            <div className="flex items-center justify-between border-b border-repixl-muted/10 px-6 py-4">
+              <h2 className="font-bold text-repixl-text-light">Audit Log Details</h2>
+              <button onClick={() => setDetailsId(null)} className="text-repixl-muted hover:text-repixl-text-light/70"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg></button>
             </div>
             <div className="grid grid-cols-2 gap-4 p-6">
-              <div className="rounded-xl bg-gray-50 p-4">
-                <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400">Action Information</p>
-                <dl className="mt-3 space-y-2 text-sm"><div className="flex gap-2"><dt className="font-medium text-gray-500">Action:</dt><dd><span className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${actionStyles[detailLog.action]}`}>{detailLog.action}</span></dd></div><div><dt className="font-medium text-gray-500">Entity Type:</dt><dd className="text-gray-800">{detailLog.entity}</dd></div><div><dt className="font-medium text-gray-500">Entity Name:</dt><dd className="text-gray-800">{detailLog.entityName}</dd></div><div><dt className="font-medium text-gray-500">Timestamp:</dt><dd className="font-mono text-gray-800">{detailLog.date}</dd></div></dl>
+              <div className="rounded-xl bg-repixl-bg p-4">
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-repixl-muted">Action Information</p>
+                <dl className="mt-3 space-y-2 text-sm"><div className="flex gap-2"><dt className="font-medium text-repixl-muted">Action:</dt><dd><span className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${actionStyles[detailLog.action]}`}>{detailLog.action}</span></dd></div><div><dt className="font-medium text-repixl-muted">Entity Type:</dt><dd className="text-repixl-text-light">{detailLog.entity}</dd></div><div><dt className="font-medium text-repixl-muted">Entity Name:</dt><dd className="text-repixl-text-light">{detailLog.entityName}</dd></div><div><dt className="font-medium text-repixl-muted">Timestamp:</dt><dd className="font-mono text-repixl-text-light">{detailLog.date}</dd></div></dl>
               </div>
-              <div className="rounded-xl bg-gray-50 p-4">
-                <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400">Admin Information</p>
-                <dl className="mt-3 space-y-2 text-sm"><div><dt className="font-medium text-gray-500">Username:</dt><dd className="text-gray-800">{detailLog.admin}</dd></div><div><dt className="font-medium text-gray-500">Email:</dt><dd className="font-mono text-gray-800">{detailLog.adminEmail}</dd></div><div><dt className="font-medium text-gray-500">IP Address:</dt><dd className="font-mono text-gray-800">{detailLog.ip}</dd></div><div><dt className="font-medium text-gray-500">User Agent:</dt><dd className="font-mono text-[10px] leading-relaxed text-gray-500">{detailLog.userAgent}</dd></div></dl>
+              <div className="rounded-xl bg-repixl-bg p-4">
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-repixl-muted">Admin Information</p>
+                <dl className="mt-3 space-y-2 text-sm"><div><dt className="font-medium text-repixl-muted">Username:</dt><dd className="text-repixl-text-light">{detailLog.admin}</dd></div><div><dt className="font-medium text-repixl-muted">Email:</dt><dd className="font-mono text-repixl-text-light">{detailLog.adminEmail}</dd></div><div><dt className="font-medium text-repixl-muted">IP Address:</dt><dd className="font-mono text-repixl-text-light">{detailLog.ip}</dd></div><div><dt className="font-medium text-repixl-muted">User Agent:</dt><dd className="font-mono text-[10px] leading-relaxed text-repixl-muted">{detailLog.userAgent}</dd></div></dl>
               </div>
-              <div className="col-span-2 rounded-xl bg-gray-50 p-4">
-                <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400">Description</p>
-                <p className="mt-2 text-sm text-gray-800">{detailLog.description}</p>
+              <div className="col-span-2 rounded-xl bg-repixl-bg p-4">
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-repixl-muted">Description</p>
+                <p className="mt-2 text-sm text-repixl-text-light">{detailLog.description}</p>
               </div>
             </div>
-            <div className="flex justify-end border-t border-gray-100 px-6 py-4"><button onClick={() => setDetailsId(null)} className="rounded-xl border border-gray-200 px-4 py-2 text-sm text-gray-600 hover:bg-gray-50">Close</button></div>
+            <div className="flex justify-end border-t border-repixl-muted/10 px-6 py-4"><button onClick={() => setDetailsId(null)} className="rounded-xl border border-repixl-muted/20 px-4 py-2 text-sm text-repixl-text-light/70 hover:bg-repixl-bg">Close</button></div>
           </div>
         </div>
       )}

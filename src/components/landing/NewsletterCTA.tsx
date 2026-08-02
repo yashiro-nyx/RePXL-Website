@@ -8,7 +8,7 @@ export function NewsletterCTA() {
   const reducedMotion = useReducedMotion()
 
   return (
-    <section className="bg-repixl-bg py-20 md:py-28">
+    <section className="py-20 md:py-28">
       <Container>
         <motion.div
           initial={reducedMotion ? { opacity: 1 } : { opacity: 0, y: 16 }}

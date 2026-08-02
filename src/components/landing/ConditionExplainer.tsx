@@ -33,7 +33,7 @@ export function ConditionExplainer() {
   const reducedMotion = useReducedMotion()
 
   return (
-    <section className="bg-repixl-bg py-24 md:py-36">
+    <section className="py-24 md:py-36">
       <Container>
         <motion.div
           initial={reducedMotion ? { opacity: 1 } : { opacity: 0, y: 20 }}

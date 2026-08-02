@@ -1,12 +1,12 @@
 'use client'
 
-import { useEffect } from 'react'
+import { Suspense, useEffect } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { Container } from '@/components/layout/Container'
 import { ProductCard } from '@/components/product/ProductCard'
 import { useProductStore } from '@/stores/productStore'
 
-export default function SearchPage() {
+function SearchContent() {
   const searchParams = useSearchParams()
   const query = searchParams.get('q') ?? ''
   const allProducts = useProductStore((s) => s.products)
@@ -24,7 +24,7 @@ export default function SearchPage() {
     : []
 
   return (
-    <div className="min-h-screen bg-repixl-bg pt-24 pb-16">
+    <div className="min-h-screen pt-24 pb-16">
       <Container>
         <h1 className="font-display text-display-md text-repixl-text-light">
           Search results
@@ -61,5 +61,13 @@ export default function SearchPage() {
         )}
       </Container>
     </div>
+  )
+}
+
+export default function SearchPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen pt-24 pb-16"><Container><p className="text-sm text-repixl-muted">Loading...</p></Container></div>}>
+      <SearchContent />
+    </Suspense>
   )
 }

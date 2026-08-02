@@ -3,55 +3,69 @@
 @tailwind utilities;
 
 @layer base {
-  body {
-    @apply bg-repixl-bg text-repixl-text-light antialiased;
-  }
-
-  /* Dark mode — customer storefront keeps its dark palette by default */
-  /* Light mode applies warm bone background */
-  html.light body {
-    @apply bg-repixl-bone text-repixl-text-dark;
-  }
-
-  /* Smooth scrolling, respects reduced-motion */
   html {
+    --burn-opacity: 1;
+    background-color: #050303;
+    background-image:
+      linear-gradient(90deg, rgb(200 20 10 / calc(0.9 * var(--burn-opacity))) 0%, rgb(160 30 10 / calc(0.5 * var(--burn-opacity))) 8%, rgb(80 15 10 / calc(0.2 * var(--burn-opacity))) 15%, transparent 22%),
+      linear-gradient(270deg, rgb(180 30 10 / calc(0.4 * var(--burn-opacity))) 0%, transparent 10%);
+    background-blend-mode: screen;
+    background-attachment: fixed;
     scroll-behavior: smooth;
   }
 
+  body {
+    @apply antialiased;
+    background: transparent;
+    color: #F5F1EC;
+    position: relative;
+  }
+
+  /* Film grain overlay — rough texture on the burn edges */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    pointer-events: none;
+    opacity: 0.12;
+    mix-blend-mode: overlay;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    background-repeat: repeat;
+  }
+
   @keyframes fadeSlideUp {
-    from {
-      opacity: 0;
-      transform: translateX(-50%) translateY(10px);
-    }
-    to {
-      opacity: 1;
-      transform: translateX(-50%) translateY(0);
-    }
+    from { opacity: 0; transform: translateX(-50%) translateY(10px); }
+    to { opacity: 1; transform: translateX(-50%) translateY(0); }
   }
 
   @keyframes slideIn {
-    from {
-      opacity: 0;
-      transform: translateX(20px);
-    }
-    to {
-      opacity: 1;
-      transform: translateX(0);
-    }
+    from { opacity: 0; transform: translateX(20px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+
+  @keyframes glow {
+    0%, 100% { box-shadow: 0 0 4px rgba(194,44,44,0.6), 0 0 8px rgba(194,44,44,0.3); }
+    50% { box-shadow: 0 0 8px rgba(194,44,44,0.8), 0 0 16px rgba(194,44,44,0.4); }
   }
 
   @media (prefers-reduced-motion: reduce) {
-    html {
-      scroll-behavior: auto;
-    }
-
-    *,
-    *::before,
-    *::after {
+    html { scroll-behavior: auto; }
+    *, *::before, *::after {
       animation-duration: 0.01ms !important;
       animation-iteration-count: 1 !important;
       transition-duration: 0.01ms !important;
       scroll-behavior: auto !important;
     }
   }
+}
+
+/* Reduced burn intensity for transactional/utility pages */
+html:has(.burn-subtle) {
+  --burn-opacity: 0.4;
+}
+
+/* Minimal burn for backend/admin login screens */
+html:has(.burn-minimal) {
+  --burn-opacity: 0.15;
 }

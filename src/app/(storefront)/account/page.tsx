@@ -45,7 +45,7 @@ export default function AccountPage() {
   }
 
   return (
-    <div className="bg-repixl-bg pb-16 pt-24">
+    <div className="burn-subtle pb-16 pt-24">
       <Container>
         <div className="flex flex-col gap-8 lg:flex-row">
           {/* Sidebar */}

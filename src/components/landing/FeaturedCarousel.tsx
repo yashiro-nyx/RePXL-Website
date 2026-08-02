@@ -22,7 +22,7 @@ export function FeaturedCarousel() {
   }
 
   return (
-    <section className="bg-repixl-bg pb-24 pt-12 md:pb-36 md:pt-16">
+    <section className="pb-24 pt-12 md:pb-36 md:pt-16">
       <Container>
         {/* Header row */}
         <div className="mb-10 flex items-end justify-between">
