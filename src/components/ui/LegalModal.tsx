@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { Button } from './Button'
+import { useScrollLock } from '@/hooks/useScrollLock'
 
 interface LegalModalProps {
   isOpen: boolean
@@ -17,6 +18,8 @@ export function LegalModal({ isOpen, onClose, title, content, onAgree }: LegalMo
   const contentRef = useRef<HTMLDivElement>(null)
   const triggerRef = useRef<HTMLElement | null>(null)
   const [scrolledToBottom, setScrolledToBottom] = useState(false)
+
+  useScrollLock(isOpen)
 
   // Track what triggered the modal so we can return focus
   useEffect(() => {
@@ -63,11 +66,9 @@ export function LegalModal({ isOpen, onClose, title, content, onAgree }: LegalMo
     }
 
     document.addEventListener('keydown', handleKeyDown)
-    document.body.style.overflow = 'hidden'
 
     return () => {
       document.removeEventListener('keydown', handleKeyDown)
-      document.body.style.overflow = ''
       triggerRef.current?.focus()
     }
   }, [isOpen, onClose])

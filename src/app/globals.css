@@ -69,3 +69,8 @@ html:has(.burn-subtle) {
 html:has(.burn-minimal) {
   --burn-opacity: 0.15;
 }
+
+/* Scroll lock fallback for modals */
+body.scroll-locked {
+  overflow: hidden;
+}

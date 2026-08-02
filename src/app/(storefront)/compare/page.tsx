@@ -7,6 +7,7 @@ import { Container } from '@/components/layout/Container'
 import { Button, ConditionBadge } from '@/components/ui'
 import { useCompareStore } from '@/stores/compareStore'
 import { useProductStore } from '@/stores/productStore'
+import { useReviewStore } from '@/stores/reviewStore'
 import type { Product } from '@/types'
 
 const MAX_COMPARE = 3
@@ -22,6 +23,7 @@ function CompareContent() {
   useEffect(() => {
     useCompareStore.getState().hydrate()
     useProductStore.getState().hydrate()
+    useReviewStore.getState().hydrate()
     const current = useCompareStore.getState().slugs
     if (current.length === 0 && paramSlugs.length > 0) {
       paramSlugs.forEach((slug) => {
@@ -80,9 +82,12 @@ function CompareContent() {
 
   const removeCamera = (slug: string) => { storeRemove(slug) }
 
+  const getAverageRating = useReviewStore((s) => s.getAverageRating)
+
   const specRows: { label: string; getValue: (p: Product) => string }[] = [
     { label: 'Price', getValue: (p) => `$${p.price}` },
     { label: 'Condition', getValue: (p) => p.condition.charAt(0).toUpperCase() + p.condition.slice(1) },
+    { label: 'Rating', getValue: (p) => { const avg = getAverageRating(p.slug); return avg > 0 ? `★ ${avg.toFixed(1)}` : 'No reviews' } },
     { label: 'Brand', getValue: (p) => p.brand },
     { label: 'Series', getValue: (p) => p.series },
     { label: 'Resolution', getValue: (p) => `${p.specs.megapixels} MP` },
@@ -115,7 +120,7 @@ function CompareContent() {
             <table className="w-full min-w-[600px] border-collapse">
               <thead>
                 <tr>
-                  <th className="w-36 border-b border-repixl-muted/10 p-3 text-left font-mono text-[10px] uppercase tracking-widest text-repixl-muted">Camera</th>
+                  <th className="sticky left-0 z-10 w-36 border-b border-repixl-muted/10 bg-repixl-charcoal p-3 text-left font-mono text-[10px] uppercase tracking-widest text-repixl-muted">Camera</th>
                   {selectedProducts.map((product) => (
                     <th key={product.slug} className="border-b border-repixl-muted/10 p-3 text-center">
                       <div className="flex flex-col items-center gap-2">
@@ -143,9 +148,9 @@ function CompareContent() {
                 </tr>
               </thead>
               <tbody>
-                {specRows.map((row) => (
-                  <tr key={row.label}>
-                    <td className="border-b border-repixl-muted/5 p-3 font-mono text-[10px] uppercase tracking-wider text-repixl-muted">{row.label}</td>
+                {specRows.map((row, index) => (
+                  <tr key={row.label} className={index % 2 === 0 ? 'bg-repixl-charcoal/30' : ''}>
+                    <td className="sticky left-0 z-10 border-b border-repixl-muted/5 bg-repixl-charcoal p-3 font-mono text-[10px] uppercase tracking-wider text-repixl-muted">{row.label}</td>
                     {selectedProducts.map((product) => (
                       <td key={product.slug} className="border-b border-repixl-muted/5 p-3 text-center font-mono text-sm text-repixl-text-light">{row.getValue(product)}</td>
                     ))}

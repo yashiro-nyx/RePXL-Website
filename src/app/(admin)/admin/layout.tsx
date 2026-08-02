@@ -46,6 +46,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const orders = useOrderHistoryStore((s) => s.orders)
   const [hydrated, setHydrated] = useState(false)
   const [notifOpen, setNotifOpen] = useState(false)
+  const [sidebarOpen, setSidebarOpen] = useState(false)
   const router = useRouter()
   const pathname = usePathname()
 
@@ -75,8 +76,13 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   return (
     <div className="flex min-h-screen text-repixl-text-light" style={{ backgroundColor: '#050303', backgroundImage: 'linear-gradient(90deg, rgba(200,20,10,0.9) 0%, rgba(160,30,10,0.5) 8%, rgba(80,15,10,0.2) 15%, transparent 22%), linear-gradient(270deg, rgba(180,30,10,0.4) 0%, transparent 10%)', backgroundBlendMode: 'screen', backgroundAttachment: 'fixed' }}>
+      {/* Mobile sidebar backdrop */}
+      {sidebarOpen && (
+        <div className="fixed inset-0 z-30 bg-black/50 backdrop-blur-sm md:hidden" onClick={() => setSidebarOpen(false)} aria-hidden="true" />
+      )}
+
       {/* Sidebar */}
-      <aside className="fixed left-0 top-0 z-40 flex h-screen w-60 flex-col border-r border-repixl-muted/10 bg-repixl-charcoal">
+      <aside className={`fixed left-0 top-0 z-40 flex h-screen w-60 flex-col border-r border-repixl-muted/10 bg-repixl-charcoal transition-transform duration-200 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0`}>
         {/* Logo */}
         <div className="flex h-16 items-center gap-2.5 px-5">
           <div className="relative flex h-9 w-9 items-center justify-center rounded-xl bg-repixl-red/10">
@@ -97,7 +103,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                   const active = pathname === item.href
                   return (
                     <li key={item.href}>
-                      <Link href={item.href} className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-[13px] font-medium transition-all ${active ? 'border-l-[3px] border-repixl-red bg-repixl-red/10 text-repixl-red' : 'text-repixl-text-light/60 hover:bg-repixl-muted/5 hover:text-repixl-text-light'}`}>
+                      <Link href={item.href} onClick={() => setSidebarOpen(false)} className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-[13px] font-medium transition-all ${active ? 'border-l-[3px] border-repixl-red bg-repixl-red/10 text-repixl-red' : 'text-repixl-text-light/60 hover:bg-repixl-muted/5 hover:text-repixl-text-light'}`}>
                         <span className={active ? 'text-repixl-red' : 'text-repixl-muted'}>{item.icon}</span>
                         {item.label}
                       </Link>
@@ -119,17 +125,22 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       </aside>
 
       {/* Main area */}
-      <div className="ml-60 flex-1">
+      <div className="flex-1 md:ml-60">
         {/* Top bar */}
-        <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-repixl-muted/10 bg-repixl-charcoal px-8">
+        <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-repixl-muted/10 bg-repixl-charcoal px-4 md:px-8">
+          {/* Mobile hamburger */}
+          <button onClick={() => setSidebarOpen(true)} className="flex h-10 w-10 items-center justify-center rounded-xl border border-repixl-muted/20 text-repixl-muted transition-colors hover:bg-repixl-muted/5 hover:text-repixl-text-light md:hidden" aria-label="Open menu">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><line x1="4" x2="20" y1="12" y2="12" /><line x1="4" x2="20" y1="6" y2="6" /><line x1="4" x2="20" y1="18" y2="18" /></svg>
+          </button>
+
           {/* Search (left) */}
-          <div className="relative w-72">
+          <div className="relative hidden w-72 md:block">
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="absolute left-3 top-1/2 -translate-y-1/2 text-repixl-muted"><circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" /></svg>
             <input type="search" placeholder="Search..." className="w-full rounded-xl border border-repixl-muted/20 bg-repixl-bg px-4 py-2 pl-10 text-sm text-repixl-text-light placeholder:text-repixl-muted focus:border-repixl-red/30 focus:outline-none focus:ring-1 focus:ring-repixl-red/20" />
           </div>
 
           {/* Right: notifications + user */}
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 md:gap-4">
             {/* Notifications */}
             <div className="relative">
               <button onClick={() => setNotifOpen(!notifOpen)} className="relative flex h-10 w-10 items-center justify-center rounded-xl border border-repixl-muted/20 text-repixl-muted transition-colors hover:bg-repixl-muted/5 hover:text-repixl-text-light">
@@ -151,13 +162,13 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             </div>
 
             {/* Storefront link */}
-            <Link href="/" className="flex h-10 items-center gap-1.5 rounded-xl border border-repixl-muted/20 px-4 text-xs font-medium text-repixl-muted transition-colors hover:bg-repixl-muted/5 hover:text-repixl-text-light">
+            <Link href="/" className="hidden h-10 items-center gap-1.5 rounded-xl border border-repixl-muted/20 px-4 text-xs font-medium text-repixl-muted transition-colors hover:bg-repixl-muted/5 hover:text-repixl-text-light md:flex">
               <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" /><polyline points="15 3 21 3 21 9" /><line x1="10" x2="21" y1="14" y2="3" /></svg>
               View Store
             </Link>
 
             {/* User */}
-            <div className="flex items-center gap-3 rounded-xl bg-repixl-bg px-3 py-1.5">
+            <div className="hidden items-center gap-3 rounded-xl bg-repixl-bg px-3 py-1.5 md:flex">
               <div className="flex h-8 w-8 items-center justify-center rounded-full bg-repixl-red text-xs font-bold text-white">{initials}</div>
               <div>
                 <p className="text-xs font-semibold text-repixl-text-light">{firstName} {lastName}</p>
@@ -168,7 +179,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </header>
 
         {/* Content */}
-        <main className="p-8">{children}</main>
+        <main className="p-4 md:p-8">{children}</main>
       </div>
     </div>
   )

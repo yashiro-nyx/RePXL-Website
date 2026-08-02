@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useProductStore } from '@/stores/productStore'
+import { Pagination } from '@/components/ui/Pagination'
 import type { Product, ConditionGrade, ProductStatus } from '@/types'
 
 const statusColors: Record<ProductStatus, string> = {
@@ -28,6 +29,7 @@ export default function AdminCamerasPage() {
   const [modalOpen, setModalOpen] = useState(false)
   const [editingSlug, setEditingSlug] = useState<string | null>(null)
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
+  const [currentPage, setCurrentPage] = useState(1)
 
   useEffect(() => { useProductStore.getState().hydrate() }, [])
 
@@ -40,6 +42,10 @@ export default function AdminCamerasPage() {
     }
     return true
   })
+
+  const ITEMS_PER_PAGE = 10
+  const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE)
+  const paginated = filtered.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE)
 
   return (
     <div>
@@ -68,7 +74,7 @@ export default function AdminCamerasPage() {
             <tr>{['Image','Name','Brand','Stock','Condition','Price','Status','Actions'].map((h) => <th key={h} className="px-5 py-3.5 text-[10px] font-semibold uppercase tracking-wider text-repixl-muted">{h}</th>)}</tr>
           </thead>
           <tbody className="divide-y divide-repixl-muted/10">
-            {filtered.map((p) => (
+            {paginated.map((p) => (
               <tr key={p.slug} className="transition-colors hover:bg-repixl-bg/60">
                 <td className="px-5 py-3.5"><div className="h-12 w-12 overflow-hidden rounded-xl bg-repixl-bg">{/* eslint-disable-next-line @next/next/no-img-element */}<img src={p.image} alt="" className="h-full w-full object-contain" /></div></td>
                 <td className="px-5 py-3.5 font-medium text-repixl-text-light">{p.name}</td>
@@ -88,7 +94,8 @@ export default function AdminCamerasPage() {
           </tbody>
         </table>
       </div>
-      <p className="mt-3 text-xs text-repixl-muted">Showing {filtered.length} of {products.length} cameras</p>
+      <p className="mt-3 text-xs text-repixl-muted">Showing {paginated.length} of {filtered.length} cameras</p>
+      <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
 
       {confirmDelete && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">

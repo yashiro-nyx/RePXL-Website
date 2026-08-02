@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useOrderHistoryStore } from '@/stores/orderHistoryStore'
 import { useArchivedCustomerStore } from '@/stores/archivedCustomerStore'
+import { Pagination } from '@/components/ui/Pagination'
 
 const mockCustomers = [
   { id: '1', name: 'Mia Rodriguez', email: 'mia.rodriguez@gmail.com', role: 'User' },
@@ -36,6 +37,7 @@ export default function AdminCustomersPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [ordersModal, setOrdersModal] = useState<string | null>(null)
   const [confirmArchive, setConfirmArchive] = useState<string | null>(null)
+  const [currentPage, setCurrentPage] = useState(1)
   const orders = useOrderHistoryStore((s) => s.orders)
   const archiveCustomer = useArchivedCustomerStore((s) => s.archiveCustomer)
   const archivedCustomers = useArchivedCustomerStore((s) => s.archivedCustomers)
@@ -50,6 +52,9 @@ export default function AdminCustomersPage() {
   const activeCustomers = mockCustomers.filter((c) => !archivedIds.includes(c.id))
 
   const filtered = activeCustomers.filter((c) => !searchQuery.trim() || c.name.toLowerCase().includes(searchQuery.toLowerCase()) || c.email.toLowerCase().includes(searchQuery.toLowerCase()))
+  const ITEMS_PER_PAGE = 10
+  const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE)
+  const paginated = filtered.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE)
   const customerOrders = ordersModal ? orders.filter((o) => o.fullName.toLowerCase().includes(activeCustomers.find((c) => c.id === ordersModal)?.name.split(' ')[0].toLowerCase() || '')) : []
 
   const handleArchive = (id: string) => {
@@ -81,7 +86,7 @@ export default function AdminCustomersPage() {
           </thead>
           <tbody className="divide-y divide-repixl-muted/10">
             {filtered.length === 0 && <tr><td colSpan={5} className="px-5 py-12 text-center text-sm text-repixl-muted">No customers found.</td></tr>}
-            {filtered.map((c) => (
+            {paginated.map((c) => (
               <tr key={c.id} className="transition-colors hover:bg-repixl-bg/60">
                 <td className="px-5 py-3.5 font-mono text-sm font-medium text-repixl-text-light">{censorName(c.name)}</td>
                 <td className="px-5 py-3.5 font-mono text-sm text-repixl-muted">{censorEmail(c.email)}</td>
@@ -100,7 +105,8 @@ export default function AdminCustomersPage() {
           </tbody>
         </table>
       </div>
-      <p className="mt-3 text-xs text-repixl-muted">Showing {filtered.length} of {activeCustomers.length} users</p>
+      <p className="mt-3 text-xs text-repixl-muted">Showing {paginated.length} of {activeCustomers.length} users</p>
+      <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
 
       {/* Archive confirmation */}
       {confirmArchive && (

@@ -1,43 +1,14 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useParams } from 'next/navigation'
+import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
+import dynamic from 'next/dynamic'
 import { Container } from '@/components/layout/Container'
 import { Button, ConditionBadge, CornerBracket, LoginRequiredModal } from '@/components/ui'
 import { CompareToast } from '@/components/ui/CompareToast'
-import { CameraFilterDemo } from '@/components/product/CameraFilterDemo'
 import { ProductCard } from '@/components/product/ProductCard'
-
-function FilterDemoButton({ brand, model }: { brand: string; model: string }) {
-  const [open, setOpen] = useState(false)
-  return (
-    <>
-      <div className="mt-6">
-        <button
-          onClick={() => setOpen(true)}
-          className="flex items-center gap-2 rounded-lg border border-repixl-red/30 bg-repixl-red/10 px-4 py-2.5 text-sm font-medium text-repixl-red transition-colors hover:bg-repixl-red/20"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z" /><circle cx="12" cy="13" r="3" /></svg>
-          Try the Look — Live Filter Demo
-        </button>
-      </div>
-      {open && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-xl rounded-xl border border-repixl-muted/20 bg-repixl-bg p-5 shadow-2xl">
-            <div className="mb-4 flex items-center justify-between">
-              <h2 className="font-display text-lg font-semibold text-repixl-text-light">Try the Look</h2>
-              <button onClick={() => setOpen(false)} className="flex h-8 w-8 items-center justify-center rounded-lg text-repixl-muted hover:bg-repixl-charcoal hover:text-repixl-text-light">
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg>
-              </button>
-            </div>
-            <CameraFilterDemo brand={brand} model={model} />
-          </div>
-        </div>
-      )}
-    </>
-  )
-}
+import { getColorProfile } from '@/data/colorProfiles'
 import { useAuthStore } from '@/stores/authStore'
 import { useCartStore } from '@/stores/cartStore'
 import { useWishlistStore } from '@/stores/wishlistStore'
@@ -46,11 +17,63 @@ import { useReviewStore, type Review } from '@/stores/reviewStore'
 import { useOrderHistoryStore } from '@/stores/orderHistoryStore'
 import { useProductStore } from '@/stores/productStore'
 import { useToastStore } from '@/stores/toastStore'
+import { useScrollLock } from '@/hooks/useScrollLock'
+
+// Dynamically import the webcam-dependent component to avoid SSR issues
+const CameraFilterDemo = dynamic(
+  () => import('@/components/product/CameraFilterDemo').then((mod) => ({ default: mod.CameraFilterDemo })),
+  { ssr: false }
+)
+
+function FilterDemoButton({ brand, model, slug }: { brand: string; model: string; slug: string }) {
+  const [open, setOpen] = useState(false)
+  const profile = getColorProfile(brand, slug)
+
+  useScrollLock(open)
+
+  return (
+    <>
+      <button
+        onClick={() => setOpen(true)}
+        className="group flex w-full items-center gap-3 rounded-xl px-5 py-3.5 text-sm font-medium transition-all hover:brightness-110 hover:shadow-lg"
+        style={{ background: '#f2e2d8', color: '#171b21', boxShadow: '0 4px 16px -4px rgba(242, 226, 216, 0.3)' }}
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0 text-[#8b3a2a]">
+          <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z" /><circle cx="12" cy="13" r="3" />
+        </svg>
+        <span className="flex-1 text-left">
+          <span className="block font-semibold">Try the Look — {profile.name}</span>
+          <span className="block text-[10px] font-normal text-[#5a3a30]">{profile.description}</span>
+        </span>
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="flex-shrink-0 text-[#8b3a2a]">
+          <path d="M5 12h14" /><path d="m12 5 7 7-7 7" />
+        </svg>
+      </button>
+      {open && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-xl rounded-xl border border-repixl-muted/20 bg-repixl-charcoal p-5 shadow-2xl">
+            <div className="mb-4 flex items-center justify-between">
+              <div>
+                <h2 className="font-display text-lg font-semibold text-repixl-text-light">Try the Look</h2>
+                <p className="font-mono text-[10px] uppercase tracking-wider text-repixl-muted">{profile.name}</p>
+              </div>
+              <button onClick={() => setOpen(false)} className="flex h-8 w-8 items-center justify-center rounded-lg text-repixl-muted hover:bg-repixl-bg hover:text-repixl-text-light">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg>
+              </button>
+            </div>
+            <CameraFilterDemo brand={brand} model={model} slug={slug} />
+          </div>
+        </div>
+      )}
+    </>
+  )
+}
 
 export default function ProductDetailPage() {
   const [loginModalOpen, setLoginModalOpen] = useState(false)
   const isLoggedIn = useAuthStore((s) => s.isLoggedIn)
   const params = useParams<{ slug: string }>()
+  const router = useRouter()
 
   const allProducts = useProductStore((s) => s.products)
   const product = allProducts.find((p) => p.slug === params.slug)
@@ -156,12 +179,10 @@ export default function ProductDetailPage() {
               </div>
             </CornerBracket>
 
-            {/* Try the Look button — below image, centered */}
-            {(product.slug === 'canon-powershot-a520' || product.brand === 'Kodak') && (
-              <div className="mt-4 flex justify-center">
-                <FilterDemoButton brand={product.brand} model={product.name} />
-              </div>
-            )}
+            {/* Try the Look button — below image */}
+            <div className="mt-5 flex justify-center">
+              <FilterDemoButton brand={product.brand} model={product.name} slug={product.slug} />
+            </div>
           </div>
 
           {/* Right: Product info */}
@@ -264,15 +285,24 @@ export default function ProductDetailPage() {
                 size="lg"
                 onClick={() => {
                   if (!product) return
+                  if (inCompare) {
+                    router.push('/compare')
+                    return
+                  }
                   const result = addToCompare(product.slug)
-                  if (result === 'added') setToast({ message: `${product.name} added to comparison`, type: 'success' })
-                  else if (result === 'already') setToast({ message: 'Already in comparison', type: 'success' })
-                  else setToast({ message: 'Comparison is full (3 max). Remove one first.', type: 'error' })
+                  if (result === 'added') {
+                    addToast(`${product.name} added to comparison`)
+                    router.push('/compare')
+                  } else if (result === 'already') {
+                    router.push('/compare')
+                  } else {
+                    setToast({ message: 'Comparison is full (3 max). Remove one first.', type: 'error' })
+                  }
                 }}
               >
                 <span className="flex items-center gap-2">
                   <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" /><path d="M12 3v18" /></svg>
-                  {inCompare ? 'In Comparison' : '+ Compare'}
+                  {inCompare ? 'View Comparison' : '+ Compare'}
                 </span>
               </Button>
             </div>

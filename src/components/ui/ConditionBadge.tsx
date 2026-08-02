@@ -10,7 +10,7 @@ interface ConditionBadgeProps {
 const conditionConfig: Record<Condition, { label: string; classes: string }> = {
   mint: {
     label: 'Mint',
-    classes: 'bg-repixl-success/15 text-repixl-success border-repixl-success/30',
+    classes: 'bg-emerald-500/20 text-emerald-400 border-emerald-400/40',
   },
   excellent: {
     label: 'Excellent',

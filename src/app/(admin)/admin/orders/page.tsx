@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useOrderHistoryStore, type Order } from '@/stores/orderHistoryStore'
+import { Pagination } from '@/components/ui/Pagination'
 
 const allStatuses = ['Processing', 'Shipped', 'Delivered', 'Completed', 'Cancelled'] as const
 
@@ -26,6 +27,7 @@ export default function AdminOrdersPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [confirmArchive, setConfirmArchive] = useState<string | null>(null)
   const [viewOrder, setViewOrder] = useState<Order | null>(null)
+  const [currentPage, setCurrentPage] = useState(1)
 
   useEffect(() => { useOrderHistoryStore.getState().hydrate() }, [])
 
@@ -37,6 +39,10 @@ export default function AdminOrdersPage() {
     }
     return true
   })
+
+  const ITEMS_PER_PAGE = 10
+  const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE)
+  const paginated = filtered.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE)
 
   const handleArchive = (orderNumber: string) => {
     archiveOrder(orderNumber)
@@ -74,13 +80,14 @@ export default function AdminOrdersPage() {
           </thead>
           <tbody className="divide-y divide-repixl-muted/10">
             {filtered.length === 0 && <tr><td colSpan={6} className="px-5 py-12 text-center text-sm text-repixl-muted">No orders found.</td></tr>}
-            {filtered.map((order) => (
+            {paginated.map((order) => (
               <OrderRow key={order.orderNumber} order={order} updateStatus={updateStatus} onArchive={() => setConfirmArchive(order.orderNumber)} onView={() => setViewOrder(order)} />
             ))}
           </tbody>
         </table>
       </div>
-      <p className="mt-3 text-xs text-repixl-muted">Showing {filtered.length} of {orders.length} orders</p>
+      <p className="mt-3 text-xs text-repixl-muted">Showing {paginated.length} of {orders.length} orders</p>
+      <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
 
       {/* Archive confirmation modal */}
       {confirmArchive && (

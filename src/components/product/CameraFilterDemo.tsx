@@ -1,42 +1,20 @@
 'use client'
 
 import { useRef, useState, useEffect, useCallback } from 'react'
-
-interface FilterPreset {
-  id: string
-  name: string
-  description: string
-  css: string
-  overlay?: string
-}
-
-const canonPresets: FilterPreset[] = [
-  { id: 'none', name: 'No Filter (Modern)', description: 'Your camera as-is — clean, neutral, digital.', css: 'none' },
-  { id: 'canon-ccd', name: 'Canon CCD Warm', description: 'Warm highlights, magenta-shifted shadows, soft contrast — the PowerShot signature.', css: 'saturate(1.3) contrast(1.1) brightness(1.05) sepia(0.15) hue-rotate(-5deg)', overlay: 'linear-gradient(180deg, rgba(235,180,150,0.08) 0%, rgba(80,40,60,0.12) 100%)' },
-  { id: 'canon-flash', name: 'CCD + Flash', description: 'The classic party shot — blown highlights, warm skin, crushed background.', css: 'saturate(1.4) contrast(1.25) brightness(1.15) sepia(0.1)', overlay: 'radial-gradient(circle at 50% 40%, rgba(255,255,240,0.15) 0%, rgba(20,10,30,0.2) 70%)' },
-  { id: 'canon-lowlight', name: 'CCD Low Light', description: 'ISO 400 at night — visible noise, amber streetlight cast, dreamy grain.', css: 'saturate(1.1) contrast(1.2) brightness(0.85) sepia(0.25) hue-rotate(10deg)', overlay: 'linear-gradient(180deg, rgba(200,150,80,0.1) 0%, rgba(30,20,40,0.25) 100%)' },
-  { id: 'canon-macro', name: 'CCD Macro Mode', description: 'Close-up — saturated colors, slight vignette.', css: 'saturate(1.5) contrast(1.05) brightness(1.0)', overlay: 'radial-gradient(circle, transparent 50%, rgba(0,0,0,0.2) 100%)' },
-]
-
-const kodakPresets: FilterPreset[] = [
-  { id: 'none', name: 'No Filter (Modern)', description: 'Your camera as-is — clean, neutral, digital.', css: 'none' },
-  { id: 'kodak-warm', name: 'Kodachrome Warm', description: 'The legendary Kodak warmth — golden highlights, rich reds, slightly faded blacks.', css: 'saturate(1.35) contrast(1.05) brightness(1.08) sepia(0.2) hue-rotate(5deg)', overlay: 'linear-gradient(180deg, rgba(255,200,100,0.06) 0%, rgba(60,30,20,0.1) 100%)' },
-  { id: 'kodak-faded', name: 'Kodak Faded', description: 'The sun-bleached look — lifted blacks, desaturated blues, warm mids like an old print.', css: 'saturate(0.85) contrast(0.9) brightness(1.1) sepia(0.15)', overlay: 'linear-gradient(180deg, rgba(255,240,200,0.1) 0%, rgba(180,150,120,0.08) 100%)' },
-  { id: 'kodak-gold', name: 'Kodak Gold 200', description: 'Punchy, saturated, golden hour all day — the film stock that defined casual photography.', css: 'saturate(1.5) contrast(1.15) brightness(1.05) sepia(0.1) hue-rotate(8deg)', overlay: 'linear-gradient(180deg, rgba(255,180,50,0.08) 0%, rgba(100,50,20,0.1) 100%)' },
-  { id: 'kodak-portra', name: 'Portra Skin Tones', description: 'Soft, flattering skin tones with muted backgrounds — portrait perfection.', css: 'saturate(1.1) contrast(0.95) brightness(1.08) sepia(0.08) hue-rotate(3deg)', overlay: 'radial-gradient(circle at 50% 40%, rgba(255,220,180,0.06) 0%, rgba(60,40,50,0.08) 70%)' },
-  { id: 'kodak-night', name: 'Kodak Night Flash', description: 'Amber cast, hard flash falloff, the disposable camera party look.', css: 'saturate(1.3) contrast(1.3) brightness(1.1) sepia(0.2) hue-rotate(10deg)', overlay: 'radial-gradient(circle at 50% 35%, rgba(255,240,200,0.2) 0%, rgba(0,0,0,0.3) 65%)' },
-]
+import { getColorProfile, type ColorProfile, type FilterPreset } from '@/data/colorProfiles'
 
 interface CameraFilterDemoProps {
-  brand?: string
-  model?: string
+  brand: string
+  model: string
+  slug?: string
 }
 
-export function CameraFilterDemo({ brand = 'Canon', model = '' }: CameraFilterDemoProps) {
-  const filterPresets = brand === 'Kodak' ? kodakPresets : canonPresets
+export function CameraFilterDemo({ brand, model, slug }: CameraFilterDemoProps) {
+  const profile: ColorProfile = getColorProfile(brand, slug)
+  const filterPresets = profile.presets
   const videoRef = useRef<HTMLVideoElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
-  const [activeFilter, setActiveFilter] = useState<string>(brand === 'Kodak' ? 'kodak-warm' : 'canon-ccd')
+  const [activeFilter, setActiveFilter] = useState<string>(profile.defaultPreset)
   const [streaming, setStreaming] = useState(false)
   const [error, setError] = useState('')
 
@@ -49,7 +27,7 @@ export function CameraFilterDemo({ brand = 'Canon', model = '' }: CameraFilterDe
         setStreaming(true)
         setError('')
       }
-    } catch (err) {
+    } catch {
       setError('Camera access denied. Please allow camera permission to try filters.')
     }
   }, [])
@@ -88,20 +66,16 @@ export function CameraFilterDemo({ brand = 'Canon', model = '' }: CameraFilterDe
       }
       ctx.putImageData(imageData, 0, 0)
     }
-    // Download
     const link = document.createElement('a')
-    link.download = `repixl-filter-${activeFilter}.jpg`
+    link.download = `repixl-${brand.toLowerCase()}-${activeFilter}.jpg`
     link.href = canvas.toDataURL('image/jpeg', 0.9)
     link.click()
   }
 
   return (
-    <div className="rounded-lg border border-repixl-muted/10 bg-repixl-charcoal p-5">
-      <div className="flex items-center gap-2">
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-repixl-red"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z" /><circle cx="12" cy="13" r="3" /></svg>
-        <h3 className="font-display text-sm font-semibold text-repixl-text-light">Try the Look — Live Filter Demo</h3>
-      </div>
-      <p className="mt-1 text-xs text-repixl-muted">See how {model || `this ${brand} camera`} renders color — applied live to your webcam.</p>
+    <div>
+      <p className="text-xs text-repixl-muted">See how {model} renders color — applied live to your webcam.</p>
+      <p className="mt-1 font-mono text-[9px] uppercase tracking-wider text-repixl-text-light/50">Profile: {profile.name}</p>
 
       {/* Filter selector */}
       <div className="mt-4">
@@ -124,7 +98,7 @@ export function CameraFilterDemo({ brand = 'Canon', model = '' }: CameraFilterDe
         {!streaming && (
           <div className="flex flex-col items-center rounded-lg border border-dashed border-repixl-muted/30 bg-repixl-bg py-12">
             <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" className="text-repixl-muted/40"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z" /><circle cx="12" cy="13" r="3" /></svg>
-            <p className="mt-3 text-sm text-repixl-muted">Enable your webcam to preview this camera&apos;s filter</p>
+            <p className="mt-3 text-sm text-repixl-muted">Enable your webcam to preview this camera&apos;s color science</p>
             <button onClick={startCamera} className="mt-4 rounded bg-repixl-red px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-red-700">
               Start Camera
             </button>
@@ -132,7 +106,6 @@ export function CameraFilterDemo({ brand = 'Canon', model = '' }: CameraFilterDe
           </div>
         )}
 
-        {/* Always render video (hidden when not streaming) */}
         <div className={streaming ? 'relative overflow-hidden rounded-lg bg-black' : 'hidden'}>
           <div className="relative">
             <video
@@ -164,7 +137,6 @@ export function CameraFilterDemo({ brand = 'Canon', model = '' }: CameraFilterDe
         </div>
       </div>
 
-      {/* Hidden canvas for snapshot export */}
       <canvas ref={canvasRef} className="hidden" />
     </div>
   )

@@ -3,6 +3,7 @@
 import { useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { Button } from './Button'
+import { useScrollLock } from '@/hooks/useScrollLock'
 
 interface LoginRequiredModalProps {
   isOpen: boolean
@@ -11,6 +12,8 @@ interface LoginRequiredModalProps {
 
 export function LoginRequiredModal({ isOpen, onClose }: LoginRequiredModalProps) {
   const overlayRef = useRef<HTMLDivElement>(null)
+
+  useScrollLock(isOpen)
 
   useEffect(() => {
     if (!isOpen) return
@@ -33,10 +36,8 @@ export function LoginRequiredModal({ isOpen, onClose }: LoginRequiredModalProps)
     }
 
     document.addEventListener('keydown', handleKeyDown)
-    document.body.style.overflow = 'hidden'
     return () => {
       document.removeEventListener('keydown', handleKeyDown)
-      document.body.style.overflow = ''
     }
   }, [isOpen, onClose])
 

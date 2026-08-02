@@ -93,9 +93,12 @@ export function Hero() {
             <Button variant="primary" size="lg">
               Shop the Collection
             </Button>
+            {/* Hidden: Sell With Us button - to be re-enabled later */}
+            {false && (
             <Button variant="secondary" size="lg">
               Sell With Us
             </Button>
+            )}
           </motion.div>
 
           {/* Social proof cluster */}

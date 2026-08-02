@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { Pagination } from '@/components/ui/Pagination'
 
 const mockLogs = [
   { id: '1', date: 'Jul 27, 2026 09:14 AM', action: 'Create', entity: 'Camera', entityName: 'Canon PowerShot A520', admin: 'admin', adminEmail: 'admin@repixl-admin.com', description: 'Added new camera listing', ip: '192.168.1.10', userAgent: 'Mozilla/5.0 Chrome/126.0.0.0 Safari/537.36' },
@@ -25,6 +26,7 @@ export default function AdminLogsPage() {
   const [entityFilter, setEntityFilter] = useState('')
   const [actionFilter, setActionFilter] = useState('')
   const [detailsId, setDetailsId] = useState<string | null>(null)
+  const [currentPage, setCurrentPage] = useState(1)
   const detailLog = detailsId ? mockLogs.find((l) => l.id === detailsId) : null
 
   const filtered = mockLogs.filter((l) => {
@@ -32,6 +34,10 @@ export default function AdminLogsPage() {
     if (actionFilter && l.action !== actionFilter) return false
     return true
   })
+
+  const ITEMS_PER_PAGE = 10
+  const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE)
+  const paginated = filtered.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE)
 
   return (
     <div>
@@ -55,7 +61,7 @@ export default function AdminLogsPage() {
           </thead>
           <tbody className="divide-y divide-repixl-muted/10">
             {filtered.length === 0 && <tr><td colSpan={7} className="px-5 py-12 text-center text-sm text-repixl-muted">No logs match.</td></tr>}
-            {filtered.map((log) => (
+            {paginated.map((log) => (
               <tr key={log.id} className="transition-colors hover:bg-repixl-bg/60">
                 <td className="px-5 py-3.5 text-xs text-repixl-muted">{log.date}</td>
                 <td className="px-5 py-3.5"><span className={`rounded-full border px-2.5 py-1 text-[10px] font-semibold ${actionStyles[log.action] || ''}`}>{log.action}</span></td>
@@ -69,7 +75,8 @@ export default function AdminLogsPage() {
           </tbody>
         </table>
       </div>
-      <p className="mt-3 text-xs text-repixl-muted">Showing {filtered.length} logs</p>
+      <p className="mt-3 text-xs text-repixl-muted">Showing {paginated.length} of {filtered.length} logs</p>
+      <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
 
       {detailLog && (
         <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/40 p-4 pt-16 backdrop-blur-sm">
