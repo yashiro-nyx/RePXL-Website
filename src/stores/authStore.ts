@@ -12,6 +12,12 @@ interface UserRecord {
   isSuperAdmin: boolean
 }
 
+interface SessionData {
+  email: string
+  role: 'customer' | 'admin'
+  loginAt: number // timestamp
+}
+
 interface AuthState {
   isLoggedIn: boolean
   firstName: string
@@ -21,12 +27,19 @@ interface AuthState {
   role: 'customer' | 'admin'
   isSuperAdmin: boolean
   login: (email: string, password: string) => boolean
+  loginAdmin: (email: string, password: string) => boolean
   register: (firstName: string, lastName: string, email: string, password: string) => boolean
   logout: () => void
+  logoutAdmin: () => void
   updateProfile: (firstName: string, lastName: string, email: string, phone: string) => void
   changePassword: (oldPassword: string, newPassword: string) => boolean
   hydrate: () => void
+  hydrateAdmin: () => void
+  isAdminSessionValid: () => boolean
 }
+
+// Session timeout: 60 minutes for admin
+const ADMIN_SESSION_TIMEOUT = 60 * 60 * 1000
 
 // Get all registered users from localStorage
 function getUsers(): UserRecord[] {
@@ -40,10 +53,34 @@ function saveUsers(users: UserRecord[]) {
   localStorage.setItem('repixl-users', JSON.stringify(users))
 }
 
-function getSession(): { email: string } | null {
+function getCustomerSession(): SessionData | null {
   try {
-    const s = localStorage.getItem('repixl-session')
-    return s ? JSON.parse(s) : null
+    // Migrate old session format if present
+    const legacy = localStorage.getItem('repixl-session')
+    if (legacy) {
+      localStorage.removeItem('repixl-session')
+      // Don't migrate — force re-login for security
+    }
+    const s = localStorage.getItem('repixl-customer-session')
+    if (!s) return null
+    const data: SessionData = JSON.parse(s)
+    if (data.role !== 'customer') return null
+    return data
+  } catch { return null }
+}
+
+function getAdminSession(): SessionData | null {
+  try {
+    const s = localStorage.getItem('repixl-admin-session')
+    if (!s) return null
+    const data: SessionData = JSON.parse(s)
+    if (data.role !== 'admin') return null
+    // Check expiry
+    if (Date.now() - data.loginAt > ADMIN_SESSION_TIMEOUT) {
+      localStorage.removeItem('repixl-admin-session')
+      return null
+    }
+    return data
   } catch { return null }
 }
 
@@ -58,24 +95,48 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   register: (firstName, lastName, email, password) => {
     const users = getUsers()
-    if (users.some((u) => u.email === email)) return false // already exists
+    if (users.some((u) => u.email === email)) return false
 
-    const role: 'admin' | 'customer' = email.endsWith('@repixl-admin.com') ? 'admin' : 'customer'
-    const isSuperAdmin = email === 'super@repixl-admin.com' || email === 'admin@repixl-admin.com'
+    // Customers cannot register with admin emails
+    if (email.endsWith('@repixl-admin.com')) return false
 
-    const newUser: UserRecord = { firstName, lastName, email, phone: '', password, role, isSuperAdmin }
+    const newUser: UserRecord = { firstName, lastName, email, phone: '', password, role: 'customer', isSuperAdmin: false }
     saveUsers([...users, newUser])
-    localStorage.setItem('repixl-session', JSON.stringify({ email }))
-    set({ isLoggedIn: true, firstName, lastName, userEmail: email, userPhone: '', role, isSuperAdmin })
+
+    const session: SessionData = { email, role: 'customer', loginAt: Date.now() }
+    localStorage.setItem('repixl-customer-session', JSON.stringify(session))
+    set({ isLoggedIn: true, firstName, lastName, userEmail: email, userPhone: '', role: 'customer', isSuperAdmin: false })
     return true
   },
 
+  // Customer login — only authenticates customer accounts
   login: (email, password) => {
     const users = getUsers()
-    const user = users.find((u) => u.email === email && u.password === password)
+    const user = users.find((u) => u.email === email && u.password === password && u.role === 'customer')
     if (!user) return false
 
-    localStorage.setItem('repixl-session', JSON.stringify({ email }))
+    const session: SessionData = { email, role: 'customer', loginAt: Date.now() }
+    localStorage.setItem('repixl-customer-session', JSON.stringify(session))
+    set({
+      isLoggedIn: true,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      userEmail: user.email,
+      userPhone: user.phone,
+      role: 'customer',
+      isSuperAdmin: false,
+    })
+    return true
+  },
+
+  // Admin login — only authenticates admin accounts, uses separate session
+  loginAdmin: (email, password) => {
+    const users = getUsers()
+    const user = users.find((u) => u.email === email && u.password === password && u.role === 'admin')
+    if (!user) return false
+
+    const session: SessionData = { email, role: 'admin', loginAt: Date.now() }
+    localStorage.setItem('repixl-admin-session', JSON.stringify(session))
     set({
       isLoggedIn: true,
       firstName: user.firstName,
@@ -88,10 +149,15 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     return true
   },
 
+  // Customer logout
   logout: () => {
-    // Only clear the session — do NOT clear per-user data (cart/wishlist/compare)
-    // so it persists when the user logs back in
-    localStorage.removeItem('repixl-session')
+    localStorage.removeItem('repixl-customer-session')
+    set({ isLoggedIn: false, firstName: '', lastName: '', userEmail: '', userPhone: '', role: 'customer', isSuperAdmin: false })
+  },
+
+  // Admin logout
+  logoutAdmin: () => {
+    localStorage.removeItem('repixl-admin-session')
     set({ isLoggedIn: false, firstName: '', lastName: '', userEmail: '', userPhone: '', role: 'customer', isSuperAdmin: false })
   },
 
@@ -101,8 +167,15 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     const updated = users.map((u) => u.email === currentEmail ? { ...u, firstName, lastName, email, phone } : u)
     saveUsers(updated)
     set({ firstName, lastName, userEmail: email, userPhone: phone })
-    // Update session if email changed
-    localStorage.setItem('repixl-session', JSON.stringify({ email }))
+
+    // Update the appropriate session
+    const role = get().role
+    const session: SessionData = { email, role, loginAt: Date.now() }
+    if (role === 'admin') {
+      localStorage.setItem('repixl-admin-session', JSON.stringify(session))
+    } else {
+      localStorage.setItem('repixl-customer-session', JSON.stringify(session))
+    }
   },
 
   changePassword: (oldPassword, newPassword) => {
@@ -115,13 +188,41 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     return true
   },
 
+  // Hydrate for customer-facing pages — only reads customer session
   hydrate: () => {
-    const session = getSession()
-    if (!session) return
+    const session = getCustomerSession()
+    if (!session) {
+      // Clear state if no valid customer session
+      set({ isLoggedIn: false, firstName: '', lastName: '', userEmail: '', userPhone: '', role: 'customer', isSuperAdmin: false })
+      return
+    }
 
     const users = getUsers()
-    const user = users.find((u) => u.email === session.email)
-    if (!user) { localStorage.removeItem('repixl-session'); return }
+    const user = users.find((u) => u.email === session.email && u.role === 'customer')
+    if (!user) { localStorage.removeItem('repixl-customer-session'); return }
+
+    set({
+      isLoggedIn: true,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      userEmail: user.email,
+      userPhone: user.phone,
+      role: 'customer',
+      isSuperAdmin: false,
+    })
+  },
+
+  // Hydrate for admin pages — only reads admin session
+  hydrateAdmin: () => {
+    const session = getAdminSession()
+    if (!session) {
+      set({ isLoggedIn: false, firstName: '', lastName: '', userEmail: '', userPhone: '', role: 'customer', isSuperAdmin: false })
+      return
+    }
+
+    const users = getUsers()
+    const user = users.find((u) => u.email === session.email && u.role === 'admin')
+    if (!user) { localStorage.removeItem('repixl-admin-session'); return }
 
     set({
       isLoggedIn: true,
@@ -132,5 +233,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       role: user.role,
       isSuperAdmin: user.isSuperAdmin,
     })
+  },
+
+  // Check if admin session is still valid (not expired)
+  isAdminSessionValid: () => {
+    const session = getAdminSession()
+    return session !== null
   },
 }))

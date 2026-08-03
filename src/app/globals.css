@@ -140,102 +140,90 @@ body.scroll-locked {
 }
 
 /* Light mode overrides — remap all dark-theme classes */
-[data-theme="light"] {
-  /* Core text */
-  .text-repixl-text-light { color: #1a1610; }
-  .text-repixl-muted { color: #6b6357; }
+/* Using non-nested selectors for maximum CSS compatibility */
 
-  /* Backgrounds */
-  .bg-repixl-bg { background-color: #f5f0ea; }
-  .bg-repixl-charcoal { background-color: #ffffff; }
+/* Core text */
+[data-theme="light"] .text-repixl-text-light { color: #1a1610 !important; }
+[data-theme="light"] .text-repixl-muted { color: #6b6357 !important; }
 
-  /* Borders */
-  .border-repixl-muted\/10 { border-color: rgba(30, 25, 20, 0.08); }
-  .border-repixl-muted\/20 { border-color: rgba(30, 25, 20, 0.12); }
-  .border-repixl-muted\/30 { border-color: rgba(30, 25, 20, 0.18); }
-  .hover\:border-repixl-muted\/30:hover { border-color: rgba(30, 25, 20, 0.18); }
+/* Text opacity variants */
+[data-theme="light"] .text-repixl-text-light\/70 { color: rgba(26, 22, 16, 0.7) !important; }
+[data-theme="light"] .text-repixl-text-light\/75 { color: rgba(26, 22, 16, 0.75) !important; }
+[data-theme="light"] .text-repixl-text-light\/80 { color: rgba(26, 22, 16, 0.8) !important; }
+[data-theme="light"] .text-repixl-text-light\/60 { color: rgba(26, 22, 16, 0.6) !important; }
+[data-theme="light"] .text-repixl-text-light\/50 { color: rgba(26, 22, 16, 0.5) !important; }
+[data-theme="light"] .text-repixl-text-light\/40 { color: rgba(26, 22, 16, 0.4) !important; }
 
-  /* Panels / inputs */
-  .bg-repixl-bg\/50 { background-color: rgba(245, 240, 234, 0.5); }
-  .bg-repixl-bg\/60 { background-color: rgba(245, 240, 234, 0.6); }
-  .bg-repixl-bg\/80 { background-color: rgba(245, 240, 234, 0.8); }
-  .bg-repixl-bg\/90 { background-color: rgba(245, 240, 234, 0.9); }
-  .bg-repixl-bg\/40 { background-color: rgba(245, 240, 234, 0.4); }
+/* Muted text variants */
+[data-theme="light"] .text-repixl-muted\/50 { color: rgba(107, 99, 87, 0.5) !important; }
+[data-theme="light"] .text-repixl-muted\/60 { color: rgba(107, 99, 87, 0.6) !important; }
+[data-theme="light"] .text-repixl-muted\/40 { color: rgba(107, 99, 87, 0.4) !important; }
+[data-theme="light"] .text-repixl-muted\/30 { color: rgba(107, 99, 87, 0.3) !important; }
+[data-theme="light"] .disabled\:text-repixl-muted\/30:disabled { color: rgba(107, 99, 87, 0.3) !important; }
 
-  /* Border solid muted (used on secondary buttons) */
-  .border-repixl-muted { border-color: rgba(107, 99, 87, 0.35); }
+/* Hover text */
+[data-theme="light"] .hover\:text-repixl-text-light:hover { color: #1a1610 !important; }
+[data-theme="light"] .hover\:text-repixl-red:hover { color: #b52a2a !important; }
 
-  /* Active state for ghost buttons */
-  .active\:bg-white\/5:active { background-color: rgba(0, 0, 0, 0.05); }
+/* Backgrounds */
+[data-theme="light"] .bg-repixl-bg { background-color: #f5f0ea !important; }
+[data-theme="light"] .bg-repixl-charcoal { background-color: #ffffff !important; }
+[data-theme="light"] .bg-repixl-bg\/50 { background-color: rgba(245, 240, 234, 0.5) !important; }
+[data-theme="light"] .bg-repixl-bg\/60 { background-color: rgba(245, 240, 234, 0.6) !important; }
+[data-theme="light"] .bg-repixl-bg\/80 { background-color: rgba(245, 240, 234, 0.8) !important; }
+[data-theme="light"] .bg-repixl-bg\/90 { background-color: rgba(245, 240, 234, 0.9) !important; }
+[data-theme="light"] .bg-repixl-bg\/40 { background-color: rgba(245, 240, 234, 0.4) !important; }
+[data-theme="light"] .bg-repixl-charcoal\/30 { background-color: rgba(245, 240, 234, 0.3) !important; }
+[data-theme="light"] .bg-repixl-muted\/40 { background-color: rgba(107, 99, 87, 0.15) !important; }
+[data-theme="light"] .bg-repixl-muted\/15 { background-color: rgba(107, 99, 87, 0.08) !important; }
+[data-theme="light"] .bg-repixl-muted\/10 { background-color: rgba(107, 99, 87, 0.06) !important; }
+[data-theme="light"] .bg-repixl-muted\/5 { background-color: rgba(107, 99, 87, 0.03) !important; }
 
-  /* Placeholder text */
-  .placeholder\:text-repixl-muted\/50::placeholder { color: rgba(107, 99, 87, 0.5); }
-  .placeholder\:text-repixl-muted\/60::placeholder { color: rgba(107, 99, 87, 0.6); }
-  .placeholder\:text-repixl-muted::placeholder { color: #6b6357; }
+/* Hover backgrounds */
+[data-theme="light"] .hover\:bg-repixl-charcoal:hover { background-color: #f5f0ea !important; }
+[data-theme="light"] .hover\:bg-repixl-bg:hover { background-color: #f0ebe5 !important; }
+[data-theme="light"] .hover\:bg-repixl-muted\/5:hover { background-color: rgba(107, 99, 87, 0.05) !important; }
+[data-theme="light"] .active\:bg-white\/5:active { background-color: rgba(0, 0, 0, 0.05) !important; }
 
-  /* White text on light backgrounds — only override when NOT on bg-repixl-red */
-  .bg-repixl-bg\/80.text-repixl-text-light { color: #1a1610; }
+/* Borders */
+[data-theme="light"] .border-repixl-muted\/10 { border-color: rgba(30, 25, 20, 0.08) !important; }
+[data-theme="light"] .border-repixl-muted\/20 { border-color: rgba(30, 25, 20, 0.12) !important; }
+[data-theme="light"] .border-repixl-muted\/30 { border-color: rgba(30, 25, 20, 0.18) !important; }
+[data-theme="light"] .border-repixl-muted\/40 { border-color: rgba(30, 25, 20, 0.22) !important; }
+[data-theme="light"] .border-repixl-muted { border-color: rgba(107, 99, 87, 0.35) !important; }
+[data-theme="light"] .border-repixl-charcoal { border-color: #faf7f2 !important; }
+[data-theme="light"] .hover\:border-repixl-text-light:hover { border-color: #1a1610 !important; }
+[data-theme="light"] .hover\:border-repixl-muted\/30:hover { border-color: rgba(30, 25, 20, 0.18) !important; }
+[data-theme="light"] .hover\:border-repixl-muted\/40:hover { border-color: rgba(30, 25, 20, 0.22) !important; }
+[data-theme="light"] .hover\:border-repixl-muted\/50:hover { border-color: rgba(107, 99, 87, 0.5) !important; }
+[data-theme="light"] .hover\:border-repixl-muted\/60:hover { border-color: rgba(107, 99, 87, 0.6) !important; }
+[data-theme="light"] .hover\:border-repixl-red\/50:hover { border-color: rgba(181, 42, 42, 0.5) !important; }
+[data-theme="light"] .focus\:border-repixl-muted\/50:focus { border-color: rgba(107, 99, 87, 0.5) !important; }
+[data-theme="light"] .focus\:border-repixl-red\/30:focus { border-color: rgba(181, 42, 42, 0.3) !important; }
+[data-theme="light"] .focus\:border-repixl-red\/50:focus { border-color: rgba(181, 42, 42, 0.5) !important; }
 
-  /* Navbar header */
-  .from-repixl-bg\/80 { --tw-gradient-from: rgba(250, 247, 242, 0.8); }
+/* Navbar gradient */
+[data-theme="light"] .from-repixl-bg\/80 { --tw-gradient-from: rgba(250, 247, 242, 0.8) !important; }
 
-  /* Hover background variants */
-  .hover\:bg-repixl-charcoal:hover { background-color: #f5f0ea; }
-  .hover\:bg-repixl-bg:hover { background-color: #f0ebe5; }
+/* Placeholders */
+[data-theme="light"] .placeholder\:text-repixl-muted\/50::placeholder { color: rgba(107, 99, 87, 0.5) !important; }
+[data-theme="light"] .placeholder\:text-repixl-muted\/60::placeholder { color: rgba(107, 99, 87, 0.6) !important; }
+[data-theme="light"] .placeholder\:text-repixl-muted::placeholder { color: #6b6357 !important; }
 
-  /* Text opacity variants */
-  .text-repixl-text-light\/70 { color: rgba(26, 22, 16, 0.7); }
-  .text-repixl-text-light\/80 { color: rgba(26, 22, 16, 0.8); }
-  .text-repixl-text-light\/60 { color: rgba(26, 22, 16, 0.6); }
-  .text-repixl-text-light\/50 { color: rgba(26, 22, 16, 0.5); }
+/* Red brand — slightly deeper for contrast on light bg */
+[data-theme="light"] .bg-repixl-red { background-color: #b52a2a !important; }
+[data-theme="light"] .text-repixl-red { color: #b52a2a !important; }
+[data-theme="light"] .border-repixl-red\/20 { border-color: rgba(181, 42, 42, 0.2) !important; }
+[data-theme="light"] .border-repixl-red\/30 { border-color: rgba(181, 42, 42, 0.3) !important; }
+[data-theme="light"] .bg-repixl-red\/10 { background-color: rgba(181, 42, 42, 0.1) !important; }
+[data-theme="light"] .bg-repixl-red\/5 { background-color: rgba(181, 42, 42, 0.05) !important; }
+[data-theme="light"] .hover\:bg-repixl-red\/10:hover { background-color: rgba(181, 42, 42, 0.1) !important; }
 
-  /* Hover text variants */
-  .hover\:text-repixl-text-light:hover { color: #1a1610; }
+/* Rose text for light mode */
+[data-theme="light"] .text-repixl-rose { color: #8b3a3a !important; }
 
-  /* Hover border variants */
-  .hover\:border-repixl-text-light:hover { border-color: #1a1610; }
-  .hover\:border-repixl-muted\/50:hover { border-color: rgba(107, 99, 87, 0.5); }
-  .hover\:border-repixl-muted\/60:hover { border-color: rgba(107, 99, 87, 0.6); }
-  .hover\:border-repixl-red\/50:hover { border-color: rgba(181, 42, 42, 0.5); }
+/* Decorative background text */
+[data-theme="light"] .text-white\/\[0\.04\] { color: rgba(26, 22, 16, 0.04) !important; }
 
-  /* Focus border variants */
-  .focus\:border-repixl-muted\/50:focus { border-color: rgba(107, 99, 87, 0.5); }
-  .focus\:border-repixl-red\/30:focus { border-color: rgba(181, 42, 42, 0.3); }
-  .focus\:border-repixl-red\/50:focus { border-color: rgba(181, 42, 42, 0.5); }
-
-  /* Muted text variants */
-  .text-repixl-muted\/50 { color: rgba(107, 99, 87, 0.5); }
-  .text-repixl-muted\/60 { color: rgba(107, 99, 87, 0.6); }
-  .text-repixl-muted\/40 { color: rgba(107, 99, 87, 0.4); }
-
-  /* Background muted variants */
-  .bg-repixl-muted\/40 { background-color: rgba(107, 99, 87, 0.4); }
-  .bg-repixl-muted\/15 { background-color: rgba(107, 99, 87, 0.15); }
-  .bg-repixl-muted\/10 { background-color: rgba(107, 99, 87, 0.1); }
-  .bg-repixl-muted\/5 { background-color: rgba(107, 99, 87, 0.05); }
-
-  /* Red brand color stays the same but slightly deeper for contrast on light */
-  .bg-repixl-red { background-color: #b52a2a; }
-  .text-repixl-red { color: #b52a2a; }
-  .border-repixl-red\/20 { border-color: rgba(181, 42, 42, 0.2); }
-  .border-repixl-red\/30 { border-color: rgba(181, 42, 42, 0.3); }
-  .bg-repixl-red\/10 { background-color: rgba(181, 42, 42, 0.1); }
-  .bg-repixl-red\/5 { background-color: rgba(181, 42, 42, 0.05); }
-  .hover\:bg-repixl-red\/10:hover { background-color: rgba(181, 42, 42, 0.1); }
-
-  /* Charcoal panel variants */
-  .bg-repixl-charcoal\/30 { background-color: rgba(255, 255, 255, 0.3); }
-
-  /* White text on components like buttons stays white */
-  .bg-repixl-red .text-white,
-  button.bg-repixl-red { color: #ffffff; }
-
-  /* Rose text */
-  .text-repixl-rose { color: #8b3a3a; }
-
-  /* Decorative background text — flip from faint white to faint dark */
-  .text-white\/\[0\.04\] { color: rgba(26, 22, 16, 0.04); }
-
-  /* Body color override */
-  color: #1a1610;
-}
+/* Body text color */
+[data-theme="light"] body { color: #1a1610; }

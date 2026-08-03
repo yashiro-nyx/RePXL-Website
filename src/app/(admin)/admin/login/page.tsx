@@ -19,9 +19,9 @@ export default function AdminLoginPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const router = useRouter()
-  const { login, isLoggedIn, role, hydrate } = useAuthStore()
+  const { loginAdmin, isLoggedIn, role, hydrateAdmin } = useAuthStore()
 
-  useEffect(() => { hydrate() }, [hydrate])
+  useEffect(() => { hydrateAdmin() }, [hydrateAdmin])
 
   useEffect(() => {
     if (isLoggedIn && role === 'admin') {
@@ -48,21 +48,19 @@ export default function AdminLoginPage() {
     setErrors(newErrors)
     if (Object.keys(newErrors).length > 0) return
 
-    // Try to login with the credentials
-    const success = login(email, password)
+    // Seed admin account if it doesn't exist (first-time setup)
+    const users = JSON.parse(localStorage.getItem('repixl-users') || '[]')
+    const exists = users.some((u: any) => u.email === email)
+    if (!exists && email === ADMIN_EMAIL && password === ADMIN_PASSWORD) {
+      users.push({ firstName: 'Admin', lastName: 'User', email, phone: '', password, role: 'admin', isSuperAdmin: true })
+      localStorage.setItem('repixl-users', JSON.stringify(users))
+    }
+
+    // Try admin login
+    const success = loginAdmin(email, password)
     if (!success) {
-      // If user doesn't exist yet (first time), register them as admin
-      const users = JSON.parse(localStorage.getItem('repixl-users') || '[]')
-      const exists = users.some((u: any) => u.email === email)
-      if (!exists && email === ADMIN_EMAIL && password === ADMIN_PASSWORD) {
-        // Seed admin account
-        users.push({ firstName: 'Admin', lastName: 'User', email, phone: '', password, role: 'admin', isSuperAdmin: true })
-        localStorage.setItem('repixl-users', JSON.stringify(users))
-        login(email, password)
-      } else {
-        setErrors({ auth: 'Invalid email or password.' })
-        return
-      }
+      setErrors({ auth: 'Invalid email or password.' })
+      return
     }
     router.push('/admin')
   }

@@ -42,7 +42,7 @@ const superAdminSection = {
 }
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
-  const { isLoggedIn, role, isSuperAdmin, firstName, lastName, userEmail, hydrate, logout } = useAuthStore()
+  const { isLoggedIn, role, isSuperAdmin, firstName, lastName, userEmail, hydrateAdmin, logoutAdmin, isAdminSessionValid } = useAuthStore()
   const orders = useOrderHistoryStore((s) => s.orders)
   const [hydrated, setHydrated] = useState(false)
   const [notifOpen, setNotifOpen] = useState(false)
@@ -51,10 +51,22 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const pathname = usePathname()
 
   useEffect(() => {
-    hydrate()
+    hydrateAdmin()
     useOrderHistoryStore.getState().hydrate()
     setHydrated(true)
-  }, [hydrate])
+  }, [hydrateAdmin])
+
+  // Periodic session validity check (every 60 seconds)
+  useEffect(() => {
+    if (!hydrated || pathname === '/admin/login') return
+    const interval = setInterval(() => {
+      if (!isAdminSessionValid()) {
+        logoutAdmin()
+        router.push('/admin/login')
+      }
+    }, 60000)
+    return () => clearInterval(interval)
+  }, [hydrated, pathname, isAdminSessionValid, logoutAdmin, router])
 
   useEffect(() => {
     if (!hydrated) return
@@ -72,7 +84,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const pendingOrders = orders.filter((o) => o.status === 'Processing').length
   const initials = `${firstName?.[0] || ''}${lastName?.[0] || ''}`.toUpperCase() || 'A'
 
-  const handleLogout = () => { logout(); router.push('/admin/login') }
+  const handleLogout = () => { logoutAdmin(); router.push('/admin/login') }
 
   return (
     <div className="flex min-h-screen text-repixl-text-light" style={{ backgroundColor: '#050303', backgroundImage: 'linear-gradient(90deg, rgba(200,20,10,0.9) 0%, rgba(160,30,10,0.5) 8%, rgba(80,15,10,0.2) 15%, transparent 22%), linear-gradient(270deg, rgba(180,30,10,0.4) 0%, transparent 10%)', backgroundBlendMode: 'screen', backgroundAttachment: 'fixed' }}>
