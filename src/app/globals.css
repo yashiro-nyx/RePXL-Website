@@ -144,21 +144,26 @@ body.scroll-locked {
     -webkit-overflow-scrolling: touch;
   }
 
-  /* Admin tables: horizontal scroll within container */
-  .overflow-x-auto.rounded-2xl {
-    -webkit-overflow-scrolling: touch;
-  }
-
-  /* Prevent table min-width from breaking layout */
+  /* Admin tables: ensure min-width triggers scroll, reduce cell padding */
   .overflow-x-auto table {
-    min-width: 600px;
+    min-width: 640px;
   }
 
-  /* Admin header: reduce padding */
-  .sticky.top-0 { padding-left: 1rem; padding-right: 1rem; }
+  .overflow-x-auto table th,
+  .overflow-x-auto table td {
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+    white-space: nowrap;
+  }
 
-  /* Admin page content: reduce padding on mobile */
-  main.p-4 { padding: 1rem; }
+  /* Admin table scroll hint — gradient fade on right edge */
+  .overflow-x-auto {
+    -webkit-overflow-scrolling: touch;
+    position: relative;
+  }
+
+  /* Admin header titles: reduce size on mobile */
+  h1.text-2xl { font-size: 1.25rem; }
 }
 
 /* Theme-aware overrides for core Tailwind colors used site-wide */

@@ -43,7 +43,7 @@ export default function AdminLogsPage() {
     <div>
       <div><h1 className="text-2xl font-bold text-repixl-text-light">Activity Logs</h1><p className="mt-0.5 text-sm text-repixl-muted">Audit trail of all admin actions.</p></div>
 
-      <div className="mt-5 flex gap-3">
+      <div className="mt-5 flex flex-wrap gap-3">
         <select value={entityFilter} onChange={(e) => setEntityFilter(e.target.value)} className="rounded-xl border border-repixl-muted/20 bg-repixl-charcoal px-4 py-2 text-sm text-repixl-text-light/80 shadow-sm focus:outline-none">
           <option value="">All Entities</option>
           {['Camera', 'Order', 'Voucher', 'Admin'].map((e) => <option key={e} value={e}>{e}</option>)}

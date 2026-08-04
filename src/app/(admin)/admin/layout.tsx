@@ -137,7 +137,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       </aside>
 
       {/* Main area */}
-      <div className="flex-1 md:ml-60">
+      <div className="min-w-0 flex-1 md:ml-60">
         {/* Top bar */}
         <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-repixl-muted/10 bg-repixl-charcoal px-4 md:px-8">
           {/* Mobile hamburger */}
@@ -191,7 +191,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </header>
 
         {/* Content */}
-        <main className="p-4 md:p-8">{children}</main>
+        <main className="min-w-0 overflow-x-hidden p-4 md:p-8">{children}</main>
       </div>
     </div>
   )
