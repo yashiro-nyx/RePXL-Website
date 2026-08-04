@@ -14,6 +14,7 @@ export function Navbar() {
   const [query, setQuery] = useState('')
   const [profileOpen, setProfileOpen] = useState(false)
   const [loginModalOpen, setLoginModalOpen] = useState(false)
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
   const profileRef = useRef<HTMLDivElement>(null)
   const router = useRouter()
@@ -83,7 +84,7 @@ export function Navbar() {
           <Link href="/" className="relative">
             <CornerBracket size={8} className="relative px-2 py-1">
               <span className="font-display text-lg font-semibold tracking-tight text-repixl-text-light">
-                RePIXL
+                RePXL
               </span>
               {/* Glowing REC dot — inside the bracket, upper-right */}
               <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-repixl-red" style={{ animation: 'glow 2s ease-in-out infinite' }} />
@@ -212,12 +213,40 @@ export function Navbar() {
               )}
             </div>
 
-            {/* Mobile menu */}
-            <button type="button" aria-label="Menu" className="text-repixl-text-light/80 transition-colors hover:text-repixl-text-light md:hidden">
-              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><line x1="4" x2="20" y1="12" y2="12" /><line x1="4" x2="20" y1="6" y2="6" /><line x1="4" x2="20" y1="18" y2="18" /></svg>
+            {/* Mobile menu toggle */}
+            <button type="button" aria-label="Menu" onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="text-repixl-text-light/80 transition-colors hover:text-repixl-text-light md:hidden">
+              {mobileMenuOpen ? (
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg>
+              ) : (
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><line x1="4" x2="20" y1="12" y2="12" /><line x1="4" x2="20" y1="6" y2="6" /><line x1="4" x2="20" y1="18" y2="18" /></svg>
+              )}
             </button>
           </div>
         </nav>
+
+        {/* Mobile menu drawer */}
+        {mobileMenuOpen && (
+          <div className="border-t border-repixl-muted/10 bg-repixl-charcoal px-6 py-4 md:hidden">
+            <ul className="space-y-3">
+              <li><Link href="/" onClick={() => setMobileMenuOpen(false)} className="block text-sm text-repixl-text-light/80 transition-colors hover:text-repixl-text-light">Home</Link></li>
+              <li><Link href="/products" onClick={() => setMobileMenuOpen(false)} className="block text-sm text-repixl-text-light/80 transition-colors hover:text-repixl-text-light">Cameras</Link></li>
+              <li><Link href="/compare" onClick={() => setMobileMenuOpen(false)} className="block text-sm text-repixl-text-light/80 transition-colors hover:text-repixl-text-light">Compare</Link></li>
+              <li><Link href="/about" onClick={() => setMobileMenuOpen(false)} className="block text-sm text-repixl-text-light/80 transition-colors hover:text-repixl-text-light">About</Link></li>
+            </ul>
+            {isLoggedIn && (
+              <div className="mt-4 border-t border-repixl-muted/10 pt-4">
+                <Link href="/account" onClick={() => setMobileMenuOpen(false)} className="block text-sm text-repixl-text-light/80 hover:text-repixl-text-light">My Account</Link>
+                <button type="button" onClick={() => { logout(); setMobileMenuOpen(false) }} className="mt-2 block text-sm text-repixl-red">Log Out</button>
+              </div>
+            )}
+            {!isLoggedIn && (
+              <div className="mt-4 border-t border-repixl-muted/10 pt-4">
+                <Link href="/login" onClick={() => setMobileMenuOpen(false)} className="block text-sm text-repixl-text-light/80 hover:text-repixl-text-light">Log In</Link>
+                <Link href="/register" onClick={() => setMobileMenuOpen(false)} className="mt-2 block text-sm text-repixl-red">Register</Link>
+              </div>
+            )}
+          </div>
+        )}
       </header>
 
       <LoginRequiredModal isOpen={loginModalOpen} onClose={() => setLoginModalOpen(false)} />

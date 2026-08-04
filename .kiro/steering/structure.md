@@ -1,10 +1,10 @@
 ---
 inclusion: always
 name: structure
-description: Folder structure, file organization, and naming conventions for the RePIXL codebase. Use when creating new files or restructuring.
+description: Folder structure, file organization, and naming conventions for the RePXL codebase. Use when creating new files or restructuring.
 ---
 
-# RePIXL — Structure Steering Document
+# RePXL — Structure Steering Document
 
 ## 1. Project Root Layout
 

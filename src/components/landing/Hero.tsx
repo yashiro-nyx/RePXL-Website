@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import { motion } from 'framer-motion'
 import { Button, CornerBracket } from '@/components/ui'
 import { useReducedMotion } from '@/hooks/useReducedMotion'
@@ -64,7 +65,7 @@ export function Hero() {
           <motion.div variants={fadeSlideUp}>
             <CornerBracket size={10} color="rgba(245, 241, 236, 0.4)" className="mb-8 inline-block px-3 py-1.5">
               <span className="font-display text-xl font-semibold tracking-tight text-repixl-text-light">
-                RePIXL
+                RePXL
               </span>
             </CornerBracket>
           </motion.div>
@@ -90,9 +91,11 @@ export function Hero() {
             variants={fadeSlideUp}
             className="mt-8 flex flex-wrap items-center gap-4"
           >
-            <Button variant="primary" size="lg">
-              Shop the Collection
-            </Button>
+            <Link href="/products">
+              <Button variant="primary" size="lg">
+                Shop the Collection
+              </Button>
+            </Link>
             {/* Hidden: Sell With Us button - to be re-enabled later */}
             {false && (
             <Button variant="secondary" size="lg">

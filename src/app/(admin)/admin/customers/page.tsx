@@ -79,7 +79,7 @@ export default function AdminCustomersPage() {
         <input type="search" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Search customers..." className="w-full rounded-xl border border-repixl-muted/20 bg-repixl-charcoal py-2 pl-10 pr-4 text-sm text-repixl-text-light/80 placeholder:text-repixl-muted shadow-sm focus:border-repixl-red/30 focus:outline-none" />
       </div>
 
-      <div className="mt-4 overflow-hidden rounded-2xl border border-repixl-muted/20 bg-repixl-charcoal shadow-sm">
+      <div className="mt-4 overflow-x-auto rounded-2xl border border-repixl-muted/20 bg-repixl-charcoal shadow-sm">
         <table className="w-full text-left text-sm">
           <thead className="border-b border-repixl-muted/10 bg-repixl-bg/50">
             <tr>{['Name', 'Email', 'Password', 'Role', 'Actions'].map((h) => <th key={h} className="px-5 py-3.5 text-[10px] font-semibold uppercase tracking-wider text-repixl-muted">{h}</th>)}</tr>

@@ -12,7 +12,7 @@ interface CornerBracketProps {
 /**
  * Viewfinder-style corner-bracket frame.
  * Wraps its children with decorative ⌐ ¬ corner accents,
- * the signature motif from the RePIXL design system.
+ * the signature motif from the RePXL design system.
  */
 const CornerBracket: FC<CornerBracketProps> = ({
   children,

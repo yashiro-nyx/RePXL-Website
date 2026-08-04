@@ -22,7 +22,7 @@ const jetbrainsMono = JetBrains_Mono({
 })
 
 export const metadata: Metadata = {
-  title: 'RePIXL — Vintage Digital Cameras',
+  title: 'RePXL — Vintage Digital Cameras',
   description:
     'The curated marketplace for vintage digital cameras. Condition-graded, serial-verified, and trusted by collectors.',
 }

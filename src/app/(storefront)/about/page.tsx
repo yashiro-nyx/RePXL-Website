@@ -28,7 +28,7 @@ export default function AboutPage() {
         <Container>
           <motion.div {...fadeUp} className="mx-auto max-w-2xl text-center">
             <span className="mb-5 block font-mono text-xs uppercase tracking-widest text-repixl-muted">
-              — About RePIXL
+              — About RePXL
             </span>
             <CornerBracket size={14} color="rgba(245, 241, 236, 0.25)" className="inline-block px-6 py-4">
               <h1 className="font-display text-display-lg text-repixl-text-light md:text-display-xl">
@@ -38,7 +38,7 @@ export default function AboutPage() {
               </h1>
             </CornerBracket>
             <p className="mx-auto mt-6 max-w-lg text-base text-repixl-text-light/70">
-              The story behind RePIXL — and why we grade every camera
+              The story behind RePXL — and why we grade every camera
               before it reaches you.
             </p>
           </motion.div>
@@ -81,7 +81,7 @@ export default function AboutPage() {
               </h2>
               <div className="mt-5 space-y-4 text-sm leading-relaxed text-repixl-text-light/75">
                 <p>
-                  RePIXL started with a frustration every collector knows too well:
+                  RePXL started with a frustration every collector knows too well:
                   scrolling through secondhand marketplaces, squinting at blurry photos,
                   and wondering if the &ldquo;Mint condition&rdquo; seller actually knows
                   what mint condition means.
@@ -172,7 +172,7 @@ export default function AboutPage() {
               — Where We&apos;re Headed
             </span>
             <p className="mt-5 text-sm leading-relaxed text-repixl-text-light/75">
-              RePIXL is still young — we&apos;re a small, collector-run team, and every
+              RePXL is still young — we&apos;re a small, collector-run team, and every
               camera that passes through our hands gets the same care whether it&apos;s a
               $40 point-and-shoot or a rare early CyberShot. As we grow, our commitment
               stays the same:{' '}

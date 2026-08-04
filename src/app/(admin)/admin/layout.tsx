@@ -87,7 +87,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const handleLogout = () => { logoutAdmin(); router.push('/admin/login') }
 
   return (
-    <div className="flex min-h-screen text-repixl-text-light" style={{ backgroundColor: '#050303', backgroundImage: 'linear-gradient(90deg, rgba(200,20,10,0.9) 0%, rgba(160,30,10,0.5) 8%, rgba(80,15,10,0.2) 15%, transparent 22%), linear-gradient(270deg, rgba(180,30,10,0.4) 0%, transparent 10%)', backgroundBlendMode: 'screen', backgroundAttachment: 'fixed' }}>
+    <div className="flex min-h-screen overflow-x-hidden text-repixl-text-light" style={{ backgroundColor: '#050303', backgroundImage: 'linear-gradient(90deg, rgba(200,20,10,0.9) 0%, rgba(160,30,10,0.5) 8%, rgba(80,15,10,0.2) 15%, transparent 22%), linear-gradient(270deg, rgba(180,30,10,0.4) 0%, transparent 10%)', backgroundBlendMode: 'screen', backgroundAttachment: 'fixed' }}>
       {/* Mobile sidebar backdrop */}
       {sidebarOpen && (
         <div className="fixed inset-0 z-30 bg-black/50 backdrop-blur-sm md:hidden" onClick={() => setSidebarOpen(false)} aria-hidden="true" />
@@ -102,7 +102,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             {/* Glowing REC dot */}
             <span className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full bg-repixl-red" style={{ animation: 'glow 2s ease-in-out infinite' }} />
           </div>
-          <span className="font-display text-base font-bold text-repixl-text-light">RePIXL <span className="text-repixl-red">Admin</span></span>
+          <span className="font-display text-base font-bold text-repixl-text-light">RePXL <span className="text-repixl-red">Admin</span></span>
         </div>
 
         {/* Nav */}

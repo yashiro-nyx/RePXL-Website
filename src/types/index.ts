@@ -1,4 +1,4 @@
-// RePIXL shared type definitions
+// RePXL shared type definitions
 
 export type ConditionGrade = 'mint' | 'excellent' | 'good' | 'fair'
 

@@ -91,7 +91,7 @@ export default function RegisterPage() {
         <div className="mb-8 text-center">
           <Link href="/">
             <CornerBracket size={8} color="rgba(245, 241, 236, 0.3)" className="mx-auto inline-block px-3 py-1.5">
-              <span className="font-display text-xl font-semibold tracking-tight text-repixl-text-light">RePIXL</span>
+              <span className="font-display text-xl font-semibold tracking-tight text-repixl-text-light">RePXL</span>
             </CornerBracket>
           </Link>
         </div>

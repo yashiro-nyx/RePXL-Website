@@ -1,8 +1,8 @@
-# RePIXL
+# RePXL
 
 **Capture the past. Frame the future.**
 
-RePIXL is the curated marketplace for vintage digital cameras — condition-graded, serial-verified, and trusted by collectors worldwide. It's built for the early-2000s digicam era: CyberShots, PowerShots, Coolpixes, and the CCD compacts that shaped a generation of casual photography.
+RePXL is the curated marketplace for vintage digital cameras — condition-graded, serial-verified, and trusted by collectors worldwide. It's built for the early-2000s digicam era: CyberShots, PowerShots, Coolpixes, and the CCD compacts that shaped a generation of casual photography.
 
 The whole product leans into that era visually — a black-dominant, film-burn aesthetic (warm red/orange light leaking in from the edges, grain texture, fading to near-black at the center) that echoes the CRT-and-CompactFlash period the products themselves are from.
 
@@ -61,8 +61,8 @@ The whole product leans into that era visually — a black-dominant, film-burn a
 
 ```bash
 # clone the repo
-git clone https://github.com/yashiro-nyx/RePIXL-Website.git
-cd RePIXL-Website
+git clone https://github.com/yashiro-nyx/RePXL-Website.git
+cd RePXL-Website
 
 # install dependencies
 npm install
@@ -109,7 +109,7 @@ src/
 
 ## Design System
 
-RePIXL's background is a single, continuous "film burn": a black-dominant canvas with a rough, grainy red/amber glow concentrated at the edges only, fading to near-black at the center so text and UI stay fully legible. It's applied at the root layout level (not per-section) to avoid visible seams between page sections.
+RePXL's background is a single, continuous "film burn": a black-dominant canvas with a rough, grainy red/amber glow concentrated at the edges only, fading to near-black at the center so text and UI stay fully legible. It's applied at the root layout level (not per-section) to avoid visible seams between page sections.
 
 Because the burn is a brand signature but not appropriate at full strength everywhere, its intensity is controlled per route via a CSS custom property:
 

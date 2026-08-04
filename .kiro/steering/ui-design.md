@@ -1,13 +1,13 @@
 ---
 inclusion: always
 name: ui-design
-description: UI/UX design system, layout specs, and animation guidelines for the RePIXL vintage digicam e-commerce website. Use for any work involving pages, components, styling, or interactions.
+description: UI/UX design system, layout specs, and animation guidelines for the RePXL vintage digicam e-commerce website. Use for any work involving pages, components, styling, or interactions.
 ---
 
-# RePIXL — UI/UX Steering Document
+# RePXL — UI/UX Steering Document
 
 ## 0. How to use this file
-This is a Kiro steering file for **RePIXL: Development of a Vintage Digital Camera
+This is a Kiro steering file for **RePXL: Development of a Vintage Digital Camera
 (Digicam) E-commerce Website**, a Systems Integration & Architecture 01 project.
 It defines the visual language, layout, and interaction rules Kiro should follow for
 **every UI task** on this project — landing page, product pages, cart, checkout,
@@ -44,7 +44,7 @@ over a clean, fast, modern e-commerce shell. Reference points to follow:
 
 1. **Hero/landing treatment** — reference image provided (OPTIQ-style):
    - Oversized, semi-transparent display type sitting *behind* the hero product
-     shot (a word like "VINTAGE" or "RePIXL" bled large across the hero, low
+     shot (a word like "VINTAGE" or "RePXL" bled large across the hero, low
      opacity, cropped by the viewport).
    - A camera product shot placed at a slight diagonal tilt, front and center,
      large enough to dominate the fold.
@@ -263,7 +263,7 @@ motion is secondary to clarity here.
 
 ## 12. Recommended Next Steering Files
 For best results, also create (or generate via Kiro's steering command):
-- `.kiro/steering/product.md` — RePIXL's purpose, users, and objectives (can be
+- `.kiro/steering/product.md` — RePXL's purpose, users, and objectives (can be
   drawn directly from the project's Background of the Study/Objectives).
 - `.kiro/steering/tech.md` — confirmed stack (frontend framework, styling
   approach, backend, database, payment integration) once decided.

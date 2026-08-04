@@ -22,7 +22,7 @@ export default function AdminAccountsPage() {
   const [pwModalId, setPwModalId] = useState<string | null>(null)
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
 
-  useEffect(() => { useAuthStore.getState().hydrate(); if (!isSuperAdmin) router.push('/admin') }, [isSuperAdmin, router])
+  useEffect(() => { if (!isSuperAdmin) router.push('/admin') }, [isSuperAdmin, router])
   if (!isSuperAdmin) return null
 
   const handleSave = (data: Omit<AdminAccount, 'id'|'created'>) => {
@@ -40,7 +40,7 @@ export default function AdminAccountsPage() {
         <span className="rounded-full bg-repixl-red/10 px-3 py-1 text-xs font-semibold text-repixl-red">Super Admin</span>
       </div>
 
-      <div className="mt-5 overflow-hidden rounded-2xl border border-repixl-muted/20 bg-repixl-charcoal shadow-sm">
+      <div className="mt-5 overflow-x-auto rounded-2xl border border-repixl-muted/20 bg-repixl-charcoal shadow-sm">
         <div className="flex items-center justify-between border-b border-repixl-muted/10 px-6 py-4">
           <div><p className="font-semibold text-repixl-text-light">Admin Accounts</p><p className="text-xs text-repixl-muted">Manage administrator access</p></div>
           <button onClick={() => { setEditingId(null); setModalOpen(true) }} className="flex items-center gap-2 rounded-xl bg-repixl-red px-4 py-2 text-sm font-medium text-white hover:bg-red-700">

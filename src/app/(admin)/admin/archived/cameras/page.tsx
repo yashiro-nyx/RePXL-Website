@@ -12,7 +12,7 @@ export default function ArchivedCamerasPage() {
   return (
     <div>
       <div><h1 className="text-2xl font-bold text-repixl-text-light">Archived Cameras</h1><p className="mt-0.5 text-sm text-repixl-muted">{archived.length} archived cameras</p></div>
-      <div className="mt-5 overflow-hidden rounded-2xl border border-repixl-muted/20 bg-repixl-charcoal shadow-sm">
+      <div className="mt-5 overflow-x-auto rounded-2xl border border-repixl-muted/20 bg-repixl-charcoal shadow-sm">
         <table className="w-full text-left text-sm">
           <thead className="border-b border-repixl-muted/10 bg-repixl-bg/50"><tr>{['Image','Name','Brand','Stock','Condition','Actions'].map((h) => <th key={h} className="px-5 py-3.5 text-[10px] font-semibold uppercase tracking-wider text-repixl-muted">{h}</th>)}</tr></thead>
           <tbody className="divide-y divide-repixl-muted/10">

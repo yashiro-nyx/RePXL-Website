@@ -1,13 +1,13 @@
 ---
 inclusion: always
 name: product
-description: RePIXL's purpose, target users, objectives, and core value propositions. Use for any decision about features, priorities, or scope.
+description: RePXL's purpose, target users, objectives, and core value propositions. Use for any decision about features, priorities, or scope.
 ---
 
-# RePIXL — Product Steering Document
+# RePXL — Product Steering Document
 
-## 1. What is RePIXL?
-RePIXL is an e-commerce marketplace dedicated to **buying and selling vintage digital
+## 1. What is RePXL?
+RePXL is an e-commerce marketplace dedicated to **buying and selling vintage digital
 cameras (digicams) and accessories**. It is not a general electronics store, not a
 film-camera shop, not a rental platform, and not a peer-to-peer trading app. It is a
 curated, admin-managed storefront that prioritizes trust, transparency, and organized
@@ -24,7 +24,7 @@ classifieds, broad marketplaces) suffer from:
   filtering by brand/era/condition, and no way to compare specs side-by-side.
 - **No buyer protection** — transactions happen off-platform with no recourse.
 
-RePIXL solves these by providing a structured, credible marketplace with condition
+RePXL solves these by providing a structured, credible marketplace with condition
 grading, serial number tracking, organized categories, and secure checkout.
 
 ## 3. Target Users
@@ -85,7 +85,7 @@ grading, serial number tracking, organized categories, and secure checkout.
 - Zero-result search rate (indicates catalog or filter gaps)
 
 ## 7. Core Differentiators
-These are the features that set RePIXL apart from general marketplaces and must be
+These are the features that set RePXL apart from general marketplaces and must be
 given first-class treatment in both UI and backend:
 
 1. **Condition grading** — standardized, color-coded, prominently displayed

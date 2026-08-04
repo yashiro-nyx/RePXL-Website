@@ -130,6 +130,37 @@ body.scroll-locked {
   overflow: hidden;
 }
 
+/* Admin mobile responsiveness fixes */
+@media (max-width: 767px) {
+  /* Admin modals: constrain to viewport width */
+  .fixed.inset-0 [class*="max-w-"] {
+    max-width: calc(100vw - 2rem) !important;
+  }
+
+  /* Modal content: allow horizontal scroll for wide content inside */
+  .fixed.inset-0 [class*="max-w-"] table {
+    display: block;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Admin tables: horizontal scroll within container */
+  .overflow-x-auto.rounded-2xl {
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Prevent table min-width from breaking layout */
+  .overflow-x-auto table {
+    min-width: 600px;
+  }
+
+  /* Admin header: reduce padding */
+  .sticky.top-0 { padding-left: 1rem; padding-right: 1rem; }
+
+  /* Admin page content: reduce padding on mobile */
+  main.p-4 { padding: 1rem; }
+}
+
 /* Theme-aware overrides for core Tailwind colors used site-wide */
 @layer utilities {
   .theme-bg { background-color: var(--color-bg); }

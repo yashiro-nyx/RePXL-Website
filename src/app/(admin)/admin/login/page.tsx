@@ -12,7 +12,7 @@ interface LoginErrors {
 
 // Hardcoded admin credentials (demo only)
 const ADMIN_EMAIL = 'admin@repixl-admin.com'
-const ADMIN_PASSWORD = 'RePIXL2026!'
+const ADMIN_PASSWORD = 'RePXL2026!'
 
 export default function AdminLoginPage() {
   const [errors, setErrors] = useState<LoginErrors>({})
@@ -70,7 +70,7 @@ export default function AdminLoginPage() {
       <div className="w-full max-w-sm">
         <div className="mb-8 text-center">
           <p className="font-mono text-sm font-bold text-repixl-text-light">
-            RePIXL <span className="text-repixl-red">Admin</span>
+            RePXL <span className="text-repixl-red">Admin</span>
           </p>
         </div>
 

@@ -41,7 +41,7 @@ export default function AdminVouchersPage() {
         <button onClick={() => setModalOpen(true)} className="rounded-xl bg-repixl-red px-4 py-2.5 text-sm font-medium text-white hover:bg-red-700">+ Add Voucher</button>
       </div>
 
-      <div className="mt-5 overflow-hidden rounded-2xl border border-repixl-muted/20 bg-repixl-charcoal shadow-sm">
+      <div className="mt-5 overflow-x-auto rounded-2xl border border-repixl-muted/20 bg-repixl-charcoal shadow-sm">
         <table className="w-full text-left text-sm">
           <thead className="border-b border-repixl-muted/10 bg-repixl-bg/50">
             <tr>{['Code','Discount','Min Purchase','Usage','Valid Until','Status','Actions'].map((h) => <th key={h} className="px-5 py-3.5 text-[10px] font-semibold uppercase tracking-wider text-repixl-muted">{h}</th>)}</tr>

@@ -91,6 +91,7 @@ export default function ProductDetailPage() {
   const addToast = useToastStore((s) => s.addToast)
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
   const [selectedQty, setSelectedQty] = useState(1)
+  const [compareModal, setCompareModal] = useState<'added' | 'full' | null>(null)
 
   useEffect(() => {
     useProductStore.getState().hydrate()
@@ -291,12 +292,11 @@ export default function ProductDetailPage() {
                   }
                   const result = addToCompare(product.slug)
                   if (result === 'added') {
-                    addToast(`${product.name} added to comparison`)
-                    router.push('/compare')
+                    setCompareModal('added')
                   } else if (result === 'already') {
                     router.push('/compare')
                   } else {
-                    setToast({ message: 'Comparison is full (3 max). Remove one first.', type: 'error' })
+                    setCompareModal('full')
                   }
                 }}
               >
@@ -308,6 +308,39 @@ export default function ProductDetailPage() {
             </div>
 
             <LoginRequiredModal isOpen={loginModalOpen} onClose={() => setLoginModalOpen(false)} />
+
+            {/* Compare confirmation modal */}
+            {compareModal && (
+              <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+                <div className="w-full max-w-sm rounded-xl border border-repixl-muted/20 bg-repixl-charcoal p-6 shadow-2xl">
+                  {compareModal === 'added' ? (
+                    <>
+                      <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-repixl-success/15">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-repixl-success"><path d="M20 6 9 17l-5-5" /></svg>
+                      </div>
+                      <h3 className="text-center font-display text-lg font-semibold text-repixl-text-light">Added to Compare</h3>
+                      <p className="mt-1 text-center text-sm text-repixl-muted">{product.name} has been added. Would you like to compare now or keep browsing?</p>
+                      <div className="mt-5 flex flex-col gap-2">
+                        <button onClick={() => { setCompareModal(null); router.push('/compare') }} className="w-full rounded-lg bg-repixl-red px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-red-700">Go to Compare</button>
+                        <button onClick={() => setCompareModal(null)} className="w-full rounded-lg border border-repixl-muted/20 px-4 py-2.5 text-sm text-repixl-text-light/70 transition-colors hover:bg-repixl-muted/5 hover:text-repixl-text-light">Continue Browsing</button>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-repixl-warning/15">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-repixl-warning"><path d="M12 9v4" /><path d="M12 17h.01" /><path d="M3.44 18.67 10.3 4.83a2 2 0 0 1 3.4 0l6.86 13.84A2 2 0 0 1 18.7 21H5.3a2 2 0 0 1-1.86-2.33z" /></svg>
+                      </div>
+                      <h3 className="text-center font-display text-lg font-semibold text-repixl-text-light">Compare is Full</h3>
+                      <p className="mt-1 text-center text-sm text-repixl-muted">You can compare up to 3 cameras. Remove one to add {product.name}.</p>
+                      <div className="mt-5 flex flex-col gap-2">
+                        <button onClick={() => { setCompareModal(null); router.push('/compare') }} className="w-full rounded-lg bg-repixl-red px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-red-700">Manage Compare List</button>
+                        <button onClick={() => setCompareModal(null)} className="w-full rounded-lg border border-repixl-muted/20 px-4 py-2.5 text-sm text-repixl-text-light/70 transition-colors hover:bg-repixl-muted/5 hover:text-repixl-text-light">Close</button>
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
+            )}
             {toast && (
               <CompareToast message={toast.message} type={toast.type} visible={!!toast} onDismiss={() => setToast(null)} />
             )}

@@ -69,7 +69,7 @@ export default function AdminOrdersPage() {
         </select>
       </div>
 
-      <div className="mt-4 overflow-hidden rounded-2xl border border-repixl-muted/20 bg-repixl-charcoal shadow-sm">
+      <div className="mt-4 overflow-x-auto rounded-2xl border border-repixl-muted/20 bg-repixl-charcoal shadow-sm">
         <table className="w-full text-left text-sm">
           <thead className="border-b border-repixl-muted/10 bg-repixl-bg/50">
             <tr>

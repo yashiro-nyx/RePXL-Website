@@ -1,10 +1,10 @@
 ---
 inclusion: always
 name: tech
-description: Technology stack, tooling, and technical conventions for the RePIXL project. Use for any implementation decisions.
+description: Technology stack, tooling, and technical conventions for the RePXL project. Use for any implementation decisions.
 ---
 
-# RePIXL — Tech Steering Document
+# RePXL — Tech Steering Document
 
 ## 1. Stack Overview
 
@@ -13,7 +13,7 @@ description: Technology stack, tooling, and technical conventions for the RePIXL
 | Frontend framework | **Next.js 14+ (App Router)** | SSR/SSG for SEO, file-based routing, React ecosystem |
 | Styling | **Tailwind CSS** (customized palette) | Utility-first, fast iteration, easy to enforce design tokens |
 | Animation | **Framer Motion** + CSS scroll-linked | Parallax, scroll reveals, micro-interactions per UI steering |
-| UI components | Custom component library | Built to match RePIXL's design system, not a generic kit |
+| UI components | Custom component library | Built to match RePXL's design system, not a generic kit |
 | State management | **React Context + Zustand** | Cart, wishlist, auth state — lightweight, no Redux overhead |
 | Backend / API | **Next.js API Routes** or separate Express/Node server | TBD — confirm with team |
 | Database | **PostgreSQL** (via Prisma ORM) | Relational data (products, orders, users, reviews) |

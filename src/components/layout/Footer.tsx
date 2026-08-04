@@ -18,7 +18,7 @@ const supportLinks = [
 ]
 
 const companyLinks = [
-  { label: 'About RePIXL', href: '/about' },
+  { label: 'About RePXL', href: '/about' },
   { label: 'My Account', href: '/account' },
   { label: 'Sign In', href: '/login' },
 ]
@@ -33,7 +33,7 @@ export function Footer() {
           <div className="lg:col-span-2">
             <CornerBracket size={8} color="rgba(245, 241, 236, 0.3)" className="mb-4 inline-block px-2 py-1">
               <span className="font-display text-lg font-semibold tracking-tight text-repixl-text-light">
-                RePIXL
+                RePXL
               </span>
             </CornerBracket>
             <p className="mt-2 max-w-xs text-sm leading-relaxed text-repixl-text-light/60">
@@ -143,7 +143,7 @@ export function Footer() {
         {/* Bottom bar */}
         <div className="mt-14 flex flex-col items-center justify-between gap-4 border-t border-repixl-muted/10 pt-6 md:flex-row">
           <p className="font-mono text-[10px] uppercase tracking-wider text-repixl-muted">
-            © 2026 RePIXL. All rights reserved.
+            © 2026 RePXL. All rights reserved.
           </p>
 
           {/* Payment method icons */}
