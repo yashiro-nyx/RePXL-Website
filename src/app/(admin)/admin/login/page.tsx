@@ -12,7 +12,7 @@ interface LoginErrors {
 
 // Hardcoded admin credentials (demo only)
 const ADMIN_EMAIL = 'admin@repixl-admin.com'
-const ADMIN_PASSWORD = 'RePXL2026!'
+const ADMIN_PASSWORD = 'RePIXL2026!'
 
 export default function AdminLoginPage() {
   const [errors, setErrors] = useState<LoginErrors>({})
@@ -48,11 +48,16 @@ export default function AdminLoginPage() {
     setErrors(newErrors)
     if (Object.keys(newErrors).length > 0) return
 
-    // Seed admin account if it doesn't exist (first-time setup)
+    // Seed or update admin account (ensures credentials always match)
     const users = JSON.parse(localStorage.getItem('repixl-users') || '[]')
-    const exists = users.some((u: any) => u.email === email)
-    if (!exists && email === ADMIN_EMAIL && password === ADMIN_PASSWORD) {
+    const existingIdx = users.findIndex((u: any) => u.email === email)
+    if (existingIdx === -1 && email === ADMIN_EMAIL && password === ADMIN_PASSWORD) {
+      // First-time seed
       users.push({ firstName: 'Admin', lastName: 'User', email, phone: '', password, role: 'admin', isSuperAdmin: true })
+      localStorage.setItem('repixl-users', JSON.stringify(users))
+    } else if (existingIdx !== -1 && email === ADMIN_EMAIL && password === ADMIN_PASSWORD) {
+      // Update existing admin record to ensure password and role match
+      users[existingIdx] = { ...users[existingIdx], password, role: 'admin', isSuperAdmin: true }
       localStorage.setItem('repixl-users', JSON.stringify(users))
     }
 
