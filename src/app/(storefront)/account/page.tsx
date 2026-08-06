@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import { Container } from '@/components/layout/Container'
 import { Button, ConditionBadge, CornerBracket, PasswordInput } from '@/components/ui'
 import { useAuthStore } from '@/stores/authStore'
+import { useToastStore } from '@/stores/toastStore'
 import { useAddressStore, type Address } from '@/stores/addressStore'
 import { usePaymentStore, detectBrand, type SavedCard } from '@/stores/paymentStore'
 import { useOrderHistoryStore, type Order } from '@/stores/orderHistoryStore'
@@ -41,6 +42,7 @@ export default function AccountPage() {
 
   const handleLogout = () => {
     logout()
+    useToastStore.getState().addToast('You\'ve been logged out. See you next time!', 'info')
     router.push('/')
   }
 

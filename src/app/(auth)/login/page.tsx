@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import { Button, CornerBracket, PasswordInput } from '@/components/ui'
 import { SocialAuthButtons } from '@/components/auth/SocialAuthButtons'
 import { useAuthStore } from '@/stores/authStore'
+import { useToastStore } from '@/stores/toastStore'
 
 interface LoginErrors {
   email?: string
@@ -17,6 +18,7 @@ export default function LoginPage() {
   const formRef = useRef<HTMLFormElement>(null)
   const router = useRouter()
   const login = useAuthStore((s) => s.login)
+  const addToast = useToastStore((s) => s.addToast)
 
   const validate = (): LoginErrors => {
     const form = formRef.current
@@ -57,6 +59,7 @@ export default function LoginPage() {
       setErrors({ email: 'Invalid email or password.' })
       return
     }
+    addToast('Welcome back!')
     router.push('/account')
   }
 

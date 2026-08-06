@@ -3,11 +3,13 @@
 import { useState, useRef, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { CornerBracket, LoginRequiredModal } from '@/components/ui'
+import { LoginRequiredModal } from '@/components/ui'
+import { Logo } from '@/components/ui/Logo'
 import { ThemeToggle } from '@/components/ui/ThemeToggle'
 import { useAuthStore } from '@/stores/authStore'
 import { useCartStore } from '@/stores/cartStore'
 import { useWishlistStore } from '@/stores/wishlistStore'
+import { useToastStore } from '@/stores/toastStore'
 
 export function Navbar() {
   const [searchOpen, setSearchOpen] = useState(false)
@@ -20,6 +22,7 @@ export function Navbar() {
   const router = useRouter()
 
   const { isLoggedIn, firstName, lastName, userEmail, logout, hydrate } = useAuthStore()
+  const addToast = useToastStore((s) => s.addToast)
 
   const cartCount = useCartStore((s) => s.items.reduce((sum, i) => sum + i.quantity, 0))
   const wishlistCount = useWishlistStore((s) => s.slugs.length)
@@ -81,14 +84,8 @@ export function Navbar() {
       <header className="fixed left-0 right-0 top-0 z-50 bg-gradient-to-b from-repixl-bg/80 to-transparent backdrop-blur-sm">
         <nav className="mx-auto flex max-w-container items-center justify-between px-6 py-4 md:px-10 lg:px-16">
           {/* Logo */}
-          <Link href="/" className="relative">
-            <CornerBracket size={8} className="relative px-2 py-1">
-              <span className="font-display text-lg font-semibold tracking-tight text-repixl-text-light">
-                RePXL
-              </span>
-              {/* Glowing REC dot — inside the bracket, upper-right */}
-              <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-repixl-red" style={{ animation: 'glow 2s ease-in-out infinite' }} />
-            </CornerBracket>
+          <Link href="/" className="text-repixl-text-light">
+            <Logo size="md" />
           </Link>
 
           {/* Nav links */}
@@ -202,7 +199,7 @@ export function Navbar() {
                     <li>
                       <button
                         type="button"
-                        onClick={() => { logout(); setProfileOpen(false) }}
+                        onClick={() => { logout(); setProfileOpen(false); addToast('You\'ve been logged out. See you next time!', 'info'); router.push('/') }}
                         className="block w-full rounded px-2 py-1.5 text-left text-sm text-repixl-red hover:bg-repixl-charcoal"
                       >
                         Log Out
@@ -236,7 +233,7 @@ export function Navbar() {
             {isLoggedIn && (
               <div className="mt-4 border-t border-repixl-muted/10 pt-4">
                 <Link href="/account" onClick={() => setMobileMenuOpen(false)} className="block text-sm text-repixl-text-light/80 hover:text-repixl-text-light">My Account</Link>
-                <button type="button" onClick={() => { logout(); setMobileMenuOpen(false) }} className="mt-2 block text-sm text-repixl-red">Log Out</button>
+                <button type="button" onClick={() => { logout(); setMobileMenuOpen(false); addToast('You\'ve been logged out. See you next time!', 'info'); router.push('/') }} className="mt-2 block text-sm text-repixl-red">Log Out</button>
               </div>
             )}
             {!isLoggedIn && (

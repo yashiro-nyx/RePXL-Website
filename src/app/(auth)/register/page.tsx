@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import { Button, CornerBracket, LegalModal, PasswordInput } from '@/components/ui'
 import { SocialAuthButtons } from '@/components/auth/SocialAuthButtons'
 import { useAuthStore } from '@/stores/authStore'
+import { useToastStore } from '@/stores/toastStore'
 import { termsContent, privacyContent } from '@/data/legal'
 
 interface RegisterErrors {
@@ -82,6 +83,7 @@ export default function RegisterPage() {
       setErrors({ ...errors, email: 'An account with this email already exists.' })
       return
     }
+    useToastStore.getState().addToast('Account created! Welcome to RePXL.')
     router.push('/account')
   }
 

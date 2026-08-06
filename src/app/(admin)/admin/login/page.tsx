@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuthStore } from '@/stores/authStore'
+import { useToastStore } from '@/stores/toastStore'
 
 interface LoginErrors {
   email?: string
@@ -67,6 +68,7 @@ export default function AdminLoginPage() {
       setErrors({ auth: 'Invalid email or password.' })
       return
     }
+    useToastStore.getState().addToast('Welcome back, Admin!')
     router.push('/admin')
   }
 

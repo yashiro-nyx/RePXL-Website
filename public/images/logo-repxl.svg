@@ -1,0 +1,11 @@
+<svg viewBox="0 0 110 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Corner bracket frame -->
+  <path d="M1 10 V1 H10" stroke="#F5F1EC" stroke-opacity="0.4" stroke-width="1" stroke-linecap="square"/>
+  <path d="M100 1 H109 V10" stroke="#F5F1EC" stroke-opacity="0.4" stroke-width="1" stroke-linecap="square"/>
+  <path d="M1 30 V39 H10" stroke="#F5F1EC" stroke-opacity="0.4" stroke-width="1" stroke-linecap="square"/>
+  <path d="M100 39 H109 V30" stroke="#F5F1EC" stroke-opacity="0.4" stroke-width="1" stroke-linecap="square"/>
+  <!-- Wordmark -->
+  <text x="55" y="25" text-anchor="middle" font-family="'General Sans', sans-serif" font-weight="600" font-size="18" letter-spacing="-0.5" fill="#F5F1EC">RePXL</text>
+  <!-- REC dot -->
+  <circle cx="103" cy="6" r="3" fill="#C22C2C"/>
+</svg>
