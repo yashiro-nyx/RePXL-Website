@@ -5,6 +5,7 @@ import { BrandGallery } from '@/components/landing/BrandGallery'
 import { FeaturedCarousel } from '@/components/landing/FeaturedCarousel'
 import { ConditionExplainer } from '@/components/landing/ConditionExplainer'
 import { Testimonials } from '@/components/landing/Testimonials'
+import { HomeFAQ } from '@/components/landing/HomeFAQ'
 import { NewsletterCTA } from '@/components/landing/NewsletterCTA'
 import { Footer } from '@/components/layout/Footer'
 
@@ -18,6 +19,7 @@ export default function HomePage() {
       <FeaturedCarousel />
       <ConditionExplainer />
       <Testimonials />
+      <HomeFAQ />
       <NewsletterCTA />
       <Footer />
     </main>
