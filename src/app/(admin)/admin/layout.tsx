@@ -98,14 +98,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       {/* Sidebar */}
       <aside className={`fixed left-0 top-0 z-40 flex h-screen w-60 flex-col border-r border-repixl-muted/10 bg-repixl-charcoal transition-transform duration-200 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0`}>
         {/* Logo */}
-        <div className="flex h-16 items-center gap-2.5 px-5">
-          <div className="relative flex h-9 w-9 items-center justify-center rounded-xl bg-repixl-red/10">
-            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-repixl-red"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z" /><circle cx="12" cy="13" r="3" /></svg>
-            <span className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full bg-repixl-red" style={{ animation: 'glow 2s ease-in-out infinite' }} />
-          </div>
-          <span className="text-repixl-text-light">
-            <Logo size="sm" showDot={false} />
-            <span className="ml-1 text-xs font-bold text-repixl-red">Admin</span>
+        <div className="flex h-16 items-center px-5">
+          <span className="font-display text-base font-bold tracking-tight text-repixl-text-light">
+            RePXL <span className="text-red-600">Admin</span>
           </span>
         </div>
 

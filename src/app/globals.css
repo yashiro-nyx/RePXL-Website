@@ -186,6 +186,7 @@ body.scroll-locked {
 [data-theme="light"] .text-repixl-text-light\/70 { color: rgba(26, 22, 16, 0.7) !important; }
 [data-theme="light"] .text-repixl-text-light\/75 { color: rgba(26, 22, 16, 0.75) !important; }
 [data-theme="light"] .text-repixl-text-light\/80 { color: rgba(26, 22, 16, 0.8) !important; }
+[data-theme="light"] .text-repixl-text-light\/90 { color: rgba(26, 22, 16, 0.9) !important; }
 [data-theme="light"] .text-repixl-text-light\/60 { color: rgba(26, 22, 16, 0.6) !important; }
 [data-theme="light"] .text-repixl-text-light\/50 { color: rgba(26, 22, 16, 0.5) !important; }
 [data-theme="light"] .text-repixl-text-light\/40 { color: rgba(26, 22, 16, 0.4) !important; }
@@ -228,6 +229,7 @@ body.scroll-locked {
 [data-theme="light"] .border-repixl-muted\/40 { border-color: rgba(30, 25, 20, 0.22) !important; }
 [data-theme="light"] .border-repixl-muted { border-color: rgba(107, 99, 87, 0.35) !important; }
 [data-theme="light"] .border-repixl-charcoal { border-color: #faf7f2 !important; }
+[data-theme="light"] .divide-repixl-muted\/10 > :not([hidden]) ~ :not([hidden]) { border-color: rgba(30, 25, 20, 0.08) !important; }
 [data-theme="light"] .hover\:border-repixl-text-light:hover { border-color: #1a1610 !important; }
 [data-theme="light"] .hover\:border-repixl-muted\/30:hover { border-color: rgba(30, 25, 20, 0.18) !important; }
 [data-theme="light"] .hover\:border-repixl-muted\/40:hover { border-color: rgba(30, 25, 20, 0.22) !important; }
@@ -260,6 +262,28 @@ body.scroll-locked {
 
 /* Decorative background text */
 [data-theme="light"] .text-white\/\[0\.04\] { color: rgba(26, 22, 16, 0.04) !important; }
+
+/* Condition badges — high-contrast light mode */
+
+/* Mint: rich green text on light green bg */
+[data-theme="light"] .bg-emerald-500\/20 { background-color: #d1fae5 !important; }
+[data-theme="light"] .text-emerald-400 { color: #065f46 !important; }
+[data-theme="light"] .border-emerald-400\/40 { border-color: #6ee7b7 !important; }
+
+/* Excellent: dark blue text on light blue bg */
+[data-theme="light"] .bg-blue-500\/15 { background-color: #dbeafe !important; }
+[data-theme="light"] .text-blue-400 { color: #1e40af !important; }
+[data-theme="light"] .border-blue-500\/30 { border-color: #93c5fd !important; }
+
+/* Good: dark amber text on light amber bg */
+[data-theme="light"] .bg-repixl-warning\/15 { background-color: #fef3c7 !important; }
+[data-theme="light"] .text-repixl-warning { color: #92400e !important; }
+[data-theme="light"] .border-repixl-warning\/30 { border-color: #fcd34d !important; }
+
+/* Fair: dark orange text on light orange bg */
+[data-theme="light"] .bg-orange-500\/15 { background-color: #ffedd5 !important; }
+[data-theme="light"] .text-orange-400 { color: #9a3412 !important; }
+[data-theme="light"] .border-orange-500\/30 { border-color: #fdba74 !important; }
 
 /* Body text color */
 [data-theme="light"] body { color: #1a1610; }

@@ -5,7 +5,7 @@ import { useSearchParams } from 'next/navigation'
 import { motion } from 'framer-motion'
 import { Container } from '@/components/layout/Container'
 import { ProductCard } from '@/components/product/ProductCard'
-import { ConditionBadge } from '@/components/ui'
+import { ConditionBadge, Skeleton } from '@/components/ui'
 import { useProductStore } from '@/stores/productStore'
 import { useReducedMotion } from '@/hooks/useReducedMotion'
 import type { ConditionGrade } from '@/types'
@@ -18,8 +18,12 @@ function ProductsContent() {
   const searchParams = useSearchParams()
   const reducedMotion = useReducedMotion()
   const allProducts = useProductStore((s) => s.products)
+  const [hydrated, setHydrated] = useState(false)
 
-  useEffect(() => { useProductStore.getState().hydrate() }, [])
+  useEffect(() => {
+    useProductStore.getState().hydrate()
+    setHydrated(true)
+  }, [])
 
   const products = useMemo(() => allProducts.filter((p) => p.status === 'active'), [allProducts])
   const brands = useMemo(() => Array.from(new Set(products.map((p) => p.brand))).sort(), [products])
@@ -161,7 +165,25 @@ function ProductsContent() {
               </div>
             </div>
 
-            {filtered.length > 0 ? (
+            {!hydrated ? (
+              /* Skeleton grid — 6 card placeholders while store hydrates */
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <div key={i} className="overflow-hidden rounded-lg border border-repixl-muted/10 bg-repixl-charcoal">
+                    <Skeleton className="aspect-square w-full rounded-none" />
+                    <div className="p-4 space-y-2">
+                      <Skeleton className="h-3 w-1/3" />
+                      <Skeleton className="h-5 w-3/4" />
+                      <Skeleton className="h-4 w-1/4" />
+                      <div className="flex items-center justify-between pt-1">
+                        <Skeleton className="h-5 w-16" />
+                        <Skeleton className="h-6 w-16 rounded-sm" />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : filtered.length > 0 ? (
               <motion.div
                 initial={reducedMotion ? { opacity: 1 } : { opacity: 0 }}
                 animate={{ opacity: 1 }}

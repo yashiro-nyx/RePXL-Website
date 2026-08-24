@@ -27,8 +27,9 @@ const tabs: { id: Tab; label: string; icon: string }[] = [
 
 export default function AccountPage() {
   const [activeTab, setActiveTab] = useState<Tab>('profile')
-  const { firstName, lastName, userEmail, hydrate, logout } = useAuthStore()
+  const { isLoggedIn, firstName, lastName, userEmail, hydrate, logout } = useAuthStore()
   const router = useRouter()
+  const [hydrated, setHydrated] = useState(false)
 
   useEffect(() => {
     hydrate()
@@ -36,7 +37,19 @@ export default function AccountPage() {
     usePaymentStore.getState().hydrate()
     useOrderHistoryStore.getState().hydrate()
     useReviewStore.getState().hydrate()
+    setHydrated(true)
   }, [hydrate])
+
+  // Auth guard — redirect to login if not authenticated
+  useEffect(() => {
+    if (!hydrated) return
+    if (!isLoggedIn) {
+      router.push('/login')
+    }
+  }, [hydrated, isLoggedIn, router])
+
+  // Don't render until hydrated and authenticated
+  if (!hydrated || !isLoggedIn) return null
 
   const initials = `${firstName?.[0] || ''}${lastName?.[0] || ''}`.toUpperCase() || '?'
 

@@ -1,18 +1,21 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useProductStore } from '@/stores/productStore'
 import { useOrderHistoryStore } from '@/stores/orderHistoryStore'
+import { Skeleton } from '@/components/ui'
 
 const LOW_STOCK_THRESHOLD = 1
 
 export default function AdminDashboardPage() {
   const products = useProductStore((s) => s.products)
   const orders = useOrderHistoryStore((s) => s.orders)
+  const [hydrated, setHydrated] = useState(false)
 
   useEffect(() => {
     useProductStore.getState().hydrate()
     useOrderHistoryStore.getState().hydrate()
+    setHydrated(true)
   }, [])
 
   const totalCameras = products.filter((p) => p.status === 'active').length
@@ -50,6 +53,50 @@ export default function AdminDashboardPage() {
         <p className="mt-0.5 text-sm text-repixl-muted">Overview of your store performance and inventory.</p>
       </div>
 
+      {!hydrated ? (
+        /* Skeleton state — shown until stores hydrate */
+        <>
+          {/* Stat card skeletons */}
+          <div className="mt-6 grid grid-cols-2 gap-4 lg:grid-cols-3 xl:grid-cols-4">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="rounded-2xl border border-repixl-muted/20 bg-repixl-charcoal p-5">
+                <Skeleton className="h-2.5 w-20" />
+                <Skeleton className="mt-3 h-8 w-16" />
+                <Skeleton className="mt-1.5 h-2.5 w-24" />
+              </div>
+            ))}
+          </div>
+          <div className="mt-4 grid grid-cols-2 gap-4 lg:grid-cols-4">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="rounded-2xl border border-repixl-muted/20 bg-repixl-charcoal p-5">
+                <Skeleton className="h-2.5 w-20" />
+                <Skeleton className="mt-3 h-8 w-16" />
+                <Skeleton className="mt-1.5 h-2.5 w-24" />
+              </div>
+            ))}
+          </div>
+          {/* Two column skeletons */}
+          <div className="mt-6 grid grid-cols-1 gap-6 xl:grid-cols-2">
+            {Array.from({ length: 2 }).map((_, i) => (
+              <div key={i} className="rounded-2xl border border-repixl-muted/20 bg-repixl-charcoal p-6">
+                <Skeleton className="h-4 w-32" />
+                <div className="mt-4 space-y-3">
+                  {Array.from({ length: 5 }).map((_, j) => (
+                    <div key={j}>
+                      <div className="flex justify-between">
+                        <Skeleton className="h-3 w-20" />
+                        <Skeleton className="h-3 w-8" />
+                      </div>
+                      <Skeleton className="mt-1.5 h-2 w-full" />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
+      ) : (
+        <>
       {/* Stat cards */}
       <div className="mt-6 grid grid-cols-2 gap-4 lg:grid-cols-3 xl:grid-cols-4">
         <StatCard label="Total Cameras" value={totalCameras} sub={`${products.filter((p) => p.stock > 0).length} in stock`} accent />
@@ -163,6 +210,8 @@ export default function AdminDashboardPage() {
           )}
         </div>
       </div>
+        </>
+      )}
     </div>
   )
 }

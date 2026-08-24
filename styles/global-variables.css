@@ -1,0 +1,19 @@
+:root {
+    --color-red-accent: #ff0000;
+    --color-orange-accent: #ffa500; /* Orange accent for dark mode background */
+
+    /* Example of a light mode theme (background) */
+    --light-background-color: #ffffff;
+    --dark-text-color: #e0e0e0;
+
+    /* Default body and text colors in different modes */
+    --default-body-color: var(--light-background-color);
+    --default-text-color: var(--color-red-accent);
+}
+
+/* You'd then apply this to your body or a main container for dark mode:
+body.dark-mode {
+    background-color: var(--dark-background-color);
+    color: var(--dark-text-color);
+}
+*/

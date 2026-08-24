@@ -110,21 +110,21 @@ export function BrandGallery() {
                     className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
                   />
 
-                  {/* Gradient overlay for text legibility */}
-                  <div className="absolute inset-0 bg-gradient-to-t from-repixl-bg/90 via-transparent to-transparent" />
+                  {/* Gradient overlay for text legibility — stays dark in all themes */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
                 </div>
 
-                {/* Text overlay — bottom of tile */}
+                {/* Text overlay — bottom of tile, always light text on dark gradient */}
                 <div className="absolute bottom-0 left-0 right-0 p-5">
-                  <h3 className="font-display text-xl font-semibold text-repixl-text-light">
+                  <h3 className="font-display text-xl font-semibold text-white">
                     {brand.name}
                   </h3>
-                  <p className="mt-0.5 font-mono text-[10px] uppercase tracking-wider text-repixl-muted">
+                  <p className="mt-0.5 font-mono text-[10px] uppercase tracking-wider text-white/60">
                     {brand.series}
                   </p>
 
                   {/* Explore indicator */}
-                  <span className="mt-3 inline-flex items-center gap-1.5 text-xs text-repixl-text-light/60 transition-colors group-hover:text-repixl-red">
+                  <span className="mt-3 inline-flex items-center gap-1.5 text-xs text-white/60 transition-colors group-hover:text-repixl-red">
                     Explore
                     <svg
                       xmlns="http://www.w3.org/2000/svg"
