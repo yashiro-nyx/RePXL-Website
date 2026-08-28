@@ -32,6 +32,27 @@ const grades: GradeInfo[] = [
 export function ConditionExplainer() {
   const reducedMotion = useReducedMotion()
 
+  const container = {
+    hidden: {},
+    show: {
+      transition: {
+        staggerChildren: reducedMotion ? 0 : 0.1,
+        delayChildren: reducedMotion ? 0 : 0.1,
+      },
+    },
+  }
+
+  const card = {
+    hidden: reducedMotion
+      ? { opacity: 1, y: 0 }
+      : { opacity: 0, y: 18 },
+    show: {
+      opacity: 1,
+      y: 0,
+      transition: { duration: reducedMotion ? 0 : 0.5, ease: [0.22, 1, 0.36, 1] },
+    },
+  }
+
   return (
     <section className="py-24 md:py-36">
       <Container>
@@ -61,19 +82,34 @@ export function ConditionExplainer() {
             color="rgba(140, 133, 128, 0.25)"
             className="mx-auto max-w-3xl p-6 md:p-10"
           >
-            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+            <motion.div
+              variants={container}
+              initial="hidden"
+              whileInView="show"
+              viewport={{ once: true, margin: '-40px' }}
+              className="grid grid-cols-1 gap-6 sm:grid-cols-2"
+            >
               {grades.map((grade) => (
-                <div
+                <motion.div
                   key={grade.condition}
-                  className="flex flex-col gap-2 rounded-md border border-repixl-muted/10 bg-repixl-charcoal p-5"
+                  variants={card}
+                  whileHover={reducedMotion ? undefined : { y: -4, borderColor: 'rgba(194, 44, 44, 0.35)' }}
+                  transition={{ duration: 0.25, ease: 'easeOut' }}
+                  className="group flex flex-col gap-2 rounded-md border border-repixl-muted/10 bg-repixl-charcoal p-5 transition-shadow duration-300 hover:shadow-[0_12px_30px_rgba(0,0,0,0.35)]"
                 >
-                  <ConditionBadge condition={grade.condition} />
+                  <div className="flex items-center justify-between">
+                    <ConditionBadge condition={grade.condition} />
+                    <span
+                      aria-hidden="true"
+                      className="h-1.5 w-1.5 rounded-full bg-repixl-muted/30 transition-colors duration-300 group-hover:bg-repixl-red"
+                    />
+                  </div>
                   <p className="mt-1 text-sm leading-relaxed text-repixl-text-light/70">
                     {grade.description}
                   </p>
-                </div>
+                </motion.div>
               ))}
-            </div>
+            </motion.div>
 
             {/* Bottom note */}
             <p className="mt-8 text-center font-mono text-[10px] uppercase tracking-widest text-repixl-muted">

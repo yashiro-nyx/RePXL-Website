@@ -85,26 +85,47 @@ const trustItems = [
 export function TrustStrip() {
   const reducedMotion = useReducedMotion()
 
+  const container = {
+    hidden: {},
+    show: {
+      transition: {
+        staggerChildren: reducedMotion ? 0 : 0.08,
+      },
+    },
+  }
+
+  const item = {
+    hidden: reducedMotion ? { opacity: 1, y: 0 } : { opacity: 0, y: 10 },
+    show: {
+      opacity: 1,
+      y: 0,
+      transition: { duration: reducedMotion ? 0 : 0.4, ease: 'easeOut' },
+    },
+  }
+
   return (
     <section className="relative z-10 border-y border-repixl-muted/10 py-6">
       <Container>
         <motion.div
-          initial={reducedMotion ? { opacity: 1 } : { opacity: 0 }}
-          whileInView={{ opacity: 1 }}
+          variants={container}
+          initial="hidden"
+          whileInView="show"
           viewport={{ once: true, margin: '-40px' }}
-          transition={{ duration: reducedMotion ? 0 : 0.6, ease: 'easeOut' }}
           className="flex flex-wrap items-center justify-center gap-8 md:justify-between md:gap-4"
         >
-          {trustItems.map((item) => (
-            <div
-              key={item.label}
-              className="flex items-center gap-2.5"
+          {trustItems.map((trustItem) => (
+            <motion.div
+              key={trustItem.label}
+              variants={item}
+              className="group flex items-center gap-2.5"
             >
-              <span className="text-repixl-muted">{item.icon}</span>
-              <span className="whitespace-nowrap font-mono text-xs tracking-wide text-repixl-text-light/70">
-                {item.label}
+              <span className="text-repixl-muted transition-colors duration-300 group-hover:text-repixl-red">
+                {trustItem.icon}
               </span>
-            </div>
+              <span className="whitespace-nowrap font-mono text-xs tracking-wide text-repixl-text-light/70 transition-colors duration-300 group-hover:text-repixl-text-light">
+                {trustItem.label}
+              </span>
+            </motion.div>
           ))}
         </motion.div>
       </Container>

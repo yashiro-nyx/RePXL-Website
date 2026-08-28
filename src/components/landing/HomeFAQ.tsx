@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import { Container } from '@/components/layout/Container'
 import { useReducedMotion } from '@/hooks/useReducedMotion'
 import { homeFaqs } from '@/data/faqs'
@@ -40,33 +40,50 @@ export function HomeFAQ() {
 
           {/* Accordion */}
           <div className="mt-12 divide-y divide-repixl-muted/10">
-            {homeFaqs.map((faq, index) => (
-              <div key={index}>
-                <button
-                  onClick={() => toggle(index)}
-                  className="flex w-full items-center justify-between gap-4 py-5 text-left transition-colors"
-                  aria-expanded={openIndex === index}
-                >
-                  <span className="text-sm font-medium text-repixl-text-light/90">
-                    {faq.question}
-                  </span>
-                  <span className="flex-shrink-0 text-repixl-muted">
-                    {openIndex === index ? (
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12" /></svg>
-                    ) : (
+            {homeFaqs.map((faq, index) => {
+              const isOpen = openIndex === index
+              return (
+                <div key={index}>
+                  <button
+                    onClick={() => toggle(index)}
+                    className="group flex w-full items-center justify-between gap-4 py-5 text-left transition-colors"
+                    aria-expanded={isOpen}
+                  >
+                    <span
+                      className={`text-sm font-medium transition-colors ${
+                        isOpen ? 'text-repixl-red' : 'text-repixl-text-light/90 group-hover:text-repixl-text-light'
+                      }`}
+                    >
+                      {faq.question}
+                    </span>
+                    <motion.span
+                      animate={{ rotate: isOpen ? 45 : 0 }}
+                      transition={{ duration: reducedMotion ? 0 : 0.25, ease: 'easeOut' }}
+                      className={`flex-shrink-0 transition-colors ${isOpen ? 'text-repixl-red' : 'text-repixl-muted group-hover:text-repixl-text-light/70'}`}
+                    >
                       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
+                    </motion.span>
+                  </button>
+                  <AnimatePresence initial={false}>
+                    {isOpen && (
+                      <motion.div
+                        initial={reducedMotion ? { height: 'auto', opacity: 1 } : { height: 0, opacity: 0 }}
+                        animate={{ height: 'auto', opacity: 1 }}
+                        exit={reducedMotion ? { height: 'auto', opacity: 1 } : { height: 0, opacity: 0 }}
+                        transition={{ duration: reducedMotion ? 0 : 0.3, ease: [0.22, 1, 0.36, 1] }}
+                        className="overflow-hidden"
+                      >
+                        <div className="pb-5 pr-8">
+                          <p className="text-sm leading-relaxed text-repixl-text-light/60">
+                            {faq.answer}
+                          </p>
+                        </div>
+                      </motion.div>
                     )}
-                  </span>
-                </button>
-                {openIndex === index && (
-                  <div className="pb-5 pr-8">
-                    <p className="text-sm leading-relaxed text-repixl-text-light/60">
-                      {faq.answer}
-                    </p>
-                  </div>
-                )}
-              </div>
-            ))}
+                  </AnimatePresence>
+                </div>
+              )
+            })}
           </div>
 
           {/* View all link */}

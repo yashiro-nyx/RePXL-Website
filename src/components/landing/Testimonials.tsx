@@ -67,6 +67,27 @@ function StarRating({ rating }: { rating: number }) {
 export function Testimonials() {
   const reducedMotion = useReducedMotion()
 
+  const container = {
+    hidden: {},
+    show: {
+      transition: {
+        staggerChildren: reducedMotion ? 0 : 0.12,
+        delayChildren: reducedMotion ? 0 : 0.1,
+      },
+    },
+  }
+
+  const card = {
+    hidden: reducedMotion
+      ? { opacity: 1, y: 0 }
+      : { opacity: 0, y: 24 },
+    show: {
+      opacity: 1,
+      y: 0,
+      transition: { duration: reducedMotion ? 0 : 0.55, ease: [0.22, 1, 0.36, 1] },
+    },
+  }
+
   return (
     <section className="py-24 md:py-36">
       <Container>
@@ -87,20 +108,37 @@ export function Testimonials() {
           </div>
 
           {/* Testimonial grid */}
-          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+          <motion.div
+            variants={container}
+            initial="hidden"
+            whileInView="show"
+            viewport={{ once: true, margin: '-60px' }}
+            className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4"
+          >
             {testimonials.map((t) => (
-              <div
+              <motion.div
                 key={t.name}
-                className="flex flex-col justify-between rounded-lg border border-repixl-muted/10 bg-repixl-charcoal p-5"
+                variants={card}
+                whileHover={reducedMotion ? undefined : { y: -6 }}
+                transition={{ duration: 0.25, ease: 'easeOut' }}
+                className="group relative flex flex-col justify-between overflow-hidden rounded-lg border border-repixl-muted/10 bg-repixl-charcoal p-5 transition-all duration-300 hover:border-repixl-red/30 hover:shadow-[0_16px_36px_rgba(0,0,0,0.4)]"
               >
-                <div>
+                {/* Decorative quote mark */}
+                <span
+                  aria-hidden="true"
+                  className="pointer-events-none absolute -right-2 -top-4 font-display text-7xl font-bold text-repixl-muted/[0.06] transition-colors duration-300 group-hover:text-repixl-red/[0.08]"
+                >
+                  &rdquo;
+                </span>
+
+                <div className="relative">
                   <StarRating rating={t.rating} />
                   <p className="mt-3 text-sm leading-relaxed text-repixl-text-light/80">
                     &ldquo;{t.quote}&rdquo;
                   </p>
                 </div>
 
-                <div className="mt-5 border-t border-repixl-muted/10 pt-4">
+                <div className="relative mt-5 border-t border-repixl-muted/10 pt-4">
                   <p className="text-sm font-medium text-repixl-text-light">
                     {t.name}
                   </p>
@@ -110,9 +148,9 @@ export function Testimonials() {
                     </p>
                   )}
                 </div>
-              </div>
+              </motion.div>
             ))}
-          </div>
+          </motion.div>
         </motion.div>
       </Container>
     </section>
