@@ -1,12 +1,17 @@
 'use client'
 
 import Link from 'next/link'
-import { motion } from 'framer-motion'
+import { motion, useScroll, useTransform } from 'framer-motion'
 import { Button, CornerBracket } from '@/components/ui'
 import { useReducedMotion } from '@/hooks/useReducedMotion'
 
 export function Hero() {
   const reducedMotion = useReducedMotion()
+  const { scrollY } = useScroll()
+
+  // Parallax — camera moves up, polaroid drifts down
+  const cameraY = useTransform(scrollY, [0, 600], reducedMotion ? [0, 0] : [0, -50])
+  const polaroidY = useTransform(scrollY, [0, 600], reducedMotion ? [0, 0] : [0, 40])
 
   const container = {
     hidden: {},
@@ -38,7 +43,7 @@ export function Hero() {
   }
 
   return (
-    <section className="relative flex min-h-screen items-center justify-center overflow-hidden">
+    <section className="section-clip-bottom relative flex min-h-screen items-center justify-center overflow-hidden pb-16">
       {/* Oversized semi-transparent background type */}
       <div
         className="pointer-events-none absolute inset-0 -z-10 flex select-none items-center justify-center"
@@ -130,11 +135,11 @@ export function Hero() {
 
         {/* Right column: hero camera + polaroid accent */}
         <div className="relative mt-16 flex items-center justify-center md:mt-0 md:w-1/2">
-          {/* Main camera product shot — tilted, with warm rim-light */}
+          {/* Main camera product shot — tilted, parallax drift up */}
           <motion.div
             variants={fadeIn}
+            style={{ y: cameraY, rotate: -4, filter: 'drop-shadow(0 0 40px rgba(255, 60, 60, 0.15)) drop-shadow(0 20px 40px rgba(0,0,0,0.5))' }}
             className="relative z-10 h-[320px] w-[320px] md:h-[420px] md:w-[420px] lg:h-[480px] lg:w-[480px]"
-            style={{ transform: 'rotate(-4deg)', filter: 'drop-shadow(0 0 40px rgba(255, 60, 60, 0.15)) drop-shadow(0 20px 40px rgba(0,0,0,0.5))' }}
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
@@ -144,11 +149,13 @@ export function Hero() {
             />
           </motion.div>
 
-          {/* Polaroid-style sample photo accent — anchored inside the container */}
+          {/* Polaroid-style sample photo accent — parallax drift down */}
           <motion.div
             variants={fadeSlideUp}
+            style={{ y: polaroidY, rotate: 5 }}
             className="absolute bottom-8 right-4 z-20 md:bottom-12 md:right-8"
-            style={{ transform: 'rotate(5deg)' }}
+            whileHover={reducedMotion ? {} : { rotate: 2, scale: 1.04 }}
+            transition={{ duration: 0.3 }}
           >
             <div className="rounded bg-white p-2.5 shadow-[0_8px_30px_rgba(0,0,0,0.5),0_2px_8px_rgba(0,0,0,0.3)]">
               {/* eslint-disable-next-line @next/next/no-img-element */}

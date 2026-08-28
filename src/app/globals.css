@@ -125,6 +125,14 @@ html:has(.burn-minimal) {
   --burn-opacity: 0;
 }
 
+/* Diagonal section breaks */
+.section-clip-bottom {
+  clip-path: polygon(0 0, 100% 0, 100% 94%, 0 100%);
+}
+.section-clip-top {
+  clip-path: polygon(0 5%, 100% 0, 100% 100%, 0 100%);
+}
+
 /* Scroll lock fallback for modals */
 body.scroll-locked {
   overflow: hidden;
