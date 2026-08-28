@@ -43,7 +43,6 @@ export function ProductCard({ product }: ProductCardProps) {
   }
 
   const dismissToast = useCallback(() => setToast(null), [])
-
   const addToast = useToastStore((s) => s.addToast)
 
   const handleCartClick = (e: React.MouseEvent) => {
@@ -78,6 +77,19 @@ export function ProductCard({ product }: ProductCardProps) {
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={product.image} alt={product.name} className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105" />
 
+          {/* Condition badge — fades out on hover to make room for spec tag */}
+          <div className="absolute bottom-3 left-3 transition-opacity duration-300 group-hover:opacity-0">
+            <ConditionBadge condition={product.condition} />
+          </div>
+
+          {/* Spec tag — slides up from bottom-left on hover, replaces the badge position */}
+          <div className="absolute bottom-3 left-3 -rotate-2 translate-y-3 rounded bg-white p-2 opacity-0 shadow-lg transition-all duration-300 group-hover:translate-y-0 group-hover:opacity-100">
+            <p className="whitespace-nowrap font-mono text-[8px] leading-relaxed text-repixl-text-dark/70">
+              {product.specs.year} · {product.specs.megapixels}MP · {product.specs.zoom}
+            </p>
+          </div>
+
+          {/* Action buttons — top-right, fade in on hover */}
           <div className="absolute right-3 top-3 flex flex-col gap-2 opacity-0 transition-opacity duration-200 group-hover:opacity-100 group-focus-within:opacity-100">
             <button type="button" aria-label={inCart ? `${product.name} is in cart` : `Add ${product.name} to cart`} onClick={handleCartClick} disabled={product.stock === 0} className={`flex h-8 w-8 items-center justify-center rounded-full backdrop-blur-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-repixl-red/50 ${product.stock === 0 ? 'bg-repixl-bg/40 text-repixl-muted/40 cursor-not-allowed' : inCart ? 'bg-repixl-red text-white' : 'bg-repixl-bg/80 text-repixl-text-light hover:bg-repixl-red hover:text-white'}`}>
               <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="8" cy="21" r="1" /><circle cx="19" cy="21" r="1" /><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12" /></svg>
@@ -89,8 +101,6 @@ export function ProductCard({ product }: ProductCardProps) {
               <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" /><path d="M12 3v18" /></svg>
             </button>
           </div>
-
-          <div className="absolute bottom-3 left-3"><ConditionBadge condition={product.condition} /></div>
         </div>
 
         <div className="p-4">

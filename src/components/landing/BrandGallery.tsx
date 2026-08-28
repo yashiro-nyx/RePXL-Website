@@ -11,36 +11,42 @@ const brands = [
     slug: 'canon',
     series: 'PowerShot Series',
     image: '/images/brand-canon.svg',
+    sample: '/images/product-canon-a520.svg',
   },
   {
     name: 'Nikon',
     slug: 'nikon',
     series: 'Coolpix Series',
     image: '/images/brand-nikon.svg',
+    sample: '/images/product-nikon-coolpix.svg',
   },
   {
     name: 'Sony',
     slug: 'sony',
     series: 'CyberShot Series',
     image: '/images/brand-sony.svg',
+    sample: '/images/product-sony-w800.svg',
   },
   {
     name: 'Kodak',
     slug: 'kodak',
     series: 'PixPro / EasyShare',
     image: '/images/brand-kodak.svg',
+    sample: '/images/product-kodak-c300.svg',
   },
   {
     name: 'Panasonic',
     slug: 'panasonic',
     series: 'Lumix Series',
     image: '/images/brand-panasonic.svg',
+    sample: '/images/product-panasonic-fz7.svg',
   },
   {
     name: 'Fujifilm',
     slug: 'fujifilm',
     series: 'FinePix Series',
     image: '/images/brand-fujifilm.svg',
+    sample: '/images/product-fuji-f30.svg',
   },
 ]
 
@@ -103,13 +109,20 @@ export function BrandGallery() {
               >
                 {/* Image */}
                 <div className="relative aspect-[4/5] overflow-hidden">
+                  {/* Base brand image — fades out on hover */}
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={brand.image}
                     alt={`${brand.name} vintage digicams`}
-                    className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                    className="h-full w-full object-cover transition-opacity duration-500 ease-out group-hover:opacity-0"
                   />
-
+                  {/* Sample camera shot — fades in and settles on hover */}
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={brand.sample}
+                    alt={`Sample ${brand.name} camera`}
+                    className="absolute inset-0 h-full w-full scale-105 object-cover opacity-0 transition-all duration-500 ease-out group-hover:scale-100 group-hover:opacity-100"
+                  />
                   {/* Gradient overlay for text legibility — stays dark in all themes */}
                   <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
                 </div>

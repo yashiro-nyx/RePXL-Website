@@ -1,18 +1,58 @@
 'use client'
 
+import { useRef } from 'react'
 import Link from 'next/link'
-import { motion, useScroll, useTransform } from 'framer-motion'
+import {
+  motion,
+  useScroll,
+  useTransform,
+  useMotionValue,
+  useSpring,
+} from 'framer-motion'
 import { Button, CornerBracket } from '@/components/ui'
 import { useReducedMotion } from '@/hooks/useReducedMotion'
 
 export function Hero() {
   const reducedMotion = useReducedMotion()
+  const colRef = useRef<HTMLDivElement>(null)
+
+  // Scroll parallax
   const { scrollY } = useScroll()
+  const cameraScrollY = useTransform(scrollY, [0, 600], reducedMotion ? [0, 0] : [0, -50])
+  const polaroidScrollY = useTransform(scrollY, [0, 600], reducedMotion ? [0, 0] : [0, 40])
 
-  // Parallax — camera moves up, polaroid drifts down
-  const cameraY = useTransform(scrollY, [0, 600], reducedMotion ? [0, 0] : [0, -50])
-  const polaroidY = useTransform(scrollY, [0, 600], reducedMotion ? [0, 0] : [0, 40])
+  // Cursor-reactive motion values (raw)
+  const rawCameraX = useMotionValue(0)
+  const rawCameraY = useMotionValue(0)
+  const rawPolaroidX = useMotionValue(0)
+  const rawPolaroidY = useMotionValue(0)
 
+  // Spring-smoothed
+  const springConfig = { stiffness: 80, damping: 18 }
+  const cameraX = useSpring(rawCameraX, springConfig)
+  const cameraY = useSpring(rawCameraY, springConfig)
+  const polaroidX = useSpring(rawPolaroidX, springConfig)
+  const polaroidY = useSpring(rawPolaroidY, springConfig)
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (reducedMotion || !colRef.current) return
+    const rect = colRef.current.getBoundingClientRect()
+    const mx = (e.clientX - rect.left) / rect.width - 0.5
+    const my = (e.clientY - rect.top) / rect.height - 0.5
+    rawCameraX.set(mx * 20)
+    rawCameraY.set(my * 20)
+    rawPolaroidX.set(mx * -12)
+    rawPolaroidY.set(my * -12)
+  }
+
+  const handleMouseLeave = () => {
+    rawCameraX.set(0)
+    rawCameraY.set(0)
+    rawPolaroidX.set(0)
+    rawPolaroidY.set(0)
+  }
+
+  // Entrance animation variants
   const container = {
     hidden: {},
     show: {
@@ -24,9 +64,7 @@ export function Hero() {
   }
 
   const fadeSlideUp = {
-    hidden: reducedMotion
-      ? { opacity: 1, y: 0 }
-      : { opacity: 0, y: 30 },
+    hidden: reducedMotion ? { opacity: 1, y: 0 } : { opacity: 0, y: 30 },
     show: {
       opacity: 1,
       y: 0,
@@ -44,7 +82,7 @@ export function Hero() {
 
   return (
     <section className="section-clip-bottom relative flex min-h-screen items-center justify-center overflow-hidden pb-16">
-      {/* Oversized semi-transparent background type */}
+      {/* Oversized watermark text */}
       <div
         className="pointer-events-none absolute inset-0 -z-10 flex select-none items-center justify-center"
         aria-hidden="true"
@@ -57,7 +95,7 @@ export function Hero() {
         </span>
       </div>
 
-      {/* Content layer */}
+      {/* Content */}
       <motion.div
         variants={container}
         initial="hidden"
@@ -66,7 +104,6 @@ export function Hero() {
       >
         {/* Left column: text + CTAs */}
         <div className="flex flex-col items-center text-center md:w-1/2 md:items-start md:text-left">
-          {/* Logo with corner bracket */}
           <motion.div variants={fadeSlideUp}>
             <CornerBracket size={10} color="rgba(245, 241, 236, 0.4)" className="mb-8 inline-block px-3 py-1.5">
               <span className="font-display text-xl font-semibold tracking-tight text-repixl-text-light">
@@ -97,48 +134,38 @@ export function Hero() {
             className="mt-8 flex flex-wrap items-center gap-4"
           >
             <Link href="/products">
-              <Button variant="primary" size="lg">
-                Shop the Collection
-              </Button>
+              <Button variant="primary" size="lg">Shop the Collection</Button>
             </Link>
-            {/* Hidden: Sell With Us button - to be re-enabled later */}
-            {false && (
-            <Button variant="secondary" size="lg">
-              Sell With Us
-            </Button>
-            )}
           </motion.div>
 
-          {/* Social proof cluster */}
-          <motion.div
-            variants={fadeSlideUp}
-            className="mt-10 flex items-center gap-3"
-          >
-            {/* Stacked avatar circles */}
+          {/* Social proof */}
+          <motion.div variants={fadeSlideUp} className="mt-10 flex items-center gap-3">
             <div className="flex -space-x-2">
               {[1, 2, 3].map((i) => (
-                <div
-                  key={i}
-                  className="h-8 w-8 rounded-full border-2 border-repixl-charcoal bg-repixl-muted/40"
-                  aria-hidden="true"
-                />
+                <div key={i} className="h-8 w-8 rounded-full border-2 border-repixl-charcoal bg-repixl-muted/40" aria-hidden="true" />
               ))}
-              <div className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-repixl-charcoal bg-repixl-red text-xs font-medium text-white">
-                +
-              </div>
+              <div className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-repixl-charcoal bg-repixl-red text-xs font-medium text-white">+</div>
             </div>
-            <span className="font-mono text-xs text-repixl-muted">
-              [ Join 2,400+ collectors ]
-            </span>
+            <span className="font-mono text-xs text-repixl-muted">[ Join 2,400+ collectors ]</span>
           </motion.div>
         </div>
 
-        {/* Right column: hero camera + polaroid accent */}
-        <div className="relative mt-16 flex items-center justify-center md:mt-0 md:w-1/2">
-          {/* Main camera product shot — tilted, parallax drift up */}
+        {/* Right column: camera + polaroid, cursor-reactive */}
+        <div
+          ref={colRef}
+          className="relative mt-16 flex items-center justify-center md:mt-0 md:w-1/2"
+          onMouseMove={handleMouseMove}
+          onMouseLeave={handleMouseLeave}
+        >
+          {/* Camera — entrance fade-in + scroll + cursor parallax */}
           <motion.div
             variants={fadeIn}
-            style={{ y: cameraY, rotate: -4, filter: 'drop-shadow(0 0 40px rgba(255, 60, 60, 0.15)) drop-shadow(0 20px 40px rgba(0,0,0,0.5))' }}
+            style={{
+              x: cameraX,
+              y: cameraScrollY,
+              rotate: -4,
+              filter: 'drop-shadow(0 0 40px rgba(255, 60, 60, 0.15)) drop-shadow(0 20px 40px rgba(0,0,0,0.5))',
+            }}
             className="relative z-10 h-[320px] w-[320px] md:h-[420px] md:w-[420px] lg:h-[480px] lg:w-[480px]"
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -149,13 +176,13 @@ export function Hero() {
             />
           </motion.div>
 
-          {/* Polaroid-style sample photo accent — parallax drift down */}
+          {/* Polaroid — entrance fade-slide + scroll + opposite cursor drift */}
           <motion.div
             variants={fadeSlideUp}
-            style={{ y: polaroidY, rotate: 5 }}
-            className="absolute bottom-8 right-4 z-20 md:bottom-12 md:right-8"
-            whileHover={reducedMotion ? {} : { rotate: 2, scale: 1.04 }}
-            transition={{ duration: 0.3 }}
+            style={{ x: polaroidX, y: polaroidScrollY, rotate: 5 }}
+            whileHover={reducedMotion ? {} : { rotate: 2, scale: 1.05 }}
+            transition={{ rotate: { duration: 0.3 }, scale: { duration: 0.3 } }}
+            className="absolute bottom-8 right-4 z-20 cursor-pointer md:bottom-12 md:right-8"
           >
             <div className="rounded bg-white p-2.5 shadow-[0_8px_30px_rgba(0,0,0,0.5),0_2px_8px_rgba(0,0,0,0.3)]">
               {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -170,19 +197,16 @@ export function Hero() {
             </div>
           </motion.div>
 
-          {/* REC indicator accent — top-right of camera */}
+          {/* REC badge */}
           <motion.div
             variants={fadeIn}
             className="absolute right-4 top-4 z-20 flex items-center gap-1.5 md:right-12 md:top-8"
           >
             <span className="h-2 w-2 animate-pulse rounded-full bg-repixl-red" />
-            <span className="font-mono text-[10px] font-medium uppercase tracking-widest text-repixl-red">
-              REC
-            </span>
+            <span className="font-mono text-[10px] font-medium uppercase tracking-widest text-repixl-red">REC</span>
           </motion.div>
         </div>
       </motion.div>
-
     </section>
   )
 }
