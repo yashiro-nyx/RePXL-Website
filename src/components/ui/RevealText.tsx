@@ -79,7 +79,6 @@ export function RevealText({
   }
 
   return (
-    // @ts-expect-error — variants/initial/whileInView are valid on every tag in TAG_MAP
     <MotionTag
       className={className}
       variants={container}
