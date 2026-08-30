@@ -382,3 +382,9 @@ body.scroll-locked {
 [data-theme="light"] .hover\:border-repixl-red\/30:hover { border-color: rgba(181, 42, 42, 0.3) !important; }
 [data-theme="light"] .hover\:border-repixl-red\/40:hover { border-color: rgba(181, 42, 42, 0.4) !important; }
 [data-theme="light"] .group:hover .group-hover\:border-repixl-red { border-color: #b52a2a !important; }
+
+/* Added for the FAQ page rebuild */
+[data-theme="light"] .focus\:border-repixl-red\/40:focus { border-color: rgba(181, 42, 42, 0.4) !important; }
+
+/* Added for the Contact page rebuild */
+[data-theme="light"] .group:hover .group-hover\:border-repixl-red\/40 { border-color: rgba(181, 42, 42, 0.4) !important; }
