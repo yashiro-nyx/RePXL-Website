@@ -1,45 +1,55 @@
 import NextAuth from 'next-auth'
 import GoogleProvider from 'next-auth/providers/google'
-import AppleProvider from 'next-auth/providers/apple'
-import CredentialsProvider from 'next-auth/providers/credentials'
 
 const handler = NextAuth({
   providers: [
     GoogleProvider({
-      clientId: process.env.GOOGLE_CLIENT_ID || '',
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET || '',
-    }),
-    AppleProvider({
-      clientId: process.env.APPLE_ID || '',
-      clientSecret: process.env.APPLE_SECRET || '',
-    }),
-    CredentialsProvider({
-      name: 'credentials',
-      credentials: {
-        email: { label: 'Email', type: 'email' },
-        password: { label: 'Password', type: 'password' },
-      },
-      async authorize(credentials) {
-        // This delegates to your existing localStorage auth
-        // In production, this would check a database
-        if (!credentials?.email || !credentials?.password) return null
-        return { id: credentials.email, email: credentials.email, name: 'User' }
+      clientId: process.env.GOOGLE_CLIENT_ID ?? '',
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET ?? '',
+      authorization: {
+        params: {
+          // Request basic profile + email — no extra scopes
+          scope: 'openid email profile',
+          prompt: 'select_account',
+        },
       },
     }),
   ],
+
   pages: {
     signIn: '/login',
-    newUser: '/register',
+    error: '/login', // OAuth errors redirect to login page with ?error= param
   },
+
   callbacks: {
+    async jwt({ token, account, profile }) {
+      // Persist provider info into the token on first sign-in
+      if (account) {
+        token.provider = account.provider
+      }
+      if (profile) {
+        token.name = (profile as { name?: string }).name ?? token.name
+      }
+      return token
+    },
+
     async session({ session, token }) {
-      if (session.user && token.sub) {
-        (session.user as any).id = token.sub
+      // Expose provider to the client session (not the secret)
+      if (session.user) {
+        (session.user as { id?: string; provider?: string }).id = token.sub ?? ''
+        ;(session.user as { id?: string; provider?: string }).provider = (token.provider as string) ?? ''
       }
       return session
     },
   },
-  secret: process.env.NEXTAUTH_SECRET || 'repixl-dev-secret-change-in-production',
+
+  secret: process.env.NEXTAUTH_SECRET,
+
+  // Use JWT strategy (no DB adapter needed)
+  session: {
+    strategy: 'jwt',
+    maxAge: 30 * 24 * 60 * 60, // 30 days
+  },
 })
 
 export { handler as GET, handler as POST }

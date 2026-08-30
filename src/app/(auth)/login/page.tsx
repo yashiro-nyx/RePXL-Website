@@ -1,8 +1,8 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect, Suspense } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { Button, CornerBracket, PasswordInput } from '@/components/ui'
 import { SocialAuthButtons } from '@/components/auth/SocialAuthButtons'
 import { useAuthStore } from '@/stores/authStore'
@@ -13,12 +13,32 @@ interface LoginErrors {
   password?: string
 }
 
-export default function LoginPage() {
+// Map NextAuth error codes to human-friendly messages
+const OAUTH_ERROR_MESSAGES: Record<string, string> = {
+  OAuthCallback: 'There was a problem signing in with Google. Please try again.',
+  OAuthCreateAccount: 'Could not create your account. Please try again.',
+  OAuthAccountNotLinked: 'This email is already registered. Please sign in with your password.',
+  AccessDenied: 'Access was denied. Please try again.',
+  Configuration: 'Google sign-in is not configured yet. Please use email and password.',
+  Default: 'Something went wrong with Google sign-in. Please try again.',
+}
+
+function LoginContent() {
   const [errors, setErrors] = useState<LoginErrors>({})
+  const [oauthError, setOauthError] = useState('')
   const formRef = useRef<HTMLFormElement>(null)
   const router = useRouter()
+  const searchParams = useSearchParams()
   const login = useAuthStore((s) => s.login)
   const addToast = useToastStore((s) => s.addToast)
+
+  // Read ?error= from NextAuth OAuth redirect
+  useEffect(() => {
+    const error = searchParams.get('error')
+    if (error) {
+      setOauthError(OAUTH_ERROR_MESSAGES[error] ?? OAUTH_ERROR_MESSAGES.Default)
+    }
+  }, [searchParams])
 
   const validate = (): LoginErrors => {
     const form = formRef.current
@@ -76,6 +96,13 @@ export default function LoginPage() {
             </CornerBracket>
           </Link>
         </div>
+
+        {/* OAuth error banner */}
+        {oauthError && (
+          <div className="mb-4 rounded border border-red-500/30 bg-red-500/10 px-4 py-3">
+            <p className="text-sm text-red-400">{oauthError}</p>
+          </div>
+        )}
 
         {/* Card */}
         <div className="rounded-lg border border-repixl-muted/10 bg-repixl-charcoal p-6 md:p-8">
@@ -148,4 +175,13 @@ function inputClass(error?: string): string {
   return `w-full rounded border px-3 py-2.5 text-sm text-repixl-text-light placeholder:text-repixl-muted/50 focus:outline-none ${
     error ? 'border-red-400/60 bg-red-400/5 focus:border-red-400' : 'border-repixl-muted/20 bg-repixl-bg focus:border-repixl-muted/50'
   }`
+}
+
+// Wrap in Suspense because useSearchParams() requires it for Next.js static generation
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<div className="flex min-h-screen items-center justify-center" />}>
+      <LoginContent />
+    </Suspense>
+  )
 }

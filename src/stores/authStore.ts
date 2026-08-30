@@ -28,6 +28,7 @@ interface AuthState {
   isSuperAdmin: boolean
   login: (email: string, password: string) => boolean
   loginAdmin: (email: string, password: string) => boolean
+  loginWithOAuth: (email: string, firstName: string, lastName: string) => void
   register: (firstName: string, lastName: string, email: string, password: string) => boolean
   logout: () => void
   logoutAdmin: () => void
@@ -147,6 +148,50 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       isSuperAdmin: user.isSuperAdmin,
     })
     return true
+  },
+
+  // OAuth login (Google) — creates account if none exists, never touches password
+  loginWithOAuth: (email: string, firstName: string, lastName: string) => {
+    const users = getUsers()
+    const existing = users.find((u) => u.email.toLowerCase() === email.toLowerCase())
+
+    if (existing) {
+      // Sign into existing account — do NOT overwrite password
+      const session: SessionData = { email: existing.email, role: 'customer', loginAt: Date.now() }
+      localStorage.setItem('repixl-customer-session', JSON.stringify(session))
+      set({
+        isLoggedIn: true,
+        firstName: existing.firstName,
+        lastName: existing.lastName,
+        userEmail: existing.email,
+        userPhone: existing.phone,
+        role: 'customer',
+        isSuperAdmin: false,
+      })
+    } else {
+      // Create a new account (no password — OAuth only)
+      const newUser: UserRecord = {
+        firstName,
+        lastName,
+        email: email.toLowerCase(),
+        phone: '',
+        password: '', // intentionally empty — cannot log in via password
+        role: 'customer',
+        isSuperAdmin: false,
+      }
+      saveUsers([...users, newUser])
+      const session: SessionData = { email: email.toLowerCase(), role: 'customer', loginAt: Date.now() }
+      localStorage.setItem('repixl-customer-session', JSON.stringify(session))
+      set({
+        isLoggedIn: true,
+        firstName,
+        lastName,
+        userEmail: email.toLowerCase(),
+        userPhone: '',
+        role: 'customer',
+        isSuperAdmin: false,
+      })
+    }
   },
 
   // Customer logout
