@@ -295,3 +295,85 @@ body.scroll-locked {
 
 /* Body text color */
 [data-theme="light"] body { color: #1a1610; }
+
+/* ============================================================
+   Additional light-mode coverage — classes that had no override
+   (these were the ones causing invisible/unreadable content)
+   ============================================================ */
+
+/* Backgrounds */
+[data-theme="light"] .bg-repixl-bg\/95 { background-color: rgba(245, 240, 234, 0.95) !important; }
+[data-theme="light"] .bg-repixl-charcoal\/40 { background-color: rgba(255, 255, 255, 0.4) !important; }
+[data-theme="light"] .bg-repixl-muted\/20 { background-color: rgba(107, 99, 87, 0.10) !important; }
+[data-theme="light"] .bg-repixl-muted\/30 { background-color: rgba(107, 99, 87, 0.14) !important; }
+[data-theme="light"] .bg-repixl-red\/20 { background-color: rgba(181, 42, 42, 0.20) !important; }
+[data-theme="light"] .bg-repixl-success { background-color: #4a7a3a !important; }
+[data-theme="light"] .bg-repixl-success\/10 { background-color: rgba(74, 122, 58, 0.10) !important; }
+[data-theme="light"] .bg-repixl-success\/15 { background-color: rgba(74, 122, 58, 0.15) !important; }
+/* NOTE: bg-repixl-text-light intentionally left unmapped — it's a fixed
+   light chip color (pairs with text-repixl-text-dark, also unmapped)
+   used for surfaces that should stay light regardless of theme. */
+
+/* Hover backgrounds */
+[data-theme="light"] .hover\:bg-repixl-bg\/60:hover { background-color: rgba(240, 235, 229, 0.6) !important; }
+[data-theme="light"] .hover\:bg-repixl-muted\/10:hover { background-color: rgba(107, 99, 87, 0.06) !important; }
+[data-theme="light"] .hover\:bg-repixl-muted\/50:hover { background-color: rgba(107, 99, 87, 0.20) !important; }
+[data-theme="light"] .hover\:bg-repixl-muted\/60:hover { background-color: rgba(107, 99, 87, 0.24) !important; }
+[data-theme="light"] .hover\:bg-repixl-red\/5:hover { background-color: rgba(181, 42, 42, 0.05) !important; }
+[data-theme="light"] .hover\:bg-repixl-red\/90:hover { background-color: rgba(181, 42, 42, 0.90) !important; }
+
+/* Borders */
+[data-theme="light"] .border-repixl-muted\/5 { border-color: rgba(30, 25, 20, 0.05) !important; }
+[data-theme="light"] .border-repixl-muted\/15 { border-color: rgba(30, 25, 20, 0.10) !important; }
+[data-theme="light"] .border-repixl-muted\/25 { border-color: rgba(30, 25, 20, 0.15) !important; }
+[data-theme="light"] .border-repixl-muted\/50 { border-color: rgba(30, 25, 20, 0.28) !important; }
+[data-theme="light"] .border-repixl-muted\/60 { border-color: rgba(30, 25, 20, 0.32) !important; }
+[data-theme="light"] .border-repixl-red\/50 { border-color: rgba(181, 42, 42, 0.5) !important; }
+[data-theme="light"] .border-repixl-success\/30 { border-color: rgba(74, 122, 58, 0.30) !important; }
+[data-theme="light"] .border-repixl-text-light { border-color: #1a1610 !important; }
+[data-theme="light"] .border-repixl-text-light\/40 { border-color: rgba(26, 22, 16, 0.4) !important; }
+
+/* Text */
+[data-theme="light"] .text-repixl-red\/60 { color: rgba(181, 42, 42, 0.6) !important; }
+[data-theme="light"] .text-repixl-success { color: #4a7a3a !important; }
+[data-theme="light"] .text-repixl-text-light\/10 { color: rgba(26, 22, 16, 0.10) !important; }
+[data-theme="light"] .text-repixl-text-light\/65 { color: rgba(26, 22, 16, 0.65) !important; }
+[data-theme="light"] .hover\:text-repixl-red\/80:hover { color: rgba(181, 42, 42, 0.8) !important; }
+[data-theme="light"] .hover\:text-repixl-text-light\/70:hover { color: rgba(26, 22, 16, 0.7) !important; }
+/* NOTE: text-repixl-text-dark and its opacity variants intentionally left
+   unmapped — always-dark text used on fixed white/light chips (polaroids,
+   badges) that don't change with theme. */
+
+/* group-hover (parent has `.group`, requires .group:hover ancestor selector) */
+[data-theme="light"] .group:hover .group-hover\:bg-repixl-red { background-color: #b52a2a !important; }
+[data-theme="light"] .group:hover .group-hover\:text-repixl-red { color: #b52a2a !important; }
+[data-theme="light"] .group:hover .group-hover\:text-repixl-text-light { color: #1a1610 !important; }
+[data-theme="light"] .group:hover .group-hover\:text-repixl-text-light\/70 { color: rgba(26, 22, 16, 0.7) !important; }
+
+/* Focus rings — Tailwind ring utilities use the --tw-ring-color variable */
+[data-theme="light"] .ring-repixl-red\/30 { --tw-ring-color: rgba(181, 42, 42, 0.3) !important; }
+[data-theme="light"] .ring-repixl-red\/50 { --tw-ring-color: rgba(181, 42, 42, 0.5) !important; }
+[data-theme="light"] .focus\:ring-repixl-muted\/30:focus { --tw-ring-color: rgba(107, 99, 87, 0.3) !important; }
+[data-theme="light"] .focus\:ring-repixl-red\/20:focus { --tw-ring-color: rgba(181, 42, 42, 0.2) !important; }
+[data-theme="light"] .focus\:ring-repixl-red\/30:focus { --tw-ring-color: rgba(181, 42, 42, 0.3) !important; }
+
+/* Gradient stops — Tailwind gradient utilities use --tw-gradient-from/to,
+   but `via-*` bakes its color directly into --tw-gradient-stops, so any
+   from/via/to combo needs the full stop list re-declared together. */
+[data-theme="light"] .from-repixl-charcoal\/40 { --tw-gradient-from: rgba(255, 255, 255, 0.4) !important; }
+[data-theme="light"] .from-repixl-charcoal {
+  --tw-gradient-from: #ffffff !important;
+  --tw-gradient-to: rgb(255 255 255 / 0) !important;
+  --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important;
+}
+[data-theme="light"] .via-repixl-charcoal\/90 {
+  --tw-gradient-stops: var(--tw-gradient-from), rgba(255, 255, 255, 0.9), var(--tw-gradient-to) !important;
+}
+@media (min-width: 768px) {
+  [data-theme="light"] .md\:via-repixl-charcoal\/60 {
+    --tw-gradient-stops: var(--tw-gradient-from), rgba(255, 255, 255, 0.6), var(--tw-gradient-to) !important;
+  }
+}
+[data-theme="light"] .from-repixl-red { --tw-gradient-from: #b52a2a !important; }
+[data-theme="light"] .to-repixl-red\/80 { --tw-gradient-to: rgba(181, 42, 42, 0.8) !important; }
+[data-theme="light"] .to-repixl-rose { --tw-gradient-to: #8b3a3a !important; }
