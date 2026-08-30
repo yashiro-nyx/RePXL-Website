@@ -377,3 +377,8 @@ body.scroll-locked {
 [data-theme="light"] .from-repixl-red { --tw-gradient-from: #b52a2a !important; }
 [data-theme="light"] .to-repixl-red\/80 { --tw-gradient-to: rgba(181, 42, 42, 0.8) !important; }
 [data-theme="light"] .to-repixl-rose { --tw-gradient-to: #8b3a3a !important; }
+
+/* Added for the About page rebuild */
+[data-theme="light"] .hover\:border-repixl-red\/30:hover { border-color: rgba(181, 42, 42, 0.3) !important; }
+[data-theme="light"] .hover\:border-repixl-red\/40:hover { border-color: rgba(181, 42, 42, 0.4) !important; }
+[data-theme="light"] .group:hover .group-hover\:border-repixl-red { border-color: #b52a2a !important; }
