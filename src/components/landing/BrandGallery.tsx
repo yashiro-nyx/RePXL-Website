@@ -1,7 +1,8 @@
 'use client'
 
+import { useRef } from 'react'
 import Link from 'next/link'
-import { motion } from 'framer-motion'
+import { motion, useScroll, useTransform } from 'framer-motion'
 import { Container } from '@/components/layout/Container'
 import { useReducedMotion } from '@/hooks/useReducedMotion'
 
@@ -49,6 +50,137 @@ const brands = [
     sample: '/images/product-fuji-f30.svg',
   },
 ]
+
+const spotlights = [
+  {
+    brand: 'Canon',
+    slug: 'canon',
+    tagline: 'The PowerShot Signature',
+    description:
+      "Warm highlights, magenta-shifted shadows, and a softness in contrast that no modern sensor bothers to replicate. The A-series turned point-and-shoot into a color science all its own.",
+    images: ['/images/brand-canon.svg', '/images/product-canon-a520.svg', '/images/editorial-1.svg'],
+  },
+  {
+    brand: 'Sony',
+    slug: 'sony',
+    tagline: 'CyberShot Clarity',
+    description:
+      'Crisp, slightly cool, and unmistakably digital — the CyberShot line rendered light with a clarity that felt futuristic in 2003 and feels like nostalgia now.',
+    images: ['/images/brand-sony.svg', '/images/product-sony-w800.svg', '/images/hero-sample-photo.svg'],
+  },
+  {
+    brand: 'Kodak',
+    slug: 'kodak',
+    tagline: 'Kodachrome-Adjacent Warmth',
+    description:
+      "Golden highlights, rich reds, and blacks that never quite crush all the way — Kodak's CCDs carried a little of the company's film heritage into every digital frame.",
+    images: ['/images/brand-kodak.svg', '/images/product-kodak-c300.svg', '/images/hero-camera.svg'],
+  },
+]
+
+function BrandSpotlight({ spotlight, index }: { spotlight: (typeof spotlights)[number]; index: number }) {
+  const reducedMotion = useReducedMotion()
+  const reversed = index % 2 === 1
+  const sectionRef = useRef<HTMLDivElement>(null)
+
+  // Scroll-linked parallax — same pattern as EditorialSection: images and
+  // text drift at different speeds as the block passes through the viewport.
+  const { scrollYProgress } = useScroll({
+    target: sectionRef,
+    offset: ['start end', 'end start'],
+  })
+
+  const mainImgY = useTransform(scrollYProgress, [0, 1], reducedMotion ? [0, 0] : [30, -30])
+  const thumbY = useTransform(scrollYProgress, [0, 1], reducedMotion ? [0, 0] : [-24, 24])
+  const textY = useTransform(scrollYProgress, [0, 1], reducedMotion ? [0, 0] : [18, -18])
+
+  return (
+    <motion.div
+      ref={sectionRef}
+      initial={reducedMotion ? { opacity: 1 } : { opacity: 0, y: 30 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true, margin: '-80px' }}
+      transition={{ duration: reducedMotion ? 0 : 0.6, ease: [0.22, 1, 0.36, 1] }}
+      className="grid grid-cols-1 items-center gap-10 md:grid-cols-12 md:gap-10"
+    >
+      {/* Photo grid */}
+      <div className={`md:col-span-7 ${reversed ? 'md:order-2' : 'md:order-1'}`}>
+        <div className="grid grid-cols-3 gap-3">
+          <motion.div
+            style={{ y: mainImgY }}
+            className="col-span-2 row-span-2 overflow-hidden rounded-lg border border-repixl-muted/10"
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={spotlight.images[0]}
+              alt={`${spotlight.brand} vintage digicams`}
+              className="h-full w-full object-cover"
+            />
+          </motion.div>
+          <motion.div
+            style={{ y: thumbY }}
+            className="aspect-square overflow-hidden rounded-lg border border-repixl-muted/10"
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={spotlight.images[1]}
+              alt={`${spotlight.brand} sample camera`}
+              className="h-full w-full object-cover"
+            />
+          </motion.div>
+          <motion.div
+            style={{ y: thumbY }}
+            className="aspect-square overflow-hidden rounded-lg border border-repixl-muted/10"
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={spotlight.images[2]}
+              alt={`${spotlight.brand} in the field`}
+              className="h-full w-full object-cover"
+            />
+          </motion.div>
+        </div>
+      </div>
+
+      {/* Text */}
+      <motion.div
+        style={{ y: textY }}
+        className={`md:col-span-5 ${reversed ? 'md:order-1' : 'md:order-2'}`}
+      >
+        <span className="font-mono text-xs uppercase tracking-widest text-repixl-muted">
+          In Focus
+        </span>
+        <h3 className="mt-3 font-display text-display-sm text-repixl-text-light md:text-display-md">
+          {spotlight.tagline}
+        </h3>
+        <p className="mt-4 max-w-md text-sm leading-relaxed text-repixl-text-light/65">
+          {spotlight.description}
+        </p>
+        <Link
+          href={`/products?brand=${spotlight.slug}`}
+          className="group mt-6 inline-flex items-center gap-1.5 text-sm font-medium text-repixl-text-light transition-colors hover:text-repixl-red"
+        >
+          See the {spotlight.brand} lineup
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="transition-transform group-hover:translate-x-0.5"
+          >
+            <path d="M5 12h14" />
+            <path d="m12 5 7 7-7 7" />
+          </svg>
+        </Link>
+      </motion.div>
+    </motion.div>
+  )
+}
 
 export function BrandGallery() {
   const reducedMotion = useReducedMotion()
@@ -160,6 +292,13 @@ export function BrandGallery() {
             </motion.div>
           ))}
         </motion.div>
+
+        {/* In Focus — brand deep dives, à la the I-2 "Meet the photographers" section */}
+        <div className="mt-28 flex flex-col gap-24 md:mt-40 md:gap-32">
+          {spotlights.map((spotlight, i) => (
+            <BrandSpotlight key={spotlight.slug} spotlight={spotlight} index={i} />
+          ))}
+        </div>
       </Container>
     </section>
   )

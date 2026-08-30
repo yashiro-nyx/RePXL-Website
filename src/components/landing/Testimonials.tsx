@@ -1,6 +1,7 @@
 'use client'
 
-import { motion } from 'framer-motion'
+import { useRef, useState, useEffect, useCallback } from 'react'
+import { AnimatePresence, motion, useScroll, useTransform } from 'framer-motion'
 import { Container } from '@/components/layout/Container'
 import { useReducedMotion } from '@/hooks/useReducedMotion'
 
@@ -29,7 +30,7 @@ const testimonials: Testimonial[] = [
   {
     name: 'Alyssa K.',
     quote:
-      'Bought a "Good" condition Lumix and it exceeded expectations. The grading system here is honest — I\'ll keep coming back.',
+      "Bought a \"Good\" condition Lumix and it exceeded expectations. The grading system here is honest — I'll keep coming back.",
     rating: 4,
     camera: 'Panasonic Lumix DMC-FZ7',
   },
@@ -44,7 +45,7 @@ const testimonials: Testimonial[] = [
 
 function StarRating({ rating }: { rating: number }) {
   return (
-    <div className="flex gap-0.5" aria-label={`${rating} out of 5 stars`}>
+    <div className="flex justify-center gap-1 md:justify-start" aria-label={`${rating} out of 5 stars`}>
       {Array.from({ length: 5 }, (_, i) => (
         <svg
           key={i}
@@ -66,92 +67,138 @@ function StarRating({ rating }: { rating: number }) {
 
 export function Testimonials() {
   const reducedMotion = useReducedMotion()
+  const [index, setIndex] = useState(0)
+  const [direction, setDirection] = useState(1)
+  const sectionRef = useRef<HTMLDivElement>(null)
 
-  const container = {
-    hidden: {},
-    show: {
-      transition: {
-        staggerChildren: reducedMotion ? 0 : 0.12,
-        delayChildren: reducedMotion ? 0 : 0.1,
-      },
-    },
-  }
+  // Scroll-linked parallax — same pattern as EditorialSection: the oversized
+  // watermark glyph and the header both drift at different speeds as the
+  // section passes through the viewport.
+  const { scrollYProgress } = useScroll({
+    target: sectionRef,
+    offset: ['start end', 'end start'],
+  })
 
-  const card = {
-    hidden: reducedMotion
-      ? { opacity: 1, y: 0 }
-      : { opacity: 0, y: 24 },
-    show: {
-      opacity: 1,
-      y: 0,
-      transition: { duration: reducedMotion ? 0 : 0.55, ease: [0.22, 1, 0.36, 1] },
+  const watermarkY = useTransform(scrollYProgress, [0, 1], reducedMotion ? [0, 0] : [-50, 70])
+  const headerY = useTransform(scrollYProgress, [0, 1], reducedMotion ? [0, 0] : [30, -30])
+
+  const goTo = useCallback(
+    (i: number) => {
+      setDirection(i > index ? 1 : -1)
+      setIndex((i + testimonials.length) % testimonials.length)
     },
+    [index]
+  )
+
+  const next = useCallback(() => goTo(index + 1), [goTo, index])
+  const prev = useCallback(() => goTo(index - 1), [goTo, index])
+
+  // Autoplay
+  useEffect(() => {
+    if (reducedMotion) return
+    const timer = setInterval(() => {
+      setDirection(1)
+      setIndex((i) => (i + 1) % testimonials.length)
+    }, 7000)
+    return () => clearInterval(timer)
+  }, [reducedMotion])
+
+  const active = testimonials[index]
+
+  const variants = {
+    enter: (dir: number) => (reducedMotion ? { opacity: 1, x: 0 } : { opacity: 0, x: dir * 40 }),
+    center: { opacity: 1, x: 0 },
+    exit: (dir: number) => (reducedMotion ? { opacity: 1, x: 0 } : { opacity: 0, x: dir * -40 }),
   }
 
   return (
-    <section className="py-24 md:py-36">
-      <Container>
-        <motion.div
-          initial={reducedMotion ? { opacity: 1 } : { opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, margin: '-60px' }}
-          transition={{ duration: reducedMotion ? 0 : 0.6, ease: 'easeOut' }}
+    <section ref={sectionRef} className="relative overflow-hidden py-28 md:py-40">
+      {/* Oversized watermark quote mark, drifting on scroll like the Hero's VINTAGE watermark */}
+      <motion.div
+        style={{ y: watermarkY }}
+        className="pointer-events-none absolute inset-x-0 top-0 -z-10 flex select-none justify-center"
+        aria-hidden="true"
+      >
+        <span
+          className="font-display font-bold leading-none text-white/[0.04]"
+          style={{ fontSize: 'clamp(14rem, 26vw, 30rem)' }}
         >
-          {/* Section header */}
-          <div className="mb-12 text-center md:mb-16">
-            <span className="font-mono text-xs uppercase tracking-widest text-repixl-muted">
-              — From our collectors
-            </span>
-            <h2 className="mt-3 font-display text-display-md text-repixl-text-light md:text-display-lg">
-              Trusted by shooters
-            </h2>
-          </div>
+          &ldquo;
+        </span>
+      </motion.div>
 
-          {/* Testimonial grid */}
-          <motion.div
-            variants={container}
-            initial="hidden"
-            whileInView="show"
-            viewport={{ once: true, margin: '-60px' }}
-            className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4"
-          >
-            {testimonials.map((t) => (
-              <motion.div
-                key={t.name}
-                variants={card}
-                whileHover={reducedMotion ? undefined : { y: -6 }}
-                transition={{ duration: 0.25, ease: 'easeOut' }}
-                className="group relative flex flex-col justify-between overflow-hidden rounded-lg border border-repixl-muted/10 bg-repixl-charcoal p-5 transition-all duration-300 hover:border-repixl-red/30 hover:shadow-[0_16px_36px_rgba(0,0,0,0.4)]"
-              >
-                {/* Decorative quote mark */}
-                <span
-                  aria-hidden="true"
-                  className="pointer-events-none absolute -right-2 -top-4 font-display text-7xl font-bold text-repixl-muted/[0.06] transition-colors duration-300 group-hover:text-repixl-red/[0.08]"
-                >
-                  &rdquo;
-                </span>
-
-                <div className="relative">
-                  <StarRating rating={t.rating} />
-                  <p className="mt-3 text-sm leading-relaxed text-repixl-text-light/80">
-                    &ldquo;{t.quote}&rdquo;
-                  </p>
-                </div>
-
-                <div className="relative mt-5 border-t border-repixl-muted/10 pt-4">
-                  <p className="text-sm font-medium text-repixl-text-light">
-                    {t.name}
-                  </p>
-                  {t.camera && (
-                    <p className="mt-0.5 font-mono text-[10px] uppercase tracking-wider text-repixl-muted">
-                      Purchased: {t.camera}
-                    </p>
-                  )}
-                </div>
-              </motion.div>
-            ))}
-          </motion.div>
+      <Container>
+        <motion.div style={{ y: headerY }} className="mb-12 text-center md:mb-16">
+          <span className="font-mono text-xs uppercase tracking-widest text-repixl-muted">
+            — From our collectors
+          </span>
+          <h2 className="mt-3 font-display text-display-md text-repixl-text-light md:text-display-lg">
+            Trusted by shooters
+          </h2>
         </motion.div>
+
+        <div className="relative mx-auto max-w-3xl">
+          <AnimatePresence mode="wait" custom={direction}>
+            <motion.div
+              key={index}
+              custom={direction}
+              variants={variants}
+              initial="enter"
+              animate="center"
+              exit="exit"
+              transition={{ duration: reducedMotion ? 0 : 0.5, ease: [0.22, 1, 0.36, 1] }}
+              className="flex min-h-[220px] flex-col items-center gap-6 text-center md:min-h-[180px] md:items-start md:text-left"
+            >
+              <p className="font-display text-2xl italic leading-snug text-repixl-text-light md:text-4xl">
+                &ldquo;{active.quote}&rdquo;
+              </p>
+
+              <div className="flex flex-col items-center gap-2 md:items-start">
+                <StarRating rating={active.rating} />
+                <span className="font-mono text-xs uppercase tracking-widest text-repixl-muted">
+                  {active.name}
+                  {active.camera && <> · {active.camera}</>}
+                </span>
+              </div>
+            </motion.div>
+          </AnimatePresence>
+
+          {/* Controls */}
+          <div className="mt-12 flex items-center justify-center gap-6 md:justify-start">
+            <button
+              onClick={prev}
+              aria-label="Previous testimonial"
+              className="flex h-9 w-9 items-center justify-center rounded-full border border-repixl-muted/30 text-repixl-text-light/60 transition-colors hover:border-repixl-text-light hover:text-repixl-text-light"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="m15 18-6-6 6-6" />
+              </svg>
+            </button>
+
+            <div className="flex items-center gap-2">
+              {testimonials.map((t, i) => (
+                <button
+                  key={t.name}
+                  onClick={() => goTo(i)}
+                  aria-label={`Go to testimonial ${i + 1}`}
+                  className={`h-1.5 rounded-full transition-all duration-300 ${
+                    i === index ? 'w-6 bg-repixl-red' : 'w-1.5 bg-repixl-muted/30 hover:bg-repixl-muted/50'
+                  }`}
+                />
+              ))}
+            </div>
+
+            <button
+              onClick={next}
+              aria-label="Next testimonial"
+              className="flex h-9 w-9 items-center justify-center rounded-full border border-repixl-muted/30 text-repixl-text-light/60 transition-colors hover:border-repixl-text-light hover:text-repixl-text-light"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="m9 18 6-6-6-6" />
+              </svg>
+            </button>
+          </div>
+        </div>
       </Container>
     </section>
   )

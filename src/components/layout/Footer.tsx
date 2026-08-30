@@ -89,8 +89,19 @@ export function Footer() {
           </div>
         </div>
 
+        {/* Giant wordmark closer */}
+        <div className="mt-16 border-t border-repixl-muted/10 pt-10">
+          <span
+            aria-hidden="true"
+            className="block select-none font-display font-bold uppercase leading-none tracking-tighter text-repixl-text-light/10"
+            style={{ fontSize: 'clamp(3rem, 11vw, 8rem)' }}
+          >
+            RePXL
+          </span>
+        </div>
+
         {/* Bottom bar */}
-        <div className="mt-14 flex flex-col items-center justify-between gap-4 border-t border-repixl-muted/10 pt-6 md:flex-row">
+        <div className="mt-8 flex flex-col items-center justify-between gap-4 border-t border-repixl-muted/10 pt-6 md:flex-row">
           <p className="font-mono text-[10px] uppercase tracking-wider text-repixl-muted">
             © 2026 RePXL. All rights reserved.
           </p>
