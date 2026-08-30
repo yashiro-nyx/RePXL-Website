@@ -2,14 +2,11 @@
 
 /**
  * Syncs a NextAuth Google/OAuth session into the Zustand authStore.
- * Call this once near the root of the app (inside AuthProvider).
  *
- * Flow:
- *  1. NextAuth completes the OAuth redirect and sets a JWT cookie.
- *  2. useSession() returns the authenticated session.
- *  3. This hook detects the session and calls loginWithOAuth(), which
- *     creates or finds the user in localStorage and sets repixl-customer-session.
- *  4. The Zustand store is now in sync → Navbar, /account, etc. work normally.
+ * Bug fixed: Previously checked only !isLoggedIn, which allowed a stale
+ * localStorage session (different email) to block the OAuth sync. Now compares
+ * the NextAuth session email against the current store email and forces a sync
+ * whenever they don't match — ensuring the Google-authenticated email always wins.
  */
 
 import { useEffect, useRef } from 'react'
@@ -19,29 +16,33 @@ import { useAuthStore } from '@/stores/authStore'
 export function useOAuthSync() {
   const { data: session, status } = useSession()
   const loginWithOAuth = useAuthStore((s) => s.loginWithOAuth)
-  const isLoggedIn = useAuthStore((s) => s.isLoggedIn)
+  const userEmail = useAuthStore((s) => s.userEmail)
   const synced = useRef(false)
 
   useEffect(() => {
-    // Only run once per session — when NextAuth says "authenticated"
-    // and the local store doesn't already have a session
-    if (
-      status === 'authenticated' &&
-      session?.user?.email &&
-      !isLoggedIn &&
-      !synced.current
-    ) {
+    if (status !== 'authenticated' || !session?.user?.email) return
+
+    const googleEmail = session.user.email.toLowerCase()
+
+    // Sync if:
+    // 1. Not yet synced this session AND
+    // 2. Either not logged in, OR logged in with a DIFFERENT email than Google returned
+    const mismatch = userEmail && userEmail.toLowerCase() !== googleEmail
+    const notSynced = !synced.current
+
+    if (notSynced && (mismatch || !userEmail)) {
       synced.current = true
-      const email = session.user.email
       const nameParts = (session.user.name ?? '').split(' ')
       const firstName = nameParts[0] ?? ''
       const lastName = nameParts.slice(1).join(' ') ?? ''
-      loginWithOAuth(email, firstName, lastName)
+      loginWithOAuth(googleEmail, firstName, lastName)
     }
+  }, [status, session, userEmail, loginWithOAuth])
 
-    // Reset the ref when the NextAuth session ends
+  // Reset the ref when the NextAuth session ends so re-login works
+  useEffect(() => {
     if (status === 'unauthenticated') {
       synced.current = false
     }
-  }, [status, session, isLoggedIn, loginWithOAuth])
+  }, [status])
 }
