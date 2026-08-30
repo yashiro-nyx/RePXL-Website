@@ -7,21 +7,6 @@ import { RevealText } from '@/components/ui'
 import { useReducedMotion } from '@/hooks/useReducedMotion'
 import { useToastStore } from '@/stores/toastStore'
 
-function getSubscribers(): string[] {
-  try {
-    const stored = localStorage.getItem('repixl-newsletter-subscribers')
-    return stored ? JSON.parse(stored) : []
-  } catch { return [] }
-}
-
-function saveSubscriber(email: string): boolean {
-  const subscribers = getSubscribers()
-  if (subscribers.includes(email.toLowerCase())) return false // duplicate
-  subscribers.push(email.toLowerCase())
-  localStorage.setItem('repixl-newsletter-subscribers', JSON.stringify(subscribers))
-  return true
-}
-
 export function NewsletterCTA() {
   const reducedMotion = useReducedMotion()
   const [email, setEmail] = useState('')
@@ -49,16 +34,25 @@ export function NewsletterCTA() {
 
     setStatus('loading')
 
-    // Simulate a brief network delay for realism
-    await new Promise((resolve) => setTimeout(resolve, 500))
-
     try {
-      const saved = saveSubscriber(email.trim())
-      if (!saved) {
-        setErrorMsg('This email is already subscribed.')
+      const res = await fetch('/api/newsletter/subscribe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email.trim() }),
+      })
+      const data = await res.json()
+
+      if (res.status === 429) {
+        setErrorMsg('Too many requests. Please try again later.')
         setStatus('idle')
         return
       }
+      if (!res.ok) {
+        setErrorMsg(data.message ?? 'Something went wrong. Please try again.')
+        setStatus('error')
+        return
+      }
+
       setStatus('success')
       setEmail('')
       addToast('Thanks for subscribing! Welcome to the collector community.')

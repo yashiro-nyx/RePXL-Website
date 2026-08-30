@@ -1,20 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { randomBytes } from 'crypto'
-import nodemailer from 'nodemailer'
+import { createTransporter, isMailerConfigured } from '@/lib/mailer'
 import { storeResetToken } from '@/lib/resetTokens'
 
 const SAFE_RESPONSE = {
   message: "If an account with that email exists, we've sent reset instructions.",
-}
-
-function createTransporter() {
-  return nodemailer.createTransport({
-    service: 'gmail',
-    auth: {
-      user: process.env.GMAIL_USER,
-      pass: process.env.GMAIL_APP_PASSWORD,
-    },
-  })
 }
 
 export async function POST(req: NextRequest) {
@@ -34,10 +24,7 @@ export async function POST(req: NextRequest) {
       (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000')
     const resetUrl = `${siteUrl}/reset-password?token=${token}`
 
-    const gmailConfigured =
-      process.env.GMAIL_USER &&
-      process.env.GMAIL_APP_PASSWORD &&
-      process.env.GMAIL_APP_PASSWORD !== 'your-gmail-app-password'
+    const gmailConfigured = isMailerConfigured()
 
     if (gmailConfigured) {
       const transporter = createTransporter()

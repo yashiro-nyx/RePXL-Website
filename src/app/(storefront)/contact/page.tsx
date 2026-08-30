@@ -63,7 +63,8 @@ export default function ContactPage() {
     message: '',
   })
   const [errors, setErrors] = useState<Partial<ContactFormData>>({})
-  const [submitted, setSubmitted] = useState(false)
+  const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle')
+  const [apiError, setApiError] = useState('')
   const addToast = useToastStore((state) => state.addToast)
 
   const validateEmail = (email: string) => {
@@ -92,28 +93,38 @@ export default function ContactPage() {
     return Object.keys(newErrors).length === 0
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-
     if (!validate()) return
+    setApiError('')
+    setStatus('loading')
 
-    const submission = {
-      ...formData,
-      timestamp: new Date().toISOString(),
+    try {
+      const res = await fetch('/api/contact', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData),
+      })
+      const data = await res.json()
+
+      if (res.status === 429) {
+        setApiError('Too many requests. Please try again later.')
+        setStatus('error')
+        return
+      }
+      if (!res.ok) {
+        setApiError(data.message ?? 'Unable to send your message. Please try again.')
+        setStatus('error')
+        return
+      }
+
+      setStatus('success')
+      addToast('Message sent successfully. We\'ll get back to you soon.', 'success')
+      setFormData({ name: '', email: '', subject: '', message: '' })
+    } catch {
+      setApiError('Unable to send your message. Please try again.')
+      setStatus('error')
     }
-
-    const existing = JSON.parse(
-      localStorage.getItem('repxl-contact-submissions') || '[]'
-    )
-    existing.push(submission)
-    localStorage.setItem(
-      'repxl-contact-submissions',
-      JSON.stringify(existing)
-    )
-
-    setSubmitted(true)
-    addToast('Message sent successfully. We\'ll get back to you soon.', 'success')
-    setFormData({ name: '', email: '', subject: '', message: '' })
   }
 
   const handleChange = (
@@ -256,7 +267,7 @@ export default function ContactPage() {
             {/* Contact Form */}
             <div className="md:col-span-3">
               <AnimatePresence mode="wait">
-                {submitted ? (
+                {status === 'success' ? (
                   <motion.div
                     key="success"
                     initial={reducedMotion ? { opacity: 1 } : { opacity: 0, y: 12 }}
@@ -283,7 +294,7 @@ export default function ContactPage() {
                       hours on business days.
                     </p>
                     <button
-                      onClick={() => setSubmitted(false)}
+                      onClick={() => { setStatus('idle'); setApiError('') }}
                       className="mt-6 text-sm text-repixl-red transition-colors hover:text-repixl-red/80"
                     >
                       Send another message
@@ -443,6 +454,13 @@ export default function ContactPage() {
                       </AnimatePresence>
                     </motion.div>
 
+                    {/* API error */}
+                    {apiError && (
+                      <div className="rounded border border-red-500/30 bg-red-500/10 px-3 py-2">
+                        <p className="text-xs text-red-400">{apiError}</p>
+                      </div>
+                    )}
+
                     {/* Submit */}
                     <motion.button
                       initial={reducedMotion ? { opacity: 1 } : { opacity: 0, y: 12 }}
@@ -451,9 +469,18 @@ export default function ContactPage() {
                       whileHover={reducedMotion ? undefined : { scale: 1.01 }}
                       whileTap={reducedMotion ? undefined : { scale: 0.98 }}
                       type="submit"
-                      className="w-full rounded-md bg-repixl-red px-6 py-3 text-sm font-medium text-white transition-colors hover:bg-repixl-red/90"
+                      disabled={status === 'loading'}
+                      className="w-full rounded-md bg-repixl-red px-6 py-3 text-sm font-medium text-white transition-colors hover:bg-repixl-red/90 disabled:opacity-60 disabled:cursor-not-allowed"
                     >
-                      Send Message
+                      {status === 'loading' ? (
+                        <span className="flex items-center justify-center gap-2">
+                          <svg className="h-4 w-4 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                          </svg>
+                          Sending...
+                        </span>
+                      ) : 'Send Message'}
                     </motion.button>
                   </motion.form>
                 )}
