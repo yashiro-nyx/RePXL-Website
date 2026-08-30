@@ -4,6 +4,7 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Container } from '@/components/layout/Container'
+import { RevealText } from '@/components/ui'
 import { useReducedMotion } from '@/hooks/useReducedMotion'
 import { homeFaqs } from '@/data/faqs'
 
@@ -21,7 +22,7 @@ export function HomeFAQ() {
         <motion.div
           initial={reducedMotion ? { opacity: 1 } : { opacity: 0, y: 16 }}
           whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, margin: '-40px' }}
+          viewport={{ once: false, margin: '-40px' }}
           transition={{ duration: reducedMotion ? 0 : 0.6, ease: 'easeOut' }}
           className="mx-auto max-w-2xl"
         >
@@ -30,9 +31,11 @@ export function HomeFAQ() {
             <span className="font-mono text-[10px] uppercase tracking-widest text-repixl-muted">
               — Got Questions
             </span>
-            <h2 className="mt-3 font-display text-display-md text-repixl-text-light md:text-display-lg">
-              Questions, answered.
-            </h2>
+            <RevealText
+              as="h2"
+              text="Questions, answered."
+              className="mt-3 font-display text-display-md text-repixl-text-light md:text-display-lg"
+            />
             <p className="mx-auto mt-3 max-w-md text-sm text-repixl-text-light/60">
               The most common things buyers ask before their first purchase.
             </p>

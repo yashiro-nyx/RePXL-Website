@@ -3,6 +3,7 @@
 import { useRef, useState, useEffect, useCallback } from 'react'
 import { AnimatePresence, motion, useScroll, useTransform } from 'framer-motion'
 import { Container } from '@/components/layout/Container'
+import { RevealText } from '@/components/ui'
 import { useReducedMotion } from '@/hooks/useReducedMotion'
 
 interface Testimonial {
@@ -45,7 +46,7 @@ const testimonials: Testimonial[] = [
 
 function StarRating({ rating }: { rating: number }) {
   return (
-    <div className="flex justify-center gap-1 md:justify-start" aria-label={`${rating} out of 5 stars`}>
+    <div className="flex justify-center gap-1" aria-label={`${rating} out of 5 stars`}>
       {Array.from({ length: 5 }, (_, i) => (
         <svg
           key={i}
@@ -132,9 +133,11 @@ export function Testimonials() {
           <span className="font-mono text-xs uppercase tracking-widest text-repixl-muted">
             — From our collectors
           </span>
-          <h2 className="mt-3 font-display text-display-md text-repixl-text-light md:text-display-lg">
-            Trusted by shooters
-          </h2>
+          <RevealText
+            as="h2"
+            text="Trusted by shooters"
+            className="mt-3 font-display text-display-md text-repixl-text-light md:text-display-lg"
+          />
         </motion.div>
 
         <div className="relative mx-auto max-w-3xl">
@@ -147,13 +150,13 @@ export function Testimonials() {
               animate="center"
               exit="exit"
               transition={{ duration: reducedMotion ? 0 : 0.5, ease: [0.22, 1, 0.36, 1] }}
-              className="flex min-h-[220px] flex-col items-center gap-6 text-center md:min-h-[180px] md:items-start md:text-left"
+              className="flex min-h-[220px] flex-col items-center gap-6 text-center md:min-h-[180px]"
             >
               <p className="font-display text-2xl italic leading-snug text-repixl-text-light md:text-4xl">
                 &ldquo;{active.quote}&rdquo;
               </p>
 
-              <div className="flex flex-col items-center gap-2 md:items-start">
+              <div className="flex flex-col items-center gap-2">
                 <StarRating rating={active.rating} />
                 <span className="font-mono text-xs uppercase tracking-widest text-repixl-muted">
                   {active.name}
@@ -164,7 +167,7 @@ export function Testimonials() {
           </AnimatePresence>
 
           {/* Controls */}
-          <div className="mt-12 flex items-center justify-center gap-6 md:justify-start">
+          <div className="mt-12 flex items-center justify-center gap-6">
             <button
               onClick={prev}
               aria-label="Previous testimonial"

@@ -23,6 +23,35 @@ export function EditorialSection() {
   const opacity = useTransform(scrollYProgress, [0, 0.2, 0.8, 1], [0, 1, 1, 0])
   const staticOpacity = reducedMotion ? 1 : undefined
 
+  // Word-by-word reveal for the heading, independent of the parallax above —
+  // this one is intersection-triggered (and replays on scroll-up) rather
+  // than continuously bound to scroll progress.
+  const wordContainer = {
+    hidden: {},
+    show: { transition: { staggerChildren: reducedMotion ? 0 : 0.045 } },
+  }
+  const word = {
+    hidden: reducedMotion ? { y: 0, opacity: 1 } : { y: '110%', opacity: 0 },
+    show: {
+      y: 0,
+      opacity: 1,
+      transition: { duration: reducedMotion ? 0 : 0.6, ease: [0.22, 1, 0.36, 1] as const },
+    },
+  }
+  const renderWords = (text: string, keyPrefix: string) =>
+    text.split(' ').map((w, i) => (
+      <span
+        key={`${keyPrefix}-${i}`}
+        className="inline-block overflow-hidden pb-[0.1em]"
+        style={{ verticalAlign: 'bottom' }}
+      >
+        <motion.span variants={word} className="inline-block">
+          {w}
+          {'\u00A0'}
+        </motion.span>
+      </span>
+    ))
+
   return (
     <section
       ref={sectionRef}
@@ -91,14 +120,20 @@ export function EditorialSection() {
               — The digicam era
             </span>
 
-            <h2 className="font-display text-display-lg leading-tight text-repixl-text-light md:text-display-xl">
-              Before filters,
+            <motion.h2
+              variants={wordContainer}
+              initial="hidden"
+              whileInView="show"
+              viewport={{ once: false, margin: '-10% 0px' }}
+              className="font-display text-display-lg leading-tight text-repixl-text-light md:text-display-xl"
+            >
+              {renderWords('Before filters,', 'edLine1')}
               <br />
-              there was{' '}
-              <span className="italic text-repixl-rose">film-tone</span>
+              {renderWords('there was', 'edLine2')}
+              <span className="italic text-repixl-rose">{renderWords('film-tone', 'edLine2b')}</span>
               <br />
-              at ISO 100.
-            </h2>
+              {renderWords('at ISO 100.', 'edLine3')}
+            </motion.h2>
 
             <p className="max-w-lg text-base leading-relaxed text-repixl-text-light/60">
               Two megapixels. A fixed lens. No post-processing. The early

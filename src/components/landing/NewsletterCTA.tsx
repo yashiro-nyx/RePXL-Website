@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { Container } from '@/components/layout/Container'
+import { RevealText } from '@/components/ui'
 import { useReducedMotion } from '@/hooks/useReducedMotion'
 import { useToastStore } from '@/stores/toastStore'
 
@@ -73,13 +74,15 @@ export function NewsletterCTA() {
         <motion.div
           initial={reducedMotion ? { opacity: 1 } : { opacity: 0, y: 16 }}
           whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, margin: '-40px' }}
+          viewport={{ once: false, margin: '-40px' }}
           transition={{ duration: reducedMotion ? 0 : 0.6, ease: 'easeOut' }}
           className="mx-auto max-w-lg text-center"
         >
-          <h2 className="font-display text-display-sm text-repixl-text-light md:text-display-md">
-            Stay in the loop
-          </h2>
+          <RevealText
+            as="h2"
+            text="Stay in the loop"
+            className="font-display text-display-sm text-repixl-text-light md:text-display-md"
+          />
           <p className="mt-2 text-sm text-repixl-text-light/60">
             New arrivals, restocks, and collector tips — no spam, just cameras.
           </p>

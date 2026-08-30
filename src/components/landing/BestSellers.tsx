@@ -4,7 +4,7 @@ import { useEffect, useMemo } from 'react'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
 import { Container } from '@/components/layout/Container'
-import { ConditionBadge } from '@/components/ui'
+import { ConditionBadge, RevealText } from '@/components/ui'
 import { useProductStore } from '@/stores/productStore'
 import { useReviewStore } from '@/stores/reviewStore'
 import { useReducedMotion } from '@/hooks/useReducedMotion'
@@ -44,23 +44,28 @@ export function BestSellers() {
   return (
     <section className="py-16 md:py-20">
       <Container>
-        <div className="mb-10 flex items-center justify-between">
-          <h2 className="font-display text-display-md text-repixl-text-light md:text-display-lg">
-            Best Sellers
-          </h2>
-          <Link
-            href="/products"
-            className="hidden rounded-full border border-repixl-muted/25 px-5 py-2 font-mono text-[11px] uppercase tracking-wider text-repixl-text-light/80 transition-colors hover:border-repixl-red/50 hover:text-repixl-text-light md:inline-block"
-          >
-            View All
-          </Link>
-        </div>
+        <motion.div
+          initial={reducedMotion ? { opacity: 1 } : { opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: false, margin: '-60px' }}
+          transition={{ duration: reducedMotion ? 0 : 0.6, ease: 'easeOut' }}
+          className="mb-10 flex flex-col items-center gap-3 text-center"
+        >
+          <span className="font-mono text-xs uppercase tracking-widest text-repixl-muted">
+            — Fan favorites
+          </span>
+          <RevealText
+            as="h2"
+            text="Best Sellers"
+            className="font-display text-display-md text-repixl-text-light md:text-display-lg"
+          />
+        </motion.div>
 
         <motion.div
           variants={container}
           initial="hidden"
           whileInView="show"
-          viewport={{ once: true, margin: '-60px' }}
+          viewport={{ once: false, margin: '-60px' }}
           className="grid grid-cols-2 gap-4 md:grid-cols-4"
         >
           {bestSellers.map((product) => {
@@ -95,10 +100,10 @@ export function BestSellers() {
           })}
         </motion.div>
 
-        <div className="mt-8 flex justify-center md:hidden">
+        <div className="mt-8 flex justify-center">
           <Link
             href="/products"
-            className="rounded-full border border-repixl-muted/25 px-6 py-2.5 font-mono text-[11px] uppercase tracking-wider text-repixl-text-light/80"
+            className="rounded-full border border-repixl-muted/25 px-6 py-2.5 font-mono text-[11px] uppercase tracking-wider text-repixl-text-light/80 transition-colors hover:border-repixl-red/50 hover:text-repixl-text-light"
           >
             View All
           </Link>

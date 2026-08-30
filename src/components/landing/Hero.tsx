@@ -80,6 +80,34 @@ export function Hero() {
     },
   }
 
+  // Word-by-word reveal for the headline — nests inside the parent
+  // `container` stagger via variant propagation (no own initial/whileInView).
+  const wordContainer = {
+    hidden: {},
+    show: { transition: { staggerChildren: reducedMotion ? 0 : 0.05 } },
+  }
+  const word = {
+    hidden: reducedMotion ? { y: 0, opacity: 1 } : { y: '110%', opacity: 0 },
+    show: {
+      y: 0,
+      opacity: 1,
+      transition: { duration: reducedMotion ? 0 : 0.6, ease: [0.22, 1, 0.36, 1] as const },
+    },
+  }
+  const renderWords = (text: string, keyPrefix: string) =>
+    text.split(' ').map((w, i) => (
+      <span
+        key={`${keyPrefix}-${i}`}
+        className="inline-block overflow-hidden pb-[0.1em]"
+        style={{ verticalAlign: 'bottom' }}
+      >
+        <motion.span variants={word} className="inline-block">
+          {w}
+          {'\u00A0'}
+        </motion.span>
+      </span>
+    ))
+
   return (
     <section className="section-clip-bottom relative flex min-h-screen items-center justify-center overflow-hidden pb-16">
       {/* Oversized watermark text */}
@@ -99,7 +127,8 @@ export function Hero() {
       <motion.div
         variants={container}
         initial="hidden"
-        animate="show"
+        whileInView="show"
+        viewport={{ once: false, amount: 0.3 }}
         className="relative z-10 mx-auto flex w-full max-w-container flex-col items-center px-6 py-32 md:flex-row md:px-10 lg:px-16"
       >
         {/* Left column: text + CTAs */}
@@ -113,12 +142,12 @@ export function Hero() {
           </motion.div>
 
           <motion.h1
-            variants={fadeSlideUp}
+            variants={wordContainer}
             className="font-display text-display-lg leading-tight text-repixl-text-light md:text-display-xl"
           >
-            Capture the past.
+            {renderWords('Capture the past.', 'line1')}
             <br />
-            <span className="text-repixl-rose">Frame the future.</span>
+            <span className="text-repixl-rose">{renderWords('Frame the future.', 'line2')}</span>
           </motion.h1>
 
           <motion.p

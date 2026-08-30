@@ -38,7 +38,12 @@ export function TrustStrip() {
   const reducedMotion = useReducedMotion()
 
   return (
-    <div className="relative z-10 overflow-hidden border-y border-repixl-muted/10 bg-repixl-charcoal/40 py-3 backdrop-blur-sm">
+    <motion.div
+      initial={reducedMotion ? { opacity: 1 } : { opacity: 0 }}
+      whileInView={{ opacity: 1 }}
+      viewport={{ once: false, margin: '-40px' }}
+      transition={{ duration: reducedMotion ? 0 : 0.6, ease: 'easeOut' }}
+      className="relative z-10 overflow-hidden border-y border-repixl-muted/10 bg-repixl-charcoal/40 py-3 backdrop-blur-sm">
       {/* Left/right fade masks */}
       <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-16 bg-gradient-to-r from-repixl-charcoal/40 to-transparent" />
       <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-16 bg-gradient-to-l from-repixl-charcoal/40 to-transparent" />
@@ -64,6 +69,6 @@ export function TrustStrip() {
       <p className="sr-only">
         {TICKER_ITEMS.join(' · ')}
       </p>
-    </div>
+    </motion.div>
   )
 }

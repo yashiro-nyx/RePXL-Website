@@ -2,6 +2,7 @@
 
 import { motion } from 'framer-motion'
 import { Container } from '@/components/layout/Container'
+import { RevealText } from '@/components/ui'
 import { useReducedMotion } from '@/hooks/useReducedMotion'
 
 const reasons = [
@@ -43,15 +44,28 @@ export function WhyUs() {
   return (
     <section className="py-16 md:py-20">
       <Container>
-        <h2 className="mb-12 font-display text-display-md text-repixl-text-light md:text-display-lg">
-          Why RePXL
-        </h2>
+        <motion.div
+          initial={reducedMotion ? { opacity: 1 } : { opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: false, margin: '-60px' }}
+          transition={{ duration: reducedMotion ? 0 : 0.6, ease: 'easeOut' }}
+          className="mb-12 flex flex-col items-center gap-3 text-center"
+        >
+          <span className="font-mono text-xs uppercase tracking-widest text-repixl-muted">
+            — The RePXL difference
+          </span>
+          <RevealText
+            as="h2"
+            text="Why RePXL"
+            className="font-display text-display-md text-repixl-text-light md:text-display-lg"
+          />
+        </motion.div>
 
         <motion.div
           variants={container}
           initial="hidden"
           whileInView="show"
-          viewport={{ once: true, margin: '-60px' }}
+          viewport={{ once: false, margin: '-60px' }}
           className="grid grid-cols-1 gap-10 border-t border-repixl-muted/15 pt-10 sm:grid-cols-3 sm:gap-8"
         >
           {reasons.map((r) => (

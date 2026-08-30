@@ -4,6 +4,7 @@ import { useRef } from 'react'
 import Link from 'next/link'
 import { motion, useScroll, useTransform } from 'framer-motion'
 import { Container } from '@/components/layout/Container'
+import { RevealText } from '@/components/ui'
 import { useReducedMotion } from '@/hooks/useReducedMotion'
 
 const brands = [
@@ -99,7 +100,7 @@ function BrandSpotlight({ spotlight, index }: { spotlight: (typeof spotlights)[n
       ref={sectionRef}
       initial={reducedMotion ? { opacity: 1 } : { opacity: 0, y: 30 }}
       whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, margin: '-80px' }}
+      viewport={{ once: false, margin: '-80px' }}
       transition={{ duration: reducedMotion ? 0 : 0.6, ease: [0.22, 1, 0.36, 1] }}
       className="grid grid-cols-1 items-center gap-10 md:grid-cols-12 md:gap-10"
     >
@@ -150,9 +151,11 @@ function BrandSpotlight({ spotlight, index }: { spotlight: (typeof spotlights)[n
         <span className="font-mono text-xs uppercase tracking-widest text-repixl-muted">
           In Focus
         </span>
-        <h3 className="mt-3 font-display text-display-sm text-repixl-text-light md:text-display-md">
-          {spotlight.tagline}
-        </h3>
+        <RevealText
+          as="h3"
+          text={spotlight.tagline}
+          className="mt-3 font-display text-display-sm text-repixl-text-light md:text-display-md"
+        />
         <p className="mt-4 max-w-md text-sm leading-relaxed text-repixl-text-light/65">
           {spotlight.description}
         </p>
@@ -212,25 +215,33 @@ export function BrandGallery() {
     <section className="pb-16 pt-24 md:pb-20 md:pt-36">
       <Container>
         {/* Section header */}
-        <div className="mb-14 flex flex-col items-center gap-3 text-center md:mb-20">
+        <motion.div
+          initial={reducedMotion ? { opacity: 1 } : { opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: false, margin: '-60px' }}
+          transition={{ duration: reducedMotion ? 0 : 0.6, ease: 'easeOut' }}
+          className="mb-14 flex flex-col items-center gap-3 text-center md:mb-20"
+        >
           <span className="font-mono text-xs uppercase tracking-widest text-repixl-muted">
             — Shop by brand
           </span>
-          <h2 className="font-display text-display-md text-repixl-text-light md:text-display-lg">
-            Find your era
-          </h2>
+          <RevealText
+            as="h2"
+            text="Find your era"
+            className="font-display text-display-md text-repixl-text-light md:text-display-lg"
+          />
           <p className="max-w-md text-sm text-repixl-text-light/60">
             Six legendary brands. Decades of iconic compact cameras.
             Pick a lineage and explore.
           </p>
-        </div>
+        </motion.div>
 
         {/* Brand grid — gallery layout with varied sizing */}
         <motion.div
           variants={container}
           initial="hidden"
           whileInView="show"
-          viewport={{ once: true, margin: '-80px' }}
+          viewport={{ once: false, margin: '-80px' }}
           className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3"
         >
           {brands.map((brand) => (

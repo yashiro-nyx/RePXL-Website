@@ -2,7 +2,7 @@
 
 import { motion } from 'framer-motion'
 import { Container } from '@/components/layout/Container'
-import { ConditionBadge, CornerBracket, type Condition } from '@/components/ui'
+import { ConditionBadge, CornerBracket, RevealText, type Condition } from '@/components/ui'
 import { useReducedMotion } from '@/hooks/useReducedMotion'
 
 interface GradeInfo {
@@ -59,7 +59,7 @@ export function ConditionExplainer() {
         <motion.div
           initial={reducedMotion ? { opacity: 1 } : { opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, margin: '-60px' }}
+          viewport={{ once: false, margin: '-60px' }}
           transition={{ duration: reducedMotion ? 0 : 0.6, ease: 'easeOut' }}
         >
           {/* Section header */}
@@ -67,9 +67,11 @@ export function ConditionExplainer() {
             <span className="font-mono text-xs uppercase tracking-widest text-repixl-muted">
               — Transparency first
             </span>
-            <h2 className="mt-3 font-display text-display-md text-repixl-text-light md:text-display-lg">
-              What our grades mean
-            </h2>
+            <RevealText
+              as="h2"
+              text="What our grades mean"
+              className="mt-3 font-display text-display-md text-repixl-text-light md:text-display-lg"
+            />
             <p className="mx-auto mt-3 max-w-lg text-sm text-repixl-text-light/60">
               Every camera is inspected, graded, and photographed before listing.
               No guesswork — you know exactly what you&apos;re getting.
@@ -86,7 +88,7 @@ export function ConditionExplainer() {
               variants={container}
               initial="hidden"
               whileInView="show"
-              viewport={{ once: true, margin: '-40px' }}
+              viewport={{ once: false, margin: '-40px' }}
               className="grid grid-cols-1 gap-6 sm:grid-cols-2"
             >
               {grades.map((grade) => (

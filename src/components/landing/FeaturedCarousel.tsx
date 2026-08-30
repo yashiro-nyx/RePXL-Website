@@ -4,7 +4,7 @@ import { useState, useMemo, useEffect } from 'react'
 import Link from 'next/link'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Container } from '@/components/layout/Container'
-import { ConditionBadge } from '@/components/ui'
+import { ConditionBadge, RevealText } from '@/components/ui'
 import { useProductStore } from '@/stores/productStore'
 import { useReviewStore } from '@/stores/reviewStore'
 import { useCartStore } from '@/stores/cartStore'
@@ -40,14 +40,22 @@ export function FeaturedCarousel() {
     <section className="pb-24 pt-12 md:pb-36 md:pt-16">
       <Container>
         {/* Header */}
-        <div className="mb-12 text-center">
+        <motion.div
+          initial={reducedMotion ? { opacity: 1 } : { opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: false, margin: '-60px' }}
+          transition={{ duration: reducedMotion ? 0 : 0.6, ease: 'easeOut' }}
+          className="mb-12 text-center"
+        >
           <span className="font-mono text-xs uppercase tracking-widest text-repixl-muted">
             — New arrivals
           </span>
-          <h2 className="mt-2 font-display text-display-md text-repixl-text-light md:text-display-lg">
-            Featured cameras
-          </h2>
-        </div>
+          <RevealText
+            as="h2"
+            text="Featured cameras"
+            className="mt-2 font-display text-display-md text-repixl-text-light md:text-display-lg"
+          />
+        </motion.div>
       </Container>
 
       {/* Carousel */}
