@@ -1,13 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { randomBytes } from 'crypto'
-import { Resend } from 'resend'
+import nodemailer from 'nodemailer'
 import { storeResetToken } from '@/lib/resetTokens'
-
-const resend = new Resend(process.env.RESEND_API_KEY)
 
 // Always respond with the same message to prevent user enumeration
 const SAFE_RESPONSE = {
   message: "If an account with that email exists, we've sent reset instructions.",
+}
+
+function createTransporter() {
+  return nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+      user: process.env.GMAIL_USER,
+      pass: process.env.GMAIL_APP_PASSWORD,
+    },
+  })
 }
 
 export async function POST(req: NextRequest) {
@@ -25,14 +33,18 @@ export async function POST(req: NextRequest) {
 
     const siteUrl =
       process.env.NEXT_PUBLIC_SITE_URL ??
-      // Vercel auto-sets VERCEL_URL for preview deployments (no https:// prefix)
       (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000')
     const resetUrl = `${siteUrl}/reset-password?token=${token}`
 
-    // Send the reset email
-    if (process.env.RESEND_API_KEY && process.env.RESEND_API_KEY !== 'your-resend-api-key') {
-      const sendResult = await resend.emails.send({
-        from: process.env.RESEND_FROM_EMAIL ?? 'onboarding@resend.dev',
+    const gmailConfigured =
+      process.env.GMAIL_USER &&
+      process.env.GMAIL_APP_PASSWORD &&
+      process.env.GMAIL_APP_PASSWORD !== 'your-gmail-app-password'
+
+    if (gmailConfigured) {
+      const transporter = createTransporter()
+      const result = await transporter.sendMail({
+        from: `"RePXL" <${process.env.GMAIL_USER}>`,
         to: email,
         subject: 'Reset your RePXL password',
         html: `
@@ -47,31 +59,29 @@ export async function POST(req: NextRequest) {
               Reset Password
             </a>
             <p style="color: #8c8580; font-size: 12px; margin: 24px 0 0;">
-              If you didn't request this, you can safely ignore this email.
-              Your password will not be changed.
+              If you didn't request this, you can safely ignore this email. Your password won't be changed.
             </p>
             <hr style="border: none; border-top: 1px solid #2a2028; margin: 24px 0;" />
             <p style="color: #8c8580; font-size: 11px; margin: 0;">
-              © ${new Date().getFullYear()} RePXL. Not your email? Contact us at support@repxl.com
+              © ${new Date().getFullYear()} RePXL &nbsp;·&nbsp; support@repxl.com
             </p>
           </div>
         `,
+        text: `Reset your RePXL password\n\nClick the link below to set a new password (expires in 1 hour):\n\n${resetUrl}\n\nIf you didn't request this, ignore this email.`,
       })
-      // Log result for debugging (visible in Vercel Functions logs)
-      console.log('[forgot-password] Resend result:', JSON.stringify(sendResult))
+      console.log('[forgot-password] Email sent:', result.messageId)
     } else {
-      // Development fallback — log the reset URL to the server console
+      // Dev fallback — print reset URL to server console
       console.log('\n[RePXL Password Reset — DEV MODE]')
-      console.log(`Email: ${email}`)
-      console.log(`Reset URL: ${resetUrl}`)
-      console.log('RESEND_API_KEY present:', !!process.env.RESEND_API_KEY)
-      console.log('(Set RESEND_API_KEY in .env.local to send real emails)\n')
+      console.log(`Email : ${email}`)
+      console.log(`URL   : ${resetUrl}`)
+      console.log('Set GMAIL_USER and GMAIL_APP_PASSWORD in .env.local to send real emails.\n')
     }
 
     return NextResponse.json(SAFE_RESPONSE)
   } catch (err) {
-    console.error('[forgot-password]', err)
-    // Still return the safe message so errors don't leak info
+    console.error('[forgot-password] Error:', err)
+    // Return safe message even on error — don't leak details
     return NextResponse.json(SAFE_RESPONSE)
   }
 }
