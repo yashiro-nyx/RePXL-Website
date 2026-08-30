@@ -48,158 +48,194 @@ export async function POST(req: NextRequest) {
         to: email,
         subject: 'Reset your RePXL password',
         html: `<!DOCTYPE html>
-<html lang="en">
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
   <title>Reset your RePXL password</title>
+  <!--[if mso]>
+  <noscript>
+    <xml><o:OfficeDocumentSettings><o:PixelsPerInch>96</o:PixelsPerInch></o:OfficeDocumentSettings></xml>
+  </noscript>
+  <![endif]-->
 </head>
-<body style="margin:0;padding:0;background-color:#050303;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
-  <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="background-color:#050303;padding:40px 16px;">
-    <tr>
-      <td align="center">
-        <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="max-width:520px;">
+<body style="margin:0;padding:0;min-width:100%;background-color:#050303;-webkit-text-size-adjust:100%;-ms-text-size-adjust:100%;">
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background-color:#050303;">
+  <tr>
+    <td align="center" style="padding:48px 16px 40px;">
 
-          <!-- Logo / Wordmark -->
-          <tr>
-            <td align="center" style="padding-bottom:32px;">
-              <table role="presentation" cellpadding="0" cellspacing="0">
-                <tr>
-                  <td style="border:1px solid rgba(245,241,236,0.25);padding:6px 12px;">
-                    <span style="font-family:Georgia,'Times New Roman',serif;font-size:20px;font-weight:700;letter-spacing:-0.5px;color:#f5f1ec;">RePXL</span>
-                  </td>
-                </tr>
-              </table>
-            </td>
-          </tr>
+      <!-- Outer wrapper: max 560px -->
+      <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="max-width:560px;">
 
-          <!-- Card -->
-          <tr>
-            <td style="background-color:#16131a;border:1px solid rgba(140,133,128,0.12);border-radius:8px;overflow:hidden;">
+        <!-- ── HEADER ── -->
+        <tr>
+          <td align="center" style="padding-bottom:36px;">
+            <!-- Wordmark inside hairline bracket -->
+            <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+              <tr>
+                <td style="border:1px solid rgba(245,241,236,0.22);padding:7px 16px;line-height:1;">
+                  <span style="font-family:Georgia,'Times New Roman',Times,serif;font-size:21px;font-weight:700;letter-spacing:-0.4px;color:#f5f1ec;text-decoration:none;">RePXL</span>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
 
-              <!-- Red accent bar -->
-              <table role="presentation" cellpadding="0" cellspacing="0" width="100%">
-                <tr>
-                  <td style="background-color:#c22c2c;height:3px;font-size:0;line-height:0;">&nbsp;</td>
-                </tr>
-              </table>
+        <!-- ── MAIN CARD ── -->
+        <tr>
+          <td style="background-color:#16131a;border:1px solid rgba(140,133,128,0.14);border-radius:6px;overflow:hidden;">
 
-              <!-- Card body -->
-              <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="padding:40px 36px 36px;">
+            <!-- Red top bar -->
+            <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+              <tr><td style="height:3px;background-color:#c22c2c;font-size:0;line-height:0;"> </td></tr>
+            </table>
 
-                <!-- Camera icon -->
-                <tr>
-                  <td align="center" style="padding-bottom:24px;">
-                    <table role="presentation" cellpadding="0" cellspacing="0">
-                      <tr>
-                        <td style="background-color:rgba(194,44,44,0.12);border-radius:50%;width:52px;height:52px;text-align:center;vertical-align:middle;">
-                          <span style="font-size:22px;line-height:52px;">📷</span>
-                        </td>
-                      </tr>
-                    </table>
-                  </td>
-                </tr>
+            <!-- Card content -->
+            <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+              <tr>
+                <td style="padding:44px 40px 40px;">
 
-                <!-- Heading -->
-                <tr>
-                  <td align="center" style="padding-bottom:12px;">
-                    <h1 style="margin:0;font-family:Georgia,'Times New Roman',serif;font-size:26px;font-weight:700;color:#f5f1ec;letter-spacing:-0.3px;">Reset Your Password</h1>
-                  </td>
-                </tr>
+                  <!-- Icon: lock SVG -->
+                  <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+                    <tr>
+                      <td align="center" style="padding-bottom:28px;">
+                        <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+                          <tr>
+                            <td style="width:52px;height:52px;background-color:rgba(194,44,44,0.12);border-radius:50%;text-align:center;vertical-align:middle;" align="center">
+                              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="display:inline-block;vertical-align:middle;">
+                                <rect x="3" y="11" width="18" height="11" rx="2" ry="2" stroke="#c22c2c" stroke-width="1.8" fill="none"/>
+                                <path d="M7 11V7a5 5 0 0 1 10 0v4" stroke="#c22c2c" stroke-width="1.8" stroke-linecap="round" fill="none"/>
+                              </svg>
+                            </td>
+                          </tr>
+                        </table>
+                      </td>
+                    </tr>
+                  </table>
 
-                <!-- Body copy -->
-                <tr>
-                  <td align="center" style="padding-bottom:32px;">
-                    <p style="margin:0;font-size:15px;line-height:1.6;color:#8c8580;text-align:center;max-width:380px;">
-                      We received a request to reset the password for your<br />
-                      <strong style="color:#f5f1ec;">RePXL</strong> account. Click the button below to choose a new password.
-                    </p>
-                  </td>
-                </tr>
+                  <!-- Heading -->
+                  <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+                    <tr>
+                      <td align="center" style="padding-bottom:14px;">
+                        <h1 style="margin:0;font-family:Georgia,'Times New Roman',Times,serif;font-size:26px;font-weight:700;color:#f5f1ec;letter-spacing:-0.3px;line-height:1.25;">Reset Your Password</h1>
+                      </td>
+                    </tr>
+                  </table>
 
-                <!-- CTA Button -->
-                <tr>
-                  <td align="center" style="padding-bottom:24px;">
-                    <table role="presentation" cellpadding="0" cellspacing="0">
-                      <tr>
-                        <td style="border-radius:4px;background-color:#c22c2c;">
-                          <a href="${resetUrl}"
-                             target="_blank"
-                             style="display:inline-block;padding:14px 32px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:15px;font-weight:600;color:#ffffff;text-decoration:none;letter-spacing:0.2px;border-radius:4px;background-color:#c22c2c;">
-                            Reset Password
-                          </a>
-                        </td>
-                      </tr>
-                    </table>
-                  </td>
-                </tr>
+                  <!-- Body copy -->
+                  <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+                    <tr>
+                      <td align="center" style="padding-bottom:36px;">
+                        <p style="margin:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:15px;line-height:1.65;color:#8c8580;text-align:center;max-width:400px;">
+                          We received a request to reset the password for your <strong style="color:#f5f1ec;font-weight:600;">RePXL</strong> account. Click the button below to choose a new password.
+                        </p>
+                      </td>
+                    </tr>
+                  </table>
 
-                <!-- Fallback URL -->
-                <tr>
-                  <td align="center" style="padding-bottom:28px;">
-                    <p style="margin:0;font-size:11px;color:#8c8580;text-align:center;">
-                      Button not working? Copy and paste this link into your browser:
-                    </p>
-                    <p style="margin:6px 0 0;font-size:11px;font-family:'Courier New',Courier,monospace;color:#c22c2c;word-break:break-all;text-align:center;">
-                      <a href="${resetUrl}" style="color:#c22c2c;text-decoration:underline;">${resetUrl}</a>
-                    </p>
-                  </td>
-                </tr>
+                  <!-- CTA Button -->
+                  <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+                    <tr>
+                      <td align="center" style="padding-bottom:28px;">
+                        <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+                          <tr>
+                            <td style="border-radius:4px;background-color:#c22c2c;mso-padding-alt:0;">
+                              <!--[if mso]><i style="letter-spacing:28px;mso-font-width:-100%;mso-text-raise:30pt;">&nbsp;</i><![endif]-->
+                              <a href="${resetUrl}"
+                                 target="_blank"
+                                 style="display:inline-block;padding:15px 36px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:15px;font-weight:700;color:#ffffff;background-color:#c22c2c;text-decoration:none;border-radius:4px;letter-spacing:0.3px;mso-padding-alt:15px 36px;">
+                                Reset Password
+                              </a>
+                              <!--[if mso]><i style="letter-spacing:28px;mso-font-width:-100%;">&nbsp;</i><![endif]-->
+                            </td>
+                          </tr>
+                        </table>
+                      </td>
+                    </tr>
+                  </table>
 
-                <!-- Divider -->
-                <tr>
-                  <td style="border-top:1px solid rgba(140,133,128,0.15);padding-top:24px;">
+                  <!-- Fallback link note -->
+                  <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+                    <tr>
+                      <td align="center" style="padding-bottom:36px;">
+                        <p style="margin:0 0 8px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:12px;color:rgba(140,133,128,0.7);text-align:center;">
+                          Having trouble with the button? Copy and paste this link into your browser:
+                        </p>
+                        <p style="margin:0;font-family:'Courier New',Courier,monospace;font-size:11px;color:#c22c2c;word-break:break-all;text-align:center;line-height:1.5;">
+                          <a href="${resetUrl}" style="color:#c22c2c;text-decoration:none;">${resetUrl}</a>
+                        </p>
+                      </td>
+                    </tr>
+                  </table>
 
-                    <!-- Expiry note -->
-                    <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="margin-bottom:12px;">
-                      <tr>
-                        <td width="20" valign="top" style="padding-top:1px;">
-                          <span style="font-size:13px;">⏱</span>
-                        </td>
-                        <td style="font-size:13px;color:#8c8580;line-height:1.5;">
-                          This link expires in <strong style="color:#f5f1ec;">1 hour</strong>. After that you'll need to request a new one.
-                        </td>
-                      </tr>
-                    </table>
+                  <!-- Divider -->
+                  <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+                    <tr><td style="height:1px;background-color:rgba(140,133,128,0.13);font-size:0;line-height:0;margin-bottom:28px;"> </td></tr>
+                  </table>
 
-                    <!-- Security note -->
-                    <table role="presentation" cellpadding="0" cellspacing="0" width="100%">
-                      <tr>
-                        <td width="20" valign="top" style="padding-top:1px;">
-                          <span style="font-size:13px;">🔒</span>
-                        </td>
-                        <td style="font-size:13px;color:#8c8580;line-height:1.5;">
-                          Didn't request a password reset? <strong style="color:#f5f1ec;">You can safely ignore this email</strong> — your password won't change.
-                        </td>
-                      </tr>
-                    </table>
+                  <!-- Expiry + security info with SVG icons -->
+                  <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin-top:24px;">
 
-                  </td>
-                </tr>
+                    <!-- Expiry row -->
+                    <tr>
+                      <td style="padding-bottom:14px;vertical-align:top;" width="28">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="display:block;margin-top:1px;">
+                          <circle cx="12" cy="12" r="10" stroke="#8c8580" stroke-width="1.6" fill="none"/>
+                          <polyline points="12 6 12 12 16 14" stroke="#8c8580" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+                        </svg>
+                      </td>
+                      <td style="padding-bottom:14px;vertical-align:top;">
+                        <p style="margin:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:13px;line-height:1.55;color:#8c8580;">
+                          This link expires in <strong style="color:#f5f1ec;font-weight:600;">1 hour</strong>. After that, you will need to request a new password reset.
+                        </p>
+                      </td>
+                    </tr>
 
-              </table>
-            </td>
-          </tr>
+                    <!-- Security row -->
+                    <tr>
+                      <td style="vertical-align:top;" width="28">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="display:block;margin-top:1px;">
+                          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" stroke="#8c8580" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+                        </svg>
+                      </td>
+                      <td style="vertical-align:top;">
+                        <p style="margin:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:13px;line-height:1.55;color:#8c8580;">
+                          If you did not request a password reset, you can <strong style="color:#f5f1ec;font-weight:600;">safely ignore this email</strong>. Your password will not be changed.
+                        </p>
+                      </td>
+                    </tr>
 
-          <!-- Footer -->
-          <tr>
-            <td align="center" style="padding-top:28px;">
-              <p style="margin:0;font-size:11px;font-family:'Courier New',Courier,monospace;text-transform:uppercase;letter-spacing:1.5px;color:rgba(140,133,128,0.5);">
-                © ${new Date().getFullYear()} RePXL · Vintage Digital Cameras
-              </p>
-              <p style="margin:8px 0 0;font-size:11px;color:rgba(140,133,128,0.4);">
-                Condition-graded · Serial-verified · Trusted by collectors
-              </p>
-            </td>
-          </tr>
+                  </table>
 
-        </table>
-      </td>
-    </tr>
-  </table>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+
+        <!-- ── FOOTER ── -->
+        <tr>
+          <td align="center" style="padding-top:32px;padding-bottom:8px;">
+            <p style="margin:0 0 6px;font-family:'Courier New',Courier,monospace;font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:rgba(140,133,128,0.45);">
+              &copy; ${new Date().getFullYear()} RePXL
+            </p>
+            <p style="margin:0 0 6px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:11px;color:rgba(140,133,128,0.35);letter-spacing:0.2px;">
+              Vintage Digital Cameras
+            </p>
+            <p style="margin:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:10px;color:rgba(140,133,128,0.28);letter-spacing:0.1px;">
+              Condition-graded &middot; Serial-verified &middot; Trusted by collectors
+            </p>
+          </td>
+        </tr>
+
+      </table>
+    </td>
+  </tr>
+</table>
 </body>
 </html>`,
-        text: `RESET YOUR REPXL PASSWORD\n\nWe received a request to reset the password for your RePXL account.\n\nClick the link below to set a new password (expires in 1 hour):\n\n${resetUrl}\n\n---\n\nIf you didn't request a password reset, you can safely ignore this email. Your password won't be changed.\n\n© ${new Date().getFullYear()} RePXL`,
+        text: `RESET YOUR REPXL PASSWORD\n\nWe received a request to reset the password for your RePXL account.\n\nClick the link below to set a new password (expires in 1 hour):\n\n${resetUrl}\n\n---\n\nIf you did not request a password reset, you can safely ignore this email. Your password will not be changed.\n\n© ${new Date().getFullYear()} RePXL`,
       })
       console.log('[forgot-password] Email sent:', result.messageId)
     } else {
