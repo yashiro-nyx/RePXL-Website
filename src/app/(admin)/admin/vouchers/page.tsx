@@ -1,37 +1,48 @@
 'use client'
 
-import { useState } from 'react'
-
-interface Voucher { id: string; code: string; discountType: 'percentage' | 'fixed'; discountValue: number; minPurchase: number; maxDiscount: number; usageLimit: number; perUserLimit: number; used: number; validFrom: string; validUntil: string; status: 'active' | 'expired' | 'disabled'; description: string }
-
-const initialVouchers: Voucher[] = [
-  { id: '1', code: 'WELCOME10', discountType: 'percentage', discountValue: 10, minPurchase: 50, maxDiscount: 20, usageLimit: 100, perUserLimit: 1, used: 23, validFrom: '2026-01-01', validUntil: '2026-12-31', status: 'active', description: 'Welcome discount' },
-  { id: '2', code: 'SUMMER15', discountType: 'percentage', discountValue: 15, minPurchase: 100, maxDiscount: 30, usageLimit: 50, perUserLimit: 1, used: 12, validFrom: '2026-06-01', validUntil: '2026-08-31', status: 'active', description: 'Summer sale' },
-  { id: '3', code: 'FLAT5', discountType: 'fixed', discountValue: 5, minPurchase: 30, maxDiscount: 5, usageLimit: 200, perUserLimit: 3, used: 87, validFrom: '2026-01-01', validUntil: '2026-06-30', status: 'expired', description: 'Flat $5 off' },
-]
+import { useState, useEffect } from 'react'
+import { useVoucherStore, type Voucher } from '@/stores/voucherStore'
 
 const statusStyles: Record<string, string> = { active: 'bg-green-500/15 text-green-400 border-green-500/30', expired: 'bg-repixl-muted/15 text-repixl-muted border-repixl-muted/20', disabled: 'bg-red-500/15 text-red-400 border-red-500/30' }
 
 export default function AdminVouchersPage() {
-  const [vouchers, setVouchers] = useState<Voucher[]>(initialVouchers)
+  const vouchers = useVoucherStore((s) => s.vouchers)
+  const addVoucher = useVoucherStore((s) => s.addVoucher)
+  const deleteVoucher = useVoucherStore((s) => s.deleteVoucher)
   const [modalOpen, setModalOpen] = useState(false)
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
   const [code, setCode] = useState(''); const [discountType, setDiscountType] = useState<'percentage'|'fixed'>('percentage')
   const [discountValue, setDiscountValue] = useState(''); const [minPurchase, setMinPurchase] = useState('0')
   const [maxDiscount, setMaxDiscount] = useState(''); const [usageLimit, setUsageLimit] = useState('')
   const [perUserLimit, setPerUserLimit] = useState('1'); const [validFrom, setValidFrom] = useState('')
-  const [validUntil, setValidUntil] = useState(''); const [status, setStatus] = useState<'active'|'expired'|'disabled'>('active')
-  const [description, setDescription] = useState(''); const [error, setError] = useState('')
+  const [validUntil, setValidUntil] = useState(''); const [description, setDescription] = useState('')
+  const [error, setError] = useState('')
+
+  useEffect(() => { useVoucherStore.getState().hydrate() }, [])
 
   const iClass = 'w-full rounded-xl border border-repixl-muted/20 bg-repixl-bg px-4 py-2.5 text-sm text-repixl-text-light placeholder:text-repixl-muted focus:border-repixl-red/30 focus:bg-repixl-charcoal focus:outline-none'
 
-  const handleAdd = (e: React.FormEvent) => {
+  const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!code.trim() || !discountValue) { setError('Code and discount value are required.'); return }
     if (!validFrom || !validUntil) { setError('Valid dates are required.'); return }
     setError('')
-    setVouchers([{ id: `v-${Date.now()}`, code: code.toUpperCase().trim(), discountType, discountValue: Number(discountValue), minPurchase: Number(minPurchase)||0, maxDiscount: Number(maxDiscount)||999, usageLimit: Number(usageLimit)||999, perUserLimit: Number(perUserLimit)||1, used: 0, validFrom, validUntil, status, description: description.trim() }, ...vouchers])
-    setModalOpen(false); setCode(''); setDiscountValue(''); setMinPurchase('0'); setMaxDiscount(''); setUsageLimit(''); setValidFrom(''); setValidUntil(''); setDescription('')
+    await addVoucher({
+      code: code.toUpperCase().trim(),
+      discountType,
+      discountValue: Number(discountValue),
+      minPurchase: Number(minPurchase) || 0,
+      maxDiscount: Number(maxDiscount) || 0,
+      usageLimit: Number(usageLimit) || 0,
+      perUserLimit: Number(perUserLimit) || 1,
+      validFrom,
+      validUntil,
+      status: 'active',
+      description: description.trim(),
+    })
+    setModalOpen(false)
+    setCode(''); setDiscountValue(''); setMinPurchase('0'); setMaxDiscount('')
+    setUsageLimit(''); setValidFrom(''); setValidUntil(''); setDescription('')
   }
 
   return (
@@ -52,12 +63,13 @@ export default function AdminVouchersPage() {
                 <td className="px-5 py-3.5 font-mono text-sm font-bold text-repixl-red">{v.code}</td>
                 <td className="px-5 py-3.5 font-mono text-sm text-repixl-text-light">{v.discountType === 'percentage' ? `${v.discountValue}%` : `$${v.discountValue}`}</td>
                 <td className="px-5 py-3.5 font-mono text-sm text-repixl-text-light/70">${v.minPurchase}</td>
-                <td className="px-5 py-3.5 font-mono text-xs text-repixl-muted">{v.used}/{v.usageLimit === 999 ? '∞' : v.usageLimit}</td>
+                <td className="px-5 py-3.5 font-mono text-xs text-repixl-muted">{v.used}/{v.usageLimit === 0 ? '∞' : v.usageLimit}</td>
                 <td className="px-5 py-3.5 text-xs text-repixl-muted">{v.validUntil}</td>
                 <td className="px-5 py-3.5"><span className={`rounded-full border px-2.5 py-1 text-[10px] font-semibold ${statusStyles[v.status]}`}>{v.status}</span></td>
                 <td className="px-5 py-3.5"><button onClick={() => setConfirmDeleteId(v.id)} className="flex h-7 w-7 items-center justify-center rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg></button></td>
               </tr>
             ))}
+            {vouchers.length === 0 && <tr><td colSpan={7} className="px-5 py-12 text-center text-sm text-repixl-muted">No vouchers yet.</td></tr>}
           </tbody>
         </table>
       </div>
@@ -73,7 +85,7 @@ export default function AdminVouchersPage() {
             <p className="mt-1 text-xs text-repixl-muted">This action cannot be undone.</p>
             <p className="mt-2 font-mono text-xs text-repixl-red">{vouchers.find((v) => v.id === confirmDeleteId)?.code}</p>
             <div className="mt-4 flex justify-center gap-3">
-              <button onClick={() => { setVouchers(vouchers.filter((v) => v.id !== confirmDeleteId)); setConfirmDeleteId(null) }} className="flex-1 rounded-xl bg-red-500 px-4 py-2 text-sm font-medium text-white hover:bg-red-600">Delete</button>
+              <button onClick={() => { void deleteVoucher(confirmDeleteId); setConfirmDeleteId(null) }} className="flex-1 rounded-xl bg-red-500 px-4 py-2 text-sm font-medium text-white hover:bg-red-600">Delete</button>
               <button onClick={() => setConfirmDeleteId(null)} className="flex-1 rounded-xl border border-repixl-muted/20 px-4 py-2 text-sm text-repixl-muted hover:text-repixl-text-light">Cancel</button>
             </div>
           </div>
@@ -89,9 +101,9 @@ export default function AdminVouchersPage() {
             </div>
             {error && <div className="mx-6 mt-4 rounded-xl bg-red-500/10 border border-red-500/30 px-4 py-2 text-xs text-red-400">{error}</div>}
             <form onSubmit={handleAdd} className="space-y-4 p-6">
-              <div><label className="mb-1 block text-xs font-medium text-repixl-muted">Voucher Code <span className="text-red-400">*</span></label><input value={code} onChange={(e) => setCode(e.target.value)} placeholder="E.G., SUMMER2024" className={`font-mono uppercase ${iClass}`} /></div>
+              <div><label className="mb-1 block text-xs font-medium text-repixl-muted">Voucher Code <span className="text-red-400">*</span></label><input value={code} onChange={(e) => setCode(e.target.value)} placeholder="E.G., SUMMER2026" className={`font-mono uppercase ${iClass}`} /></div>
               <div className="grid grid-cols-2 gap-4">
-                <div><label className="mb-1 block text-xs font-medium text-repixl-muted">Discount Type <span className="text-red-400">*</span></label><select value={discountType} onChange={(e) => setDiscountType(e.target.value as any)} className={iClass}><option value="percentage">Percentage (%)</option><option value="fixed">Fixed ($)</option></select></div>
+                <div><label className="mb-1 block text-xs font-medium text-repixl-muted">Discount Type <span className="text-red-400">*</span></label><select value={discountType} onChange={(e) => setDiscountType(e.target.value as 'percentage'|'fixed')} className={iClass}><option value="percentage">Percentage (%)</option><option value="fixed">Fixed ($)</option></select></div>
                 <div><label className="mb-1 block text-xs font-medium text-repixl-muted">Discount Value <span className="text-red-400">*</span></label><input type="number" value={discountValue} onChange={(e) => setDiscountValue(e.target.value)} placeholder="0.00" className={`font-mono ${iClass}`} /></div>
               </div>
               <div className="grid grid-cols-2 gap-4">
@@ -106,7 +118,6 @@ export default function AdminVouchersPage() {
                 <div><label className="mb-1 block text-xs font-medium text-repixl-muted">Valid From <span className="text-red-400">*</span></label><input type="datetime-local" value={validFrom} onChange={(e) => setValidFrom(e.target.value)} className={iClass} /></div>
                 <div><label className="mb-1 block text-xs font-medium text-repixl-muted">Valid Until <span className="text-red-400">*</span></label><input type="datetime-local" value={validUntil} onChange={(e) => setValidUntil(e.target.value)} className={iClass} /></div>
               </div>
-              <div><label className="mb-1 block text-xs font-medium text-repixl-muted">Status</label><select value={status} onChange={(e) => setStatus(e.target.value as any)} className={iClass}><option value="active">Active</option><option value="disabled">Disabled</option></select></div>
               <div><label className="mb-1 block text-xs font-medium text-repixl-muted">Description</label><textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={2} className={iClass} placeholder="Optional internal note" /></div>
               <div className="flex gap-3 border-t border-repixl-muted/10 pt-4"><button type="submit" className="rounded-xl bg-repixl-red px-5 py-2.5 text-sm font-medium text-white hover:bg-red-700">Save Voucher</button><button type="button" onClick={() => setModalOpen(false)} className="rounded-xl border border-repixl-muted/20 px-5 py-2.5 text-sm text-repixl-text-light/70 hover:bg-repixl-bg">Cancel</button></div>
             </form>

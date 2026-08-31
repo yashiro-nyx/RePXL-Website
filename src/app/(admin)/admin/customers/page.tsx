@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react'
 import { useOrderHistoryStore } from '@/stores/orderHistoryStore'
-import { useArchivedCustomerStore } from '@/stores/archivedCustomerStore'
 import { adminService, type AdminCustomer } from '@/lib/data/adminService'
 import { Pagination } from '@/components/ui/Pagination'
 
@@ -27,32 +26,24 @@ export default function AdminCustomersPage() {
   const [confirmArchive, setConfirmArchive] = useState<string | null>(null)
   const [currentPage, setCurrentPage] = useState(1)
   const orders = useOrderHistoryStore((s) => s.orders)
-  const archiveCustomer = useArchivedCustomerStore((s) => s.archiveCustomer)
-  const archivedCustomers = useArchivedCustomerStore((s) => s.archivedCustomers)
   const [customers, setCustomers] = useState<AdminCustomer[]>([])
 
   useEffect(() => {
     useOrderHistoryStore.getState().hydrate()
-    useArchivedCustomerStore.getState().hydrate()
     adminService.listCustomers().then(setCustomers)
   }, [])
 
-  // Filter out already-archived customers
-  const archivedIds = archivedCustomers.map((c) => c.id)
-  const activeCustomers = customers.filter((c) => !archivedIds.includes(c.id))
-
-  const filtered = activeCustomers.filter((c) => !searchQuery.trim() || c.name.toLowerCase().includes(searchQuery.toLowerCase()) || c.email.toLowerCase().includes(searchQuery.toLowerCase()))
+  const filtered = customers.filter((c) => !searchQuery.trim() || c.name.toLowerCase().includes(searchQuery.toLowerCase()) || c.email.toLowerCase().includes(searchQuery.toLowerCase()))
   const ITEMS_PER_PAGE = 10
   const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE)
   const paginated = filtered.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE)
-  const customerOrders = ordersModal ? orders.filter((o) => o.fullName.toLowerCase().includes(activeCustomers.find((c) => c.id === ordersModal)?.name.split(' ')[0].toLowerCase() || '')) : []
+  const customerOrders = ordersModal ? orders.filter((o) => o.fullName.toLowerCase().includes(customers.find((c) => c.id === ordersModal)?.name.split(' ')[0].toLowerCase() || '')) : []
 
-  const handleArchive = (id: string) => {
-    const customer = activeCustomers.find((c) => c.id === id)
-    if (customer) {
-      archiveCustomer({ id: customer.id, name: customer.name, email: customer.email, role: customer.role })
-      void adminService.archiveCustomer(id)
-    }
+  const handleArchive = async (id: string) => {
+    await adminService.archiveCustomer(id)
+    // Refresh from DB after archiving
+    const fresh = await adminService.listCustomers()
+    setCustomers(fresh)
     setConfirmArchive(null)
   }
 
@@ -61,7 +52,7 @@ export default function AdminCustomersPage() {
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-repixl-text-light">Account List</h1>
-          <p className="mt-0.5 text-sm text-repixl-muted">{activeCustomers.length} registered customers</p>
+          <p className="mt-0.5 text-sm text-repixl-muted">{customers.length} registered customers</p>
         </div>
       </div>
 
@@ -96,7 +87,7 @@ export default function AdminCustomersPage() {
           </tbody>
         </table>
       </div>
-      <p className="mt-3 text-xs text-repixl-muted">Showing {paginated.length} of {activeCustomers.length} users</p>
+      <p className="mt-3 text-xs text-repixl-muted">Showing {paginated.length} of {customers.length} users</p>
       <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
 
       {/* Archive confirmation */}
@@ -109,7 +100,7 @@ export default function AdminCustomersPage() {
             <p className="text-center font-semibold text-repixl-text-light">Archive this user?</p>
             <p className="mt-1 text-center text-xs text-repixl-muted">They will be moved to Archived Users and can be restored later.</p>
             <div className="mt-4 flex gap-3">
-              <button onClick={() => handleArchive(confirmArchive)} className="flex-1 rounded-xl bg-amber-500 px-4 py-2 text-sm font-medium text-white hover:bg-amber-600">Archive</button>
+              <button onClick={() => void handleArchive(confirmArchive)} className="flex-1 rounded-xl bg-amber-500 px-4 py-2 text-sm font-medium text-white hover:bg-amber-600">Archive</button>
               <button onClick={() => setConfirmArchive(null)} className="flex-1 rounded-xl border border-repixl-muted/20 px-4 py-2 text-sm text-repixl-muted hover:text-repixl-text-light">Cancel</button>
             </div>
           </div>
@@ -120,7 +111,7 @@ export default function AdminCustomersPage() {
         <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/40 p-4 pt-16 backdrop-blur-sm">
           <div className="w-full max-w-lg rounded-2xl border border-repixl-muted/20 bg-repixl-charcoal shadow-2xl">
             <div className="flex items-center justify-between border-b border-repixl-muted/10 px-6 py-4">
-              <h2 className="font-bold text-repixl-text-light">Orders for {censorName(activeCustomers.find((c) => c.id === ordersModal)?.name || '')}</h2>
+              <h2 className="font-bold text-repixl-text-light">Orders for {censorName(customers.find((c) => c.id === ordersModal)?.name || '')}</h2>
               <button onClick={() => setOrdersModal(null)} className="text-repixl-muted hover:text-repixl-text-light/70"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg></button>
             </div>
             <div className="p-6">
