@@ -34,7 +34,7 @@ interface AuthState {
   isSuperAdmin: boolean
   login: (email: string, password: string) => Promise<boolean>
   loginAdmin: (email: string, password: string) => Promise<boolean>
-  loginWithOAuth: (email: string, firstName: string, lastName: string) => void
+  loginWithOAuth: (email: string, firstName: string, lastName: string) => Promise<void>
   register: (firstName: string, lastName: string, email: string, password: string) => Promise<boolean>
   logout: () => void
   logoutAdmin: () => void
@@ -188,22 +188,19 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     return true
   },
 
-  // OAuth login (Google) — handled client-side only; mirrors to local table.
-  loginWithOAuth: (email, firstName, lastName) => {
-    const users = getUsers()
-    const lower = email.toLowerCase()
-    const existing = users.find((u) => u.email.toLowerCase() === lower)
-    const user: AuthUser = existing
-      ? {
-          email: existing.email,
-          firstName: existing.firstName,
-          lastName: existing.lastName,
-          phone: existing.phone,
-          role: 'customer',
-          isSuperAdmin: false,
-        }
-      : { email: lower, firstName, lastName, phone: '', role: 'customer', isSuperAdmin: false }
-    if (!existing) mirrorUser(user, '')
+  // OAuth login (Google) — calls the API to upsert user in DB and set the
+  // HTTP-only session cookie, then falls back to localStorage-only if API is down.
+  loginWithOAuth: async (email, firstName, lastName) => {
+    const result = await authService.oauthLogin(email, firstName, lastName)
+    const user = result.ok ? result.user : {
+      email: email.toLowerCase(),
+      firstName,
+      lastName,
+      phone: '',
+      role: 'customer' as const,
+      isSuperAdmin: false,
+    }
+    mirrorUser(user, '')
     writeSession('repixl-customer-session', user)
     applyUser(set, user)
   },

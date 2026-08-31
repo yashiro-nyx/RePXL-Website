@@ -28,10 +28,17 @@ export default function CartPage() {
   const router = useRouter()
 
   useEffect(() => {
-    useAuthStore.getState().hydrate()
-    useCartStore.getState().hydrate()
-    useProductStore.getState().hydrate()
-    useVoucherStore.getState().hydrate()
+    // Sequence: auth must hydrate first so currentEmail() is set before the
+    // cart hydrates. If auth resolves to a logged-in user, the cart will then
+    // fetch from the correct DB-backed session. If not logged in, it falls back
+    // to the guest localStorage cart.
+    const init = async () => {
+      await useAuthStore.getState().hydrate()
+      await useCartStore.getState().hydrate()
+      useProductStore.getState().hydrate()
+      useVoucherStore.getState().hydrate()
+    }
+    void init()
   }, [])
 
   // Resolve cart items to live product data

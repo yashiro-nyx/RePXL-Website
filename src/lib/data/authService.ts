@@ -149,6 +149,42 @@ export const authService = {
     }
   },
 
+  /**
+   * Called after a successful NextAuth OAuth sign-in. Upserts the user in the
+   * DB and obtains a proper HTTP-only session cookie so the rest of the API
+   * (cart, orders, etc.) works correctly for this user.
+   */
+  async oauthLogin(email: string, firstName: string, lastName: string): Promise<AuthResult> {
+    try {
+      const u = await apiClient.post<ApiUser>('/api/auth/oauth', {
+        email,
+        firstName,
+        lastName,
+      })
+      return { ok: true, user: toAuthUser(u) }
+    } catch (err) {
+      if (!isInfrastructureError(err)) {
+        const msg = err instanceof ApiClientError ? err.message : 'OAuth login failed.'
+        return { ok: false, error: msg }
+      }
+      // DB unavailable — fall back to localStorage-only session so the UI still
+      // shows the user as logged in (features requiring the DB will degrade).
+      const users = getLocalUsers()
+      const lower = email.toLowerCase()
+      const existing = users.find((u) => u.email.toLowerCase() === lower)
+      const user: AuthUser = existing
+        ? recToAuthUser(existing)
+        : { email: lower, firstName, lastName, phone: '', role: 'customer', isSuperAdmin: false }
+      if (!existing) {
+        const rec: LocalUserRecord = {
+          firstName, lastName, email: lower, phone: '', password: '', role: 'customer', isSuperAdmin: false,
+        }
+        saveLocalUsers([...users, rec])
+      }
+      return { ok: true, user }
+    }
+  },
+
   async logout(): Promise<void> {
     try {
       await apiClient.post('/api/auth/logout')

@@ -70,9 +70,16 @@ export const useCartStore = create<CartState>((set, get) => ({
   hydrate: async () => {
     try {
       const items = await cartService.list(currentEmail())
-      set({ items })
+      // Only overwrite the in-memory cart if the fetched result is non-empty,
+      // or if the current cart is already empty. This prevents a race condition
+      // where the cart page hydrates before auth is ready (currentEmail() is
+      // null), gets an empty guest cart, and overwrites the real items.
+      const current = useCartStore.getState().items
+      if (items.length > 0 || current.length === 0) {
+        set({ items })
+      }
     } catch {
-      set({ items: [] })
+      // Leave existing items intact on error — do not clear the cart.
     }
   },
 }))

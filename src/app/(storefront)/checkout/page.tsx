@@ -132,12 +132,16 @@ export default function CheckoutPage() {
   const formRef = useRef<HTMLFormElement>(null)
 
   useEffect(() => {
-    hydrateAuth()
-    useCartStore.getState().hydrate()
-    useProductStore.getState().hydrate()
-    useAddressStore.getState().hydrate()
-    useOrderHistoryStore.getState().hydrate()
-    setHydrated(true)
+    const init = async () => {
+      // Auth must settle first so currentEmail() is correct when the cart hydrates.
+      await hydrateAuth()
+      await useCartStore.getState().hydrate()
+      useProductStore.getState().hydrate()
+      useAddressStore.getState().hydrate()
+      useOrderHistoryStore.getState().hydrate()
+      setHydrated(true)
+    }
+    void init()
   }, [hydrateAuth])
 
   useEffect(() => {

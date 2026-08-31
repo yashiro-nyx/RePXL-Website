@@ -1,45 +1,65 @@
 'use client'
 
 /**
- * Syncs a NextAuth Google/OAuth session into the Zustand authStore.
+ * Syncs a NextAuth Google/OAuth session into the Zustand authStore + database.
  *
- * Bug fixed: Previously checked only !isLoggedIn, which allowed a stale
- * localStorage session (different email) to block the OAuth sync. Now compares
- * the NextAuth session email against the current store email and forces a sync
- * whenever they don't match — ensuring the Google-authenticated email always wins.
+ * Flow:
+ * 1. NextAuth completes OAuth and sets its own JWT cookie.
+ * 2. This hook detects the authenticated NextAuth session.
+ * 3. Calls loginWithOAuth() which hits POST /api/auth/oauth to:
+ *    a. Upsert the user in PostgreSQL.
+ *    b. Set the HTTP-only session cookie (same as email/password login).
+ *    c. Mirror the user into Zustand + localStorage.
+ * 4. After the async login settles, redirect to /account.
+ *
+ * The redirect is only triggered when we're still on the /login or /register
+ * page — if the user is already on another page (e.g. they refreshed), we just
+ * sync the session state without navigating.
  */
 
 import { useEffect, useRef } from 'react'
 import { useSession } from 'next-auth/react'
+import { useRouter, usePathname } from 'next/navigation'
 import { useAuthStore } from '@/stores/authStore'
 
 export function useOAuthSync() {
   const { data: session, status } = useSession()
   const loginWithOAuth = useAuthStore((s) => s.loginWithOAuth)
+  const isLoggedIn = useAuthStore((s) => s.isLoggedIn)
   const userEmail = useAuthStore((s) => s.userEmail)
   const synced = useRef(false)
+  const router = useRouter()
+  const pathname = usePathname()
 
   useEffect(() => {
     if (status !== 'authenticated' || !session?.user?.email) return
 
     const googleEmail = session.user.email.toLowerCase()
 
-    // Sync if:
-    // 1. Not yet synced this session AND
-    // 2. Either not logged in, OR logged in with a DIFFERENT email than Google returned
-    const mismatch = userEmail && userEmail.toLowerCase() !== googleEmail
-    const notSynced = !synced.current
+    // Already synced this mount, and the store already has this email — skip.
+    if (synced.current && isLoggedIn && userEmail.toLowerCase() === googleEmail) return
 
-    if (notSynced && (mismatch || !userEmail)) {
+    // Need to sync: either first time, or the store email doesn't match Google.
+    if (!synced.current || !isLoggedIn || userEmail.toLowerCase() !== googleEmail) {
       synced.current = true
       const nameParts = (session.user.name ?? '').split(' ')
       const firstName = nameParts[0] ?? ''
       const lastName = nameParts.slice(1).join(' ') ?? ''
-      loginWithOAuth(googleEmail, firstName, lastName)
-    }
-  }, [status, session, userEmail, loginWithOAuth])
 
-  // Reset the ref when the NextAuth session ends so re-login works
+      // loginWithOAuth is now async — upserts user in DB and sets the HTTP-only
+      // session cookie before updating Zustand state.
+      loginWithOAuth(googleEmail, firstName, lastName).then(() => {
+        // Only redirect if we're on an auth page. If the user is already on
+        // another page (e.g. they manually refreshed /account), stay put.
+        if (pathname === '/login' || pathname === '/register') {
+          router.push('/account')
+        }
+      })
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [status, session])
+
+  // Reset the sync flag when the NextAuth session ends so re-login works.
   useEffect(() => {
     if (status === 'unauthenticated') {
       synced.current = false
