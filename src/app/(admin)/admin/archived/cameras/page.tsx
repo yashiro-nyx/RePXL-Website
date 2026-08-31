@@ -6,7 +6,13 @@ import { useProductStore } from '@/stores/productStore'
 export default function ArchivedCamerasPage() {
   const products = useProductStore((s) => s.products)
   const updateProduct = useProductStore((s) => s.updateProduct)
-  useEffect(() => { useProductStore.getState().hydrate() }, [])
+  useEffect(() => {
+    import('@/lib/data/productService').then(({ productService }) =>
+      productService.list().then((all) => {
+        if (all.length > 0) useProductStore.setState({ products: all })
+      })
+    )
+  }, [])
   const archived = products.filter((p) => p.status === 'discontinued')
 
   return (

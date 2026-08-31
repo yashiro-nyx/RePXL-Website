@@ -22,8 +22,9 @@ function ProductsContent() {
   const [hydrated, setHydrated] = useState(false)
 
   useEffect(() => {
-    useProductStore.getState().hydrate()
-    setHydrated(true)
+    // Await hydration so `hydrated` only becomes true once we have fresh stock
+    // from the database — not just the seed data.
+    useProductStore.getState().hydrate().finally(() => setHydrated(true))
   }, [])
 
   const products = useMemo(() => allProducts.filter((p) => p.status === 'active'), [allProducts])
@@ -36,6 +37,7 @@ function ProductsContent() {
   const [selectedConditions, setSelectedConditions] = useState<ConditionGrade[]>([])
   const [priceRange, setPriceRange] = useState<[number, number]>([0, 9999])
   const [sort, setSort] = useState<SortOption>('newest')
+  const [inStockOnly, setInStockOnly] = useState(false)
 
   const toggleBrand = (brand: string) => {
     setSelectedBrands((prev) =>
@@ -52,7 +54,10 @@ function ProductsContent() {
     let result = products.filter((p) => {
       if (selectedBrands.length > 0 && !selectedBrands.includes(p.brand)) return false
       if (selectedConditions.length > 0 && !selectedConditions.includes(p.condition)) return false
-          if (p.price < priceRange[0] || p.price > priceRange[1]) return false
+      if (p.price < priceRange[0] || p.price > priceRange[1]) return false
+      // Clamp stock: treat negative as 0 for all filter/display logic
+      const stock = Math.max(0, p.stock)
+      if (inStockOnly && stock <= 0) return false
       return true
     })
 
@@ -69,14 +74,15 @@ function ProductsContent() {
     }
 
     return result
-  }, [selectedBrands, selectedConditions, priceRange, sort, products])
+  }, [selectedBrands, selectedConditions, priceRange, sort, inStockOnly, products])
 
-  const hasFilters = selectedBrands.length > 0 || selectedConditions.length > 0 || priceRange[0] > 0 || priceRange[1] < 300
+  const hasFilters = selectedBrands.length > 0 || selectedConditions.length > 0 || priceRange[0] > 0 || priceRange[1] < 9999 || inStockOnly
 
   const clearAll = () => {
     setSelectedBrands([])
     setSelectedConditions([])
-    setPriceRange([0, 300])
+    setPriceRange([0, 9999])
+    setInStockOnly(false)
   }
 
   return (
@@ -88,12 +94,30 @@ function ProductsContent() {
           </h1>
           <p className="mt-1 text-sm text-repixl-muted">
             {filtered.length} {filtered.length === 1 ? 'camera' : 'cameras'} available
+            {inStockOnly && ` · ${filtered.filter((p) => Math.max(0, p.stock) > 0).length} in stock`}
           </p>
         </div>
 
         <div className="flex flex-col gap-8 lg:flex-row">
           <aside className="w-full shrink-0 lg:w-56">
             <div className="sticky top-24 space-y-6">
+              <div>
+                <h3 className="font-mono text-[10px] uppercase tracking-widest text-repixl-muted">Availability</h3>
+                <ul className="mt-3 space-y-2">
+                  <li>
+                    <label className="flex cursor-pointer items-center gap-2 text-sm text-repixl-text-light/80 hover:text-repixl-text-light">
+                      <input
+                        type="checkbox"
+                        checked={inStockOnly}
+                        onChange={(e) => setInStockOnly(e.target.checked)}
+                        className="h-3.5 w-3.5 rounded border-repixl-muted/30 bg-repixl-charcoal text-repixl-red focus:ring-repixl-red/30"
+                      />
+                      In stock only
+                    </label>
+                  </li>
+                </ul>
+              </div>
+
               <div>
                 <h3 className="font-mono text-[10px] uppercase tracking-widest text-repixl-muted">Brand</h3>
                 <ul className="mt-3 space-y-2">

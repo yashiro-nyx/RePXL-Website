@@ -47,7 +47,10 @@ export const useProductStore = create<ProductState>((set, get) => ({
   hydrate: async () => {
     set({ loading: true })
     try {
-      const products = await productService.list()
+      // Use listActive() so the storefront always gets live DB stock for ACTIVE
+      // products only. The seed initialises the store synchronously on first
+      // paint; this call replaces it with real data (including current stock).
+      const products = await productService.listActive()
       if (products.length > 0) set({ products })
     } finally {
       set({ loading: false })

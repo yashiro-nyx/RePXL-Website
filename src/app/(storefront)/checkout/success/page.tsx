@@ -6,6 +6,7 @@ import { useSearchParams } from 'next/navigation'
 import { Container } from '@/components/layout/Container'
 import { MinimalFooter } from '@/components/layout/MinimalFooter'
 import { useCartStore } from '@/stores/cartStore'
+import { useProductStore } from '@/stores/productStore'
 
 // ─── Types ──────────────────────────────────────────────────────────────────────
 
@@ -55,6 +56,8 @@ function SuccessInner() {
   useEffect(() => {
     // Clear the cart on return from PayMongo.
     useCartStore.getState().hydrate()
+    // Re-hydrate product store so the listing immediately shows updated stock.
+    useProductStore.getState().hydrate()
 
     if (!orderNumber) {
       setFetchStatus('error')

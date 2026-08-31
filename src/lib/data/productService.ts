@@ -46,14 +46,12 @@ function writeLocal(products: Product[]) {
 
 export const productService = {
   /**
-   * Fetch the full catalogue (admin view: all statuses). Falls back to
-   * localStorage/seed when the API is down. On API success, mirrors to
-   * localStorage so a later offline session has fresh data.
+   * Fetch the full catalogue including all statuses (for admin use).
+   * Falls back to localStorage/seed when the API is down.
    */
   async list(): Promise<Product[]> {
     return withFallback<Product[]>(
       async () => {
-        // limit=100 + status filter covering all statuses so admin sees everything.
         const res = await apiClient.getPaginated<ApiProduct>(
           '/api/products?limit=100&status=ACTIVE,INACTIVE,COMING_SOON,DISCONTINUED&sortBy=createdAt&sortOrder=desc'
         )
@@ -62,6 +60,28 @@ export const productService = {
         return apiProducts.map(apiToClientProduct)
       },
       () => readLocal(),
+      { mirror: (products) => writeLocal(products) }
+    )
+  },
+
+  /**
+   * Fetch only ACTIVE products with live stock from the database.
+   * Used by the storefront product listing, search, compare, and wishlist pages.
+   * Falls back to localStorage/seed (filtered to active) when the API is down.
+   * Stock values come directly from the DB so out-of-stock products reflect
+   * their real state immediately after a purchase.
+   */
+  async listActive(): Promise<Product[]> {
+    return withFallback<Product[]>(
+      async () => {
+        const res = await apiClient.getPaginated<ApiProduct>(
+          '/api/products?limit=100&status=ACTIVE&sortBy=createdAt&sortOrder=desc'
+        )
+        const apiProducts = (res.data ?? []) as ApiProduct[]
+        cacheIds(apiProducts)
+        return apiProducts.map(apiToClientProduct)
+      },
+      () => readLocal().filter((p) => p.status === 'active'),
       { mirror: (products) => writeLocal(products) }
     )
   },

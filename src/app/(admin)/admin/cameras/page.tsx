@@ -31,7 +31,15 @@ export default function AdminCamerasPage() {
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
   const [currentPage, setCurrentPage] = useState(1)
 
-  useEffect(() => { useProductStore.getState().hydrate() }, [])
+  useEffect(() => {
+    // Admin needs all statuses (active + inactive + discontinued) — use list()
+    // directly rather than the storefront's listActive() hydration.
+    import('@/lib/data/productService').then(({ productService }) =>
+      productService.list().then((all) => {
+        if (all.length > 0) useProductStore.setState({ products: all })
+      })
+    )
+  }, [])
 
   const brands = Array.from(new Set(products.map((p) => p.brand))).sort()
   const filtered = products.filter((p) => {
