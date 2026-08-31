@@ -10,16 +10,16 @@
     "lint": "next lint",
     "postinstall": "prisma generate",
     "prisma:generate": "prisma generate",
-    "prisma:migrate": "prisma migrate dev",
+    "prisma:migrate": "prisma migrate deploy",
     "prisma:deploy": "prisma migrate deploy",
     "prisma:push": "prisma db push",
     "prisma:studio": "prisma studio",
-    "db:seed": "prisma db seed",
-    "db:setup": "prisma migrate deploy && prisma db seed",
+    "db:seed": "node_modules/.bin/tsx prisma/seed.ts",
+    "db:setup": "prisma migrate deploy && node_modules/.bin/tsx prisma/seed.ts",
     "db:reset": "prisma migrate reset --force"
   },
   "prisma": {
-    "seed": "tsx prisma/seed.ts"
+    "seed": "node_modules/.bin/tsx prisma/seed.ts"
   },
   "dependencies": {
     "@prisma/client": "5.22.0",
