@@ -67,7 +67,14 @@ export async function PUT(request: NextRequest) {
 
     const updated = await prisma.user.update({
       where: { id: user.id },
-      data: { firstName, lastName, email, phone: phone || '' },
+      data: {
+        firstName,
+        lastName,
+        email,
+        // Only update phone if the caller supplied a non-empty value;
+        // omitting the field lets Prisma leave the existing value unchanged.
+        ...(phone !== undefined && phone !== '' ? { phone } : {}),
+      },
       select: {
         id: true,
         email: true,

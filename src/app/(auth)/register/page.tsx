@@ -80,7 +80,7 @@ export default function RegisterPage() {
     const email = (form.querySelector('#reg-email') as HTMLInputElement)?.value ?? ''
     const success = await register(firstName.trim(), lastName.trim(), email.trim(), password)
     if (!success) {
-      setErrors({ ...errors, email: 'An account with this email already exists.' })
+      setErrors((prev) => ({ ...prev, email: 'An account with this email already exists.' }))
       return
     }
     useToastStore.getState().addToast('Account created! Welcome to RePXL.')

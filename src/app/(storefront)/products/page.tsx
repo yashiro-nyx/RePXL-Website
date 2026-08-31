@@ -34,7 +34,7 @@ function ProductsContent() {
     initialBrand ? [initialBrand.charAt(0).toUpperCase() + initialBrand.slice(1)] : []
   )
   const [selectedConditions, setSelectedConditions] = useState<ConditionGrade[]>([])
-  const [priceRange, setPriceRange] = useState<[number, number]>([0, 300])
+  const [priceRange, setPriceRange] = useState<[number, number]>([0, 9999])
   const [sort, setSort] = useState<SortOption>('newest')
 
   const toggleBrand = (brand: string) => {
@@ -52,7 +52,7 @@ function ProductsContent() {
     let result = products.filter((p) => {
       if (selectedBrands.length > 0 && !selectedBrands.includes(p.brand)) return false
       if (selectedConditions.length > 0 && !selectedConditions.includes(p.condition)) return false
-      if (p.price < priceRange[0] || p.price > priceRange[1]) return false
+          if (p.price < priceRange[0] || p.price > priceRange[1]) return false
       return true
     })
 

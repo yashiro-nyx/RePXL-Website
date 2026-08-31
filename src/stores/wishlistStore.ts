@@ -37,7 +37,7 @@ export const useWishlistStore = create<WishlistState>((set, get) => ({
       const slugs = await wishlistService.list(currentEmail())
       set({ slugs })
     } catch {
-      set({ slugs: [] })
+      // Leave existing wishlist items intact on error — do not clear the list.
     }
   },
 }))

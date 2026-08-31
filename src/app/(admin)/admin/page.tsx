@@ -11,11 +11,20 @@ export default function AdminDashboardPage() {
   const products = useProductStore((s) => s.products)
   const orders = useOrderHistoryStore((s) => s.orders)
   const [hydrated, setHydrated] = useState(false)
+  const [customerCount, setCustomerCount] = useState<number | null>(null)
 
   useEffect(() => {
-    useProductStore.getState().hydrate()
-    useOrderHistoryStore.getState().hydrate()
-    setHydrated(true)
+    const init = async () => {
+      await useProductStore.getState().hydrate()
+      await useOrderHistoryStore.getState().hydrate()
+      setHydrated(true)
+    }
+    void init()
+    // Fetch real customer count from the admin API
+    fetch('/api/admin/customers?limit=1', { credentials: 'include' })
+      .then((r) => r.ok ? r.json() : null)
+      .then((json) => { if (json?.pagination?.total != null) setCustomerCount(json.pagination.total) })
+      .catch(() => { /* leave null — will show skeleton */ })
   }, [])
 
   const totalCameras = products.filter((p) => p.status === 'active').length
@@ -36,6 +45,7 @@ export default function AdminDashboardPage() {
     Processing: orders.filter((o) => o.status === 'Processing').length,
     Shipped: orders.filter((o) => o.status === 'Shipped').length,
     Delivered: orders.filter((o) => o.status === 'Delivered').length,
+    Cancelled: orders.filter((o) => o.status === 'Cancelled').length,
   }
 
   const salesMap: Record<string, number> = {}
@@ -106,7 +116,7 @@ export default function AdminDashboardPage() {
       </div>
 
       <div className="mt-4 grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <StatCard label="Registered Users" value="2,400+" sub="customer accounts" />
+        <StatCard label="Registered Users" value={customerCount ?? '—'} sub="customer accounts" />
         <StatCard label="Low Stock Alert" value={lowStockItems.length + outOfStock.length} sub="items need reorder" alert />
         <StatCard label="Pending Orders" value={pendingOrders} sub="awaiting shipment" />
         <StatCard label="Brands" value={brands.length} sub="active brands" />
@@ -142,11 +152,10 @@ export default function AdminDashboardPage() {
             <p className="mt-4 text-sm text-repixl-muted">No orders to display yet.</p>
           ) : (
             <div className="mt-4 space-y-4">
-              <StatusRow label="Pending" count={statusCounts.Processing} total={totalOrders} color="bg-amber-500" />
-              <StatusRow label="Processing" count={statusCounts.Processing} total={totalOrders} color="bg-blue-500" />
-              <StatusRow label="Shipped" count={statusCounts.Shipped} total={totalOrders} color="bg-cyan-500" />
+              <StatusRow label="Processing" count={statusCounts.Processing} total={totalOrders} color="bg-amber-500" />
+              <StatusRow label="Shipped" count={statusCounts.Shipped} total={totalOrders} color="bg-blue-500" />
               <StatusRow label="Delivered" count={statusCounts.Delivered} total={totalOrders} color="bg-green-500" />
-              <StatusRow label="Cancelled" count={0} total={totalOrders} color="bg-red-400" />
+              <StatusRow label="Cancelled" count={statusCounts.Cancelled} total={totalOrders} color="bg-red-400" />
             </div>
           )}
         </div>

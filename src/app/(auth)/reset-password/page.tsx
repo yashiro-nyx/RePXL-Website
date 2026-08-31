@@ -69,20 +69,8 @@ function ResetPasswordContent() {
         return
       }
 
-      // Server authorized the change — now update the client-side user store
-      const { email } = data
-      try {
-        const users = JSON.parse(localStorage.getItem('repixl-users') ?? '[]')
-        const updated = users.map((u: { email: string; [key: string]: unknown }) =>
-          u.email.toLowerCase() === email.toLowerCase() ? { ...u, password } : u
-        )
-        localStorage.setItem('repixl-users', JSON.stringify(updated))
-      } catch {
-        setApiError('Password reset succeeded but could not update locally. Please contact support.')
-        setLoading(false)
-        return
-      }
-
+      // Server authorized the change — password is already updated in the database.
+      // Do NOT write the plaintext password to localStorage.
       setDone(true)
       // Redirect to login after 3 seconds
       setTimeout(() => router.push('/login'), 3000)
