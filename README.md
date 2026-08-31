@@ -2,263 +2,265 @@
 
 **Capture the past. Frame the future.**
 
-RePXL is a curated marketplace for vintage digital cameras — condition-graded, serial-verified, and trusted by collectors. Built for the early-2000s digicam era: CyberShots, PowerShots, Coolpixes, and the CCD compacts that shaped a generation of casual photography.
+RePXL is a curated marketplace for vintage digital cameras — condition-graded, serial-verified, and trusted by collectors. Admin-managed inventory with full e-commerce: cart, checkout, PayMongo payments, order management, and customer accounts.
 
-The whole product leans into that era visually — a black-dominant, film-burn aesthetic (warm red/orange light leaking in from the edges, grain texture, fading to near-black at the center) echoing the CRT-and-CompactFlash period the products themselves are from. The site supports a full light/dark mode toggle that adapts the burn to a softer warm vignette in daylight.
-
----
-
-## Table of Contents
-
-- [Features](#features)
-- [Tech Stack](#tech-stack)
-- [Getting Started](#getting-started)
-- [Project Structure](#project-structure)
-- [Design System](#design-system)
-- [Auth & Sessions](#auth--sessions)
-- [Admin Dashboard](#admin-dashboard)
-- [Environment Variables](#environment-variables)
-- [Roadmap](#roadmap)
+Live at: **https://repxlph.vercel.app**
 
 ---
 
 ## Features
 
 ### Storefront
-- **Home** — film-burn hero, trust strip, center-emphasis featured cameras carousel, editorial section, Shop by Brand gallery, condition explainer, testimonials, FAQ accordion, newsletter signup
-- **Cameras** (`/products`) — full catalog with filter sidebar (brand, condition, price range), sort controls, skeleton loading states
-- **Product Detail** — image gallery, condition badge, spec sheet (monospace), serial number, reviews & ratings, Add to Cart / Wishlist / Compare, live webcam filter demo (color profiles per brand/model)
-- **Compare** — sticky spec-label column, side-by-side camera comparison with ratings row
-- **Search** — full-text search by name, brand, series
-- **About** — brand story, grading philosophy, stats
-
-### Support Pages
-- `/faq` — accordion Q&A (10 questions on grading, shipping, returns, payment, selling)
-- `/shipping-returns` — full policy (packaging, timeframes, condition-mismatch returns, refunds)
-- `/contact` — contact form stored to localStorage + fallback email
-- `/condition-grading` — full Mint/Excellent/Good/Fair rubric with concrete definitions
+- Film-burn hero, trust strip, featured carousel, Shop by Brand gallery, condition explainer, testimonials, FAQ, newsletter
+- Product listing with filters (brand, condition, price range, in-stock only), sort controls, skeleton loading
+- Product detail — specs, condition badge, reviews, Add to Cart / Wishlist / Compare, live webcam CSS-filter demo
+- Camera comparison tool (up to 3 side-by-side)
+- Full-text search
 
 ### User Accounts
-- Registration / login with form validation and password requirements
-- Google / Apple OAuth (UI ready, requires credentials in `.env.local`)
-- Per-user data isolation: cart, wishlist, compare, addresses, payment methods, orders are all keyed by email
-- Session stored in `repixl-customer-session` (localStorage), separate from admin session
-- `/account` — tabbed dashboard (Profile, Orders, Addresses, Payments, Reviews, Security)
-- Account route is auth-gated: direct URL access redirects to `/login`
-- Wishlist, Cart, Checkout, Wishlist pages
+- Register, Login, Logout (with confirmation), Forgot/Reset Password
+- Google OAuth (NextAuth + DB upsert)
+- Account dashboard: Profile, Orders, Addresses, Payment Methods, Reviews, Security
+- Order history with print receipt
 
 ### Cart & Checkout
-- Persistent cart per user (localStorage)
+- DB-backed cart per authenticated user
 - Voucher/discount code validation
-- Multi-step checkout with shipping, courier selection, payment method
-- Order confirmation + order history in account
+- Courier selection (J&T, LBC, Ninja Van, Grab Express)
+- Direct checkout (demo/offline) or PayMongo Hosted Checkout
+- Order confirmation email via Gmail SMTP
 
-### Reviews & Ratings
-- One review per user per product
-- Verified-purchase badge for buyers
-- Average rating displayed on PDP and compare page
-
-### Live Filter Demo
-- Webcam feed with real-time CSS filter presets per camera brand/model
-- Color profiles: Canon (PowerShot CCD Warm), Kodak (Kodachrome-adjacent), Sony (CyberShot Cool), Nikon (Coolpix Punch), Fujifilm (FinePix Velvia), Panasonic (Lumix Natural)
-- Dynamically imported (`ssr: false`) to avoid SSR breakage
+### Admin Dashboard
+- Login at `/admin/login` (separate session, 1-hour expiry)
+- Dashboard with real-time stats, inventory alerts, order status
+- Camera management (CRUD, stock, condition, serial numbers)
+- Order management (status updates, archive/restore)
+- Customer management (list, archive/restore)
+- Voucher management (create/delete)
+- Activity logs (audit trail)
+- Admin account management (super-admin only)
 
 ---
 
 ## Tech Stack
 
 | Layer | Choice |
-|-------|--------|
-| Framework | **Next.js 14** (App Router) |
-| Language | **TypeScript** (strict mode) |
-| Styling | **Tailwind CSS** + custom design tokens |
-| Animation | **Framer Motion** |
-| State | **Zustand** (cartStore, wishlistStore, productStore, etc.) |
-| Auth | Custom localStorage session (customer + admin sessions separated) |
-| Social Auth | NextAuth.js (Google + Apple, UI-ready) |
-| Fonts | **General Sans** (Fontshare CDN), **Inter** (next/font), **JetBrains Mono** (next/font) |
+|---|---|
+| Framework | Next.js 14 (App Router, TypeScript strict) |
+| Styling | Tailwind CSS + custom design tokens |
+| Animation | Framer Motion |
+| Client state | Zustand (API-first, localStorage fallback) |
+| Database | PostgreSQL via **Prisma ORM** (Neon) |
+| Auth | Custom HTTP-only cookie sessions + NextAuth (Google) |
+| Email | Nodemailer + Gmail SMTP |
+| Payments | PayMongo Hosted Checkout |
+| Deployment | Vercel |
 
 ---
 
-## Getting Started
+## Requirements
+
+- Node.js 18+
+- npm 9+
+- PostgreSQL database (Neon recommended)
+- PayMongo account (for real payments)
+- Gmail account with App Password (for email)
+- Google Cloud project (for Google OAuth, optional)
+
+---
+
+## Installation
 
 ```bash
-# clone the repo
-git clone https://github.com/your-repo/repxl-website.git
-cd repxl-website
-
-# install dependencies
+git clone https://github.com/yashiro-nyx/RePXL-Website.git
+cd "RePXL Website"
 npm install
-
-# run the dev server
-npm run dev
 ```
-
-Open [http://localhost:3000](http://localhost:3000) for the storefront.
-Open [http://localhost:3000/admin](http://localhost:3000/admin) for the admin dashboard.
-
-**Admin credentials:**
-```
-Email:    admin@repixl-admin.com
-Password: RePIXL2026!
-```
-
-> **Font note:** For production, download General Sans font files to `public/fonts/` and reference them locally rather than the Fontshare CDN link.
-
----
-
-## Project Structure
-
-```
-src/
-  app/
-    layout.tsx                    # root layout — fonts, GlobalToast, AuthProvider
-    page.tsx                      # Home (landing page)
-    globals.css                   # design tokens, film-burn background, theme overrides
-    (storefront)/                 # customer-facing route group
-      products/page.tsx           # catalog with filters + skeleton loading
-      products/[slug]/page.tsx    # PDP with filter demo
-      compare/page.tsx            # comparison tool
-      cart/page.tsx
-      checkout/page.tsx
-      account/page.tsx            # auth-gated account dashboard
-      about/page.tsx
-      faq/page.tsx
-      shipping-returns/page.tsx
-      contact/page.tsx
-      condition-grading/page.tsx
-      search/page.tsx
-      wishlist/page.tsx
-    (auth)/                       # login, register, forgot-password
-    (admin)/admin/                # admin dashboard route group
-      layout.tsx                  # admin layout (sidebar, auth guard, session expiry)
-      page.tsx                    # dashboard with skeleton states
-      cameras/page.tsx
-      orders/page.tsx
-      customers/page.tsx
-      vouchers/page.tsx
-      logs/page.tsx
-      accounts/page.tsx           # super-admin only
-      settings/page.tsx
-      archived/                   # cameras / orders / customers
-      login/page.tsx              # separate admin login
-  components/
-    landing/                      # Hero, TrustStrip, BrandGallery, FeaturedCarousel, etc.
-    layout/                       # Navbar, Footer, Container, ConditionalNavbar
-    product/                      # ProductCard, CameraFilterDemo
-    ui/                           # Button, Skeleton, ConditionBadge, CornerBracket, Logo, ThemeToggle, etc.
-    auth/                         # SocialAuthButtons, AuthProvider
-  data/
-    products.ts                   # seed product data
-    faqs.ts                       # shared FAQ content (used on /faq and HomeFAQ)
-    colorProfiles.ts              # per-brand camera color profiles for filter demo
-    legal.ts                      # terms + privacy policy content
-  stores/
-    productStore.ts
-    cartStore.ts
-    wishlistStore.ts
-    compareStore.ts
-    authStore.ts                  # customer + admin sessions separated
-    orderHistoryStore.ts          # with archive/restore, status updates
-    reviewStore.ts
-    themeStore.ts
-    toastStore.ts
-    voucherStore.ts
-    archivedCustomerStore.ts
-    addressStore.ts
-    paymentStore.ts
-  hooks/
-    useScrollLock.ts
-    useReducedMotion.ts
-```
-
----
-
-## Design System
-
-### Film-burn background
-A single continuous background applied at the `html` element — never per-section — so there are no visible seams between page sections. Controlled via `--burn-opacity` CSS variable:
-
-| Context | Class | Burn intensity |
-|---------|-------|---------------|
-| Marketing pages (Home, Cameras, Compare, About) | *(default)* | Full |
-| Account / checkout / auth pages | `.burn-subtle` | ~40% |
-| Admin login | `.burn-minimal` | ~15% |
-
-### Light / dark mode
-Toggle in the Navbar. Preference persisted to `localStorage` (`repixl-theme`). Falls back to OS preference, then defaults to dark. Light mode adapts the burn to a warm radial vignette rather than red edge-streaks. Admin stays dark-only.
-
-### Color tokens (Tailwind)
-| Token | Dark | Light |
-|-------|------|-------|
-| `repixl-bg` | `#121012` | `#f5f0ea` |
-| `repixl-charcoal` | `#16131a` | `#ffffff` |
-| `repixl-text-light` | `#F5F1EC` | `#1a1610` |
-| `repixl-muted` | `#8C8580` | `#6b6357` |
-| `repixl-red` | `#C22C2C` | `#b52a2a` |
-
-### Typography
-- **`font-display`** → General Sans (headings, hero, product names)
-- **`font-body`** → Inter (body text, forms, UI)
-- **`font-mono`** → JetBrains Mono (prices, specs, badges, labels)
-
-### Logo
-SVG component (`src/components/ui/Logo.tsx`) using `currentColor` — adapts to both themes. Includes viewfinder corner brackets and animated REC dot.
-
----
-
-## Auth & Sessions
-
-Customer and admin sessions are **fully separated**:
-- Customer session → `repixl-customer-session` (localStorage)
-- Admin session → `repixl-admin-session` (localStorage, **expires after 60 minutes**)
-- `hydrate()` reads customer session only (used by Navbar, storefront)
-- `hydrateAdmin()` reads admin session only (used by admin layout)
-- Admin emails (`@repixl-admin.com`) cannot register customer accounts
-- Customer credentials cannot log into the admin dashboard
-
----
-
-## Admin Dashboard
-
-Admin credentials (demo/dev only — hardcoded, not from a database):
-```
-Email:    admin@repixl-admin.com
-Password: RePIXL2026!
-```
-
-Features:
-- **Dashboard** — stat cards with skeleton loading, inventory alerts, top-selling cameras
-- **Cameras** — CRUD with image upload (base64, 500KB cap), brand/serial search
-- **Orders** — status dropdown (updates to localStorage), archive/restore
-- **Customers** — censored names/emails, orders modal, archive/restore
-- **Vouchers** — create/delete with confirmation
-- **Activity Logs** — filterable audit trail with details modal
-- **Settings** — admin password change
-- **Admin Management** — super-admin only, add/edit/delete admin accounts
-- **Archived Data** — cameras, orders, customers (all restorable)
-- Session auto-expires after 60 minutes, redirecting to admin login
 
 ---
 
 ## Environment Variables
 
+Copy `.env.local.example` to `.env.local` and fill in the values. **Never commit `.env.local`** — it is gitignored.
+
 ```bash
-# .env.local
-GOOGLE_CLIENT_ID=        # Google OAuth (optional)
-GOOGLE_CLIENT_SECRET=    # Google OAuth (optional)
-NEXTAUTH_SECRET=         # Required for NextAuth if using social login
-NEXTAUTH_URL=http://localhost:3000
+cp .env.local.example .env.local
+```
+
+| Variable | Required | Purpose |
+|---|---|---|
+| `DATABASE_URL` | ✅ | Pooled PostgreSQL connection (Neon pooler endpoint) |
+| `DIRECT_URL` | ✅ | Direct PostgreSQL connection (for Prisma migrations) |
+| `NEXTAUTH_SECRET` | ✅ | 32-byte random string for session signing and NextAuth JWT |
+| `NEXTAUTH_URL` | ✅ | Base URL (`http://localhost:3000` local, `https://...` production) |
+| `NEXT_PUBLIC_SITE_URL` | ✅ | Same as `NEXTAUTH_URL`. Used in emails and PayMongo redirects. No trailing slash |
+| `GOOGLE_CLIENT_ID` | optional | Google OAuth client ID |
+| `GOOGLE_CLIENT_SECRET` | optional | Google OAuth client secret |
+| `PAYMONGO_SECRET_KEY` | optional | `sk_live_...` or `sk_test_...` — server-only, never exposed to client |
+| `NEXT_PUBLIC_PAYMONGO_PUBLIC_KEY` | optional | `pk_live_...` — client-safe key |
+| `PAYMONGO_WEBHOOK_SECRET` | optional | `whsk_...` — for webhook signature verification |
+| `NEXT_PUBLIC_PAYMONGO_ENABLED` | optional | Set to `true` to activate PayMongo hosted checkout |
+| `GMAIL_USER` | optional | Gmail address for sending emails |
+| `GMAIL_APP_PASSWORD` | optional | Gmail App Password (not your login password) |
+
+> Generate `NEXTAUTH_SECRET` with: `openssl rand -base64 32`
+
+---
+
+## Database Setup
+
+```bash
+# 1. Run migrations (creates all tables)
+npm run prisma:migrate
+
+# 2. Seed initial data (admin user, 12 products, reviews, vouchers)
+npm run db:seed
+
+# Or do both in one step:
+npm run db:setup
+```
+
+Seeded accounts:
+
+| Role | Email | Password |
+|---|---|---|
+| Admin | `admin@repixl-admin.com` | See `ADMIN_PASSWORD` in your team's secure notes |
+| Demo customer | `demo@repxl.com` | See seed file |
+
+> ⚠️ Change the admin password immediately after first login in production.
+
+---
+
+## Authentication Setup
+
+### Email/password
+Works out of the box after database setup. Sessions are HTTP-only cookies signed with `NEXTAUTH_SECRET`.
+
+### Google OAuth (optional)
+1. Create a project at [console.cloud.google.com](https://console.cloud.google.com)
+2. Enable Google+ API → Credentials → OAuth 2.0 Client ID (Web application)
+3. Authorized redirect URIs: `https://repxlph.vercel.app/api/auth/callback/google`
+4. Add `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` to env
+
+---
+
+## PayMongo Setup
+
+### Test Mode
+1. Sign up at [dashboard.paymongo.com](https://dashboard.paymongo.com)
+2. Stay in Test mode. Copy **Secret key** (`sk_test_...`) and **Public key** (`pk_test_...`)
+3. Register a webhook: URL = `https://your-app.vercel.app/api/webhooks/paymongo`, events: `checkout_session.payment.paid`, `payment.paid`, `payment.failed`
+4. Copy the **Webhook signing secret** (`whsk_...`)
+5. Set all four env vars + `NEXT_PUBLIC_PAYMONGO_ENABLED=true`
+
+### Live Mode
+Same steps in Live mode with `sk_live_` / `pk_live_` keys.
+
+> ⚠️ After switching to Live mode, go to **Settings → Payment Methods** and activate at least one method (e.g. GCash, Card). The Checkout Session API accepts any methods in `payment_method_types` without error, but the hosted checkout page only renders methods that are active on your account.
+
+---
+
+## Email Setup
+
+1. Enable 2-Step Verification on your Gmail account
+2. Go to Google Account → Security → App Passwords → create one for "Mail"
+3. Set `GMAIL_USER` and `GMAIL_APP_PASSWORD` in your env
+4. If not set, emails log to the server console instead of being sent (safe for dev)
+
+---
+
+## npm / Prisma Commands
+
+```bash
+npm run dev              # Start development server
+npm run build            # prisma generate + next build
+npm run start            # Start production server
+npm run lint             # ESLint
+
+npm run prisma:generate  # Regenerate Prisma client
+npm run prisma:migrate   # Deploy pending migrations (non-interactive)
+npm run prisma:push      # Push schema changes without migration (dev only)
+npm run prisma:studio    # Open Prisma Studio (visual DB browser)
+npm run db:seed          # Run seed script
+npm run db:setup         # migrate deploy + seed (fresh database)
+npm run db:reset         # Reset all data (destructive — dev only)
 ```
 
 ---
 
-## Roadmap
+## Running Locally
 
-- [ ] Real backend (PostgreSQL + Prisma ORM) to replace localStorage persistence
-- [ ] Email service integration for newsletter (Resend / Mailchimp)
-- [ ] Payment gateway (Stripe + local GCash/PayPal)
-- [ ] International shipping support
-- [ ] Admin-facing analytics charts (revenue over time, top brands)
-- [ ] Social account links in footer (once accounts are created)
-- [ ] Self-hosted fonts (`public/fonts/`) for production font reliability
+```bash
+npm run dev
+```
+
+- Storefront: [http://localhost:3000](http://localhost:3000)
+- Admin: [http://localhost:3000/admin](http://localhost:3000/admin)
+
+The app runs in offline/demo mode if `DATABASE_URL` is not set — Zustand stores fall back to localStorage and seed data. Set `DATABASE_URL` and `DIRECT_URL` to use the real database.
+
+---
+
+## Vercel Deployment
+
+The project deploys automatically on push to `main`.
+
+**Build command (set automatically via `package.json`):**
+```
+prisma generate && prisma migrate deploy && next build
+```
+
+**Required Vercel env vars:** All variables from the table above must be set in Vercel Dashboard → Project Settings → Environment Variables. `NEXT_PUBLIC_*` variables are baked into the client bundle at build time — redeploy after changing them.
+
+**Database migrations** run automatically on every Vercel deployment (`prisma migrate deploy` is non-interactive and only applies pending migrations).
+
+---
+
+## Project Status
+
+**Live in production.** Core e-commerce flow is complete and tested:
+
+- ✅ Registration, login, Google OAuth, forgot/reset password
+- ✅ Product catalog with live DB stock
+- ✅ Cart, wishlist, compare
+- ✅ Checkout (direct + PayMongo hosted)
+- ✅ Order management, confirmation email, print receipt
+- ✅ Admin dashboard with real DB data
+- ✅ Negative stock prevention
+- ✅ PayMongo webhook with idempotency guard
+
+**Pending (manual action required):**
+- Activate payment methods in PayMongo Dashboard (Live mode)
+- Add `birthDate` column to DB if persistent birth date is required
+- Move saved payment cards from localStorage to database
+
+For full developer context, see [`HANDOFF.md`](./HANDOFF.md).
+
+---
+
+## Design System
+
+### Film-burn aesthetic
+Dark default theme with warm red/orange edges echoing CRT-era hardware. Controlled by `--burn-opacity` CSS variable. Light mode adapts to a soft warm vignette. Admin is dark-only.
+
+### Key design tokens
+
+| Token | Dark | Light |
+|---|---|---|
+| `repixl-bg` | `#121012` | `#f5f0ea` |
+| `repixl-charcoal` | `#16131a` | `#ffffff` |
+| `repixl-red` | `#C22C2C` | `#b52a2a` |
+| `repixl-text-light` | `#F5F1EC` | `#1a1610` |
+| `repixl-muted` | `#8C8580` | `#6b6357` |
+
+### Typography
+- `font-display` → General Sans (headings, hero)
+- `font-body` → Inter (body text, forms)
+- `font-mono` → JetBrains Mono (prices, specs, badges)
+
+### Burn intensity classes
+| Class | Context | Intensity |
+|---|---|---|
+| *(default)* | Home, product pages | Full |
+| `.burn-subtle` | Account, checkout, auth | ~40% |
+| `.burn-minimal` | Admin login | ~15% |
