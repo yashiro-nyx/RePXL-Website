@@ -168,6 +168,16 @@ body.scroll-locked {
     visibility: visible !important;
   }
 
+  /* Hide elements explicitly marked no-print */
+  .no-print {
+    display: none !important;
+  }
+
+  /* Show elements only visible during print */
+  .print\:block {
+    display: block !important;
+  }
+
   /* 4. Position the receipt to fill the page */
   .receipt-print-area {
     position: absolute !important;

@@ -31,6 +31,7 @@ export default function AccountPage() {
   const { isLoggedIn, firstName, lastName, userEmail, hydrate, logout } = useAuthStore()
   const router = useRouter()
   const [hydrated, setHydrated] = useState(false)
+  const [logoutModalOpen, setLogoutModalOpen] = useState(false)
 
   useEffect(() => {
     hydrate()
@@ -103,7 +104,7 @@ export default function AccountPage() {
                 {/* Logout */}
                 <button
                   type="button"
-                  onClick={handleLogout}
+                  onClick={() => setLogoutModalOpen(true)}
                   className="flex w-full items-center gap-2.5 rounded px-3 py-2 text-left text-sm text-repixl-muted transition-colors hover:bg-repixl-bg hover:text-repixl-red"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
@@ -126,6 +127,36 @@ export default function AccountPage() {
           </main>
         </div>
       </Container>
+      {/* Logout confirmation modal */}
+      {logoutModalOpen && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-sm rounded-lg border border-repixl-muted/20 bg-repixl-charcoal p-6 shadow-2xl">
+            <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-repixl-red/10 mx-auto">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-repixl-red">
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" x2="9" y1="12" y2="12" />
+              </svg>
+            </div>
+            <h3 className="text-center font-display text-lg font-semibold text-repixl-text-light">Log Out?</h3>
+            <p className="mt-2 text-center text-sm text-repixl-muted">Are you sure you want to log out?</p>
+            <div className="mt-5 flex gap-3">
+              <button
+                type="button"
+                onClick={() => setLogoutModalOpen(false)}
+                className="flex-1 rounded border border-repixl-muted/20 px-4 py-2.5 text-sm text-repixl-text-light/70 transition-colors hover:bg-repixl-bg hover:text-repixl-text-light"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleLogout}
+                className="flex-1 rounded bg-repixl-red px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-red-700"
+              >
+                Log Out
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       <Footer />
     </div>
   )
@@ -139,12 +170,35 @@ function ProfileTab() {
   const [email, setEmail] = useState('')
   const [phone, setPhone] = useState('')
   const [birthDate, setBirthDate] = useState('')
+  const [origBirthDate, setOrigBirthDate] = useState('')
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [saved, setSaved] = useState(false)
 
-  useEffect(() => { setFirst(firstName); setLast(lastName); setEmail(userEmail); setPhone(userPhone) }, [firstName, lastName, userEmail, userPhone])
+  // Load profile fields + birth date (stored per-user in localStorage since
+  // the DB schema has no birthDate column).
+  useEffect(() => {
+    setFirst(firstName)
+    setLast(lastName)
+    setEmail(userEmail)
+    setPhone(userPhone)
+    if (userEmail) {
+      try {
+        const stored = localStorage.getItem(`repixl-birthdate-${userEmail}`) ?? ''
+        setBirthDate(stored)
+        setOrigBirthDate(stored)
+      } catch {
+        setBirthDate('')
+        setOrigBirthDate('')
+      }
+    }
+  }, [firstName, lastName, userEmail, userPhone])
 
-  const hasChanges = first !== firstName || last !== lastName || email !== userEmail || phone !== userPhone
+  const hasChanges =
+    first !== firstName ||
+    last !== lastName ||
+    email !== userEmail ||
+    phone !== userPhone ||
+    birthDate !== origBirthDate
 
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault()
@@ -159,6 +213,17 @@ function ProfileTab() {
     setErrors(errs)
     if (Object.keys(errs).length > 0) return
     updateProfile(first.trim(), last.trim(), email.trim(), phone.trim())
+    // Persist birth date per-user in localStorage (no DB column for it).
+    if (email.trim()) {
+      try {
+        if (birthDate) {
+          localStorage.setItem(`repixl-birthdate-${email.trim()}`, birthDate)
+        } else {
+          localStorage.removeItem(`repixl-birthdate-${email.trim()}`)
+        }
+      } catch { /* ignore */ }
+    }
+    setOrigBirthDate(birthDate)
     setSaved(true)
     setTimeout(() => setSaved(false), 3000)
   }
@@ -191,7 +256,13 @@ function ProfileTab() {
         </div>
         <div>
           <label htmlFor="p-birth" className="mb-1 block text-center text-xs text-repixl-text-light/70">Birth Date</label>
-          <input id="p-birth" type="date" value={birthDate} onChange={(e) => setBirthDate(e.target.value)} className={inputClass()} />
+          <input
+            id="p-birth"
+            type="date"
+            value={birthDate}
+            onChange={(e) => setBirthDate(e.target.value)}
+            className={`${inputClass()} [color-scheme:dark]`}
+          />
         </div>
         <div className="flex items-center justify-center gap-3 pt-2">
           <Button type="submit" variant="primary" size="md" disabled={!hasChanges} className={!hasChanges ? 'opacity-50 cursor-not-allowed' : ''}>Update Profile</Button>
@@ -242,12 +313,17 @@ function OrdersTab() {
       {/* Order Details Modal */}
       {detailOrder && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-lg rounded-lg border border-repixl-muted/20 bg-repixl-bg p-6 shadow-2xl">
-            <div className="flex items-center justify-between">
+          <div className="w-full max-w-lg rounded-lg border border-repixl-muted/20 bg-repixl-bg p-6 shadow-2xl receipt-print-area">
+            <div className="flex items-center justify-between no-print">
               <h3 className="font-display text-lg font-semibold text-repixl-text-light">Order Details</h3>
               <button onClick={() => setDetailOrder(null)} className="text-repixl-muted hover:text-repixl-text-light"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg></button>
             </div>
             <div className="mt-4 space-y-3">
+              {/* Print-only header */}
+              <div className="hidden print:block mb-4 border-b border-repixl-muted/10 pb-4 text-center">
+                <p className="font-display text-2xl font-bold text-repixl-text-light print-muted">RePXL</p>
+                <p className="font-mono text-[10px] uppercase tracking-widest text-repixl-muted print-muted">Order Receipt</p>
+              </div>
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-semibold text-repixl-text-light">Order #{detailOrder.orderNumber}</p>
@@ -283,7 +359,17 @@ function OrdersTab() {
                   })}
                 </tbody>
               </table>
-              <div className="flex justify-center pt-2"><button onClick={() => setDetailOrder(null)} className="rounded bg-repixl-red px-4 py-2 text-sm font-medium text-white hover:bg-red-700">Close</button></div>
+              <div className="flex justify-center gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => window.print()}
+                  className="no-print flex items-center gap-2 rounded border border-repixl-muted/20 px-4 py-2 text-sm text-repixl-text-light/70 transition-colors hover:border-repixl-muted/50 hover:text-repixl-text-light"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 6 2 18 2 18 9" /><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" /><rect width="12" height="8" x="6" y="14" /></svg>
+                  Print Receipt
+                </button>
+                <button onClick={() => setDetailOrder(null)} className="no-print rounded bg-repixl-red px-4 py-2 text-sm font-medium text-white hover:bg-red-700">Close</button>
+              </div>
             </div>
           </div>
         </div>

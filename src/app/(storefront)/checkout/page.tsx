@@ -608,7 +608,22 @@ export default function CheckoutPage() {
               </Button>
               <div className="mt-4">
                 <label className="flex cursor-pointer items-start gap-2">
-                  <input id="agree-terms" type="checkbox" checked={agreeTerms} onChange={(e) => setAgreeTerms(e.target.checked)} className="mt-0.5 h-3.5 w-3.5 rounded border-repixl-muted/30 bg-repixl-bg text-repixl-red focus:ring-repixl-red/30" />
+                  <input
+                    id="agree-terms"
+                    type="checkbox"
+                    checked={agreeTerms}
+                    onChange={(e) => {
+                      // If checking: open the Terms modal instead of checking directly.
+                      // The modal's "I Agree" button is what actually sets agreeTerms=true.
+                      // If unchecking: allow directly.
+                      if (e.target.checked) {
+                        setTermsModalOpen(true)
+                      } else {
+                        setAgreeTerms(false)
+                      }
+                    }}
+                    className="mt-0.5 h-3.5 w-3.5 rounded border-repixl-muted/30 bg-repixl-bg text-repixl-red focus:ring-repixl-red/30"
+                  />
                   <span className="text-[11px] leading-tight text-repixl-muted">
                     I agree to the{' '}
                     <button type="button" onClick={() => setTermsModalOpen(true)} className="text-repixl-text-light/80 underline hover:text-repixl-text-light">Terms of Service</button>
