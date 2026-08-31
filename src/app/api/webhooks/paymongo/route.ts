@@ -123,12 +123,24 @@ async function finalizePaidOrder(orderNumber: string): Promise<void> {
     })
 
     // Decrement stock for each purchased item using the actual quantity stored
-    // on the OrderItem row.
+    // on the OrderItem row. We use updateMany with a stock >= quantity guard so
+    // the decrement can never make stock negative. If stock was already depleted
+    // (e.g. a concurrent order), we floor at 0 via a separate update.
     for (const item of order.items) {
-      await tx.product.update({
-        where: { id: item.productId },
+      // Try the safe decrement first (only applies when stock >= quantity).
+      const updated = await tx.product.updateMany({
+        where: { id: item.productId, stock: { gte: item.quantity } },
         data: { stock: { decrement: item.quantity } },
       })
+
+      if (updated.count === 0) {
+        // Stock was less than the purchased quantity — floor it at 0 rather
+        // than allowing it to go negative.
+        await tx.product.updateMany({
+          where: { id: item.productId, stock: { gt: 0 } },
+          data: { stock: 0 },
+        })
+      }
     }
 
     // Increment voucher usage if one was applied.

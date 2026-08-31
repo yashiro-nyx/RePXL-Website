@@ -79,7 +79,7 @@ export default function AdminCamerasPage() {
                 <td className="px-5 py-3.5"><div className="h-12 w-12 overflow-hidden rounded-xl bg-repixl-bg">{/* eslint-disable-next-line @next/next/no-img-element */}<img src={p.image} alt="" className="h-full w-full object-contain" /></div></td>
                 <td className="px-5 py-3.5 font-medium text-repixl-text-light">{p.name}</td>
                 <td className="px-5 py-3.5 text-repixl-muted">{p.brand}</td>
-                <td className="px-5 py-3.5"><span className={`font-mono text-sm font-bold ${p.stock === 0 ? 'text-red-400' : p.stock <= 1 ? 'text-amber-400' : 'text-green-400'}`}>{p.stock}</span></td>
+                <td className="px-5 py-3.5"><span className={`font-mono text-sm font-bold ${p.stock <= 0 ? 'text-red-400' : p.stock <= 1 ? 'text-amber-400' : 'text-green-400'}`}>{Math.max(0, p.stock)}</span></td>
                 <td className="px-5 py-3.5 capitalize text-xs text-repixl-text-light/70">{p.condition}</td>
                 <td className="px-5 py-3.5 font-mono text-sm font-semibold text-repixl-text-light">${p.price}</td>
                 <td className="px-5 py-3.5"><span className={`rounded-full border px-2.5 py-1 text-[10px] font-semibold ${statusColors[p.status]}`}>{p.status}</span></td>

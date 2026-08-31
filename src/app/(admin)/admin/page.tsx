@@ -19,17 +19,17 @@ export default function AdminDashboardPage() {
   }, [])
 
   const totalCameras = products.filter((p) => p.status === 'active').length
-  const totalStock = products.reduce((sum, p) => sum + p.stock, 0)
+  const totalStock = products.reduce((sum, p) => sum + Math.max(0, p.stock), 0)
   const totalOrders = orders.length
   const pendingOrders = orders.filter((o) => o.status === 'Processing').length
   const revenue = orders.reduce((sum, o) => sum + o.total, 0)
   const lowStockItems = products.filter((p) => p.stock > 0 && p.stock <= LOW_STOCK_THRESHOLD)
-  const outOfStock = products.filter((p) => p.stock === 0)
+  const outOfStock = products.filter((p) => p.stock <= 0)
 
   const brands = Array.from(new Set(products.map((p) => p.brand))).map((brand) => ({
     brand,
     count: products.filter((p) => p.brand === brand && p.status === 'active').length,
-    stock: products.filter((p) => p.brand === brand).reduce((s, p) => s + p.stock, 0),
+    stock: products.filter((p) => p.brand === brand).reduce((s, p) => s + Math.max(0, p.stock), 0),
   }))
 
   const statusCounts = {

@@ -185,12 +185,19 @@ export async function POST(request: NextRequest) {
         },
       })
 
-      // Decrement stock for each product
+      // Decrement stock for each product — floor at 0 to prevent negative stock.
       for (const item of cartItems) {
-        await tx.product.update({
-          where: { id: item.productId },
+        const updated = await tx.product.updateMany({
+          where: { id: item.productId, stock: { gte: item.quantity } },
           data: { stock: { decrement: item.quantity } },
         })
+        if (updated.count === 0) {
+          // Stock was already lower than ordered qty — floor at 0.
+          await tx.product.updateMany({
+            where: { id: item.productId, stock: { gt: 0 } },
+            data: { stock: 0 },
+          })
+        }
       }
 
       // Clear the cart
