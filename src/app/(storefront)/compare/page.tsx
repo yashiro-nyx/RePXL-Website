@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { Container } from '@/components/layout/Container'
 import { Button, ConditionBadge } from '@/components/ui'
+import { Footer } from '@/components/layout/Footer'
 import { useCompareStore } from '@/stores/compareStore'
 import { useProductStore } from '@/stores/productStore'
 import { useReviewStore } from '@/stores/reviewStore'
@@ -205,8 +206,11 @@ function CompareContent() {
 
 export default function ComparePage() {
   return (
-    <Suspense fallback={<div className="min-h-screen pb-16 pt-24"><Container><p className="text-sm text-repixl-muted">Loading...</p></Container></div>}>
-      <CompareContent />
-    </Suspense>
+    <>
+      <Suspense fallback={<div className="min-h-screen pb-16 pt-24"><Container><p className="text-sm text-repixl-muted">Loading...</p></Container></div>}>
+        <CompareContent />
+      </Suspense>
+      <Footer />
+    </>
   )
 }

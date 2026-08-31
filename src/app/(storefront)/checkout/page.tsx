@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Container } from '@/components/layout/Container'
 import { Button, ConditionBadge, LegalModal } from '@/components/ui'
+import { MinimalFooter } from '@/components/layout/MinimalFooter'
 import { useAuthStore } from '@/stores/authStore'
 import { useCartStore } from '@/stores/cartStore'
 import { useProductStore } from '@/stores/productStore'
@@ -471,6 +472,7 @@ export default function CheckoutPage() {
             </div>
           </div>
         </Container>
+        <MinimalFooter />
       </div>
     )
   }
@@ -618,6 +620,7 @@ export default function CheckoutPage() {
           </aside>
         </form>
       </Container>
+      <MinimalFooter />
     </div>
   )
 }

@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { Container } from '@/components/layout/Container'
 import { Button } from '@/components/ui'
 import { ProductCard } from '@/components/product/ProductCard'
+import { Footer } from '@/components/layout/Footer'
 import { useWishlistStore } from '@/stores/wishlistStore'
 import { useProductStore } from '@/stores/productStore'
 import { useCartStore } from '@/stores/cartStore'
@@ -41,14 +42,17 @@ export default function WishlistPage() {
   }
 
   return (
-    <div className="burn-subtle min-h-screen pb-16 pt-24">
-      <Container>
-        <h1 className="font-display text-display-md text-repixl-text-light md:text-display-lg">My Wishlist</h1>
-        <p className="mt-1 text-sm text-repixl-muted">{items.length} {items.length === 1 ? 'camera' : 'cameras'} saved</p>
-        <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {items.map((product) => <ProductCard key={product.slug} product={product} />)}
-        </div>
-      </Container>
-    </div>
+    <>
+      <div className="burn-subtle min-h-screen pb-16 pt-24">
+        <Container>
+          <h1 className="font-display text-display-md text-repixl-text-light md:text-display-lg">My Wishlist</h1>
+          <p className="mt-1 text-sm text-repixl-muted">{items.length} {items.length === 1 ? 'camera' : 'cameras'} saved</p>
+          <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {items.map((product) => <ProductCard key={product.slug} product={product} />)}
+          </div>
+        </Container>
+      </div>
+      <Footer />
+    </>
   )
 }

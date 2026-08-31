@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Container } from '@/components/layout/Container'
 import { Button, ConditionBadge, LoginRequiredModal } from '@/components/ui'
+import { Footer } from '@/components/layout/Footer'
 import { useAuthStore } from '@/stores/authStore'
 import { useCartStore } from '@/stores/cartStore'
 import { useProductStore } from '@/stores/productStore'
@@ -80,66 +81,69 @@ export default function CartPage() {
   }
 
   return (
-    <div className="burn-subtle min-h-screen pb-16 pt-24">
-      <Container>
-        <h1 className="font-display text-display-md text-repixl-text-light md:text-display-lg">Your Cart</h1>
-        <p className="mt-1 text-sm text-repixl-muted">{totalQty} {totalQty === 1 ? 'item' : 'items'}</p>
+    <>
+      <div className="burn-subtle min-h-screen pb-16 pt-24">
+        <Container>
+          <h1 className="font-display text-display-md text-repixl-text-light md:text-display-lg">Your Cart</h1>
+          <p className="mt-1 text-sm text-repixl-muted">{totalQty} {totalQty === 1 ? 'item' : 'items'}</p>
 
-        <div className="mt-8 grid grid-cols-1 gap-10 lg:grid-cols-3">
-          <div className="space-y-4 lg:col-span-2">
-            {resolvedItems.map(({ product, quantity }) => (
-              <div key={product.slug} className="flex gap-4 rounded-lg border border-repixl-muted/10 bg-repixl-charcoal p-4">
-                <Link href={`/products/${product.slug}`} className="h-24 w-24 flex-shrink-0 overflow-hidden rounded bg-repixl-bg">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={product.image} alt={product.name} className="h-full w-full object-contain" />
-                </Link>
-                <div className="flex flex-1 flex-col justify-between">
-                  <div>
-                    <div className="flex items-start justify-between gap-4">
-                      <div>
-                        <Link href={`/products/${product.slug}`} className="text-sm font-medium text-repixl-text-light hover:underline">{product.name}</Link>
-                        <p className="mt-0.5 font-mono text-[10px] uppercase tracking-wider text-repixl-muted">{product.brand} · {product.series}</p>
+          <div className="mt-8 grid grid-cols-1 gap-10 lg:grid-cols-3">
+            <div className="space-y-4 lg:col-span-2">
+              {resolvedItems.map(({ product, quantity }) => (
+                <div key={product.slug} className="flex gap-4 rounded-lg border border-repixl-muted/10 bg-repixl-charcoal p-4">
+                  <Link href={`/products/${product.slug}`} className="h-24 w-24 flex-shrink-0 overflow-hidden rounded bg-repixl-bg">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={product.image} alt={product.name} className="h-full w-full object-contain" />
+                  </Link>
+                  <div className="flex flex-1 flex-col justify-between">
+                    <div>
+                      <div className="flex items-start justify-between gap-4">
+                        <div>
+                          <Link href={`/products/${product.slug}`} className="text-sm font-medium text-repixl-text-light hover:underline">{product.name}</Link>
+                          <p className="mt-0.5 font-mono text-[10px] uppercase tracking-wider text-repixl-muted">{product.brand} · {product.series}</p>
+                        </div>
+                        <span className="font-display text-lg font-semibold text-repixl-text-light">${product.price * quantity}</span>
                       </div>
-                      <span className="font-display text-lg font-semibold text-repixl-text-light">${product.price * quantity}</span>
+                      <div className="mt-2 flex items-center gap-3">
+                        <ConditionBadge condition={product.condition} />
+                        <span className="font-mono text-[10px] text-repixl-muted">${product.price} each · {product.stock} available</span>
+                      </div>
                     </div>
-                    <div className="mt-2 flex items-center gap-3">
-                      <ConditionBadge condition={product.condition} />
-                      <span className="font-mono text-[10px] text-repixl-muted">${product.price} each · {product.stock} available</span>
+                    <div className="mt-3 flex items-center gap-4">
+                      <div className="flex items-center rounded border border-repixl-muted/20">
+                        <button type="button" onClick={() => updateQuantity(product.slug, quantity - 1)} disabled={quantity <= 1} aria-label="Decrease quantity" className="flex h-8 w-7 items-center justify-center text-xs text-repixl-text-light/70 hover:text-repixl-text-light disabled:cursor-not-allowed disabled:text-repixl-muted/30">−</button>
+                        <span className="flex h-8 w-8 items-center justify-center border-x border-repixl-muted/20 font-mono text-xs text-repixl-text-light">{quantity}</span>
+                        <button type="button" onClick={() => updateQuantity(product.slug, quantity + 1)} disabled={quantity >= product.stock} aria-label="Increase quantity" className="flex h-8 w-7 items-center justify-center text-xs text-repixl-text-light/70 hover:text-repixl-text-light disabled:cursor-not-allowed disabled:text-repixl-muted/30">+</button>
+                      </div>
+                      <button type="button" onClick={() => removeFromCart(product.slug)} className="text-xs text-repixl-muted hover:text-repixl-red">Remove</button>
                     </div>
-                  </div>
-                  <div className="mt-3 flex items-center gap-4">
-                    <div className="flex items-center rounded border border-repixl-muted/20">
-                      <button type="button" onClick={() => updateQuantity(product.slug, quantity - 1)} disabled={quantity <= 1} aria-label="Decrease quantity" className="flex h-8 w-7 items-center justify-center text-xs text-repixl-text-light/70 hover:text-repixl-text-light disabled:cursor-not-allowed disabled:text-repixl-muted/30">−</button>
-                      <span className="flex h-8 w-8 items-center justify-center border-x border-repixl-muted/20 font-mono text-xs text-repixl-text-light">{quantity}</span>
-                      <button type="button" onClick={() => updateQuantity(product.slug, quantity + 1)} disabled={quantity >= product.stock} aria-label="Increase quantity" className="flex h-8 w-7 items-center justify-center text-xs text-repixl-text-light/70 hover:text-repixl-text-light disabled:cursor-not-allowed disabled:text-repixl-muted/30">+</button>
-                    </div>
-                    <button type="button" onClick={() => removeFromCart(product.slug)} className="text-xs text-repixl-muted hover:text-repixl-red">Remove</button>
                   </div>
                 </div>
-              </div>
-            ))}
-          </div>
-
-          <aside className="lg:col-span-1">
-            <div className="sticky top-24 rounded-lg border border-repixl-muted/10 bg-repixl-charcoal p-6">
-              <h2 className="font-mono text-[10px] uppercase tracking-widest text-repixl-muted">Order Summary</h2>
-              <dl className="mt-5 space-y-3">
-                <div className="flex justify-between text-sm"><dt className="text-repixl-text-light/70">Subtotal</dt><dd className="font-mono text-repixl-text-light">${subtotal}</dd></div>
-                <div className="flex justify-between text-sm"><dt className="text-repixl-text-light/70">Shipping</dt><dd className="font-mono text-repixl-text-light">${SHIPPING_COST}</dd></div>
-                {promoApplied && <div className="flex justify-between text-sm"><dt className="text-repixl-success">Discount</dt><dd className="font-mono text-repixl-success">-${discount}</dd></div>}
-                <div className="border-t border-repixl-muted/10 pt-3"><div className="flex justify-between"><dt className="text-sm font-medium text-repixl-text-light">Total</dt><dd className="font-display text-xl font-bold text-repixl-text-light">${total}</dd></div></div>
-              </dl>
-              {!promoApplied && (
-                <form onSubmit={handlePromo} className="mt-5"><label htmlFor="promo-code" className="sr-only">Promo code</label><div className="flex gap-2"><input id="promo-code" type="text" value={promoCode} onChange={(e) => setPromoCode(e.target.value)} placeholder="Voucher code" className="flex-1 rounded border border-repixl-muted/20 bg-repixl-bg px-3 py-2 text-sm text-repixl-text-light placeholder:text-repixl-muted/50 focus:border-repixl-muted/50 focus:outline-none" /><button type="submit" className="rounded border border-repixl-muted/20 px-3 py-2 text-xs font-medium text-repixl-text-light/70 hover:border-repixl-muted/50 hover:text-repixl-text-light">Apply</button></div>{promoError && <p className="mt-1 text-xs text-red-400">{promoError}</p>}</form>
-              )}
-              {promoApplied && <p className="mt-4 font-mono text-[10px] text-repixl-success">✓ Voucher applied — ${discount} off</p>}
-              <Button variant="primary" size="lg" className="mt-6 w-full" onClick={handleCheckout}>Proceed to Checkout</Button>
-              <Link href="/products" className="mt-3 block text-center text-xs text-repixl-muted hover:text-repixl-text-light">Continue shopping</Link>
+              ))}
             </div>
-          </aside>
-        </div>
-        <LoginRequiredModal isOpen={loginModalOpen} onClose={() => setLoginModalOpen(false)} />
-      </Container>
-    </div>
+
+            <aside className="lg:col-span-1">
+              <div className="sticky top-24 rounded-lg border border-repixl-muted/10 bg-repixl-charcoal p-6">
+                <h2 className="font-mono text-[10px] uppercase tracking-widest text-repixl-muted">Order Summary</h2>
+                <dl className="mt-5 space-y-3">
+                  <div className="flex justify-between text-sm"><dt className="text-repixl-text-light/70">Subtotal</dt><dd className="font-mono text-repixl-text-light">${subtotal}</dd></div>
+                  <div className="flex justify-between text-sm"><dt className="text-repixl-text-light/70">Shipping</dt><dd className="font-mono text-repixl-text-light">${SHIPPING_COST}</dd></div>
+                  {promoApplied && <div className="flex justify-between text-sm"><dt className="text-repixl-success">Discount</dt><dd className="font-mono text-repixl-success">-${discount}</dd></div>}
+                  <div className="border-t border-repixl-muted/10 pt-3"><div className="flex justify-between"><dt className="text-sm font-medium text-repixl-text-light">Total</dt><dd className="font-display text-xl font-bold text-repixl-text-light">${total}</dd></div></div>
+                </dl>
+                {!promoApplied && (
+                  <form onSubmit={handlePromo} className="mt-5"><label htmlFor="promo-code" className="sr-only">Promo code</label><div className="flex gap-2"><input id="promo-code" type="text" value={promoCode} onChange={(e) => setPromoCode(e.target.value)} placeholder="Voucher code" className="flex-1 rounded border border-repixl-muted/20 bg-repixl-bg px-3 py-2 text-sm text-repixl-text-light placeholder:text-repixl-muted/50 focus:border-repixl-muted/50 focus:outline-none" /><button type="submit" className="rounded border border-repixl-muted/20 px-3 py-2 text-xs font-medium text-repixl-text-light/70 hover:border-repixl-muted/50 hover:text-repixl-text-light">Apply</button></div>{promoError && <p className="mt-1 text-xs text-red-400">{promoError}</p>}</form>
+                )}
+                {promoApplied && <p className="mt-4 font-mono text-[10px] text-repixl-success">✓ Voucher applied — ${discount} off</p>}
+                <Button variant="primary" size="lg" className="mt-6 w-full" onClick={handleCheckout}>Proceed to Checkout</Button>
+                <Link href="/products" className="mt-3 block text-center text-xs text-repixl-muted hover:text-repixl-text-light">Continue shopping</Link>
+              </div>
+            </aside>
+          </div>
+          <LoginRequiredModal isOpen={loginModalOpen} onClose={() => setLoginModalOpen(false)} />
+        </Container>
+      </div>
+      <Footer />
+    </>
   )
 }

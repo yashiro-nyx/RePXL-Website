@@ -3,7 +3,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { motion, AnimatePresence, useInView } from 'framer-motion'
 import { Container } from '@/components/layout/Container'
-import { Footer } from '@/components/layout/Footer'
 import { ConditionBadge, type Condition } from '@/components/ui'
 import { RevealText } from '@/components/ui/RevealText'
 import { useReducedMotion } from '@/hooks/useReducedMotion'
@@ -286,7 +285,7 @@ export default function ConditionGradingPage() {
         </Container>
       </section>
 
-      <Footer />
+
     </div>
   )
 }

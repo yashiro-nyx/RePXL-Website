@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation'
 import { Container } from '@/components/layout/Container'
 import { ProductCard } from '@/components/product/ProductCard'
 import { useProductStore } from '@/stores/productStore'
+import { Footer } from '@/components/layout/Footer'
 
 function SearchContent() {
   const searchParams = useSearchParams()
@@ -66,8 +67,11 @@ function SearchContent() {
 
 export default function SearchPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen pt-24 pb-16"><Container><p className="text-sm text-repixl-muted">Loading...</p></Container></div>}>
-      <SearchContent />
-    </Suspense>
+    <>
+      <Suspense fallback={<div className="min-h-screen pt-24 pb-16"><Container><p className="text-sm text-repixl-muted">Loading...</p></Container></div>}>
+        <SearchContent />
+      </Suspense>
+      <Footer />
+    </>
   )
 }

@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import dynamic from 'next/dynamic'
 import { Container } from '@/components/layout/Container'
+import { Footer } from '@/components/layout/Footer'
 import { Button, ConditionBadge, CornerBracket, LoginRequiredModal } from '@/components/ui'
 import { CompareToast } from '@/components/ui/CompareToast'
 import { ProductCard } from '@/components/product/ProductCard'
@@ -398,6 +399,7 @@ export default function ProductDetailPage() {
           </div>
         </section>
       </Container>
+      <Footer />
     </div>
   )
 }

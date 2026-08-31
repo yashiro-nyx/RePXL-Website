@@ -3,7 +3,6 @@
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Container } from '@/components/layout/Container'
-import { Footer } from '@/components/layout/Footer'
 import { RevealText } from '@/components/ui/RevealText'
 import { useReducedMotion } from '@/hooks/useReducedMotion'
 import { useToastStore } from '@/stores/toastStore'
@@ -490,7 +489,7 @@ export default function ContactPage() {
         </Container>
       </section>
 
-      <Footer />
+
     </div>
   )
 }

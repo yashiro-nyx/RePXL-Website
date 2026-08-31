@@ -6,7 +6,6 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { Container } from '@/components/layout/Container'
 import { Button, CornerBracket } from '@/components/ui'
 import { RevealText } from '@/components/ui/RevealText'
-import { Footer } from '@/components/layout/Footer'
 import { useReducedMotion } from '@/hooks/useReducedMotion'
 import { faqs, type FAQItem } from '@/data/faqs'
 
@@ -234,7 +233,7 @@ export default function FAQPage() {
         </Container>
       </section>
 
-      <Footer />
+
     </div>
   )
 }

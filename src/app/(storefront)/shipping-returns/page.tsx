@@ -2,7 +2,6 @@
 
 import { motion } from 'framer-motion'
 import { Container } from '@/components/layout/Container'
-import { Footer } from '@/components/layout/Footer'
 import { CornerBracket } from '@/components/ui'
 import { RevealText } from '@/components/ui/RevealText'
 import { useReducedMotion } from '@/hooks/useReducedMotion'
@@ -367,7 +366,7 @@ export default function ShippingReturnsPage() {
         </Container>
       </section>
 
-      <Footer />
+
     </div>
   )
 }

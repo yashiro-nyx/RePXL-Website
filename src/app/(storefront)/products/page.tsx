@@ -6,6 +6,7 @@ import { motion } from 'framer-motion'
 import { Container } from '@/components/layout/Container'
 import { ProductCard } from '@/components/product/ProductCard'
 import { ConditionBadge, Skeleton } from '@/components/ui'
+import { Footer } from '@/components/layout/Footer'
 import { useProductStore } from '@/stores/productStore'
 import { useReducedMotion } from '@/hooks/useReducedMotion'
 import type { ConditionGrade } from '@/types'
@@ -212,8 +213,11 @@ function ProductsContent() {
 
 export default function ProductsPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen pt-24 pb-16"><Container><p className="text-sm text-repixl-muted">Loading...</p></Container></div>}>
-      <ProductsContent />
-    </Suspense>
+    <>
+      <Suspense fallback={<div className="min-h-screen pt-24 pb-16"><Container><p className="text-sm text-repixl-muted">Loading...</p></Container></div>}>
+        <ProductsContent />
+      </Suspense>
+      <Footer />
+    </>
   )
 }

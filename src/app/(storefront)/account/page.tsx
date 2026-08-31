@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Container } from '@/components/layout/Container'
+import { Footer } from '@/components/layout/Footer'
 import { Button, ConditionBadge, CornerBracket, PasswordInput } from '@/components/ui'
 import { useAuthStore } from '@/stores/authStore'
 import { useToastStore } from '@/stores/toastStore'
@@ -125,6 +126,7 @@ export default function AccountPage() {
           </main>
         </div>
       </Container>
+      <Footer />
     </div>
   )
 }

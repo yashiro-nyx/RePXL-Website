@@ -6,7 +6,6 @@ import { motion, useScroll, useTransform, useInView, AnimatePresence } from 'fra
 import { Container } from '@/components/layout/Container'
 import { Button, CornerBracket, ConditionBadge } from '@/components/ui'
 import { RevealText } from '@/components/ui/RevealText'
-import { Footer } from '@/components/layout/Footer'
 import { useReducedMotion } from '@/hooks/useReducedMotion'
 import { products } from '@/data/products'
 
@@ -55,7 +54,7 @@ export default function AboutPage() {
       <StatsRow reducedMotion={reducedMotion} container={container} item={item} />
       <TheTeam reducedMotion={reducedMotion} container={container} item={item} />
       <WhereHeaded reducedMotion={reducedMotion} />
-      <Footer />
+
     </div>
   )
 }
