@@ -15,7 +15,9 @@ export interface Order {
   paymentMethod: string
   fullName: string
   address: string
+  barangay: string
   city: string
+  province: string
   postalCode: string
   status: 'Processing' | 'Shipped' | 'Delivered' | 'Completed' | 'Cancelled'
   userEmail?: string
