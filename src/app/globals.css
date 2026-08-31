@@ -138,6 +138,86 @@ body.scroll-locked {
   overflow: hidden;
 }
 
+/* Print styles — receipt only */
+@media print {
+  /* 1. Hide everything on the page */
+  body * {
+    visibility: hidden !important;
+  }
+
+  /* 2. The grain overlay and background effects: remove entirely */
+  body::before,
+  body::after {
+    display: none !important;
+  }
+
+  html {
+    background: #ffffff !important;
+    background-image: none !important;
+  }
+
+  body {
+    background: #ffffff !important;
+    background-image: none !important;
+    color: #1a1610 !important;
+  }
+
+  /* 3. Make the receipt and all its children visible */
+  .receipt-print-area,
+  .receipt-print-area * {
+    visibility: visible !important;
+  }
+
+  /* 4. Position the receipt to fill the page */
+  .receipt-print-area {
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 100% !important;
+    background: #ffffff !important;
+    background-image: none !important;
+    color: #1a1610 !important;
+    padding: 24px !important;
+    box-shadow: none !important;
+    border: none !important;
+  }
+
+  /* 5. Override dark theme colors within the receipt */
+  .receipt-print-area,
+  .receipt-print-area p,
+  .receipt-print-area span,
+  .receipt-print-area td,
+  .receipt-print-area th,
+  .receipt-print-area h1,
+  .receipt-print-area h2,
+  .receipt-print-area li {
+    color: #1a1610 !important;
+    background: transparent !important;
+    border-color: #d0d0d0 !important;
+  }
+
+  /* 6. Muted text */
+  .receipt-print-area .print-muted {
+    color: #555555 !important;
+  }
+
+  /* 7. Red accent stays red */
+  .receipt-print-area .print-red {
+    color: #c22c2c !important;
+  }
+
+  /* 8. Tables */
+  .receipt-print-area table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+  }
+
+  @page {
+    margin: 12mm;
+    size: A4;
+  }
+}
+
 /* Admin mobile responsiveness fixes */
 @media (max-width: 767px) {
   /* Admin modals: constrain to viewport width */

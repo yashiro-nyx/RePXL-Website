@@ -65,7 +65,9 @@ export const updateCartSchema = z.object({
 export const createOrderSchema = z.object({
   fullName: z.string().min(1, 'Full name is required'),
   address: z.string().min(1, 'Address is required'),
+  barangay: z.string().optional().default(''),
   city: z.string().min(1, 'City is required'),
+  province: z.string().optional().default(''),
   postalCode: z.string().min(1, 'Postal code is required'),
   courierName: z.string().min(1, 'Courier is required'),
   courierEstimate: z.string().min(1),
@@ -96,7 +98,9 @@ export const updateReviewSchema = z.object({
 export const addressSchema = z.object({
   fullName: z.string().min(1, 'Full name is required').max(100),
   address: z.string().min(1, 'Address is required').max(300),
+  barangay: z.string().max(100).optional().default(''),
   city: z.string().min(1, 'City is required').max(100),
+  province: z.string().max(100).optional().default(''),
   postalCode: z.string().min(1, 'Postal code is required').max(20),
   phone: z.string().min(1, 'Phone is required').max(20),
   isDefault: z.boolean().optional().default(false),

@@ -16,7 +16,9 @@ export interface Order {
   paymentMethod: string
   fullName: string
   address: string
+  barangay: string
   city: string
+  province: string
   postalCode: string
   status: 'Processing' | 'Shipped' | 'Delivered' | 'Completed' | 'Cancelled'
   userEmail?: string
@@ -42,7 +44,9 @@ export const useOrderHistoryStore = create<OrderHistoryState>((set, get) => ({
       {
         fullName: order.fullName,
         address: order.address,
+        barangay: order.barangay,
         city: order.city,
+        province: order.province,
         postalCode: order.postalCode,
         courierName: order.courierName,
         courierEstimate: order.courierEstimate,

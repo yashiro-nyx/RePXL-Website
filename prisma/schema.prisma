@@ -149,7 +149,9 @@ model Order {
   // Shipping address (snapshot at time of order)
   fullName        String      @map("full_name")
   address         String
+  barangay        String      @default("")
   city            String
+  province        String      @default("")
   postalCode      String      @map("postal_code")
 
   isArchived      Boolean     @default(false) @map("is_archived")
@@ -218,7 +220,9 @@ model Address {
   userId     String  @map("user_id")
   fullName   String  @map("full_name")
   address    String
+  barangay   String  @default("")
   city       String
+  province   String  @default("")
   postalCode String  @map("postal_code")
   phone      String
   isDefault  Boolean @default(false) @map("is_default")

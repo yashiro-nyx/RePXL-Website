@@ -33,7 +33,9 @@ function writeLocal(key: string, orders: Order[]) {
 export interface CreateOrderInput {
   fullName: string
   address: string
+  barangay?: string
   city: string
+  province?: string
   postalCode: string
   courierName: string
   courierEstimate: string

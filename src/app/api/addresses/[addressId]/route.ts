@@ -55,7 +55,9 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       data: {
         fullName: data.fullName,
         address: data.address,
+        barangay: data.barangay,
         city: data.city,
+        province: data.province,
         postalCode: data.postalCode,
         phone: data.phone,
         isDefault: data.isDefault,

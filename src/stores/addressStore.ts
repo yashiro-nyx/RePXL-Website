@@ -8,7 +8,9 @@ export interface Address {
   id: string
   fullName: string
   address: string
+  barangay: string
   city: string
+  province: string
   postalCode: string
   phone: string
   isDefault: boolean

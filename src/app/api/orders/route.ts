@@ -168,7 +168,9 @@ export async function POST(request: NextRequest) {
           voucherCode: data.voucherCode || null,
           fullName: data.fullName,
           address: data.address,
+          barangay: data.barangay,
           city: data.city,
+          province: data.province,
           postalCode: data.postalCode,
           items: {
             create: cartItems.map((item) => ({

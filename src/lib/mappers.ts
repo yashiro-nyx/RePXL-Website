@@ -218,7 +218,9 @@ export interface ApiOrder {
   voucherCode: string | null
   fullName: string
   address: string
+  barangay?: string
   city: string
+  province?: string
   postalCode: string
   isArchived: boolean
   createdAt: string
@@ -278,7 +280,9 @@ export function apiToClientOrder(o: ApiOrder): ClientOrder {
     paymentMethod: o.paymentMethod,
     fullName: o.fullName,
     address: o.address,
+    barangay: o.barangay ?? '',
     city: o.city,
+    province: o.province ?? '',
     postalCode: o.postalCode,
     status: ORDER_STATUS_TO_CLIENT[o.status] ?? 'Processing',
     userEmail: o.user?.email,

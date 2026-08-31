@@ -10,7 +10,9 @@ interface ApiAddress {
   id: string
   fullName: string
   address: string
+  barangay?: string
   city: string
+  province?: string
   postalCode: string
   phone: string
   isDefault: boolean
@@ -42,7 +44,9 @@ function toClient(a: ApiAddress): Address {
     id: a.id,
     fullName: a.fullName,
     address: a.address,
+    barangay: a.barangay ?? '',
     city: a.city,
+    province: a.province ?? '',
     postalCode: a.postalCode,
     phone: a.phone,
     isDefault: a.isDefault,

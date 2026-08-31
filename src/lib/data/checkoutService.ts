@@ -25,7 +25,9 @@ interface CheckoutSessionResponse {
 export async function startPaymongoCheckout(input: {
   fullName: string
   address: string
+  barangay?: string
   city: string
+  province?: string
   postalCode: string
   courierName: string
   courierEstimate: string

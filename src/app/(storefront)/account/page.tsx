@@ -341,7 +341,9 @@ function AddressesTab() {
 function AddressForm({ initial, onSave, onCancel }: { initial?: Address; onSave: (d: Omit<Address, 'id'>) => void; onCancel: () => void }) {
   const [fullName, setFullName] = useState(initial?.fullName ?? '')
   const [address, setAddress] = useState(initial?.address ?? '')
+  const [barangay, setBarangay] = useState(initial?.barangay ?? '')
   const [city, setCity] = useState(initial?.city ?? '')
+  const [province, setProvince] = useState(initial?.province ?? '')
   const [postalCode, setPostalCode] = useState(initial?.postalCode ?? '')
   const [phone, setPhone] = useState(initial?.phone ?? '')
   const [isDefault, setIsDefault] = useState(initial?.isDefault ?? false)
@@ -352,20 +354,27 @@ function AddressForm({ initial, onSave, onCancel }: { initial?: Address; onSave:
     const errs: Record<string, string> = {}
     if (!fullName.trim()) errs.fullName = 'Required.'
     if (!address.trim()) errs.address = 'Required.'
+    if (!barangay.trim()) errs.barangay = 'Required.'
     if (!city.trim()) errs.city = 'Required.'
+    if (!province.trim()) errs.province = 'Required.'
     if (!/^\d{4,6}$/.test(postalCode.replace(/\s/g, ''))) errs.postalCode = '4–6 digits.'
     if (phone.trim() && !/^\d{7,15}$/.test(phone.replace(/[\s\-+()]/g, ''))) errs.phone = 'Invalid phone.'
     setErrors(errs)
     if (Object.keys(errs).length > 0) return
-    onSave({ fullName: fullName.trim(), address: address.trim(), city: city.trim(), postalCode: postalCode.trim(), phone: phone.trim(), isDefault })
+    onSave({ fullName: fullName.trim(), address: address.trim(), barangay: barangay.trim(), city: city.trim(), province: province.trim(), postalCode: postalCode.trim(), phone: phone.trim(), isDefault })
   }
 
   return (
     <form onSubmit={handleSubmit} noValidate className="mt-4 space-y-3 rounded border border-repixl-muted/10 bg-repixl-bg p-4">
       <div><label htmlFor="a-name" className="mb-1 block text-xs text-repixl-text-light/70">Full Name</label><input id="a-name" type="text" value={fullName} onChange={(e) => setFullName(e.target.value)} className={inputClass(errors.fullName)} />{errors.fullName && <p className="mt-1 text-xs text-red-400">{errors.fullName}</p>}</div>
+      <div><label htmlFor="a-phone" className="mb-1 block text-xs text-repixl-text-light/70">Phone Number</label><input id="a-phone" type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} className={inputClass(errors.phone)} />{errors.phone && <p className="mt-1 text-xs text-red-400">{errors.phone}</p>}</div>
       <div><label htmlFor="a-street" className="mb-1 block text-xs text-repixl-text-light/70">Street Address</label><input id="a-street" type="text" value={address} onChange={(e) => setAddress(e.target.value)} className={inputClass(errors.address)} />{errors.address && <p className="mt-1 text-xs text-red-400">{errors.address}</p>}</div>
+      <div><label htmlFor="a-barangay" className="mb-1 block text-xs text-repixl-text-light/70">Barangay</label><input id="a-barangay" type="text" value={barangay} onChange={(e) => setBarangay(e.target.value)} placeholder="Enter barangay" className={inputClass(errors.barangay)} />{errors.barangay && <p className="mt-1 text-xs text-red-400">{errors.barangay}</p>}</div>
       <div className="grid grid-cols-2 gap-3">
-        <div><label htmlFor="a-city" className="mb-1 block text-xs text-repixl-text-light/70">City</label><input id="a-city" type="text" value={city} onChange={(e) => setCity(e.target.value)} className={inputClass(errors.city)} />{errors.city && <p className="mt-1 text-xs text-red-400">{errors.city}</p>}</div>
+        <div><label htmlFor="a-city" className="mb-1 block text-xs text-repixl-text-light/70">City / Municipality</label><input id="a-city" type="text" value={city} onChange={(e) => setCity(e.target.value)} className={inputClass(errors.city)} />{errors.city && <p className="mt-1 text-xs text-red-400">{errors.city}</p>}</div>
+        <div><label htmlFor="a-province" className="mb-1 block text-xs text-repixl-text-light/70">Province</label><input id="a-province" type="text" value={province} onChange={(e) => setProvince(e.target.value)} className={inputClass(errors.province)} />{errors.province && <p className="mt-1 text-xs text-red-400">{errors.province}</p>}</div>
+      </div>
+      <div className="grid grid-cols-2 gap-3">
         <div><label htmlFor="a-zip" className="mb-1 block text-xs text-repixl-text-light/70">Postal Code</label><input id="a-zip" type="text" inputMode="numeric" value={postalCode} onChange={(e) => setPostalCode(e.target.value)} className={inputClass(errors.postalCode)} />{errors.postalCode && <p className="mt-1 text-xs text-red-400">{errors.postalCode}</p>}</div>
       </div>
       <div><label htmlFor="a-phone" className="mb-1 block text-xs text-repixl-text-light/70">Phone (optional)</label><input id="a-phone" type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} className={inputClass(errors.phone)} />{errors.phone && <p className="mt-1 text-xs text-red-400">{errors.phone}</p>}</div>
