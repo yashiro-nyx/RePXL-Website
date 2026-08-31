@@ -1,0 +1,38 @@
+name: Deploy database migrations
+
+# Applies any committed Prisma migrations to the production database whenever
+# schema/migration files change on `main`. Safe to run repeatedly — Prisma only
+# applies migrations that haven't been applied yet.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'prisma/**'
+      - '.github/workflows/db-migrate.yml'
+  workflow_dispatch: {} # allow manual runs from the Actions tab
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Apply migrations
+        run: npx prisma migrate deploy
+        env:
+          # Migrations use the DIRECT (non-pooled) connection string.
+          # Add this in: GitHub repo → Settings → Secrets and variables →
+          # Actions → New repository secret.
+          DIRECT_URL: ${{ secrets.DIRECT_URL }}
+          DATABASE_URL: ${{ secrets.DIRECT_URL }}

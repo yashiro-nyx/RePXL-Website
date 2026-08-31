@@ -1,9 +1,44 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Pagination } from '@/components/ui/Pagination'
+import { adminService } from '@/lib/data/adminService'
 
-const mockLogs = [
+interface LogRow {
+  id: string
+  date: string
+  action: string
+  entity: string
+  entityName: string
+  admin: string
+  adminEmail: string
+  description: string
+  ip: string
+  userAgent: string
+}
+
+// Map a raw API AdminLog action (e.g. CREATE_PRODUCT) into the richer row shape
+// this page renders.
+function mapApiLog(l: { id: string; action: string; details: string; adminName: string; createdAt: string }): LogRow {
+  const [verbRaw, entityRaw] = l.action.split('_')
+  const verb = verbRaw ? verbRaw.charAt(0) + verbRaw.slice(1).toLowerCase() : 'Update'
+  const entityMap: Record<string, string> = { PRODUCT: 'Camera', ORDER: 'Order', VOUCHER: 'Voucher', ADMIN: 'Admin', CUSTOMER: 'Admin' }
+  const entity = entityMap[(entityRaw ?? '').toUpperCase()] ?? 'Admin'
+  return {
+    id: l.id,
+    date: new Date(l.createdAt).toLocaleString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }),
+    action: ['Create', 'Update', 'Delete', 'Login', 'Logout'].includes(verb) ? verb : 'Update',
+    entity,
+    entityName: l.details.replace(/^[A-Za-z ]+:\s*/, ''),
+    admin: l.adminName,
+    adminEmail: '',
+    description: l.details,
+    ip: '—',
+    userAgent: 'API',
+  }
+}
+
+const mockLogs: LogRow[] = [
   { id: '1', date: 'Jul 27, 2026 09:14 AM', action: 'Create', entity: 'Camera', entityName: 'Canon PowerShot A520', admin: 'admin', adminEmail: 'admin@repixl-admin.com', description: 'Added new camera listing', ip: '192.168.1.10', userAgent: 'Mozilla/5.0 Chrome/126.0.0.0 Safari/537.36' },
   { id: '2', date: 'Jul 27, 2026 09:10 AM', action: 'Update', entity: 'Camera', entityName: 'Sony CyberShot W800', admin: 'admin', adminEmail: 'admin@repixl-admin.com', description: 'Updated stock from 2 to 3', ip: '192.168.1.10', userAgent: 'Mozilla/5.0 Chrome/126.0.0.0 Safari/537.36' },
   { id: '3', date: 'Jul 26, 2026 06:45 PM', action: 'Login', entity: 'Admin', entityName: 'admin', admin: 'admin', adminEmail: 'admin@repixl-admin.com', description: 'Admin admin logged in.', ip: '127.0.0.1', userAgent: 'Mozilla/5.0 Chrome/126.0.0.0 Safari/537.36' },
@@ -27,9 +62,17 @@ export default function AdminLogsPage() {
   const [actionFilter, setActionFilter] = useState('')
   const [detailsId, setDetailsId] = useState<string | null>(null)
   const [currentPage, setCurrentPage] = useState(1)
-  const detailLog = detailsId ? mockLogs.find((l) => l.id === detailsId) : null
+  const [apiLogs, setApiLogs] = useState<LogRow[]>([])
 
-  const filtered = mockLogs.filter((l) => {
+  useEffect(() => {
+    adminService.logs().then((logs) => setApiLogs(logs.map(mapApiLog)))
+  }, [])
+
+  // Prefer real API logs when available; fall back to the mock audit trail.
+  const allLogs: LogRow[] = apiLogs.length > 0 ? apiLogs : mockLogs
+  const detailLog = detailsId ? allLogs.find((l) => l.id === detailsId) : null
+
+  const filtered = allLogs.filter((l) => {
     if (entityFilter && l.entity !== entityFilter) return false
     if (actionFilter && l.action !== actionFilter) return false
     return true

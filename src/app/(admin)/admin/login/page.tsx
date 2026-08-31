@@ -30,7 +30,7 @@ export default function AdminLoginPage() {
     }
   }, [isLoggedIn, role, router])
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     const newErrors: LoginErrors = {}
 
@@ -40,12 +40,6 @@ export default function AdminLoginPage() {
     if (!password.trim()) {
       newErrors.password = 'Password is required.'
     }
-    if (!newErrors.email && !newErrors.password) {
-      if (email !== ADMIN_EMAIL || password !== ADMIN_PASSWORD) {
-        newErrors.auth = 'Invalid email or password.'
-      }
-    }
-
     setErrors(newErrors)
     if (Object.keys(newErrors).length > 0) return
 
@@ -62,8 +56,8 @@ export default function AdminLoginPage() {
       localStorage.setItem('repixl-users', JSON.stringify(users))
     }
 
-    // Try admin login
-    const success = loginAdmin(email, password)
+    // Try admin login (API-first, localStorage fallback)
+    const success = await loginAdmin(email, password)
     if (!success) {
       setErrors({ auth: 'Invalid email or password.' })
       return

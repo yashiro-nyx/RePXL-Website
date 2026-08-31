@@ -7,7 +7,7 @@ export async function POST(req: NextRequest) {
     if (!token || typeof token !== 'string') {
       return NextResponse.json({ valid: false }, { status: 400 })
     }
-    const email = validateResetToken(token)
+    const email = await validateResetToken(token)
     if (!email) {
       return NextResponse.json({ valid: false, message: 'Reset link is invalid or has expired.' }, { status: 400 })
     }

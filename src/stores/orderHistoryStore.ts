@@ -2,6 +2,7 @@
 
 import { create } from 'zustand'
 import type { Product } from '@/types'
+import { orderService } from '@/lib/data/orderService'
 
 export interface Order {
   orderNumber: string
@@ -24,67 +25,73 @@ export interface Order {
 interface OrderHistoryState {
   orders: Order[]
   archivedOrders: Order[]
-  addOrder: (order: Order) => void
-  updateStatus: (orderNumber: string, status: Order['status']) => void
-  archiveOrder: (orderNumber: string) => void
-  restoreOrder: (orderNumber: string) => void
-  hydrate: () => void
+  addOrder: (order: Order) => Promise<Order>
+  updateStatus: (orderNumber: string, status: Order['status']) => Promise<void>
+  archiveOrder: (orderNumber: string) => Promise<void>
+  restoreOrder: (orderNumber: string) => Promise<void>
+  hydrate: () => Promise<void>
 }
 
 export const useOrderHistoryStore = create<OrderHistoryState>((set, get) => ({
   orders: [],
   archivedOrders: [],
 
-  addOrder: (order) => {
-    const updated = [order, ...get().orders]
-    localStorage.setItem('repixl-orders', JSON.stringify(updated))
-    set({ orders: updated })
-  },
-
-  updateStatus: (orderNumber, status) => {
-    const updated = get().orders.map((o) =>
-      o.orderNumber === orderNumber ? { ...o, status } : o
+  addOrder: async (order) => {
+    // Persist via the transactional API (falls back to the client-built order).
+    const created = await orderService.create(
+      {
+        fullName: order.fullName,
+        address: order.address,
+        city: order.city,
+        postalCode: order.postalCode,
+        courierName: order.courierName,
+        courierEstimate: order.courierEstimate,
+        paymentMethod: order.paymentMethod,
+        shippingCost: order.shippingCost,
+      },
+      order
     )
-    localStorage.setItem('repixl-orders', JSON.stringify(updated))
-    set({ orders: updated })
+    set({ orders: [created, ...get().orders] })
+    return created
   },
 
-  archiveOrder: (orderNumber) => {
+  updateStatus: async (orderNumber, status) => {
+    set({
+      orders: get().orders.map((o) =>
+        o.orderNumber === orderNumber ? { ...o, status } : o
+      ),
+    })
+    await orderService.updateStatus(orderNumber, status)
+  },
+
+  archiveOrder: async (orderNumber) => {
     const { orders, archivedOrders } = get()
     const order = orders.find((o) => o.orderNumber === orderNumber)
     if (!order) return
-    const updatedOrders = orders.filter((o) => o.orderNumber !== orderNumber)
-    const updatedArchived = [order, ...archivedOrders]
-    localStorage.setItem('repixl-orders', JSON.stringify(updatedOrders))
-    localStorage.setItem('repixl-archived-orders', JSON.stringify(updatedArchived))
-    set({ orders: updatedOrders, archivedOrders: updatedArchived })
+    set({
+      orders: orders.filter((o) => o.orderNumber !== orderNumber),
+      archivedOrders: [order, ...archivedOrders],
+    })
+    await orderService.archive(orderNumber)
   },
 
-  restoreOrder: (orderNumber) => {
+  restoreOrder: async (orderNumber) => {
     const { orders, archivedOrders } = get()
     const order = archivedOrders.find((o) => o.orderNumber === orderNumber)
     if (!order) return
-    const updatedArchived = archivedOrders.filter((o) => o.orderNumber !== orderNumber)
-    const updatedOrders = [order, ...orders]
-    localStorage.setItem('repixl-orders', JSON.stringify(updatedOrders))
-    localStorage.setItem('repixl-archived-orders', JSON.stringify(updatedArchived))
-    set({ orders: updatedOrders, archivedOrders: updatedArchived })
+    set({
+      archivedOrders: archivedOrders.filter((o) => o.orderNumber !== orderNumber),
+      orders: [order, ...orders],
+    })
+    await orderService.restore(orderNumber)
   },
 
-  hydrate: () => {
+  hydrate: async () => {
     try {
-      const stored = localStorage.getItem('repixl-orders')
-      if (stored) {
-        const orders: Order[] = JSON.parse(stored)
-        set({ orders })
-      }
-      const archivedStored = localStorage.getItem('repixl-archived-orders')
-      if (archivedStored) {
-        const archivedOrders: Order[] = JSON.parse(archivedStored)
-        set({ archivedOrders })
-      }
+      const { orders, archived } = await orderService.list()
+      set({ orders, archivedOrders: archived })
     } catch {
-      // ignore
+      // ignore — keep current
     }
   },
 }))

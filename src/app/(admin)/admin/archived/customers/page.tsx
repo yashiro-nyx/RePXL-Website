@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useArchivedCustomerStore } from '@/stores/archivedCustomerStore'
+import { adminService } from '@/lib/data/adminService'
 
 function censorName(name: string) { return name.split(' ').map((p) => p[0] + '*'.repeat(Math.max(p.length - 1, 4))).join(' ') }
 
@@ -14,6 +15,7 @@ export default function ArchivedCustomersPage() {
 
   const handleRestore = (id: string) => {
     restoreCustomer(id)
+    void adminService.restoreCustomer(id)
     setConfirmRestore(null)
   }
 

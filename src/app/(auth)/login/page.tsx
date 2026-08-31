@@ -66,7 +66,7 @@ function LoginContent() {
     }
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     const newErrors = validate()
     setErrors(newErrors)
@@ -74,7 +74,7 @@ function LoginContent() {
     const form = formRef.current!
     const email = (form.querySelector('#login-email') as HTMLInputElement)?.value ?? ''
     const password = (form.querySelector('#login-password') as HTMLInputElement)?.value ?? ''
-    const success = login(email, password)
+    const success = await login(email, password)
     if (!success) {
       setErrors({ email: 'Invalid email or password.' })
       return

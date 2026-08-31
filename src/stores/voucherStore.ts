@@ -1,6 +1,7 @@
 'use client'
 
 import { create } from 'zustand'
+import { voucherService } from '@/lib/data/voucherService'
 
 export interface Voucher {
   id: string
@@ -20,11 +21,11 @@ export interface Voucher {
 
 interface VoucherState {
   vouchers: Voucher[]
-  addVoucher: (v: Omit<Voucher, 'id' | 'used'>) => void
-  deleteVoucher: (id: string) => void
+  addVoucher: (v: Omit<Voucher, 'id' | 'used'>) => Promise<void>
+  deleteVoucher: (id: string) => Promise<void>
   useVoucher: (code: string) => void
-  validateCode: (code: string, cartTotal: number) => { valid: boolean; discount: number; error?: string }
-  hydrate: () => void
+  validateCode: (code: string, cartTotal: number) => Promise<{ valid: boolean; discount: number; error?: string }>
+  hydrate: () => Promise<void>
 }
 
 const seedVouchers: Voucher[] = [
@@ -40,14 +41,14 @@ function persist(vouchers: Voucher[]) {
 export const useVoucherStore = create<VoucherState>((set, get) => ({
   vouchers: seedVouchers,
 
-  addVoucher: (v) => {
-    const updated = [{ ...v, id: `v-${Date.now()}`, used: 0 }, ...get().vouchers]
-    persist(updated); set({ vouchers: updated })
+  addVoucher: async (v) => {
+    const created = await voucherService.create(seedVouchers, v)
+    set({ vouchers: [created, ...get().vouchers] })
   },
 
-  deleteVoucher: (id) => {
-    const updated = get().vouchers.filter((v) => v.id !== id)
-    persist(updated); set({ vouchers: updated })
+  deleteVoucher: async (id) => {
+    set({ vouchers: get().vouchers.filter((v) => v.id !== id) })
+    await voucherService.remove(seedVouchers, id)
   },
 
   useVoucher: (code) => {
@@ -55,28 +56,14 @@ export const useVoucherStore = create<VoucherState>((set, get) => ({
     persist(updated); set({ vouchers: updated })
   },
 
-  validateCode: (code, cartTotal) => {
-    const voucher = get().vouchers.find((v) => v.code === code.toUpperCase().trim())
-    if (!voucher) return { valid: false, discount: 0, error: 'Invalid voucher code.' }
-    if (voucher.status !== 'active') return { valid: false, discount: 0, error: 'This voucher has expired.' }
-    if (voucher.used >= voucher.usageLimit) return { valid: false, discount: 0, error: 'This voucher has reached its usage limit.' }
-    if (cartTotal < voucher.minPurchase) return { valid: false, discount: 0, error: `Minimum purchase of $${voucher.minPurchase} required.` }
+  validateCode: (code, cartTotal) => voucherService.validate(get().vouchers, code, cartTotal),
 
-    let discount = 0
-    if (voucher.discountType === 'percentage') {
-      discount = Math.round(cartTotal * (voucher.discountValue / 100))
-      if (discount > voucher.maxDiscount) discount = voucher.maxDiscount
-    } else {
-      discount = voucher.discountValue
-    }
-
-    return { valid: true, discount }
-  },
-
-  hydrate: () => {
+  hydrate: async () => {
     try {
-      const stored = localStorage.getItem('repixl-vouchers')
-      if (stored) { set({ vouchers: JSON.parse(stored) }) }
-    } catch {}
+      const vouchers = await voucherService.list(seedVouchers)
+      if (vouchers.length > 0) set({ vouchers })
+    } catch {
+      // keep seed
+    }
   },
 }))

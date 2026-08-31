@@ -17,7 +17,7 @@ export async function POST(req: NextRequest) {
     }
 
     const token = randomBytes(32).toString('hex')
-    storeResetToken(token, email)
+    await storeResetToken(token, email)
 
     const siteUrl =
       process.env.NEXT_PUBLIC_SITE_URL ??

@@ -50,11 +50,11 @@ export default function CartPage() {
     else router.push('/checkout')
   }
 
-  const handlePromo = (e: React.FormEvent) => {
+  const handlePromo = async (e: React.FormEvent) => {
     e.preventDefault()
     setPromoError('')
     if (!promoCode.trim()) return
-    const result = validateCode(promoCode, subtotal)
+    const result = await validateCode(promoCode, subtotal)
     if (!result.valid) {
       setPromoError(result.error || 'Invalid code.')
       return

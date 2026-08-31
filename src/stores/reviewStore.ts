@@ -1,6 +1,7 @@
 'use client'
 
 import { create } from 'zustand'
+import { reviewService } from '@/lib/data/reviewService'
 
 export interface Review {
   id: string
@@ -15,15 +16,15 @@ export interface Review {
 
 interface ReviewState {
   reviews: Review[]
-  addReview: (review: Omit<Review, 'id'>) => void
-  updateReview: (id: string, data: Partial<Pick<Review, 'rating' | 'comment'>>) => void
-  deleteReview: (id: string) => void
+  addReview: (review: Omit<Review, 'id'>) => Promise<void>
+  updateReview: (id: string, data: Partial<Pick<Review, 'rating' | 'comment'>>) => Promise<void>
+  deleteReview: (id: string) => Promise<void>
   getProductReviews: (slug: string) => Review[]
   getUserReviews: (email: string) => Review[]
   getUserReviewForProduct: (email: string, slug: string) => Review | undefined
   getAverageRating: (slug: string) => number
   getReviewCount: (slug: string) => number
-  hydrate: () => void
+  hydrate: () => Promise<void>
 }
 
 function persist(reviews: Review[]) {
@@ -85,23 +86,30 @@ const seedReviews: Review[] = [
 export const useReviewStore = create<ReviewState>((set, get) => ({
   reviews: seedReviews,
 
-  addReview: (review) => {
-    const id = `review-${Date.now().toString(36)}`
-    const updated = [{ ...review, id }, ...get().reviews]
-    persist(updated)
-    set({ reviews: updated })
+  addReview: async (review) => {
+    // Optimistic insert with a temp id; reconcile with the service result.
+    const tempId = `review-${Date.now().toString(36)}`
+    const optimistic: Review = { ...review, id: tempId }
+    set({ reviews: [optimistic, ...get().reviews] })
+    persist(get().reviews)
+    const created = await reviewService.add(review)
+    // Preserve the reviewerEmail locally (API doesn't return it) so the
+    // "your review" lookups keep working this session.
+    const merged: Review = { ...created, reviewerEmail: review.reviewerEmail || created.reviewerEmail }
+    set({ reviews: get().reviews.map((r) => (r.id === tempId ? merged : r)) })
+    persist(get().reviews)
   },
 
-  updateReview: (id, data) => {
-    const updated = get().reviews.map((r) => r.id === id ? { ...r, ...data } : r)
-    persist(updated)
-    set({ reviews: updated })
+  updateReview: async (id, data) => {
+    set({ reviews: get().reviews.map((r) => (r.id === id ? { ...r, ...data } : r)) })
+    persist(get().reviews)
+    await reviewService.update(id, data)
   },
 
-  deleteReview: (id) => {
-    const updated = get().reviews.filter((r) => r.id !== id)
-    persist(updated)
-    set({ reviews: updated })
+  deleteReview: async (id) => {
+    set({ reviews: get().reviews.filter((r) => r.id !== id) })
+    persist(get().reviews)
+    await reviewService.remove(id)
   },
 
   getProductReviews: (slug) => get().reviews.filter((r) => r.productSlug === slug),
@@ -114,14 +122,12 @@ export const useReviewStore = create<ReviewState>((set, get) => ({
   },
   getReviewCount: (slug) => get().reviews.filter((r) => r.productSlug === slug).length,
 
-  hydrate: () => {
+  hydrate: async () => {
     try {
-      const stored = localStorage.getItem('repixl-reviews')
-      if (stored) {
-        set({ reviews: JSON.parse(stored) })
-      }
+      const reviews = await reviewService.listAll(seedReviews)
+      if (reviews.length > 0) set({ reviews })
     } catch {
-      // ignore — use seed data
+      // keep current (seed) data
     }
   },
 }))

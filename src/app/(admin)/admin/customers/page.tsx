@@ -3,20 +3,8 @@
 import { useState, useEffect } from 'react'
 import { useOrderHistoryStore } from '@/stores/orderHistoryStore'
 import { useArchivedCustomerStore } from '@/stores/archivedCustomerStore'
+import { adminService, type AdminCustomer } from '@/lib/data/adminService'
 import { Pagination } from '@/components/ui/Pagination'
-
-const mockCustomers = [
-  { id: '1', name: 'Mia Rodriguez', email: 'mia.rodriguez@gmail.com', role: 'User' },
-  { id: '2', name: 'Jordan Torres', email: 'jordan.torres@yahoo.com', role: 'User' },
-  { id: '3', name: 'Sam Davis', email: 'sam.davis@gmail.com', role: 'User' },
-  { id: '4', name: 'Alyssa Kim', email: 'alyssa.kim@outlook.com', role: 'User' },
-  { id: '5', name: 'Chris Lee', email: 'chris.lee@hotmail.com', role: 'User' },
-  { id: '6', name: 'Taylor Morgan', email: 'taylor.morgan@gmail.com', role: 'User' },
-  { id: '7', name: 'Riley Nash', email: 'riley.nash@yahoo.com', role: 'User' },
-  { id: '8', name: 'Casey Flores', email: 'casey.flores@gmail.com', role: 'User' },
-  { id: '9', name: 'Morgan Park', email: 'morgan.park@outlook.com', role: 'User' },
-  { id: '10', name: 'Avery Chen', email: 'avery.chen@gmail.com', role: 'User' },
-]
 
 const statusStyles: Record<string, string> = {
   Processing: 'bg-amber-500/15 text-amber-400 border-amber-500/30',
@@ -41,15 +29,17 @@ export default function AdminCustomersPage() {
   const orders = useOrderHistoryStore((s) => s.orders)
   const archiveCustomer = useArchivedCustomerStore((s) => s.archiveCustomer)
   const archivedCustomers = useArchivedCustomerStore((s) => s.archivedCustomers)
+  const [customers, setCustomers] = useState<AdminCustomer[]>([])
 
   useEffect(() => {
     useOrderHistoryStore.getState().hydrate()
     useArchivedCustomerStore.getState().hydrate()
+    adminService.listCustomers().then(setCustomers)
   }, [])
 
   // Filter out already-archived customers
   const archivedIds = archivedCustomers.map((c) => c.id)
-  const activeCustomers = mockCustomers.filter((c) => !archivedIds.includes(c.id))
+  const activeCustomers = customers.filter((c) => !archivedIds.includes(c.id))
 
   const filtered = activeCustomers.filter((c) => !searchQuery.trim() || c.name.toLowerCase().includes(searchQuery.toLowerCase()) || c.email.toLowerCase().includes(searchQuery.toLowerCase()))
   const ITEMS_PER_PAGE = 10
@@ -60,7 +50,8 @@ export default function AdminCustomersPage() {
   const handleArchive = (id: string) => {
     const customer = activeCustomers.find((c) => c.id === id)
     if (customer) {
-      archiveCustomer(customer)
+      archiveCustomer({ id: customer.id, name: customer.name, email: customer.email, role: customer.role })
+      void adminService.archiveCustomer(id)
     }
     setConfirmArchive(null)
   }

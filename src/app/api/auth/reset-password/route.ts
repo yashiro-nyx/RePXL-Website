@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
+import bcrypt from 'bcryptjs'
+import { prisma } from '@/lib/prisma'
 import { consumeResetToken } from '@/lib/resetTokens'
 
 const MIN_PASSWORD_LENGTH = 8
@@ -23,8 +25,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ message: 'Password must contain at least one number.' }, { status: 400 })
     }
 
-    // Consume the token (single-use, also validates expiry)
-    const email = consumeResetToken(token)
+    // Consume the token (single-use, atomically validates expiry + unused state)
+    const email = await consumeResetToken(token)
     if (!email) {
       return NextResponse.json(
         { message: 'Reset link is invalid or has expired. Please request a new one.' },
@@ -32,8 +34,22 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    // Return the authorized email — the client will update localStorage
-    // The server cannot do this directly since the user store is client-side only
+    // Update the user's password directly in the database.
+    const user = await prisma.user.findUnique({ where: { email } })
+    if (!user) {
+      // Token was valid but no matching account — respond generically.
+      return NextResponse.json(
+        { message: 'Reset link is invalid or has expired. Please request a new one.' },
+        { status: 400 }
+      )
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, 12)
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { password: hashedPassword },
+    })
+
     return NextResponse.json({ success: true, email })
   } catch (err) {
     console.error('[reset-password]', err)

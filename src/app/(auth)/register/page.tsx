@@ -69,7 +69,7 @@ export default function RegisterPage() {
     }
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     const newErrors = validate()
     setErrors(newErrors)
@@ -78,7 +78,7 @@ export default function RegisterPage() {
     const firstName = (form.querySelector('#reg-first') as HTMLInputElement)?.value ?? ''
     const lastName = (form.querySelector('#reg-last') as HTMLInputElement)?.value ?? ''
     const email = (form.querySelector('#reg-email') as HTMLInputElement)?.value ?? ''
-    const success = register(firstName.trim(), lastName.trim(), email.trim(), password)
+    const success = await register(firstName.trim(), lastName.trim(), email.trim(), password)
     if (!success) {
       setErrors({ ...errors, email: 'An account with this email already exists.' })
       return

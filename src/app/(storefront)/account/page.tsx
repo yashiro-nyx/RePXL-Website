@@ -550,13 +550,13 @@ function SecurityTab() {
 
   const allMet = passwordRequirements.every((r) => r.test(newPassword))
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
     if (!currentPassword.trim()) { setError('Enter your current password.'); return }
     if (!allMet) { setError('New password does not meet requirements.'); return }
     if (newPassword !== confirmPassword) { setError('Passwords do not match.'); return }
-    const success = changePassword(currentPassword, newPassword)
+    const success = await changePassword(currentPassword, newPassword)
     if (!success) { setError('Current password is incorrect.'); return }
     setSaved(true)
     setCurrentPassword(''); setNewPassword(''); setConfirmPassword('')

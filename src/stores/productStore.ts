@@ -3,54 +3,54 @@
 import { create } from 'zustand'
 import type { Product } from '@/types'
 import { products as seedProducts } from '@/data/products'
+import { productService } from '@/lib/data/productService'
 
 interface ProductState {
   products: Product[]
-  addProduct: (product: Product) => void
-  updateProduct: (slug: string, updates: Partial<Product>) => void
-  deleteProduct: (slug: string) => void
-  hydrate: () => void
-}
-
-function persist(products: Product[]) {
-  localStorage.setItem('repixl-products', JSON.stringify(products))
+  loading: boolean
+  addProduct: (product: Product) => Promise<void>
+  updateProduct: (slug: string, updates: Partial<Product>) => Promise<void>
+  deleteProduct: (slug: string) => Promise<void>
+  hydrate: () => Promise<void>
 }
 
 export const useProductStore = create<ProductState>((set, get) => ({
+  // Seed synchronously so first paint has content; hydrate() replaces it with
+  // API (or localStorage) data.
   products: seedProducts,
+  loading: false,
 
-  addProduct: (product) => {
-    const updated = [...get().products, product]
-    persist(updated)
-    set({ products: updated })
+  addProduct: async (product) => {
+    // Optimistic in-memory update, then reconcile with the service result.
+    set({ products: [...get().products, product] })
+    const created = await productService.create(product)
+    set({
+      products: get().products.map((p) => (p.slug === created.slug ? created : p)),
+    })
   },
 
-  updateProduct: (slug, updates) => {
-    const updated = get().products.map((p) =>
-      p.slug === slug ? { ...p, ...updates } : p
-    )
-    persist(updated)
-    set({ products: updated })
+  updateProduct: async (slug, updates) => {
+    set({
+      products: get().products.map((p) => (p.slug === slug ? { ...p, ...updates } : p)),
+    })
+    const updated = await productService.update(slug, updates)
+    set({
+      products: get().products.map((p) => (p.slug === slug ? updated : p)),
+    })
   },
 
-  deleteProduct: (slug) => {
-    const updated = get().products.filter((p) => p.slug !== slug)
-    persist(updated)
-    set({ products: updated })
+  deleteProduct: async (slug) => {
+    set({ products: get().products.filter((p) => p.slug !== slug) })
+    await productService.remove(slug)
   },
 
-  hydrate: () => {
+  hydrate: async () => {
+    set({ loading: true })
     try {
-      const stored = localStorage.getItem('repixl-products')
-      if (stored) {
-        const parsed: Product[] = JSON.parse(stored)
-        if (parsed.length > 0 && parsed[0].status) {
-          set({ products: parsed })
-          return
-        }
-      }
-    } catch {
-      // use seed data
+      const products = await productService.list()
+      if (products.length > 0) set({ products })
+    } finally {
+      set({ loading: false })
     }
   },
 }))

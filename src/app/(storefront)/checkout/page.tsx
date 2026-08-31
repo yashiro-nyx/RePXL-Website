@@ -10,6 +10,7 @@ import { useCartStore } from '@/stores/cartStore'
 import { useProductStore } from '@/stores/productStore'
 import { useOrderHistoryStore } from '@/stores/orderHistoryStore'
 import { useAddressStore } from '@/stores/addressStore'
+import { isPaymongoEnabled, startPaymongoCheckout } from '@/lib/data/checkoutService'
 import { termsContent, privacyContent } from '@/data/legal'
 import type { Product, CartItem } from '@/types'
 
@@ -217,7 +218,7 @@ export default function CheckoutPage() {
     }
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     const newErrors = validate()
     setErrors(newErrors)
@@ -229,22 +230,35 @@ export default function CheckoutPage() {
     const now = new Date()
     const dateStr = now.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
 
-    const orderNum = `RPX-${Date.now().toString(36).toUpperCase().slice(-6)}`
+    const clientOrderNum = `RPX-${Date.now().toString(36).toUpperCase().slice(-6)}`
 
-    setConfirmation({
-      orderNumber: orderNum,
-      fullName: get('full-name'),
-      address: get('address'),
-      city: get('city'),
-      postalCode: get('postal-code'),
-      paymentMethod,
-      courier,
-      date: dateStr,
-    })
+    // ── Real payment path (PayMongo) ──
+    // If the gateway is enabled, create a hosted-checkout session and redirect
+    // the customer to PayMongo. The order is finalized by the webhook on payment.
+    if (isPaymongoEnabled()) {
+      try {
+        const { checkoutUrl } = await startPaymongoCheckout({
+          fullName: get('full-name'),
+          address: get('address'),
+          city: get('city'),
+          postalCode: get('postal-code'),
+          courierName: courier.name,
+          courierEstimate: courier.estimate,
+          paymentMethod: paymentLabels[paymentMethod],
+          shippingCost: courier.price,
+        })
+        window.location.href = checkoutUrl
+        return
+      } catch (err) {
+        // Gateway unavailable — fall through to the direct-order flow below.
+        console.warn('PayMongo checkout unavailable, using direct order flow.', err)
+      }
+    }
 
-    // Save to order history
-    addOrder({
-      orderNumber: orderNum,
+    // Persist the order (API-first; the server generates the authoritative order
+    // number and applies the transaction, else we fall back to the client one).
+    const created = await addOrder({
+      orderNumber: clientOrderNum,
       date: dateStr,
       items: cartItems.map((i) => i.product),
       subtotal,
@@ -261,7 +275,18 @@ export default function CheckoutPage() {
       userEmail: useAuthStore.getState().userEmail,
     })
 
-    clearCart()
+    setConfirmation({
+      orderNumber: created.orderNumber,
+      fullName: get('full-name'),
+      address: get('address'),
+      city: get('city'),
+      postalCode: get('postal-code'),
+      paymentMethod,
+      courier,
+      date: dateStr,
+    })
+
+    await clearCart()
     window.scrollTo({ top: 0 })
   }
 

@@ -1,0 +1,306 @@
+// RePXL Database Schema
+// PostgreSQL via Prisma ORM
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ─── USER & AUTH ────────────────────────────────────────────────────────────────
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  password      String
+  firstName     String    @map("first_name")
+  lastName      String    @map("last_name")
+  phone         String    @default("")
+  role          Role      @default(CUSTOMER)
+  isSuperAdmin  Boolean   @default(false) @map("is_super_admin")
+  isArchived    Boolean   @default(false) @map("is_archived")
+  archivedAt    DateTime? @map("archived_at")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  cartItems     CartItem[]
+  orders        Order[]
+  reviews       Review[]
+  addresses     Address[]
+  wishlistItems WishlistItem[]
+
+  @@map("users")
+}
+
+enum Role {
+  CUSTOMER
+  ADMIN
+}
+
+// ─── PASSWORD RESET ─────────────────────────────────────────────────────────────
+// Serverless-safe replacement for the previous in-memory token Map.
+// The raw token is only ever sent in the reset email; we persist a SHA-256 hash.
+
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  tokenHash String   @unique @map("token_hash")
+  email     String
+  expiresAt DateTime @map("expires_at")
+  usedAt    DateTime? @map("used_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([email])
+  @@map("password_reset_tokens")
+}
+
+// ─── PRODUCTS ───────────────────────────────────────────────────────────────────
+
+model Product {
+  id             String        @id @default(cuid())
+  slug           String        @unique
+  name           String
+  brand          String
+  series         String
+  price          Float
+  condition      Condition
+  image          String
+  stock          Int           @default(0)
+  description    String
+  status         ProductStatus @default(ACTIVE)
+  serialNumber   String?       @map("serial_number")
+  conditionNotes String?       @map("condition_notes")
+
+  // Specs (embedded as JSON for flexibility)
+  megapixels     Float
+  zoom           String
+  storage        String
+  year           Int
+
+  createdAt      DateTime      @default(now()) @map("created_at")
+  updatedAt      DateTime      @updatedAt @map("updated_at")
+
+  // Relations
+  cartItems      CartItem[]
+  orderItems     OrderItem[]
+  reviews        Review[]
+  wishlistItems  WishlistItem[]
+
+  @@map("products")
+}
+
+enum Condition {
+  MINT
+  EXCELLENT
+  GOOD
+  FAIR
+}
+
+enum ProductStatus {
+  ACTIVE
+  INACTIVE
+  COMING_SOON
+  DISCONTINUED
+}
+
+// ─── CART ───────────────────────────────────────────────────────────────────────
+
+model CartItem {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  productId String   @map("product_id")
+  quantity  Int      @default(1)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, productId])
+  @@map("cart_items")
+}
+
+// ─── ORDERS ─────────────────────────────────────────────────────────────────────
+
+model Order {
+  id              String      @id @default(cuid())
+  orderNumber     String      @unique @map("order_number")
+  userId          String      @map("user_id")
+  status          OrderStatus @default(PROCESSING)
+  subtotal        Float
+  shippingCost    Float       @map("shipping_cost")
+  discount        Float       @default(0)
+  total           Float
+  courierName     String      @map("courier_name")
+  courierEstimate String      @map("courier_estimate")
+  paymentMethod   String      @map("payment_method")
+  voucherCode     String?     @map("voucher_code")
+
+  // Payment gateway (PayMongo) tracking
+  paymentStatus     PaymentStatus @default(PENDING) @map("payment_status")
+  paymentSessionId  String?       @map("payment_session_id")
+  paymentIntentId   String?       @map("payment_intent_id")
+  paymentReference  String?       @map("payment_reference")
+
+  // Shipping address (snapshot at time of order)
+  fullName        String      @map("full_name")
+  address         String
+  city            String
+  postalCode      String      @map("postal_code")
+
+  isArchived      Boolean     @default(false) @map("is_archived")
+  createdAt       DateTime    @default(now()) @map("created_at")
+  updatedAt       DateTime    @updatedAt @map("updated_at")
+
+  // Relations
+  user            User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items           OrderItem[]
+
+  @@map("orders")
+}
+
+model OrderItem {
+  id        String @id @default(cuid())
+  orderId   String @map("order_id")
+  productId String @map("product_id")
+  quantity  Int
+  price     Float  // Price at time of purchase
+
+  order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@map("order_items")
+}
+
+enum OrderStatus {
+  PROCESSING
+  SHIPPED
+  DELIVERED
+  COMPLETED
+  CANCELLED
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+}
+
+// ─── REVIEWS ────────────────────────────────────────────────────────────────────
+
+model Review {
+  id               String   @id @default(cuid())
+  productId        String   @map("product_id")
+  userId           String   @map("user_id")
+  reviewerName     String   @map("reviewer_name")
+  rating           Int      // 1-5
+  comment          String
+  verifiedPurchase Boolean  @default(false) @map("verified_purchase")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, productId])
+  @@map("reviews")
+}
+
+// ─── ADDRESSES ──────────────────────────────────────────────────────────────────
+
+model Address {
+  id         String  @id @default(cuid())
+  userId     String  @map("user_id")
+  fullName   String  @map("full_name")
+  address    String
+  city       String
+  postalCode String  @map("postal_code")
+  phone      String
+  isDefault  Boolean @default(false) @map("is_default")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("addresses")
+}
+
+// ─── WISHLIST ───────────────────────────────────────────────────────────────────
+
+model WishlistItem {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  productId String   @map("product_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, productId])
+  @@map("wishlist_items")
+}
+
+// ─── VOUCHERS ───────────────────────────────────────────────────────────────────
+
+model Voucher {
+  id            String        @id @default(cuid())
+  code          String        @unique
+  discountType  DiscountType  @map("discount_type")
+  discountValue Float         @map("discount_value")
+  minPurchase   Float         @default(0) @map("min_purchase")
+  maxDiscount   Float         @default(0) @map("max_discount")
+  usageLimit    Int           @default(0) @map("usage_limit")
+  perUserLimit  Int           @default(1) @map("per_user_limit")
+  used          Int           @default(0)
+  validFrom     DateTime      @map("valid_from")
+  validUntil    DateTime      @map("valid_until")
+  status        VoucherStatus @default(ACTIVE)
+  description   String        @default("")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("vouchers")
+}
+
+enum DiscountType {
+  PERCENTAGE
+  FIXED
+}
+
+enum VoucherStatus {
+  ACTIVE
+  EXPIRED
+  DISABLED
+}
+
+// ─── ADMIN LOGS ─────────────────────────────────────────────────────────────────
+
+model AdminLog {
+  id        String   @id @default(cuid())
+  action    String
+  details   String
+  adminId   String   @map("admin_id")
+  adminName String   @map("admin_name")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("admin_logs")
+}
+
+// ─── NEWSLETTER ─────────────────────────────────────────────────────────────────
+
+model NewsletterSubscriber {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  isSubscribed Boolean  @default(true) @map("is_subscribed")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  @@map("newsletter_subscribers")
+}

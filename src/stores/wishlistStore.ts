@@ -2,49 +2,42 @@
 
 import { create } from 'zustand'
 import { useAuthStore } from './authStore'
+import { wishlistService } from '@/lib/data/wishlistService'
 
 interface WishlistState {
   slugs: string[]
-  addToWishlist: (slug: string) => void
-  removeFromWishlist: (slug: string) => void
+  addToWishlist: (slug: string) => Promise<void>
+  removeFromWishlist: (slug: string) => Promise<void>
   isInWishlist: (slug: string) => boolean
-  hydrate: () => void
+  hydrate: () => Promise<void>
 }
 
-function getKey() {
-  const email = useAuthStore.getState().userEmail
-  return email ? `repixl-wishlist-${email}` : 'repixl-wishlist-guest'
-}
-
-function persist(slugs: string[]) {
-  localStorage.setItem(getKey(), JSON.stringify(slugs))
+function currentEmail(): string | null {
+  return useAuthStore.getState().userEmail || null
 }
 
 export const useWishlistStore = create<WishlistState>((set, get) => ({
   slugs: [],
 
-  addToWishlist: (slug) => {
+  addToWishlist: async (slug) => {
     if (get().slugs.includes(slug)) return
-    const updated = [...get().slugs, slug]
-    persist(updated); set({ slugs: updated })
+    set({ slugs: [...get().slugs, slug] })
+    await wishlistService.add(currentEmail(), slug)
   },
 
-  removeFromWishlist: (slug) => {
-    const updated = get().slugs.filter((s) => s !== slug)
-    persist(updated); set({ slugs: updated })
+  removeFromWishlist: async (slug) => {
+    set({ slugs: get().slugs.filter((s) => s !== slug) })
+    await wishlistService.remove(currentEmail(), slug)
   },
 
   isInWishlist: (slug) => get().slugs.includes(slug),
 
-  hydrate: () => {
+  hydrate: async () => {
     try {
-      const stored = localStorage.getItem(getKey())
-      if (stored) {
-        const data = JSON.parse(stored)
-        if (Array.isArray(data) && data.length > 0 && typeof data[0] === 'string') {
-          set({ slugs: data })
-        } else { set({ slugs: [] }) }
-      } else { set({ slugs: [] }) }
-    } catch { set({ slugs: [] }) }
+      const slugs = await wishlistService.list(currentEmail())
+      set({ slugs })
+    } catch {
+      set({ slugs: [] })
+    }
   },
 }))

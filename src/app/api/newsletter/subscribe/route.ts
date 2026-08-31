@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createTransporter, isMailerConfigured } from '@/lib/mailer'
+import { prisma } from '@/lib/prisma'
 
 // Simple in-memory rate limiter: max 3 requests per IP per 10 minutes
 const rateLimitMap = new Map<string, { count: number; resetAt: number }>()
@@ -31,6 +32,14 @@ export async function POST(req: NextRequest) {
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       return NextResponse.json({ message: 'Invalid email address.' }, { status: 400 })
     }
+
+    // Persist the subscriber (idempotent) so the list survives regardless of
+    // whether the confirmation email can be sent.
+    await prisma.newsletterSubscriber.upsert({
+      where: { email },
+      update: { isSubscribed: true },
+      create: { email, isSubscribed: true },
+    })
 
     const now = new Date()
     const dateStr = now.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
