@@ -329,37 +329,37 @@ export default function CheckoutPage() {
             </div>
 
             {/* RECEIPT — visible on screen and in print */}
-            <div id="receipt" className="receipt rounded-lg border border-repixl-muted/20 bg-repixl-charcoal p-6 md:p-8">
+            <div id="receipt" className="receipt-print-area rounded-lg border border-repixl-muted/20 bg-repixl-charcoal p-6 md:p-8">
 
               {/* Receipt header */}
               <div className="mb-6 border-b border-repixl-muted/10 pb-6 text-center">
                 <p className="font-display text-2xl font-bold text-repixl-text-light">RePXL</p>
-                <p className="mt-0.5 font-mono text-[10px] uppercase tracking-widest text-repixl-muted">Order Receipt</p>
+                <p className="mt-0.5 font-mono text-[10px] uppercase tracking-widest text-repixl-muted print-muted">Order Receipt</p>
               </div>
 
               {/* Order meta */}
               <div className="mb-6 grid grid-cols-2 gap-4 border-b border-repixl-muted/10 pb-6">
                 <div>
-                  <p className="font-mono text-[9px] uppercase tracking-widest text-repixl-muted">Order Number</p>
-                  <p className="mt-1 font-mono text-sm font-semibold text-repixl-red">{confirmation.orderNumber}</p>
+                  <p className="font-mono text-[9px] uppercase tracking-widest text-repixl-muted print-muted">Order Number</p>
+                  <p className="mt-1 font-mono text-sm font-semibold text-repixl-red print-red">{confirmation.orderNumber}</p>
                 </div>
                 <div>
-                  <p className="font-mono text-[9px] uppercase tracking-widest text-repixl-muted">Order Date</p>
+                  <p className="font-mono text-[9px] uppercase tracking-widest text-repixl-muted print-muted">Order Date</p>
                   <p className="mt-1 text-sm text-repixl-text-light">{confirmation.date}</p>
                 </div>
                 <div>
-                  <p className="font-mono text-[9px] uppercase tracking-widest text-repixl-muted">Order Status</p>
+                  <p className="font-mono text-[9px] uppercase tracking-widest text-repixl-muted print-muted">Order Status</p>
                   <p className="mt-1 text-sm text-repixl-text-light">Processing</p>
                 </div>
                 <div>
-                  <p className="font-mono text-[9px] uppercase tracking-widest text-repixl-muted">Payment</p>
+                  <p className="font-mono text-[9px] uppercase tracking-widest text-repixl-muted print-muted">Payment</p>
                   <p className="mt-1 text-sm text-repixl-text-light">{paymentLabels[confirmation.paymentMethod]}</p>
                 </div>
               </div>
 
               {/* Customer info */}
               <div className="mb-6 border-b border-repixl-muted/10 pb-6">
-                <p className="mb-2 font-mono text-[9px] uppercase tracking-widest text-repixl-muted">Customer Information</p>
+                <p className="mb-2 font-mono text-[9px] uppercase tracking-widest text-repixl-muted print-muted">Customer Information</p>
                 <p className="text-sm text-repixl-text-light">{confirmation.fullName}</p>
                 <p className="text-sm text-repixl-text-light/70">{confirmation.email}</p>
                 {confirmation.phone && <p className="text-sm text-repixl-text-light/70">{confirmation.phone}</p>}
@@ -367,25 +367,25 @@ export default function CheckoutPage() {
 
               {/* Shipping address */}
               <div className="mb-6 border-b border-repixl-muted/10 pb-6">
-                <p className="mb-2 font-mono text-[9px] uppercase tracking-widest text-repixl-muted">Shipping Address</p>
+                <p className="mb-2 font-mono text-[9px] uppercase tracking-widest text-repixl-muted print-muted">Shipping Address</p>
                 <p className="text-sm text-repixl-text-light">{confirmation.fullName}</p>
                 <p className="text-sm text-repixl-text-light/70">{confirmation.address}</p>
                 <p className="text-sm text-repixl-text-light/70">{confirmation.barangay}</p>
                 <p className="text-sm text-repixl-text-light/70">{confirmation.city}, {confirmation.province}</p>
                 <p className="text-sm text-repixl-text-light/70">{confirmation.postalCode}</p>
-                <p className="mt-1 font-mono text-[10px] text-repixl-muted">via {confirmation.courier.name} · {confirmation.courier.estimate}</p>
+                <p className="mt-1 font-mono text-[10px] text-repixl-muted print-muted">via {confirmation.courier.name} · {confirmation.courier.estimate}</p>
               </div>
 
               {/* Order items */}
               <div className="mb-6 border-b border-repixl-muted/10 pb-6">
-                <p className="mb-3 font-mono text-[9px] uppercase tracking-widest text-repixl-muted">Order Items</p>
+                <p className="mb-3 font-mono text-[9px] uppercase tracking-widest text-repixl-muted print-muted">Order Items</p>
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-repixl-muted/10">
-                      <th className="pb-2 text-left font-mono text-[9px] uppercase tracking-wider text-repixl-muted">Item</th>
-                      <th className="pb-2 text-center font-mono text-[9px] uppercase tracking-wider text-repixl-muted">Qty</th>
-                      <th className="pb-2 text-right font-mono text-[9px] uppercase tracking-wider text-repixl-muted">Price</th>
-                      <th className="pb-2 text-right font-mono text-[9px] uppercase tracking-wider text-repixl-muted">Total</th>
+                      <th className="pb-2 text-left font-mono text-[9px] uppercase tracking-wider text-repixl-muted print-muted">Item</th>
+                      <th className="pb-2 text-center font-mono text-[9px] uppercase tracking-wider text-repixl-muted print-muted">Qty</th>
+                      <th className="pb-2 text-right font-mono text-[9px] uppercase tracking-wider text-repixl-muted print-muted">Price</th>
+                      <th className="pb-2 text-right font-mono text-[9px] uppercase tracking-wider text-repixl-muted print-muted">Total</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-repixl-muted/10">
@@ -421,8 +421,8 @@ export default function CheckoutPage() {
 
               {/* Receipt footer */}
               <div className="border-t border-repixl-muted/10 pt-4 text-center">
-                <p className="font-mono text-[9px] uppercase tracking-widest text-repixl-muted">Thank you for shopping with RePXL</p>
-                <p className="mt-1 font-mono text-[9px] text-repixl-muted/60">Vintage Digital Cameras · Condition-graded · Serial-verified</p>
+                <p className="font-mono text-[9px] uppercase tracking-widest text-repixl-muted print-muted">Thank you for shopping with RePXL</p>
+                <p className="mt-1 font-mono text-[9px] text-repixl-muted/60 print-muted">Vintage Digital Cameras · Condition-graded · Serial-verified</p>
               </div>
             </div>
 

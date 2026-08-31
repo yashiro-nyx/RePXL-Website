@@ -140,57 +140,80 @@ body.scroll-locked {
 
 /* Print styles — receipt only */
 @media print {
+  /* 1. Hide everything on the page */
+  body * {
+    visibility: hidden !important;
+  }
+
+  /* 2. The grain overlay and background effects: remove entirely */
+  body::before,
+  body::after {
+    display: none !important;
+  }
+
+  html {
+    background: #ffffff !important;
+    background-image: none !important;
+  }
+
   body {
-    background-color: #ffffff !important;
+    background: #ffffff !important;
     background-image: none !important;
     color: #1a1610 !important;
   }
 
-  /* Hide everything except the receipt */
-  body > * { display: none !important; }
-  #__next { display: block !important; }
-  #__next > * { display: none !important; }
-  #__next main { display: block !important; }
+  /* 3. Make the receipt and all its children visible */
+  .receipt-print-area,
+  .receipt-print-area * {
+    visibility: visible !important;
+  }
 
-  /* Show only the receipt card */
-  .no-print { display: none !important; }
-  .receipt {
-    display: block !important;
+  /* 4. Position the receipt to fill the page */
+  .receipt-print-area {
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 100% !important;
     background: #ffffff !important;
-    border: 1px solid #e0e0e0 !important;
+    background-image: none !important;
     color: #1a1610 !important;
-    padding: 32px !important;
-    max-width: 640px !important;
-    margin: 0 auto !important;
+    padding: 24px !important;
     box-shadow: none !important;
+    border: none !important;
   }
 
-  /* Flip text colors for print */
-  .receipt * {
+  /* 5. Override dark theme colors within the receipt */
+  .receipt-print-area,
+  .receipt-print-area p,
+  .receipt-print-area span,
+  .receipt-print-area td,
+  .receipt-print-area th,
+  .receipt-print-area h1,
+  .receipt-print-area h2,
+  .receipt-print-area li {
     color: #1a1610 !important;
+    background: transparent !important;
+    border-color: #d0d0d0 !important;
   }
-  .receipt .text-repixl-muted,
-  .receipt [class*="text-repixl-muted"],
-  .receipt [class*="text-repixl-text-light\/"] {
+
+  /* 6. Muted text */
+  .receipt-print-area .print-muted {
     color: #555555 !important;
   }
-  .receipt .text-repixl-red,
-  .receipt [class*="text-repixl-red"] {
+
+  /* 7. Red accent stays red */
+  .receipt-print-area .print-red {
     color: #c22c2c !important;
   }
-  .receipt .bg-repixl-charcoal,
-  .receipt [class*="bg-repixl"] {
-    background-color: #f9f9f9 !important;
+
+  /* 8. Tables */
+  .receipt-print-area table {
+    width: 100% !important;
+    border-collapse: collapse !important;
   }
-  .receipt .border-repixl-muted\/10,
-  .receipt [class*="border-repixl"] {
-    border-color: #e0e0e0 !important;
-  }
-  .receipt .font-display { font-family: Georgia, serif !important; }
-  .receipt .font-mono { font-family: 'Courier New', monospace !important; }
 
   @page {
-    margin: 16mm;
+    margin: 12mm;
     size: A4;
   }
 }
