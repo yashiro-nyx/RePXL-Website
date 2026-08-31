@@ -86,7 +86,7 @@ export interface CheckoutSession {
   }
 }
 
-const DEFAULT_METHODS = ['card', 'gcash', 'paymaya', 'grab_pay']
+const DEFAULT_METHODS = ['card', 'gcash', 'paymaya', 'grab_pay', 'qrph']
 
 /**
  * Create a PayMongo Hosted Checkout session and return the session (whose
