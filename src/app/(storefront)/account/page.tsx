@@ -267,12 +267,17 @@ function OrdersTab() {
                 <tbody className="divide-y divide-repixl-muted/10">
                   {detailOrder.items.map((item) => {
                     const product = allProducts.find((p) => p.slug === item.slug)
+                    // item.price = unit price snapshot from the order
+                    // item.stock = purchased quantity (mapper encodes qty here)
+                    const unitPrice = item.price
+                    const qty = item.stock
+                    const lineTotal = unitPrice * qty
                     return (
                       <tr key={item.slug}>
-                        <td className="py-2"><div className="flex items-center gap-2"><div className="h-8 w-8 overflow-hidden rounded bg-repixl-charcoal">{product && <img src={product.image} alt="" className="h-full w-full object-contain" />}</div><span className="text-repixl-text-light">{product?.name || item.slug}</span></div></td>
-                        <td className="py-2 text-right font-mono text-repixl-text-light/70">${product?.price || 0}</td>
-                        <td className="py-2 text-right font-mono text-repixl-text-light/70">1</td>
-                        <td className="py-2 text-right font-mono text-repixl-text-light">${product?.price || 0}</td>
+                        <td className="py-2"><div className="flex items-center gap-2"><div className="h-8 w-8 overflow-hidden rounded bg-repixl-charcoal">{product && <img src={product.image} alt="" className="h-full w-full object-contain" />}</div><span className="text-repixl-text-light">{product?.name || item.name || item.slug}</span></div></td>
+                        <td className="py-2 text-right font-mono text-repixl-text-light/70">${unitPrice.toFixed(2)}</td>
+                        <td className="py-2 text-right font-mono text-repixl-text-light/70">{qty}</td>
+                        <td className="py-2 text-right font-mono text-repixl-text-light">${lineTotal.toFixed(2)}</td>
                       </tr>
                     )
                   })}

@@ -128,7 +128,8 @@ export default function AdminOrdersPage() {
                 {viewOrder.items.map((item, i) => (
                   <div key={i} className="flex items-center justify-between py-2 border-b border-repixl-muted/5 last:border-0">
                     <span className="text-sm text-repixl-text-light">{item.name}</span>
-                    <span className="text-sm font-mono text-repixl-text-light/70">${item.price.toFixed(2)}</span>
+                    <span className="font-mono text-xs text-repixl-muted">×{item.stock}</span>
+                    <span className="text-sm font-mono text-repixl-text-light/70">${(item.price * item.stock).toFixed(2)}</span>
                   </div>
                 ))}
               </div>
