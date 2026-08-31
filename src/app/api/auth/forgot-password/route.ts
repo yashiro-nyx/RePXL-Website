@@ -19,9 +19,10 @@ export async function POST(req: NextRequest) {
     const token = randomBytes(32).toString('hex')
     await storeResetToken(token, email)
 
-    const siteUrl =
+    const siteUrl = (
       process.env.NEXT_PUBLIC_SITE_URL ??
       (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000')
+    ).replace(/\/+$/, '')
     const resetUrl = `${siteUrl}/reset-password?token=${token}`
 
     const gmailConfigured = isMailerConfigured()
