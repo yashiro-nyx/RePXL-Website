@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Container } from '@/components/layout/Container'
 import { Button, CornerBracket } from '@/components/ui'
@@ -13,6 +14,7 @@ const categories = Array.from(new Set(faqs.map((f) => f.category)))
 
 export default function FAQPage() {
   const reducedMotion = useReducedMotion()
+  const router = useRouter()
   const [openIndex, setOpenIndex] = useState<string | null>(null)
   const [query, setQuery] = useState('')
   const [activeCategory, setActiveCategory] = useState<FAQItem['category'] | 'All'>('All')
@@ -48,6 +50,14 @@ export default function FAQPage() {
         </div>
 
         <Container>
+          <button
+            type="button"
+            onClick={() => router.back()}
+            className="mb-6 flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest text-repixl-muted transition-colors hover:text-repixl-text-light"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5"/><path d="m12 5-7 7 7 7"/></svg>
+            Back
+          </button>
           <div className="mx-auto max-w-2xl text-center">
             <span className="mb-5 block font-mono text-xs uppercase tracking-widest text-repixl-muted">
               — Support

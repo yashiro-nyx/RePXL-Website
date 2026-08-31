@@ -2,6 +2,7 @@
 
 import { useRef, useState, useEffect } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { motion, useScroll, useTransform, useInView, AnimatePresence } from 'framer-motion'
 import { Container } from '@/components/layout/Container'
 import { Button, CornerBracket, ConditionBadge } from '@/components/ui'
@@ -64,6 +65,7 @@ export default function AboutPage() {
 /* ================================================================== */
 
 function AboutHero({ reducedMotion }: { reducedMotion: boolean }) {
+  const router = useRouter()
   const sectionRef = useRef<HTMLDivElement>(null)
   const { scrollYProgress } = useScroll({
     target: sectionRef,
@@ -91,6 +93,14 @@ function AboutHero({ reducedMotion }: { reducedMotion: boolean }) {
       </motion.div>
 
       <Container>
+        <button
+          type="button"
+          onClick={() => router.back()}
+          className="mb-6 flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest text-repixl-muted transition-colors hover:text-repixl-text-light"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5"/><path d="m12 5-7 7 7 7"/></svg>
+          Back
+        </button>
         <motion.div
           variants={container}
           initial="hidden"
@@ -103,7 +113,6 @@ function AboutHero({ reducedMotion }: { reducedMotion: boolean }) {
           >
             — About RePXL
           </motion.span>
-
           <motion.div variants={item}>
             <CornerBracket size={14} color="rgba(245, 241, 236, 0.25)" className="inline-block px-6 py-4">
               <h1 className="font-display text-display-lg text-repixl-text-light md:text-display-xl">

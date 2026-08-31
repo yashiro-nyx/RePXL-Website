@@ -137,27 +137,37 @@ export default function ProductDetailPage() {
   return (
     <div className="min-h-screen pt-24 pb-16">
       <Container>
-        {/* Breadcrumb */}
-        <nav aria-label="Breadcrumb" className="mb-8">
-          <ol className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-widest text-repixl-muted">
-            <li>
-              <Link href="/products" className="hover:text-repixl-text-light">
-                Cameras
-              </Link>
-            </li>
-            <li aria-hidden="true">/</li>
-            <li>
-              <Link
-                href={`/products?brand=${product.brand.toLowerCase()}`}
-                className="hover:text-repixl-text-light"
-              >
-                {product.brand}
-              </Link>
-            </li>
-            <li aria-hidden="true">/</li>
-            <li className="text-repixl-text-light/60">{product.name}</li>
-          </ol>
-        </nav>
+        {/* Breadcrumb + Back */}
+        <div className="mb-8 flex items-center justify-between gap-4">
+          <nav aria-label="Breadcrumb">
+            <ol className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-widest text-repixl-muted">
+              <li>
+                <Link href="/products" className="hover:text-repixl-text-light">
+                  Cameras
+                </Link>
+              </li>
+              <li aria-hidden="true">/</li>
+              <li>
+                <Link
+                  href={`/products?brand=${product.brand.toLowerCase()}`}
+                  className="hover:text-repixl-text-light"
+                >
+                  {product.brand}
+                </Link>
+              </li>
+              <li aria-hidden="true">/</li>
+              <li className="text-repixl-text-light/60">{product.name}</li>
+            </ol>
+          </nav>
+          <button
+            type="button"
+            onClick={() => router.back()}
+            className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest text-repixl-muted transition-colors hover:text-repixl-text-light"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5"/><path d="m12 5-7 7 7 7"/></svg>
+            Back
+          </button>
+        </div>
 
         {/* Main product layout */}
         <div className="grid grid-cols-1 gap-12 lg:grid-cols-2">
