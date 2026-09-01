@@ -3,12 +3,14 @@
 import { Suspense, useState, useMemo, useEffect, useRef } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
+import { motion } from 'framer-motion'
 import { Container } from '@/components/layout/Container'
 import { Button, ConditionBadge } from '@/components/ui'
 import { Footer } from '@/components/layout/Footer'
 import { useCompareStore } from '@/stores/compareStore'
 import { useProductStore } from '@/stores/productStore'
 import { useReviewStore } from '@/stores/reviewStore'
+import { useRevealAnimation } from '@/hooks/useRevealAnimation'
 import type { Product } from '@/types'
 
 const MAX_COMPARE = 3
@@ -16,6 +18,7 @@ const MAX_COMPARE = 3
 function CompareContent() {
   const searchParams = useSearchParams()
   const paramSlugs = (searchParams.get('items') ?? '').split(',').filter(Boolean)
+  const { fadeUp, staggerContainer, staggerItem, viewport, reducedMotion } = useRevealAnimation()
 
   const storeSlugs = useCompareStore((s) => s.slugs)
   const storeAdd = useCompareStore((s) => s.addToCompare)
@@ -44,8 +47,7 @@ function CompareContent() {
     if (!pickerOpen) return
     const el = pickerRef.current
     if (!el) return
-    const searchInput = el.querySelector('input')
-    searchInput?.focus()
+    el.querySelector('input')?.focus()
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') { setPickerOpen(false); setSearchQuery('') }
     }
@@ -81,8 +83,6 @@ function CompareContent() {
     setPickerOpen(false)
   }
 
-  const removeCamera = (slug: string) => { storeRemove(slug) }
-
   const getAverageRating = useReviewStore((s) => s.getAverageRating)
 
   const specRows: { label: string; getValue: (p: Product) => string }[] = [
@@ -98,51 +98,102 @@ function CompareContent() {
   ]
 
   return (
-    <div className="min-h-screen pb-16 pt-24">
+    <div className="burn-subtle min-h-screen pb-20 pt-24">
       <Container>
-        <h1 className="font-display text-display-md text-repixl-text-light md:text-display-lg">
-          Compare Cameras
-        </h1>
-        <p className="mt-1 text-sm text-repixl-muted">
-          Select up to {MAX_COMPARE} cameras to compare side by side.
-        </p>
+        {/* Page header */}
+        <motion.div
+          variants={fadeUp}
+          initial="hidden"
+          animate="show"
+          className="mb-10 border-b border-repixl-muted/10 pb-8"
+        >
+          <span className="font-mono text-xs uppercase tracking-widest text-repixl-muted">
+            — Side by side
+          </span>
+          <h1 className="mt-2 font-display text-display-md text-repixl-text-light md:text-display-lg">
+            Compare Cameras
+          </h1>
+          <p className="mt-1 text-sm text-repixl-muted">
+            Select up to {MAX_COMPARE} cameras to compare specifications side by side.
+          </p>
+        </motion.div>
 
+        {/* Empty state */}
         {selectedProducts.length === 0 && !pickerOpen && (
-          <div className="mt-16 flex flex-col items-center text-center">
-            <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" className="text-repixl-muted/40"><rect width="18" height="18" x="3" y="3" rx="2" /><path d="M12 3v18" /></svg>
+          <motion.div
+            variants={fadeUp}
+            initial="hidden"
+            animate="show"
+            transition={{ delay: reducedMotion ? 0 : 0.1 }}
+            className="mt-8 flex flex-col items-center rounded-lg border border-dashed border-repixl-muted/20 py-24 text-center"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" className="text-repixl-muted/30" aria-hidden="true">
+              <rect width="18" height="18" x="3" y="3" rx="2" /><path d="M12 3v18" />
+            </svg>
             <p className="mt-4 font-display text-display-sm text-repixl-text-light/60">No cameras selected</p>
-            <p className="mt-1 text-sm text-repixl-muted">Add cameras below to start comparing specs.</p>
-            <Button variant="primary" size="md" className="mt-6" onClick={() => setPickerOpen(true)}>Add a Camera</Button>
-          </div>
+            <p className="mt-1 text-sm text-repixl-muted">Add cameras to start comparing specifications.</p>
+            <Button variant="primary" size="md" className="mt-6" onClick={() => setPickerOpen(true)}>
+              Add a Camera
+            </Button>
+          </motion.div>
         )}
 
+        {/* Compare table */}
         {selectedProducts.length > 0 && (
-          <div className="mt-8 overflow-x-auto">
-            <table className="w-full min-w-[600px] border-collapse">
+          <motion.div
+            variants={fadeUp}
+            initial="hidden"
+            animate="show"
+            transition={{ delay: reducedMotion ? 0 : 0.1 }}
+            className="mt-4 overflow-x-auto rounded-lg border border-repixl-muted/10"
+          >
+            <table className="w-full min-w-[560px] border-collapse">
               <thead>
-                <tr>
-                  <th className="sticky left-0 z-10 w-36 border-b border-repixl-muted/10 bg-repixl-charcoal p-3 text-left font-mono text-[10px] uppercase tracking-widest text-repixl-muted">Camera</th>
+                <tr className="border-b border-repixl-muted/10">
+                  {/* Label column header */}
+                  <th className="sticky left-0 z-10 w-32 bg-repixl-charcoal p-4 text-left">
+                    <span className="font-mono text-[10px] uppercase tracking-widest text-repixl-muted">Spec</span>
+                  </th>
                   {selectedProducts.map((product) => (
-                    <th key={product.slug} className="border-b border-repixl-muted/10 p-3 text-center">
-                      <div className="flex flex-col items-center gap-2">
-                        <Link href={`/products/${product.slug}`} className="block h-20 w-20 overflow-hidden rounded bg-repixl-charcoal p-2">
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img src={product.image} alt={product.name} className="h-full w-full object-contain" />
+                    <th key={product.slug} className="bg-repixl-charcoal p-4 text-center">
+                      <div className="flex flex-col items-center gap-3">
+                        <Link href={`/products/${product.slug}`} className="group block">
+                          <div className="mx-auto h-20 w-20 overflow-hidden rounded-lg border border-repixl-muted/10 bg-repixl-bg p-2 transition-colors group-hover:border-repixl-muted/30">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img src={product.image} alt={product.name} className="h-full w-full object-contain transition-transform duration-300 group-hover:scale-105" />
+                          </div>
                         </Link>
-                        <Link href={`/products/${product.slug}`} className="text-xs font-medium text-repixl-text-light hover:underline">{product.name}</Link>
-                        <ConditionBadge condition={product.condition} />
-                        <button type="button" onClick={() => removeCamera(product.slug)} aria-label={`Remove ${product.name}`} className="mt-2 inline-flex items-center gap-1 rounded border border-repixl-muted/20 px-2 py-1 text-xs text-repixl-text-light/70 transition-colors hover:border-repixl-red/50 hover:text-repixl-red">
-                          <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg>
+                        <div>
+                          <Link href={`/products/${product.slug}`} className="text-sm font-medium text-repixl-text-light transition-colors hover:text-repixl-red">
+                            {product.name}
+                          </Link>
+                          <div className="mt-1 flex justify-center">
+                            <ConditionBadge condition={product.condition} />
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => storeRemove(product.slug)}
+                          aria-label={`Remove ${product.name}`}
+                          className="inline-flex items-center gap-1 rounded border border-repixl-muted/20 px-2.5 py-1 font-mono text-[10px] uppercase tracking-wider text-repixl-muted transition-colors hover:border-repixl-red/40 hover:text-repixl-red"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden="true"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg>
                           Remove
                         </button>
                       </div>
                     </th>
                   ))}
+                  {/* Add slot */}
                   {selectedProducts.length < MAX_COMPARE && (
-                    <th className="border-b border-repixl-muted/10 p-3 text-center align-middle">
-                      <button type="button" onClick={() => setPickerOpen(true)} className="mx-auto flex h-20 w-20 flex-col items-center justify-center rounded border border-dashed border-repixl-muted/30 text-repixl-muted transition-colors hover:border-repixl-muted/60 hover:text-repixl-text-light">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M5 12h14" /><path d="M12 5v14" /></svg>
-                        <span className="mt-1 text-[9px]">Add</span>
+                    <th className="bg-repixl-charcoal p-4 text-center align-middle">
+                      <button
+                        type="button"
+                        onClick={() => setPickerOpen(true)}
+                        className="mx-auto flex h-20 w-20 flex-col items-center justify-center rounded-lg border border-dashed border-repixl-muted/30 text-repixl-muted transition-colors hover:border-repixl-muted/60 hover:text-repixl-text-light"
+                        aria-label="Add camera to compare"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true"><path d="M5 12h14" /><path d="M12 5v14" /></svg>
+                        <span className="mt-1 font-mono text-[9px]">Add</span>
                       </button>
                     </th>
                   )}
@@ -150,35 +201,85 @@ function CompareContent() {
               </thead>
               <tbody>
                 {specRows.map((row, index) => (
-                  <tr key={row.label} className={index % 2 === 0 ? 'bg-repixl-charcoal/30' : ''}>
-                    <td className="sticky left-0 z-10 border-b border-repixl-muted/5 bg-repixl-charcoal p-3 font-mono text-[10px] uppercase tracking-wider text-repixl-muted">{row.label}</td>
+                  <tr key={row.label} className={`border-b border-repixl-muted/5 ${index % 2 === 0 ? '' : 'bg-repixl-charcoal/20'}`}>
+                    <td className="sticky left-0 z-10 bg-repixl-charcoal p-4">
+                      <span className="font-mono text-[10px] uppercase tracking-wider text-repixl-muted">{row.label}</span>
+                    </td>
                     {selectedProducts.map((product) => (
-                      <td key={product.slug} className="border-b border-repixl-muted/5 p-3 text-center font-mono text-sm text-repixl-text-light">{row.getValue(product)}</td>
+                      <td key={product.slug} className="p-4 text-center font-mono text-sm text-repixl-text-light">
+                        {row.getValue(product)}
+                      </td>
                     ))}
-                    {selectedProducts.length < MAX_COMPARE && <td className="border-b border-repixl-muted/5 p-3" />}
+                    {selectedProducts.length < MAX_COMPARE && <td className="p-4" />}
                   </tr>
                 ))}
               </tbody>
             </table>
-          </div>
+          </motion.div>
         )}
 
+        {/* Add another camera button */}
+        {selectedProducts.length > 0 && selectedProducts.length < MAX_COMPARE && !pickerOpen && (
+          <motion.div
+            variants={fadeUp}
+            initial="hidden"
+            animate="show"
+            className="mt-5"
+          >
+            <Button variant="secondary" size="sm" onClick={() => setPickerOpen(true)}>
+              + Add another camera
+            </Button>
+          </motion.div>
+        )}
+
+        {/* Camera picker */}
         {pickerOpen && (
-          <div ref={pickerRef} role="dialog" aria-label="Add a camera to compare" className="mt-8 rounded-lg border border-repixl-muted/10 bg-repixl-charcoal p-5">
+          <motion.div
+            ref={pickerRef}
+            role="dialog"
+            aria-label="Add a camera to compare"
+            initial={reducedMotion ? { opacity: 1 } : { opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: reducedMotion ? 0 : 0.3, ease: [0.22, 1, 0.36, 1] }}
+            className="mt-6 rounded-lg border border-repixl-muted/10 bg-repixl-charcoal p-5"
+          >
             <div className="flex items-center justify-between">
-              <h2 className="font-mono text-[10px] uppercase tracking-widest text-repixl-muted">Add a camera to compare</h2>
-              <button type="button" onClick={() => { setPickerOpen(false); setSearchQuery('') }} className="text-xs text-repixl-muted hover:text-repixl-text-light">Cancel</button>
+              <div>
+                <span className="font-mono text-[10px] uppercase tracking-widest text-repixl-muted">— Add a camera</span>
+                <p className="mt-0.5 text-sm text-repixl-text-light/60">Search by name or brand</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => { setPickerOpen(false); setSearchQuery('') }}
+                className="flex h-8 w-8 items-center justify-center rounded-full text-repixl-muted transition-colors hover:bg-repixl-bg hover:text-repixl-text-light"
+                aria-label="Close picker"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden="true"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg>
+              </button>
             </div>
             <div className="mt-3">
               <label htmlFor="compare-search" className="sr-only">Search cameras</label>
-              <input id="compare-search" type="search" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Search by name or brand..." className="w-full rounded border border-repixl-muted/20 bg-repixl-bg px-3 py-2 text-sm text-repixl-text-light placeholder:text-repixl-muted/50 focus:border-repixl-muted/50 focus:outline-none" />
+              <input
+                id="compare-search"
+                type="search"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search cameras…"
+                className="w-full rounded border border-repixl-muted/20 bg-repixl-bg px-3 py-2.5 text-sm text-repixl-text-light placeholder:text-repixl-muted/50 focus:border-repixl-muted/50 focus:outline-none"
+              />
             </div>
             <ul className="mt-3 max-h-64 space-y-1 overflow-y-auto">
-              {availableProducts.length === 0 && <li className="py-4 text-center text-sm text-repixl-muted">No cameras match your search.</li>}
+              {availableProducts.length === 0 && (
+                <li className="py-6 text-center text-sm text-repixl-muted">No cameras match your search.</li>
+              )}
               {availableProducts.map((product) => (
                 <li key={product.slug}>
-                  <button type="button" onClick={() => addCamera(product.slug)} className="flex w-full items-center gap-3 rounded px-3 py-2 text-left transition-colors hover:bg-repixl-bg">
-                    <div className="h-10 w-10 flex-shrink-0 overflow-hidden rounded bg-repixl-bg">
+                  <button
+                    type="button"
+                    onClick={() => addCamera(product.slug)}
+                    className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-colors hover:bg-repixl-bg"
+                  >
+                    <div className="h-10 w-10 flex-shrink-0 overflow-hidden rounded-lg bg-repixl-bg p-1">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img src={product.image} alt={product.name} className="h-full w-full object-contain" />
                     </div>
@@ -191,13 +292,7 @@ function CompareContent() {
                 </li>
               ))}
             </ul>
-          </div>
-        )}
-
-        {selectedProducts.length > 0 && selectedProducts.length < MAX_COMPARE && !pickerOpen && (
-          <div className="mt-6">
-            <Button variant="secondary" size="sm" onClick={() => setPickerOpen(true)}>+ Add another camera</Button>
-          </div>
+          </motion.div>
         )}
       </Container>
     </div>
@@ -207,7 +302,13 @@ function CompareContent() {
 export default function ComparePage() {
   return (
     <>
-      <Suspense fallback={<div className="min-h-screen pb-16 pt-24"><Container><p className="text-sm text-repixl-muted">Loading...</p></Container></div>}>
+      <Suspense fallback={
+        <div className="burn-subtle min-h-screen pb-20 pt-24">
+          <Container>
+            <p className="text-sm text-repixl-muted">Loading…</p>
+          </Container>
+        </div>
+      }>
         <CompareContent />
       </Suspense>
       <Footer />

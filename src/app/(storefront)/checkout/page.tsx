@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import { motion } from 'framer-motion'
 import { Container } from '@/components/layout/Container'
 import { Button, ConditionBadge, LegalModal } from '@/components/ui'
 import { MinimalFooter } from '@/components/layout/MinimalFooter'
@@ -11,6 +12,7 @@ import { useCartStore } from '@/stores/cartStore'
 import { useProductStore } from '@/stores/productStore'
 import { useOrderHistoryStore } from '@/stores/orderHistoryStore'
 import { useAddressStore } from '@/stores/addressStore'
+import { useRevealAnimation } from '@/hooks/useRevealAnimation'
 import { isPaymongoEnabled, startPaymongoCheckout } from '@/lib/data/checkoutService'
 import { termsContent, privacyContent } from '@/data/legal'
 import type { Product, CartItem } from '@/types'
@@ -484,17 +486,24 @@ export default function CheckoutPage() {
   if (!hydrated || !isLoggedIn) return null
 
   return (
-    <div className="burn-subtle min-h-screen pb-16 pt-24">
+    <div className="burn-subtle min-h-screen pb-20 pt-24">
       <Container>
-        <h1 className="font-display text-display-md text-repixl-text-light md:text-display-lg">Checkout</h1>
-        <p className="mt-1 text-sm text-repixl-muted">Complete your order below.</p>
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+          className="mb-8 border-b border-repixl-muted/10 pb-6"
+        >
+          <span className="font-mono text-xs uppercase tracking-widest text-repixl-muted">— Complete your order</span>
+          <h1 className="mt-2 font-display text-display-md text-repixl-text-light md:text-display-lg">Checkout</h1>
+        </motion.div>
 
-        <form ref={formRef} onSubmit={handleSubmit} noValidate className="mt-8 grid grid-cols-1 gap-10 lg:grid-cols-3">
-          <div className="space-y-10 lg:col-span-2">
+        <form ref={formRef} onSubmit={handleSubmit} noValidate className="mt-6 grid grid-cols-1 gap-8 lg:grid-cols-3">
+          <div className="space-y-8 lg:col-span-2">
             {/* Shipping info */}
             <section>
-              <h2 className="font-mono text-[10px] uppercase tracking-widest text-repixl-muted">Shipping Information</h2>
-              <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <h2 className="mb-5 font-mono text-[10px] uppercase tracking-widest text-repixl-muted">Shipping Information</h2>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <FieldWrapper id="full-name" label="Full Name" error={errors.fullName} className="sm:col-span-2">
                   <input id="full-name" type="text" autoComplete="name" className={inputClass(errors.fullName)} />
                 </FieldWrapper>

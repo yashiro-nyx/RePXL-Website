@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { signOut } from 'next-auth/react'
+import { motion, AnimatePresence } from 'framer-motion'
 import { Container } from '@/components/layout/Container'
 import { Footer } from '@/components/layout/Footer'
 import { Button, ConditionBadge, CornerBracket, FilmStripLoader, PasswordInput } from '@/components/ui'
@@ -14,6 +15,7 @@ import { usePaymentStore, detectBrand, type SavedCard } from '@/stores/paymentSt
 import { useOrderHistoryStore, type Order } from '@/stores/orderHistoryStore'
 import { useReviewStore, type Review } from '@/stores/reviewStore'
 import { useProductStore } from '@/stores/productStore'
+import { useRevealAnimation } from '@/hooks/useRevealAnimation'
 import { products as allProducts } from '@/data/products'
 
 type Tab = 'profile' | 'orders' | 'addresses' | 'payments' | 'reviews' | 'security'
@@ -33,6 +35,7 @@ export default function AccountPage() {
   const router = useRouter()
   const [hydrated, setHydrated] = useState(false)
   const [logoutModalOpen, setLogoutModalOpen] = useState(false)
+  const { fadeUp, staggerContainer, staggerItem, viewport, reducedMotion } = useRevealAnimation()
 
   useEffect(() => {
     hydrate()
@@ -69,17 +72,36 @@ export default function AccountPage() {
   }
 
   return (
-    <div className="burn-subtle pb-16 pt-24">
+    <div className="burn-subtle pb-20 pt-24">
       <Container>
+        {/* Page header */}
+        <motion.div
+          variants={fadeUp}
+          initial="hidden"
+          animate="show"
+          className="mb-8 border-b border-repixl-muted/10 pb-6"
+        >
+          <span className="font-mono text-xs uppercase tracking-widest text-repixl-muted">
+            — Your space
+          </span>
+          <h1 className="mt-2 font-display text-display-md text-repixl-text-light">My Account</h1>
+        </motion.div>
+
         <div className="flex flex-col gap-8 lg:flex-row">
           {/* Sidebar */}
-          <aside className="w-full shrink-0 lg:w-56">
+          <motion.aside
+            variants={fadeUp}
+            initial="hidden"
+            animate="show"
+            transition={{ delay: reducedMotion ? 0 : 0.1 }}
+            className="w-full shrink-0 lg:w-56"
+          >
             <div className="sticky top-24 rounded-lg border border-repixl-muted/10 bg-repixl-charcoal p-5">
               {/* Avatar + name */}
               <div className="flex flex-col items-center text-center">
-                <div className="flex h-16 w-16 items-center justify-center rounded-full bg-repixl-red/20">
+                <CornerBracket size={8} color="rgba(194,44,44,0.3)" className="inline-flex h-16 w-16 items-center justify-center rounded-full bg-repixl-red/10">
                   <span className="font-display text-xl font-bold text-repixl-red">{initials}</span>
-                </div>
+                </CornerBracket>
                 <p className="mt-3 font-display text-sm font-semibold text-repixl-text-light">
                   {firstName} {lastName}
                 </p>
@@ -87,7 +109,7 @@ export default function AccountPage() {
               </div>
 
               {/* Nav tabs */}
-              <nav className="mt-6 space-y-1" aria-label="Account navigation">
+              <nav className="mt-6 space-y-0.5" aria-label="Account navigation">
                 {tabs.map((tab) => (
                   <button
                     key={tab.id}
@@ -99,7 +121,7 @@ export default function AccountPage() {
                         : 'text-repixl-text-light/70 hover:bg-repixl-bg hover:text-repixl-text-light'
                     }`}
                   >
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                       <path d={tab.icon} />
                       {tab.id === 'profile' && <circle cx="12" cy="7" r="4" />}
                       {tab.id === 'addresses' && <circle cx="12" cy="10" r="3" />}
@@ -114,24 +136,40 @@ export default function AccountPage() {
                   onClick={() => setLogoutModalOpen(true)}
                   className="flex w-full items-center gap-2.5 rounded px-3 py-2 text-left text-sm text-repixl-muted transition-colors hover:bg-repixl-bg hover:text-repixl-red"
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                     <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" x2="9" y1="12" y2="12" />
                   </svg>
                   Log Out
                 </button>
               </nav>
             </div>
-          </aside>
+          </motion.aside>
 
           {/* Content area */}
-          <main className="flex-1">
-            {activeTab === 'profile' && <ProfileTab />}
-            {activeTab === 'orders' && <OrdersTab />}
-            {activeTab === 'addresses' && <AddressesTab />}
-            {activeTab === 'payments' && <PaymentsTab />}
-            {activeTab === 'reviews' && <ReviewsTab />}
-            {activeTab === 'security' && <SecurityTab />}
-          </main>
+          <motion.main
+            variants={fadeUp}
+            initial="hidden"
+            animate="show"
+            transition={{ delay: reducedMotion ? 0 : 0.15 }}
+            className="flex-1 min-w-0"
+          >
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={activeTab}
+                initial={reducedMotion ? { opacity: 1 } : { opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={reducedMotion ? { opacity: 1 } : { opacity: 0, y: -6 }}
+                transition={{ duration: reducedMotion ? 0 : 0.25, ease: [0.22, 1, 0.36, 1] }}
+              >
+                {activeTab === 'profile' && <ProfileTab />}
+                {activeTab === 'orders' && <OrdersTab />}
+                {activeTab === 'addresses' && <AddressesTab />}
+                {activeTab === 'payments' && <PaymentsTab />}
+                {activeTab === 'reviews' && <ReviewsTab />}
+                {activeTab === 'security' && <SecurityTab />}
+              </motion.div>
+            </AnimatePresence>
+          </motion.main>
         </div>
       </Container>
       {/* Logout confirmation modal */}

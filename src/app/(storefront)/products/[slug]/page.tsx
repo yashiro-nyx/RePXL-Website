@@ -4,9 +4,11 @@ import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import dynamic from 'next/dynamic'
+import { motion } from 'framer-motion'
 import { Container } from '@/components/layout/Container'
 import { Footer } from '@/components/layout/Footer'
 import { Button, ConditionBadge, CornerBracket, LoginRequiredModal } from '@/components/ui'
+import { useRevealAnimation } from '@/hooks/useRevealAnimation'
 import { CompareToast } from '@/components/ui/CompareToast'
 import { ProductCard } from '@/components/product/ProductCard'
 import { getColorProfile } from '@/data/colorProfiles'
@@ -75,7 +77,7 @@ export default function ProductDetailPage() {
   const isLoggedIn = useAuthStore((s) => s.isLoggedIn)
   const params = useParams<{ slug: string }>()
   const router = useRouter()
-
+  const { fadeUp, staggerContainer, staggerItem, fadeIn, viewport, reducedMotion } = useRevealAnimation()
   const allProducts = useProductStore((s) => s.products)
   const product = allProducts.find((p) => p.slug === params.slug)
 
@@ -135,44 +137,42 @@ export default function ProductDetailPage() {
     .slice(0, 4)
 
   return (
-    <div className="min-h-screen pt-24 pb-16">
+    <div className="burn-subtle min-h-screen pb-20 pt-24">
       <Container>
         {/* Breadcrumb + Back */}
-        <div className="mb-8 flex items-center justify-between gap-4">
+        <motion.div
+          variants={fadeUp}
+          initial="hidden"
+          animate="show"
+          className="mb-8 flex items-center justify-between gap-4"
+        >
           <nav aria-label="Breadcrumb">
             <ol className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-widest text-repixl-muted">
-              <li>
-                <Link href="/products" className="hover:text-repixl-text-light">
-                  Cameras
-                </Link>
-              </li>
-              <li aria-hidden="true">/</li>
-              <li>
-                <Link
-                  href={`/products?brand=${product.brand.toLowerCase()}`}
-                  className="hover:text-repixl-text-light"
-                >
-                  {product.brand}
-                </Link>
-              </li>
-              <li aria-hidden="true">/</li>
-              <li className="text-repixl-text-light/60">{product.name}</li>
+              <li><Link href="/products" className="transition-colors hover:text-repixl-text-light">Cameras</Link></li>
+              <li aria-hidden="true" className="text-repixl-muted/40">/</li>
+              <li><Link href={`/products?brand=${product.brand.toLowerCase()}`} className="transition-colors hover:text-repixl-text-light">{product.brand}</Link></li>
+              <li aria-hidden="true" className="text-repixl-muted/40">/</li>
+              <li className="text-repixl-text-light/50">{product.name}</li>
             </ol>
           </nav>
           <button
             type="button"
             onClick={() => router.back()}
-            className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest text-repixl-muted transition-colors hover:text-repixl-text-light"
+            className="flex items-center gap-1.5 rounded border border-repixl-muted/20 px-3 py-1.5 font-mono text-[10px] uppercase tracking-widest text-repixl-muted transition-colors hover:border-repixl-muted/40 hover:text-repixl-text-light"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5"/><path d="m12 5-7 7 7 7"/></svg>
+            <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M19 12H5"/><path d="m12 5-7 7 7 7"/></svg>
             Back
           </button>
-        </div>
+        </motion.div>
 
         {/* Main product layout */}
         <div className="grid grid-cols-1 gap-12 lg:grid-cols-2">
           {/* Left: Image area */}
-          <div>
+          <motion.div
+            variants={fadeIn}
+            initial="hidden"
+            animate="show"
+          >
             <CornerBracket
               size={16}
               color="rgba(140, 133, 128, 0.3)"
@@ -182,44 +182,46 @@ export default function ProductDetailPage() {
               <img
                 src={product.image}
                 alt={product.name}
-                className="h-full w-full object-contain"
+                className="h-full w-full object-contain transition-transform duration-500 hover:scale-105"
               />
-
-              {/* Condition badge — top right of image */}
               <div className="absolute right-8 top-8">
                 <ConditionBadge condition={product.condition} />
               </div>
             </CornerBracket>
 
-            {/* Try the Look button — below image */}
             <div className="mt-5 flex justify-center">
               <FilterDemoButton brand={product.brand} model={product.name} slug={product.slug} />
             </div>
-          </div>
+          </motion.div>
 
           {/* Right: Product info */}
-          <div className="flex flex-col">
-            {/* Brand */}
-            <span className="font-mono text-xs uppercase tracking-widest text-repixl-muted">
+          <motion.div
+            variants={staggerContainer}
+            initial="hidden"
+            animate="show"
+            className="flex flex-col"
+          >
+            {/* Brand + series eyebrow */}
+            <motion.span variants={staggerItem} className="font-mono text-xs uppercase tracking-widest text-repixl-muted">
               {product.brand} · {product.series}
-            </span>
+            </motion.span>
 
             {/* Name */}
-            <h1 className="mt-2 font-display text-display-md text-repixl-text-light md:text-display-lg">
+            <motion.h1 variants={staggerItem} className="mt-2 font-display text-display-md text-repixl-text-light md:text-display-lg">
               {product.name}
-            </h1>
+            </motion.h1>
 
             {/* Price + condition + rating */}
-            <div className="mt-4 flex flex-wrap items-center gap-4">
+            <motion.div variants={staggerItem} className="mt-4 flex flex-wrap items-center gap-4">
               <span className="font-display text-3xl font-bold text-repixl-text-light">
                 ${product.price}
               </span>
               <ConditionBadge condition={product.condition} />
               <ProductRatingSummary slug={product.slug} />
-            </div>
+            </motion.div>
 
             {/* Stock status */}
-            <div className="mt-4 flex items-center gap-2">
+            <motion.div variants={staggerItem} className="mt-3 flex items-center gap-2">
               {product.stock > 0 ? (
                 <>
                   <span className={`h-2 w-2 rounded-full ${product.stock <= 2 ? 'bg-repixl-warning' : 'bg-repixl-success'}`} />
@@ -233,16 +235,12 @@ export default function ProductDetailPage() {
                   <span className="font-mono text-xs text-repixl-red">Out of stock</span>
                 </>
               )}
-            </div>
+            </motion.div>
 
-            {/* Quantity selector + Actions */}
-            <div className="mt-8 flex flex-wrap items-center gap-3">
+            {/* Quantity + Actions */}
+            <motion.div variants={staggerItem} className="mt-8 flex flex-wrap items-center gap-3">
               {product.stock > 0 && (
-                <QuantitySelector
-                  value={selectedQty}
-                  max={product.stock}
-                  onChange={setSelectedQty}
-                />
+                <QuantitySelector value={selectedQty} max={product.stock} onChange={setSelectedQty} />
               )}
               <Button
                 variant="primary"
@@ -257,7 +255,7 @@ export default function ProductDetailPage() {
                   }
                 }}
               >
-                {product.stock === 0 ? 'Out of Stock' : cartQty >= product.stock ? `Max in Cart (${cartQty})` : inCart ? `Add More to Cart (${cartQty} in cart)` : 'Add to Cart'}
+                {product.stock === 0 ? 'Out of Stock' : cartQty >= product.stock ? `Max in Cart (${cartQty})` : inCart ? `Add More (${cartQty} in cart)` : 'Add to Cart'}
               </Button>
               <Button
                 variant="secondary"
@@ -265,31 +263,16 @@ export default function ProductDetailPage() {
                 onClick={() => {
                   if (!isLoggedIn) { setLoginModalOpen(true); return }
                   if (product) {
-                    if (inWishlist) {
-                      removeFromWishlist(product.slug)
-                      addToast('Removed from wishlist', 'info')
-                    } else {
-                      addToWishlist(product.slug)
-                      addToast(`Added to wishlist: ${product.name}`)
-                    }
+                    if (inWishlist) { removeFromWishlist(product.slug); addToast('Removed from wishlist', 'info') }
+                    else { addToWishlist(product.slug); addToast(`Added to wishlist: ${product.name}`) }
                   }
                 }}
               >
                 <span className="flex items-center gap-2">
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    width="16"
-                    height="16"
-                    viewBox="0 0 24 24"
-                    fill={inWishlist ? 'currentColor' : 'none'}
-                    stroke="currentColor"
-                    strokeWidth="1.5"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill={inWishlist ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                     <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z" />
                   </svg>
-                  {inWishlist ? 'In Wishlist' : 'Add to Wishlist'}
+                  {inWishlist ? 'In Wishlist' : 'Wishlist'}
                 </span>
               </Button>
               <Button
@@ -297,26 +280,19 @@ export default function ProductDetailPage() {
                 size="lg"
                 onClick={() => {
                   if (!product) return
-                  if (inCompare) {
-                    router.push('/compare')
-                    return
-                  }
+                  if (inCompare) { router.push('/compare'); return }
                   const result = addToCompare(product.slug)
-                  if (result === 'added') {
-                    setCompareModal('added')
-                  } else if (result === 'already') {
-                    router.push('/compare')
-                  } else {
-                    setCompareModal('full')
-                  }
+                  if (result === 'added') setCompareModal('added')
+                  else if (result === 'already') router.push('/compare')
+                  else setCompareModal('full')
                 }}
               >
                 <span className="flex items-center gap-2">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" /><path d="M12 3v18" /></svg>
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect width="18" height="18" x="3" y="3" rx="2" /><path d="M12 3v18" /></svg>
                   {inCompare ? 'View Comparison' : '+ Compare'}
                 </span>
               </Button>
-            </div>
+            </motion.div>
 
             <LoginRequiredModal isOpen={loginModalOpen} onClose={() => setLoginModalOpen(false)} />
 
@@ -330,7 +306,7 @@ export default function ProductDetailPage() {
                         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-repixl-success"><path d="M20 6 9 17l-5-5" /></svg>
                       </div>
                       <h3 className="text-center font-display text-lg font-semibold text-repixl-text-light">Added to Compare</h3>
-                      <p className="mt-1 text-center text-sm text-repixl-muted">{product.name} has been added. Would you like to compare now or keep browsing?</p>
+                      <p className="mt-1 text-center text-sm text-repixl-muted">{product.name} has been added. Compare now or keep browsing?</p>
                       <div className="mt-5 flex flex-col gap-2">
                         <button onClick={() => { setCompareModal(null); router.push('/compare') }} className="w-full rounded-lg bg-repixl-red px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-red-700">Go to Compare</button>
                         <button onClick={() => setCompareModal(null)} className="w-full rounded-lg border border-repixl-muted/20 px-4 py-2.5 text-sm text-repixl-text-light/70 transition-colors hover:bg-repixl-muted/5 hover:text-repixl-text-light">Continue Browsing</button>
@@ -342,7 +318,7 @@ export default function ProductDetailPage() {
                         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-repixl-warning"><path d="M12 9v4" /><path d="M12 17h.01" /><path d="M3.44 18.67 10.3 4.83a2 2 0 0 1 3.4 0l6.86 13.84A2 2 0 0 1 18.7 21H5.3a2 2 0 0 1-1.86-2.33z" /></svg>
                       </div>
                       <h3 className="text-center font-display text-lg font-semibold text-repixl-text-light">Compare is Full</h3>
-                      <p className="mt-1 text-center text-sm text-repixl-muted">You can compare up to 3 cameras. Remove one to add {product.name}.</p>
+                      <p className="mt-1 text-center text-sm text-repixl-muted">Remove one camera to add {product.name}.</p>
                       <div className="mt-5 flex flex-col gap-2">
                         <button onClick={() => { setCompareModal(null); router.push('/compare') }} className="w-full rounded-lg bg-repixl-red px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-red-700">Manage Compare List</button>
                         <button onClick={() => setCompareModal(null)} className="w-full rounded-lg border border-repixl-muted/20 px-4 py-2.5 text-sm text-repixl-text-light/70 transition-colors hover:bg-repixl-muted/5 hover:text-repixl-text-light">Close</button>
@@ -352,26 +328,18 @@ export default function ProductDetailPage() {
                 </div>
               </div>
             )}
-            {toast && (
-              <CompareToast message={toast.message} type={toast.type} visible={!!toast} onDismiss={() => setToast(null)} />
-            )}
+            {toast && <CompareToast message={toast.message} type={toast.type} visible={!!toast} onDismiss={() => setToast(null)} />}
 
             {/* Description */}
-            <div className="mt-8 border-t border-repixl-muted/10 pt-8">
-              <h2 className="font-mono text-[10px] uppercase tracking-widest text-repixl-muted">
-                About this camera
-              </h2>
-              <p className="mt-3 text-sm leading-relaxed text-repixl-text-light/80">
-                {product.description}
-              </p>
-            </div>
+            <motion.div variants={staggerItem} className="mt-8 border-t border-repixl-muted/10 pt-8">
+              <h2 className="font-mono text-[10px] uppercase tracking-widest text-repixl-muted">About this camera</h2>
+              <p className="mt-3 text-sm leading-relaxed text-repixl-text-light/80">{product.description}</p>
+            </motion.div>
 
             {/* Spec sheet */}
-            <div className="mt-10 border-t border-repixl-muted/10 pt-8">
-              <h2 className="font-mono text-[10px] uppercase tracking-widest text-repixl-muted">
-                Specifications
-              </h2>
-              <dl className="mt-4 grid grid-cols-2 gap-x-6 gap-y-3">
+            <motion.div variants={staggerItem} className="mt-8 border-t border-repixl-muted/10 pt-8">
+              <h2 className="font-mono text-[10px] uppercase tracking-widest text-repixl-muted">Specifications</h2>
+              <dl className="mt-4 grid grid-cols-2 gap-x-6 gap-y-4 rounded-lg border border-repixl-muted/10 bg-repixl-charcoal p-4">
                 <SpecRow label="Resolution" value={`${product.specs.megapixels} MP`} />
                 <SpecRow label="Zoom" value={product.specs.zoom} />
                 <SpecRow label="Storage" value={product.specs.storage} />
@@ -379,35 +347,59 @@ export default function ProductDetailPage() {
                 <SpecRow label="Condition" value={product.condition.charAt(0).toUpperCase() + product.condition.slice(1)} />
                 <SpecRow label="Brand" value={product.brand} />
               </dl>
-            </div>
+            </motion.div>
 
-            {/* Serial / authenticity note */}
-            <div className="mt-8 rounded border border-repixl-muted/10 bg-repixl-charcoal p-4">
-              <p className="font-mono text-[10px] uppercase tracking-widest text-repixl-muted">
-                Authenticity
-              </p>
-              <p className="mt-2 text-sm text-repixl-text-light/70">
-                Serial number verified. Multi-angle photos available.
-                This camera has been inspected and graded by our team.
-              </p>
-            </div>
-          </div>
+            {/* Authenticity note */}
+            <motion.div variants={staggerItem} className="mt-5 flex items-start gap-3 rounded border border-repixl-muted/10 bg-repixl-charcoal/50 p-4">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="mt-0.5 flex-shrink-0 text-repixl-success" aria-hidden="true">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/>
+              </svg>
+              <div>
+                <p className="font-mono text-[10px] uppercase tracking-widest text-repixl-muted">Authenticity</p>
+                <p className="mt-1 text-sm text-repixl-text-light/70">
+                  Serial number verified. Multi-angle photos available. Inspected and graded by our team.
+                </p>
+              </div>
+            </motion.div>
+          </motion.div>
         </div>
 
         {/* Reviews section */}
-        <ProductReviews slug={product.slug} />
+        <motion.div
+          variants={fadeUp}
+          initial="hidden"
+          whileInView="show"
+          viewport={viewport}
+        >
+          <ProductReviews slug={product.slug} />
+        </motion.div>
 
         {/* Related products */}
-        <section className="mt-20 border-t border-repixl-muted/10 pt-12">
-          <h2 className="font-display text-display-sm text-repixl-text-light md:text-display-md">
-            You might also like
+        <motion.section
+          variants={fadeUp}
+          initial="hidden"
+          whileInView="show"
+          viewport={viewport}
+          className="mt-20 border-t border-repixl-muted/10 pt-12"
+        >
+          <span className="font-mono text-xs uppercase tracking-widest text-repixl-muted">— You might also like</span>
+          <h2 className="mt-2 font-display text-display-sm text-repixl-text-light md:text-display-md">
+            Related Cameras
           </h2>
-          <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <motion.div
+            variants={staggerContainer}
+            initial="hidden"
+            whileInView="show"
+            viewport={viewport}
+            className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4"
+          >
             {related.map((p) => (
-              <ProductCard key={p.slug} product={p} />
+              <motion.div key={p.slug} variants={staggerItem}>
+                <ProductCard product={p} />
+              </motion.div>
             ))}
-          </div>
-        </section>
+          </motion.div>
+        </motion.section>
       </Container>
       <Footer />
     </div>

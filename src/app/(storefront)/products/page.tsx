@@ -8,7 +8,7 @@ import { ProductCard } from '@/components/product/ProductCard'
 import { ConditionBadge, Skeleton, FilmStripLoader } from '@/components/ui'
 import { Footer } from '@/components/layout/Footer'
 import { useProductStore } from '@/stores/productStore'
-import { useReducedMotion } from '@/hooks/useReducedMotion'
+import { useRevealAnimation } from '@/hooks/useRevealAnimation'
 import type { ConditionGrade } from '@/types'
 
 const conditions: ConditionGrade[] = ['mint', 'excellent', 'good', 'fair']
@@ -17,13 +17,11 @@ type SortOption = 'price-asc' | 'price-desc' | 'newest'
 
 function ProductsContent() {
   const searchParams = useSearchParams()
-  const reducedMotion = useReducedMotion()
+  const { fadeUp, staggerContainer, staggerItem, viewport, reducedMotion } = useRevealAnimation()
   const allProducts = useProductStore((s) => s.products)
   const [hydrated, setHydrated] = useState(false)
 
   useEffect(() => {
-    // Await hydration so `hydrated` only becomes true once we have fresh stock
-    // from the database — not just the seed data.
     useProductStore.getState().hydrate().finally(() => setHydrated(true))
   }, [])
 
@@ -39,44 +37,38 @@ function ProductsContent() {
   const [sort, setSort] = useState<SortOption>('newest')
   const [inStockOnly, setInStockOnly] = useState(false)
 
-  const toggleBrand = (brand: string) => {
+  const toggleBrand = (brand: string) =>
     setSelectedBrands((prev) =>
       prev.includes(brand) ? prev.filter((b) => b !== brand) : [...prev, brand]
     )
-  }
-  const toggleCondition = (condition: ConditionGrade) => {
+  const toggleCondition = (condition: ConditionGrade) =>
     setSelectedConditions((prev) =>
       prev.includes(condition) ? prev.filter((c) => c !== condition) : [...prev, condition]
     )
-  }
 
   const filtered = useMemo(() => {
     let result = products.filter((p) => {
       if (selectedBrands.length > 0 && !selectedBrands.includes(p.brand)) return false
       if (selectedConditions.length > 0 && !selectedConditions.includes(p.condition)) return false
       if (p.price < priceRange[0] || p.price > priceRange[1]) return false
-      // Clamp stock: treat negative as 0 for all filter/display logic
       const stock = Math.max(0, p.stock)
       if (inStockOnly && stock <= 0) return false
       return true
     })
-
     switch (sort) {
-      case 'price-asc':
-        result = [...result].sort((a, b) => a.price - b.price)
-        break
-      case 'price-desc':
-        result = [...result].sort((a, b) => b.price - a.price)
-        break
-      case 'newest':
-        result = [...result].sort((a, b) => b.specs.year - a.specs.year)
-        break
+      case 'price-asc': result = [...result].sort((a, b) => a.price - b.price); break
+      case 'price-desc': result = [...result].sort((a, b) => b.price - a.price); break
+      case 'newest': result = [...result].sort((a, b) => b.specs.year - a.specs.year); break
     }
-
     return result
   }, [selectedBrands, selectedConditions, priceRange, sort, inStockOnly, products])
 
-  const hasFilters = selectedBrands.length > 0 || selectedConditions.length > 0 || priceRange[0] > 0 || priceRange[1] < 9999 || inStockOnly
+  const hasFilters =
+    selectedBrands.length > 0 ||
+    selectedConditions.length > 0 ||
+    priceRange[0] > 0 ||
+    priceRange[1] < 9999 ||
+    inStockOnly
 
   const clearAll = () => {
     setSelectedBrands([])
@@ -86,45 +78,71 @@ function ProductsContent() {
   }
 
   return (
-    <div className="min-h-screen pt-24 pb-16">
+    <div className="burn-subtle min-h-screen pb-20 pt-24">
       <Container>
-        <div className="mb-8">
-          <h1 className="font-display text-display-md text-repixl-text-light md:text-display-lg">
+        {/* Page header */}
+        <motion.div
+          variants={fadeUp}
+          initial="hidden"
+          animate="show"
+          className="mb-10 border-b border-repixl-muted/10 pb-8"
+        >
+          <span className="font-mono text-xs uppercase tracking-widest text-repixl-muted">
+            — Browse the collection
+          </span>
+          <h1 className="mt-2 font-display text-display-md text-repixl-text-light md:text-display-lg">
             All Cameras
           </h1>
           <p className="mt-1 text-sm text-repixl-muted">
             {filtered.length} {filtered.length === 1 ? 'camera' : 'cameras'} available
-            {inStockOnly && ` · ${filtered.filter((p) => Math.max(0, p.stock) > 0).length} in stock`}
           </p>
-        </div>
+        </motion.div>
 
-        <div className="flex flex-col gap-8 lg:flex-row">
-          <aside className="w-full shrink-0 lg:w-56">
-            <div className="sticky top-24 space-y-6">
+        <div className="flex flex-col gap-10 lg:flex-row">
+          {/* ── Filter sidebar ── */}
+          <motion.aside
+            variants={fadeUp}
+            initial="hidden"
+            animate="show"
+            transition={{ delay: reducedMotion ? 0 : 0.1 }}
+            className="w-full shrink-0 lg:w-56"
+          >
+            <div className="sticky top-24 space-y-7 rounded-lg border border-repixl-muted/10 bg-repixl-charcoal p-5">
+              <p className="font-mono text-[10px] uppercase tracking-widest text-repixl-muted">
+                Filters
+              </p>
+
+              {/* Availability */}
               <div>
-                <h3 className="font-mono text-[10px] uppercase tracking-widest text-repixl-muted">Availability</h3>
-                <ul className="mt-3 space-y-2">
-                  <li>
-                    <label className="flex cursor-pointer items-center gap-2 text-sm text-repixl-text-light/80 hover:text-repixl-text-light">
-                      <input
-                        type="checkbox"
-                        checked={inStockOnly}
-                        onChange={(e) => setInStockOnly(e.target.checked)}
-                        className="h-3.5 w-3.5 rounded border-repixl-muted/30 bg-repixl-charcoal text-repixl-red focus:ring-repixl-red/30"
-                      />
-                      In stock only
-                    </label>
-                  </li>
-                </ul>
+                <h3 className="mb-3 font-mono text-[10px] uppercase tracking-widest text-repixl-muted/70">
+                  Availability
+                </h3>
+                <label className="flex cursor-pointer items-center gap-2 text-sm text-repixl-text-light/80 hover:text-repixl-text-light">
+                  <input
+                    type="checkbox"
+                    checked={inStockOnly}
+                    onChange={(e) => setInStockOnly(e.target.checked)}
+                    className="h-3.5 w-3.5 rounded border-repixl-muted/30 bg-repixl-bg text-repixl-red focus:ring-repixl-red/30"
+                  />
+                  In stock only
+                </label>
               </div>
 
+              {/* Brand */}
               <div>
-                <h3 className="font-mono text-[10px] uppercase tracking-widest text-repixl-muted">Brand</h3>
-                <ul className="mt-3 space-y-2">
+                <h3 className="mb-3 font-mono text-[10px] uppercase tracking-widest text-repixl-muted/70">
+                  Brand
+                </h3>
+                <ul className="space-y-2.5">
                   {brands.map((brand) => (
                     <li key={brand}>
                       <label className="flex cursor-pointer items-center gap-2 text-sm text-repixl-text-light/80 hover:text-repixl-text-light">
-                        <input type="checkbox" checked={selectedBrands.includes(brand)} onChange={() => toggleBrand(brand)} className="h-3.5 w-3.5 rounded border-repixl-muted/30 bg-repixl-charcoal text-repixl-red focus:ring-repixl-red/30" />
+                        <input
+                          type="checkbox"
+                          checked={selectedBrands.includes(brand)}
+                          onChange={() => toggleBrand(brand)}
+                          className="h-3.5 w-3.5 rounded border-repixl-muted/30 bg-repixl-bg text-repixl-red focus:ring-repixl-red/30"
+                        />
                         {brand}
                       </label>
                     </li>
@@ -132,13 +150,21 @@ function ProductsContent() {
                 </ul>
               </div>
 
+              {/* Condition */}
               <div>
-                <h3 className="font-mono text-[10px] uppercase tracking-widest text-repixl-muted">Condition</h3>
-                <ul className="mt-3 space-y-2">
+                <h3 className="mb-3 font-mono text-[10px] uppercase tracking-widest text-repixl-muted/70">
+                  Condition
+                </h3>
+                <ul className="space-y-2.5">
                   {conditions.map((condition) => (
                     <li key={condition}>
                       <label className="flex cursor-pointer items-center gap-2">
-                        <input type="checkbox" checked={selectedConditions.includes(condition)} onChange={() => toggleCondition(condition)} className="h-3.5 w-3.5 rounded border-repixl-muted/30 bg-repixl-charcoal text-repixl-red focus:ring-repixl-red/30" />
+                        <input
+                          type="checkbox"
+                          checked={selectedConditions.includes(condition)}
+                          onChange={() => toggleCondition(condition)}
+                          className="h-3.5 w-3.5 rounded border-repixl-muted/30 bg-repixl-bg text-repixl-red focus:ring-repixl-red/30"
+                        />
                         <ConditionBadge condition={condition} />
                       </label>
                     </li>
@@ -146,43 +172,87 @@ function ProductsContent() {
                 </ul>
               </div>
 
+              {/* Price range */}
               <div>
-                <h3 className="font-mono text-[10px] uppercase tracking-widest text-repixl-muted">Price range</h3>
-                <div className="mt-3 space-y-2">
-                  <div className="flex items-center gap-2">
-                    <input type="number" min={0} max={priceRange[1]} value={priceRange[0]} onChange={(e) => setPriceRange([Number(e.target.value), priceRange[1]])} aria-label="Minimum price" className="w-full rounded border border-repixl-muted/20 bg-repixl-charcoal px-2 py-1.5 font-mono text-xs text-repixl-text-light focus:border-repixl-muted/50 focus:outline-none" />
-                    <span className="text-xs text-repixl-muted">—</span>
-                    <input type="number" min={priceRange[0]} max={999} value={priceRange[1]} onChange={(e) => setPriceRange([priceRange[0], Number(e.target.value)])} aria-label="Maximum price" className="w-full rounded border border-repixl-muted/20 bg-repixl-charcoal px-2 py-1.5 font-mono text-xs text-repixl-text-light focus:border-repixl-muted/50 focus:outline-none" />
-                  </div>
+                <h3 className="mb-3 font-mono text-[10px] uppercase tracking-widest text-repixl-muted/70">
+                  Price range
+                </h3>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    min={0}
+                    max={priceRange[1]}
+                    value={priceRange[0]}
+                    onChange={(e) => setPriceRange([Number(e.target.value), priceRange[1]])}
+                    aria-label="Minimum price"
+                    className="w-full rounded border border-repixl-muted/20 bg-repixl-bg px-2 py-1.5 font-mono text-xs text-repixl-text-light focus:border-repixl-muted/50 focus:outline-none"
+                  />
+                  <span className="text-xs text-repixl-muted">—</span>
+                  <input
+                    type="number"
+                    min={priceRange[0]}
+                    max={999}
+                    value={priceRange[1]}
+                    onChange={(e) => setPriceRange([priceRange[0], Number(e.target.value)])}
+                    aria-label="Maximum price"
+                    className="w-full rounded border border-repixl-muted/20 bg-repixl-bg px-2 py-1.5 font-mono text-xs text-repixl-text-light focus:border-repixl-muted/50 focus:outline-none"
+                  />
                 </div>
               </div>
 
               {hasFilters && (
-                <button type="button" onClick={clearAll} className="text-xs text-repixl-red hover:underline">
+                <button
+                  type="button"
+                  onClick={clearAll}
+                  className="w-full rounded border border-repixl-muted/20 py-1.5 font-mono text-[10px] uppercase tracking-wider text-repixl-muted transition-colors hover:border-repixl-red/40 hover:text-repixl-red"
+                >
                   Clear all filters
                 </button>
               )}
             </div>
-          </aside>
+          </motion.aside>
 
-          <div className="flex-1">
+          {/* ── Product grid ── */}
+          <motion.div
+            variants={fadeUp}
+            initial="hidden"
+            animate="show"
+            transition={{ delay: reducedMotion ? 0 : 0.15 }}
+            className="flex-1"
+          >
+            {/* Toolbar */}
             <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
               <div className="flex flex-wrap gap-2">
                 {selectedBrands.map((brand) => (
-                  <button key={brand} onClick={() => toggleBrand(brand)} className="inline-flex items-center gap-1 rounded-full border border-repixl-muted/20 px-2.5 py-1 font-mono text-[10px] uppercase tracking-wider text-repixl-text-light/70 hover:border-repixl-red/50 hover:text-repixl-red">
+                  <button
+                    key={brand}
+                    onClick={() => toggleBrand(brand)}
+                    className="inline-flex items-center gap-1 rounded-full border border-repixl-muted/20 px-2.5 py-1 font-mono text-[10px] uppercase tracking-wider text-repixl-text-light/70 transition-colors hover:border-repixl-red/50 hover:text-repixl-red"
+                  >
                     {brand}<span aria-hidden="true">×</span>
                   </button>
                 ))}
                 {selectedConditions.map((c) => (
-                  <button key={c} onClick={() => toggleCondition(c)} className="inline-flex items-center gap-1 rounded-full border border-repixl-muted/20 px-2.5 py-1 font-mono text-[10px] uppercase tracking-wider text-repixl-text-light/70 hover:border-repixl-red/50 hover:text-repixl-red">
+                  <button
+                    key={c}
+                    onClick={() => toggleCondition(c)}
+                    className="inline-flex items-center gap-1 rounded-full border border-repixl-muted/20 px-2.5 py-1 font-mono text-[10px] uppercase tracking-wider text-repixl-text-light/70 transition-colors hover:border-repixl-red/50 hover:text-repixl-red"
+                  >
                     {c}<span aria-hidden="true">×</span>
                   </button>
                 ))}
               </div>
 
               <div className="flex items-center gap-2">
-                <label htmlFor="sort-select" className="text-xs text-repixl-muted">Sort:</label>
-                <select id="sort-select" value={sort} onChange={(e) => setSort(e.target.value as SortOption)} className="rounded border border-repixl-muted/20 bg-repixl-charcoal px-3 py-1.5 font-mono text-xs text-repixl-text-light focus:border-repixl-muted/50 focus:outline-none">
+                <label htmlFor="sort-select" className="font-mono text-[10px] uppercase tracking-wider text-repixl-muted">
+                  Sort
+                </label>
+                <select
+                  id="sort-select"
+                  value={sort}
+                  onChange={(e) => setSort(e.target.value as SortOption)}
+                  className="rounded border border-repixl-muted/20 bg-repixl-charcoal px-3 py-1.5 font-mono text-xs text-repixl-text-light focus:border-repixl-muted/50 focus:outline-none"
+                >
                   <option value="newest">Newest first</option>
                   <option value="price-asc">Price: low → high</option>
                   <option value="price-desc">Price: high → low</option>
@@ -191,14 +261,13 @@ function ProductsContent() {
             </div>
 
             {!hydrated ? (
-              /* Film strip loader + skeleton grid while store hydrates */
               <div className="space-y-8">
                 <FilmStripLoader label="Loading cameras…" className="mx-auto max-w-md" />
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
                   {Array.from({ length: 6 }).map((_, i) => (
                     <div key={i} className="overflow-hidden rounded-lg border border-repixl-muted/10 bg-repixl-charcoal">
                       <Skeleton className="aspect-square w-full rounded-none" />
-                      <div className="p-4 space-y-2">
+                      <div className="space-y-2 p-4">
                         <Skeleton className="h-3 w-1/3" />
                         <Skeleton className="h-5 w-3/4" />
                         <Skeleton className="h-4 w-1/4" />
@@ -213,25 +282,36 @@ function ProductsContent() {
               </div>
             ) : filtered.length > 0 ? (
               <motion.div
-                initial={reducedMotion ? { opacity: 1 } : { opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ duration: reducedMotion ? 0 : 0.4 }}
+                variants={staggerContainer}
+                initial="hidden"
+                animate="show"
                 key={`${selectedBrands.join()}-${selectedConditions.join()}-${priceRange.join()}-${sort}`}
                 className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3"
               >
                 {filtered.map((product) => (
-                  <ProductCard key={product.slug} product={product} />
+                  <motion.div key={product.slug} variants={staggerItem}>
+                    <ProductCard product={product} />
+                  </motion.div>
                 ))}
               </motion.div>
             ) : (
-              <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-repixl-muted/20 py-24 text-center">
-                <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" className="text-repixl-muted/40"><circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" /><path d="M8 11h6" /></svg>
+              <motion.div
+                variants={fadeUp}
+                initial="hidden"
+                animate="show"
+                className="flex flex-col items-center justify-center rounded-lg border border-dashed border-repixl-muted/20 py-24 text-center"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" className="text-repixl-muted/40">
+                  <circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" /><path d="M8 11h6" />
+                </svg>
                 <p className="mt-4 font-display text-display-sm text-repixl-text-light/60">No cameras found</p>
                 <p className="mt-1 text-sm text-repixl-muted">Try adjusting your filters or clearing them entirely.</p>
-                <button type="button" onClick={clearAll} className="mt-4 text-sm text-repixl-red hover:underline">Clear all filters</button>
-              </div>
+                <button type="button" onClick={clearAll} className="mt-4 rounded border border-repixl-muted/20 px-4 py-2 text-sm text-repixl-red transition-colors hover:border-repixl-red/50">
+                  Clear all filters
+                </button>
+              </motion.div>
             )}
-          </div>
+          </motion.div>
         </div>
       </Container>
     </div>
@@ -241,7 +321,13 @@ function ProductsContent() {
 export default function ProductsPage() {
   return (
     <>
-      <Suspense fallback={<div className="min-h-screen pt-24 pb-16"><Container><p className="text-sm text-repixl-muted">Loading...</p></Container></div>}>
+      <Suspense fallback={
+        <div className="burn-subtle min-h-screen pb-20 pt-24">
+          <Container>
+            <p className="text-sm text-repixl-muted">Loading…</p>
+          </Container>
+        </div>
+      }>
         <ProductsContent />
       </Suspense>
       <Footer />
