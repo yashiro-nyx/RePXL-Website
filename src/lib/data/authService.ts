@@ -150,9 +150,89 @@ export const authService = {
   },
 
   /**
-   * Called after a successful NextAuth OAuth sign-in. Upserts the user in the
-   * DB and obtains a proper HTTP-only session cookie so the rest of the API
-   * (cart, orders, etc.) works correctly for this user.
+   * LOGIN page — Google OAuth.
+   * Only succeeds if the email already exists in the database.
+   * Returns { ok: false, notFound: true } when the email is not registered,
+   * so the caller can show "Account not found — please register first."
+   */
+  async oauthLoginOnly(
+    email: string,
+    firstName: string,
+    lastName: string
+  ): Promise<AuthResult & { notFound?: boolean }> {
+    try {
+      const u = await apiClient.post<ApiUser>('/api/auth/oauth/login', {
+        email,
+        firstName,
+        lastName,
+      })
+      return { ok: true, user: toAuthUser(u) }
+    } catch (err) {
+      if (err instanceof ApiClientError) {
+        if (err.status === 404) {
+          return { ok: false, error: err.message, notFound: true }
+        }
+        return { ok: false, error: err.message }
+      }
+      // Infrastructure error — try localStorage fallback (login-only: must exist)
+      const users = getLocalUsers()
+      const lower = email.toLowerCase()
+      const existing = users.find((u) => u.email.toLowerCase() === lower && u.role === 'customer')
+      if (!existing) {
+        return { ok: false, error: 'Account not found. Please register first.', notFound: true }
+      }
+      return { ok: true, user: recToAuthUser(existing) }
+    }
+  },
+
+  /**
+   * REGISTER page — Google OAuth.
+   * Creates a new account for the Google email.
+   * Returns { ok: false, alreadyExists: true } when the email is already registered,
+   * so the caller can show "Account already exists — please log in instead."
+   */
+  async oauthRegisterOnly(
+    email: string,
+    firstName: string,
+    lastName: string
+  ): Promise<AuthResult & { alreadyExists?: boolean }> {
+    try {
+      const u = await apiClient.post<ApiUser>('/api/auth/oauth/register', {
+        email,
+        firstName,
+        lastName,
+      })
+      return { ok: true, user: toAuthUser(u) }
+    } catch (err) {
+      if (err instanceof ApiClientError) {
+        if (err.status === 409) {
+          return { ok: false, error: err.message, alreadyExists: true }
+        }
+        return { ok: false, error: err.message }
+      }
+      // Infrastructure error — localStorage fallback (register-only: must not exist)
+      const users = getLocalUsers()
+      const lower = email.toLowerCase()
+      const existing = users.find((u) => u.email.toLowerCase() === lower)
+      if (existing) {
+        return {
+          ok: false,
+          error: 'An account with this Google email already exists. Please log in instead.',
+          alreadyExists: true,
+        }
+      }
+      const rec: LocalUserRecord = {
+        firstName, lastName, email: lower, phone: '', password: '', role: 'customer', isSuperAdmin: false,
+      }
+      saveLocalUsers([...users, rec])
+      return { ok: true, user: recToAuthUser(rec) }
+    }
+  },
+
+  /**
+   * @deprecated Use oauthLoginOnly or oauthRegisterOnly instead.
+   * Kept for backward-compatibility with the global useOAuthSync hook which
+   * only runs for already-authenticated users refreshing the page.
    */
   async oauthLogin(email: string, firstName: string, lastName: string): Promise<AuthResult> {
     try {
@@ -167,8 +247,6 @@ export const authService = {
         const msg = err instanceof ApiClientError ? err.message : 'OAuth login failed.'
         return { ok: false, error: msg }
       }
-      // DB unavailable — fall back to localStorage-only session so the UI still
-      // shows the user as logged in (features requiring the DB will degrade).
       const users = getLocalUsers()
       const lower = email.toLowerCase()
       const existing = users.find((u) => u.email.toLowerCase() === lower)

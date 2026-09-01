@@ -1,12 +1,14 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect, Suspense } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { useSession } from 'next-auth/react'
 import { Button, CornerBracket, LegalModal, PasswordInput } from '@/components/ui'
 import { SocialAuthButtons } from '@/components/auth/SocialAuthButtons'
 import { useAuthStore } from '@/stores/authStore'
 import { useToastStore } from '@/stores/toastStore'
+import { authService } from '@/lib/data/authService'
 import { termsContent, privacyContent } from '@/data/legal'
 
 interface RegisterErrors {
@@ -30,15 +32,90 @@ function isPasswordValid(password: string): boolean {
   return passwordRequirements.every((req) => req.test(password))
 }
 
-export default function RegisterPage() {
+function RegisterPage() {
   const [errors, setErrors] = useState<RegisterErrors>({})
   const [password, setPassword] = useState('')
   const [agreeTerms, setAgreeTerms] = useState(false)
   const [termsModalOpen, setTermsModalOpen] = useState(false)
   const [privacyModalOpen, setPrivacyModalOpen] = useState(false)
+  const [oauthError, setOauthError] = useState('')
+  const [oauthAlreadyExists, setOauthAlreadyExists] = useState(false)
+  const [oauthLoading, setOauthLoading] = useState(false)
   const formRef = useRef<HTMLFormElement>(null)
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const { data: nextAuthSession, status: nextAuthStatus } = useSession()
   const register = useAuthStore((s) => s.register)
+
+  // ── Handle Google OAuth callback (?oauth=register) ──────────────────────────
+  useEffect(() => {
+    const oauthMode = searchParams.get('oauth')
+    if (oauthMode !== 'register') return
+    if (nextAuthStatus !== 'authenticated') return
+    if (!nextAuthSession?.user?.email) return
+
+    const alreadyLoggedIn =
+      useAuthStore.getState().isLoggedIn &&
+      useAuthStore.getState().userEmail.toLowerCase() ===
+        nextAuthSession.user.email.toLowerCase()
+    if (alreadyLoggedIn) {
+      router.replace('/account')
+      return
+    }
+
+    setOauthLoading(true)
+    setOauthAlreadyExists(false)
+    setOauthError('')
+
+    const nameParts = (nextAuthSession.user.name ?? '').split(' ')
+    const firstName = nameParts[0] ?? ''
+    const lastName = nameParts.slice(1).join(' ')
+    const email = nextAuthSession.user.email.toLowerCase()
+
+    authService.oauthRegisterOnly(email, firstName, lastName).then((result) => {
+      if (result.ok) {
+        localStorage.removeItem('repixl-oauth-logged-out')
+        useAuthStore.setState({
+          isLoggedIn: true,
+          firstName: result.user.firstName,
+          lastName: result.user.lastName,
+          userEmail: result.user.email,
+          userPhone: result.user.phone,
+          role: result.user.role,
+          isSuperAdmin: result.user.isSuperAdmin,
+        })
+        localStorage.setItem(
+          'repixl-customer-session',
+          JSON.stringify({
+            email: result.user.email,
+            role: result.user.role,
+            loginAt: Date.now(),
+            firstName: result.user.firstName,
+            lastName: result.user.lastName,
+            phone: result.user.phone,
+            isSuperAdmin: result.user.isSuperAdmin,
+          })
+        )
+        const users: Array<Record<string, unknown>> = (() => {
+          try { return JSON.parse(localStorage.getItem('repixl-users') ?? '[]') } catch { return [] }
+        })()
+        const idx = users.findIndex((u) => (u.email as string) === result.user.email)
+        const rec = { ...result.user, password: '' }
+        if (idx >= 0) users[idx] = rec; else users.push(rec)
+        localStorage.setItem('repixl-users', JSON.stringify(users))
+
+        useToastStore.getState().addToast('Account created! Welcome to RePXL.')
+        router.replace('/account')
+      } else if ('alreadyExists' in result && result.alreadyExists) {
+        setOauthAlreadyExists(true)
+      } else {
+        setOauthError(result.error || 'Google sign-up failed. Please try again.')
+      }
+    }).finally(() => {
+      setOauthLoading(false)
+    })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [nextAuthStatus, nextAuthSession, searchParams])
 
   const validate = (): RegisterErrors => {
     const form = formRef.current
@@ -87,6 +164,16 @@ export default function RegisterPage() {
     router.push('/account')
   }
 
+  if (oauthLoading) {
+    return (
+      <div className="burn-subtle flex min-h-screen items-center justify-center px-4">
+        <div className="text-center">
+          <p className="text-sm text-repixl-muted">Creating your account with Google…</p>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="burn-subtle flex min-h-screen items-center justify-center px-4">
       <div className="w-full max-w-sm">
@@ -97,6 +184,29 @@ export default function RegisterPage() {
             </CornerBracket>
           </Link>
         </div>
+
+        {/* OAuth generic error */}
+        {oauthError && !oauthAlreadyExists && (
+          <div className="mb-4 rounded border border-red-500/30 bg-red-500/10 px-4 py-3">
+            <p className="text-sm text-red-400">{oauthError}</p>
+          </div>
+        )}
+
+        {/* Account already exists — point to login */}
+        {oauthAlreadyExists && (
+          <div className="mb-4 rounded border border-amber-500/30 bg-amber-500/10 px-4 py-4">
+            <p className="text-sm font-medium text-amber-300">Account already exists.</p>
+            <p className="mt-1 text-sm text-amber-300/80">
+              A RePXL account is already linked to this Google email. Please log in instead.
+            </p>
+            <Link
+              href="/login"
+              className="mt-3 inline-flex items-center gap-1.5 rounded bg-amber-500/20 px-3 py-1.5 text-sm font-medium text-amber-300 transition-colors hover:bg-amber-500/30"
+            >
+              Go to login →
+            </Link>
+          </div>
+        )}
 
         <div className="rounded-lg border border-repixl-muted/10 bg-repixl-charcoal p-6 md:p-8">
           <h1 className="text-center font-display text-display-sm text-repixl-text-light">Create an account</h1>
@@ -192,4 +302,13 @@ function inputClass(error?: string): string {
   return `w-full rounded border px-3 py-2.5 text-sm text-repixl-text-light placeholder:text-repixl-muted/50 focus:outline-none ${
     error ? 'border-red-400/60 bg-red-400/5 focus:border-red-400' : 'border-repixl-muted/20 bg-repixl-bg focus:border-repixl-muted/50'
   }`
+}
+
+// Wrap in Suspense because useSearchParams() requires it for Next.js static generation
+export default function Page() {
+  return (
+    <Suspense fallback={<div className="flex min-h-screen items-center justify-center" />}>
+      <RegisterPage />
+    </Suspense>
+  )
 }
