@@ -14,28 +14,31 @@ import { useAddressStore, type Address } from '@/stores/addressStore'
 import { usePaymentStore, detectBrand, type SavedCard } from '@/stores/paymentStore'
 import { useOrderHistoryStore, type Order } from '@/stores/orderHistoryStore'
 import { useReviewStore, type Review } from '@/stores/reviewStore'
+import { useWishlistStore } from '@/stores/wishlistStore'
+import { useCartStore } from '@/stores/cartStore'
 import { useProductStore } from '@/stores/productStore'
 import { useRevealAnimation } from '@/hooks/useRevealAnimation'
 import { products as allProducts } from '@/data/products'
 
-type Tab = 'profile' | 'orders' | 'addresses' | 'payments' | 'reviews' | 'security'
+type Tab = 'dashboard' | 'profile' | 'orders' | 'addresses' | 'payments' | 'reviews' | 'security'
 
-const tabs: { id: Tab; label: string; icon: string }[] = [
-  { id: 'profile', label: 'Profile', icon: 'M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2' },
-  { id: 'orders', label: 'Orders', icon: 'M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z' },
-  { id: 'addresses', label: 'Addresses', icon: 'M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z' },
-  { id: 'payments', label: 'Payments', icon: 'M2 5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5z' },
-  { id: 'reviews', label: 'My Reviews', icon: 'M12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2' },
-  { id: 'security', label: 'Security', icon: 'M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10' },
+const tabs: { id: Tab; label: string; iconPath: string; extra?: string }[] = [
+  { id: 'dashboard', label: 'Dashboard', iconPath: 'M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z' },
+  { id: 'profile', label: 'Profile', iconPath: 'M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2', extra: 'circle' },
+  { id: 'orders', label: 'Orders', iconPath: 'M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z' },
+  { id: 'addresses', label: 'Addresses', iconPath: 'M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z', extra: 'dot' },
+  { id: 'payments', label: 'Payments', iconPath: 'M2 5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5z' },
+  { id: 'reviews', label: 'Reviews', iconPath: 'M12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2' },
+  { id: 'security', label: 'Security', iconPath: 'M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10' },
 ]
 
 export default function AccountPage() {
-  const [activeTab, setActiveTab] = useState<Tab>('profile')
+  const [activeTab, setActiveTab] = useState<Tab>('dashboard')
   const { isLoggedIn, firstName, lastName, userEmail, hydrate, logout } = useAuthStore()
   const router = useRouter()
   const [hydrated, setHydrated] = useState(false)
   const [logoutModalOpen, setLogoutModalOpen] = useState(false)
-  const { fadeUp, staggerContainer, staggerItem, viewport, reducedMotion } = useRevealAnimation()
+  const { fadeUp, reducedMotion } = useRevealAnimation()
 
   useEffect(() => {
     hydrate()
@@ -43,18 +46,16 @@ export default function AccountPage() {
     usePaymentStore.getState().hydrate()
     useOrderHistoryStore.getState().hydrate()
     useReviewStore.getState().hydrate()
+    useWishlistStore.getState().hydrate()
+    useCartStore.getState().hydrate()
     setHydrated(true)
   }, [hydrate])
 
-  // Auth guard — redirect to login if not authenticated
   useEffect(() => {
     if (!hydrated) return
-    if (!isLoggedIn) {
-      router.push('/login')
-    }
+    if (!isLoggedIn) router.push('/login')
   }, [hydrated, isLoggedIn, router])
 
-  // Don't render until hydrated and authenticated
   if (!hydrated || !isLoggedIn) return (
     <div className="flex min-h-screen items-center justify-center bg-repixl-bg">
       <FilmStripLoader label="Loading your account…" className="mx-auto max-w-md px-6" />
@@ -65,66 +66,77 @@ export default function AccountPage() {
 
   const handleLogout = () => {
     logout()
-    // Clear the NextAuth JWT cookie so OAuth sync doesn't restore the session.
     signOut({ redirect: false }).catch(() => { /* non-critical */ })
     useToastStore.getState().addToast('You\'ve been logged out. See you next time!', 'info')
     router.push('/')
   }
 
   return (
-    <div className="burn-subtle pb-20 pt-24">
+    <div className="burn-subtle min-h-screen pb-20 pt-24">
       <Container>
-        {/* Page header */}
+        {/* ── Page header ── */}
         <motion.div
           variants={fadeUp}
           initial="hidden"
           animate="show"
-          className="mb-8 border-b border-repixl-muted/10 pb-6"
+          className="mb-8"
         >
-          <span className="font-mono text-xs uppercase tracking-widest text-repixl-muted">
-            — Your space
-          </span>
-          <h1 className="mt-2 font-display text-display-md text-repixl-text-light">My Account</h1>
+          <span className="font-mono text-xs uppercase tracking-widest text-repixl-muted">— Your account</span>
+          <h1 className="mt-2 font-display text-display-md text-repixl-text-light">
+            Welcome back, {firstName}.
+          </h1>
         </motion.div>
 
-        <div className="flex flex-col gap-8 lg:flex-row">
-          {/* Sidebar */}
+        <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
+          {/* ── Sidebar ── */}
           <motion.aside
-            variants={fadeUp}
-            initial="hidden"
-            animate="show"
-            transition={{ delay: reducedMotion ? 0 : 0.1 }}
-            className="w-full shrink-0 lg:w-56"
+            initial={reducedMotion ? { opacity: 1 } : { opacity: 0, x: -16 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1], delay: reducedMotion ? 0 : 0.1 }}
+            className="w-full shrink-0 lg:w-60"
           >
-            <div className="sticky top-24 rounded-lg border border-repixl-muted/10 bg-repixl-charcoal p-5">
-              {/* Avatar + name */}
-              <div className="flex flex-col items-center text-center">
-                <CornerBracket size={8} color="rgba(194,44,44,0.3)" className="inline-flex h-16 w-16 items-center justify-center rounded-full bg-repixl-red/10">
-                  <span className="font-display text-xl font-bold text-repixl-red">{initials}</span>
-                </CornerBracket>
-                <p className="mt-3 font-display text-sm font-semibold text-repixl-text-light">
-                  {firstName} {lastName}
-                </p>
-                <p className="font-mono text-[10px] text-repixl-muted">{userEmail}</p>
+            <div className="sticky top-24 overflow-hidden rounded-xl border border-repixl-muted/10 bg-repixl-charcoal">
+              {/* Profile header */}
+              <div className="relative overflow-hidden px-5 py-6">
+                {/* Subtle red accent bg */}
+                <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-repixl-red/5 to-transparent" />
+                <div className="relative flex flex-col items-center text-center">
+                  <div className="relative">
+                    <div className="flex h-16 w-16 items-center justify-center rounded-full bg-repixl-red/15 ring-2 ring-repixl-red/20">
+                      <span className="font-display text-xl font-bold text-repixl-red">{initials}</span>
+                    </div>
+                    <div className="absolute bottom-0 right-0 h-3.5 w-3.5 rounded-full bg-repixl-success ring-2 ring-repixl-charcoal" title="Active" />
+                  </div>
+                  <p className="mt-3 font-display text-sm font-semibold text-repixl-text-light">
+                    {firstName} {lastName}
+                  </p>
+                  <p className="mt-0.5 font-mono text-[10px] text-repixl-muted">{userEmail}</p>
+                  <span className="mt-2 inline-flex items-center gap-1 rounded-full bg-repixl-success/10 px-2 py-0.5 font-mono text-[9px] uppercase tracking-wider text-repixl-success">
+                    Verified Collector
+                  </span>
+                </div>
               </div>
 
-              {/* Nav tabs */}
-              <nav className="mt-6 space-y-0.5" aria-label="Account navigation">
+              {/* Divider */}
+              <div className="mx-5 h-px bg-repixl-muted/10" />
+
+              {/* Nav */}
+              <nav className="p-3" aria-label="Account navigation">
                 {tabs.map((tab) => (
                   <button
                     key={tab.id}
                     type="button"
                     onClick={() => setActiveTab(tab.id)}
-                    className={`flex w-full items-center gap-2.5 rounded px-3 py-2 text-left text-sm transition-colors ${
+                    className={`flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm transition-all ${
                       activeTab === tab.id
-                        ? 'bg-repixl-red/10 text-repixl-red'
-                        : 'text-repixl-text-light/70 hover:bg-repixl-bg hover:text-repixl-text-light'
+                        ? 'bg-repixl-red/10 font-medium text-repixl-red'
+                        : 'text-repixl-text-light/65 hover:bg-repixl-bg/60 hover:text-repixl-text-light'
                     }`}
                   >
-                    <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                      <path d={tab.icon} />
-                      {tab.id === 'profile' && <circle cx="12" cy="7" r="4" />}
-                      {tab.id === 'addresses' && <circle cx="12" cy="10" r="3" />}
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                      <path d={tab.iconPath} />
+                      {tab.extra === 'circle' && <circle cx="12" cy="7" r="4" />}
+                      {tab.extra === 'dot' && <circle cx="12" cy="10" r="3" />}
                     </svg>
                     {tab.label}
                   </button>
@@ -134,9 +146,9 @@ export default function AccountPage() {
                 <button
                   type="button"
                   onClick={() => setLogoutModalOpen(true)}
-                  className="flex w-full items-center gap-2.5 rounded px-3 py-2 text-left text-sm text-repixl-muted transition-colors hover:bg-repixl-bg hover:text-repixl-red"
+                  className="mt-1 flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm text-repixl-muted/70 transition-all hover:bg-repixl-bg/60 hover:text-repixl-red"
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                     <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" x2="9" y1="12" y2="12" />
                   </svg>
                   Log Out
@@ -145,22 +157,22 @@ export default function AccountPage() {
             </div>
           </motion.aside>
 
-          {/* Content area */}
+          {/* ── Main content ── */}
           <motion.main
-            variants={fadeUp}
-            initial="hidden"
-            animate="show"
-            transition={{ delay: reducedMotion ? 0 : 0.15 }}
-            className="flex-1 min-w-0"
+            initial={reducedMotion ? { opacity: 1 } : { opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1], delay: reducedMotion ? 0 : 0.15 }}
+            className="min-w-0 flex-1"
           >
             <AnimatePresence mode="wait">
               <motion.div
                 key={activeTab}
-                initial={reducedMotion ? { opacity: 1 } : { opacity: 0, y: 10 }}
+                initial={reducedMotion ? { opacity: 1 } : { opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
-                exit={reducedMotion ? { opacity: 1 } : { opacity: 0, y: -6 }}
-                transition={{ duration: reducedMotion ? 0 : 0.25, ease: [0.22, 1, 0.36, 1] }}
+                exit={reducedMotion ? { opacity: 1 } : { opacity: 0, y: -5 }}
+                transition={{ duration: reducedMotion ? 0 : 0.22, ease: [0.22, 1, 0.36, 1] }}
               >
+                {activeTab === 'dashboard' && <DashboardTab onNavigate={setActiveTab} />}
                 {activeTab === 'profile' && <ProfileTab />}
                 {activeTab === 'orders' && <OrdersTab />}
                 {activeTab === 'addresses' && <AddressesTab />}
@@ -172,34 +184,27 @@ export default function AccountPage() {
           </motion.main>
         </div>
       </Container>
-      {/* Logout confirmation modal */}
+
+      {/* Logout modal */}
       {logoutModalOpen && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-sm rounded-lg border border-repixl-muted/20 bg-repixl-charcoal p-6 shadow-2xl">
-            <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-repixl-red/10 mx-auto">
-              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-repixl-red">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.96 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="w-full max-w-sm rounded-xl border border-repixl-muted/20 bg-repixl-charcoal p-6 shadow-2xl"
+          >
+            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-repixl-red/10">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-repixl-red" aria-hidden="true">
                 <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" x2="9" y1="12" y2="12" />
               </svg>
             </div>
             <h3 className="text-center font-display text-lg font-semibold text-repixl-text-light">Log Out?</h3>
-            <p className="mt-2 text-center text-sm text-repixl-muted">Are you sure you want to log out?</p>
+            <p className="mt-1.5 text-center text-sm text-repixl-muted">You'll need to sign in again to access your account.</p>
             <div className="mt-5 flex gap-3">
-              <button
-                type="button"
-                onClick={() => setLogoutModalOpen(false)}
-                className="flex-1 rounded border border-repixl-muted/20 px-4 py-2.5 text-sm text-repixl-text-light/70 transition-colors hover:bg-repixl-bg hover:text-repixl-text-light"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={handleLogout}
-                className="flex-1 rounded bg-repixl-red px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-red-700"
-              >
-                Log Out
-              </button>
+              <button type="button" onClick={() => setLogoutModalOpen(false)} className="flex-1 rounded-lg border border-repixl-muted/20 px-4 py-2.5 text-sm text-repixl-text-light/70 transition-colors hover:bg-repixl-bg hover:text-repixl-text-light">Cancel</button>
+              <button type="button" onClick={handleLogout} className="flex-1 rounded-lg bg-repixl-red px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-red-700">Log Out</button>
             </div>
-          </div>
+          </motion.div>
         </div>
       )}
       <Footer />
@@ -207,7 +212,167 @@ export default function AccountPage() {
   )
 }
 
-// ─── Profile Tab ───
+// ─── Dashboard Tab ───────────────────────────────────────────────────────────
+function DashboardTab({ onNavigate }: { onNavigate: (tab: Tab) => void }) {
+  const { firstName, lastName, userEmail } = useAuthStore()
+  const allOrders = useOrderHistoryStore((s) => s.orders)
+  const orders = allOrders.filter((o) => o.userEmail === userEmail)
+  const wishlistSlugs = useWishlistStore((s) => s.slugs)
+  const cartItems = useCartStore((s) => s.items)
+  const allProductsStore = useProductStore((s) => s.products)
+
+  const activeOrders = orders.filter((o) => o.status === 'Processing' || o.status === 'Shipped')
+  const recentOrders = orders.slice(0, 3)
+
+  const statusColor: Record<string, string> = {
+    Processing: 'bg-repixl-warning/15 text-repixl-warning',
+    Shipped: 'bg-blue-400/15 text-blue-400',
+    Delivered: 'bg-repixl-success/15 text-repixl-success',
+    Completed: 'bg-repixl-success/15 text-repixl-success',
+    Cancelled: 'bg-repixl-red/15 text-repixl-red',
+  }
+
+  const stats: { label: string; value: number; icon: string; color: string; bg: string; tab: Tab | null; href?: string; extra?: string }[] = [
+    { label: 'Total Orders', value: orders.length, icon: 'M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z', color: 'text-blue-400', bg: 'bg-blue-400/10', tab: 'orders' as Tab },
+    { label: 'Active Orders', value: activeOrders.length, icon: 'M13 2L3 14h9l-1 8 10-12h-9l1-8z', color: 'text-repixl-warning', bg: 'bg-repixl-warning/10', tab: 'orders' as Tab },
+    { label: 'Wishlist', value: wishlistSlugs.length, icon: 'M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z', color: 'text-repixl-red', bg: 'bg-repixl-red/10', tab: null, href: '/wishlist' },
+    { label: 'Cart Items', value: cartItems.reduce((s, i) => s + i.quantity, 0), icon: 'M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12', color: 'text-repixl-success', bg: 'bg-repixl-success/10', tab: null, href: '/cart' },
+  ]
+
+  const quickActions = [
+    { label: 'Browse Cameras', icon: 'M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z', href: '/products', extra: 'circle-3' },
+    { label: 'My Wishlist', icon: 'M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z', href: '/wishlist' },
+    { label: 'View Cart', icon: 'M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12', href: '/cart', extra: 'circles' },
+    { label: 'Compare Cameras', icon: 'M3 3h18M3 9h18M3 15h18M3 21h18', href: '/compare' },
+  ]
+
+  return (
+    <div className="space-y-6">
+      {/* Stats grid */}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        {stats.map((stat) => {
+          const inner = (
+            <div className={`rounded-xl border border-repixl-muted/10 bg-repixl-charcoal p-4 transition-all hover:border-repixl-muted/25 hover:bg-repixl-charcoal/80`}>
+              <div className={`mb-3 flex h-9 w-9 items-center justify-center rounded-lg ${stat.bg}`}>
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className={stat.color} aria-hidden="true">
+                  <path d={stat.icon} />
+                  {stat.extra === 'circle-3' && <circle cx="12" cy="13" r="3" />}
+                  {stat.extra === 'circles' && <><circle cx="8" cy="21" r="1" /><circle cx="19" cy="21" r="1" /></>}
+                </svg>
+              </div>
+              <p className="font-display text-2xl font-bold text-repixl-text-light">{stat.value}</p>
+              <p className="mt-0.5 font-mono text-[10px] uppercase tracking-wider text-repixl-muted">{stat.label}</p>
+            </div>
+          )
+          if (stat.href) {
+            return <Link key={stat.label} href={stat.href}>{inner}</Link>
+          }
+          return (
+            <button key={stat.label} type="button" onClick={() => stat.tab && onNavigate(stat.tab)} className="text-left">
+              {inner}
+            </button>
+          )
+        })}
+      </div>
+
+      {/* Recent Orders */}
+      <div className="rounded-xl border border-repixl-muted/10 bg-repixl-charcoal p-5">
+        <div className="mb-4 flex items-center justify-between">
+          <div>
+            <span className="font-mono text-[10px] uppercase tracking-widest text-repixl-muted">— Recent activity</span>
+            <h2 className="mt-1 font-display text-base font-semibold text-repixl-text-light">Order History</h2>
+          </div>
+          <button type="button" onClick={() => onNavigate('orders')} className="font-mono text-[10px] uppercase tracking-wider text-repixl-muted transition-colors hover:text-repixl-text-light">
+            View all →
+          </button>
+        </div>
+
+        {recentOrders.length === 0 ? (
+          <div className="flex flex-col items-center py-10 text-center">
+            <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-repixl-muted/10">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-repixl-muted/50" aria-hidden="true">
+                <path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z" />
+              </svg>
+            </div>
+            <p className="text-sm text-repixl-text-light/60">No orders yet</p>
+            <Link href="/products" className="mt-3 font-mono text-[10px] uppercase tracking-wider text-repixl-red hover:underline">Browse cameras →</Link>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {recentOrders.map((order) => (
+              <div key={order.orderNumber} className="flex items-center justify-between rounded-lg border border-repixl-muted/8 bg-repixl-bg/50 px-4 py-3">
+                <div className="min-w-0 flex-1">
+                  <p className="truncate font-mono text-xs text-repixl-text-light">#{order.orderNumber}</p>
+                  <p className="font-mono text-[10px] text-repixl-muted">{order.date}</p>
+                </div>
+                <div className="ml-3 flex items-center gap-3">
+                  <span className={`rounded-full px-2 py-0.5 font-mono text-[9px] uppercase tracking-wider ${statusColor[order.status] ?? 'bg-repixl-muted/15 text-repixl-muted'}`}>
+                    {order.status}
+                  </span>
+                  <span className="font-display text-sm font-semibold text-repixl-text-light">${order.total}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Quick Actions */}
+      <div className="rounded-xl border border-repixl-muted/10 bg-repixl-charcoal p-5">
+        <div className="mb-4">
+          <span className="font-mono text-[10px] uppercase tracking-widest text-repixl-muted">— Quick access</span>
+          <h2 className="mt-1 font-display text-base font-semibold text-repixl-text-light">Quick Actions</h2>
+        </div>
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+          {quickActions.map((action) => (
+            <Link
+              key={action.label}
+              href={action.href}
+              className="flex flex-col items-center gap-2 rounded-lg border border-repixl-muted/10 bg-repixl-bg/50 px-3 py-4 text-center transition-all hover:border-repixl-muted/25 hover:bg-repixl-bg"
+            >
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-repixl-muted/10">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className="text-repixl-text-light/70" aria-hidden="true">
+                  <path d={action.icon} />
+                  {action.extra === 'circle-3' && <circle cx="12" cy="13" r="3" />}
+                  {action.extra === 'circles' && <><circle cx="8" cy="21" r="1" /><circle cx="19" cy="21" r="1" /></>}
+                </svg>
+              </div>
+              <span className="font-mono text-[10px] uppercase tracking-wider text-repixl-text-light/70">{action.label}</span>
+            </Link>
+          ))}
+        </div>
+      </div>
+
+      {/* Account overview */}
+      <div className="rounded-xl border border-repixl-muted/10 bg-repixl-charcoal p-5">
+        <div className="mb-4">
+          <span className="font-mono text-[10px] uppercase tracking-widest text-repixl-muted">— Account</span>
+          <h2 className="mt-1 font-display text-base font-semibold text-repixl-text-light">Your Profile</h2>
+        </div>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <div className="rounded-lg bg-repixl-bg/50 px-4 py-3">
+            <p className="font-mono text-[9px] uppercase tracking-wider text-repixl-muted">Name</p>
+            <p className="mt-1 text-sm font-medium text-repixl-text-light">{firstName} {lastName}</p>
+          </div>
+          <div className="rounded-lg bg-repixl-bg/50 px-4 py-3">
+            <p className="font-mono text-[9px] uppercase tracking-wider text-repixl-muted">Email</p>
+            <p className="mt-1 truncate text-sm font-medium text-repixl-text-light">{userEmail}</p>
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={() => onNavigate('profile')}
+          className="mt-3 flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-wider text-repixl-muted transition-colors hover:text-repixl-text-light"
+        >
+          Edit profile
+          <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden="true"><path d="M5 12h14" /><path d="m12 5 7 7-7 7" /></svg>
+        </button>
+      </div>
+    </div>
+  )
+}
+
+// ─── Profile Tab ─────────────────────────────────────────────────────────────
 function ProfileTab() {
   const { firstName, lastName, userEmail, userPhone, updateProfile } = useAuthStore()
   const [first, setFirst] = useState('')
@@ -219,31 +384,17 @@ function ProfileTab() {
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [saved, setSaved] = useState(false)
 
-  // Load profile fields + birth date (stored per-user in localStorage since
-  // the DB schema has no birthDate column).
   useEffect(() => {
-    setFirst(firstName)
-    setLast(lastName)
-    setEmail(userEmail)
-    setPhone(userPhone)
+    setFirst(firstName); setLast(lastName); setEmail(userEmail); setPhone(userPhone)
     if (userEmail) {
       try {
         const stored = localStorage.getItem(`repixl-birthdate-${userEmail}`) ?? ''
-        setBirthDate(stored)
-        setOrigBirthDate(stored)
-      } catch {
-        setBirthDate('')
-        setOrigBirthDate('')
-      }
+        setBirthDate(stored); setOrigBirthDate(stored)
+      } catch { setBirthDate(''); setOrigBirthDate('') }
     }
   }, [firstName, lastName, userEmail, userPhone])
 
-  const hasChanges =
-    first !== firstName ||
-    last !== lastName ||
-    email !== userEmail ||
-    phone !== userPhone ||
-    birthDate !== origBirthDate
+  const hasChanges = first !== firstName || last !== lastName || email !== userEmail || phone !== userPhone || birthDate !== origBirthDate
 
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault()
@@ -258,14 +409,10 @@ function ProfileTab() {
     setErrors(errs)
     if (Object.keys(errs).length > 0) return
     updateProfile(first.trim(), last.trim(), email.trim(), phone.trim())
-    // Persist birth date per-user in localStorage (no DB column for it).
     if (email.trim()) {
       try {
-        if (birthDate) {
-          localStorage.setItem(`repixl-birthdate-${email.trim()}`, birthDate)
-        } else {
-          localStorage.removeItem(`repixl-birthdate-${email.trim()}`)
-        }
+        if (birthDate) localStorage.setItem(`repixl-birthdate-${email.trim()}`, birthDate)
+        else localStorage.removeItem(`repixl-birthdate-${email.trim()}`)
       } catch { /* ignore */ }
     }
     setOrigBirthDate(birthDate)
@@ -274,97 +421,128 @@ function ProfileTab() {
   }
 
   return (
-    <div className="rounded-lg border border-repixl-muted/10 bg-repixl-charcoal p-6">
-      <h2 className="text-center font-display text-lg font-semibold text-repixl-text-light">Profile Information</h2>
-      <form onSubmit={handleSave} noValidate className="mt-6 space-y-4">
+    <div className="rounded-xl border border-repixl-muted/10 bg-repixl-charcoal p-6">
+      <div className="mb-5">
+        <span className="font-mono text-[10px] uppercase tracking-widest text-repixl-muted">— Edit your info</span>
+        <h2 className="mt-1 font-display text-lg font-semibold text-repixl-text-light">Profile Information</h2>
+      </div>
+      <form onSubmit={handleSave} noValidate className="space-y-4">
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label htmlFor="p-first" className="mb-1 block text-center text-xs text-repixl-text-light/70">First Name</label>
+            <label htmlFor="p-first" className="mb-1.5 block text-xs text-repixl-text-light/70">First Name</label>
             <input id="p-first" type="text" value={first} onChange={(e) => setFirst(e.target.value)} className={inputClass(errors.first)} />
             {errors.first && <p className="mt-1 text-xs text-red-400">{errors.first}</p>}
           </div>
           <div>
-            <label htmlFor="p-last" className="mb-1 block text-center text-xs text-repixl-text-light/70">Last Name</label>
+            <label htmlFor="p-last" className="mb-1.5 block text-xs text-repixl-text-light/70">Last Name</label>
             <input id="p-last" type="text" value={last} onChange={(e) => setLast(e.target.value)} className={inputClass(errors.last)} />
             {errors.last && <p className="mt-1 text-xs text-red-400">{errors.last}</p>}
           </div>
         </div>
         <div>
-          <label htmlFor="p-email" className="mb-1 block text-center text-xs text-repixl-text-light/70">Email</label>
+          <label htmlFor="p-email" className="mb-1.5 block text-xs text-repixl-text-light/70">Email Address</label>
           <input id="p-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} className={inputClass(errors.email)} />
           {errors.email && <p className="mt-1 text-xs text-red-400">{errors.email}</p>}
         </div>
         <div>
-          <label htmlFor="p-phone" className="mb-1 block text-center text-xs text-repixl-text-light/70">Phone Number</label>
+          <label htmlFor="p-phone" className="mb-1.5 block text-xs text-repixl-text-light/70">Phone Number</label>
           <input id="p-phone" type="tel" inputMode="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+63 912 345 6789" className={inputClass(errors.phone)} />
           {errors.phone && <p className="mt-1 text-xs text-red-400">{errors.phone}</p>}
         </div>
         <div>
-          <label htmlFor="p-birth" className="mb-1 block text-center text-xs text-repixl-text-light/70">Birth Date</label>
-          <input
-            id="p-birth"
-            type="date"
-            value={birthDate}
-            onChange={(e) => setBirthDate(e.target.value)}
-            className={`${inputClass()} [color-scheme:dark]`}
-          />
+          <label htmlFor="p-birth" className="mb-1.5 block text-xs text-repixl-text-light/70">Birth Date</label>
+          <input id="p-birth" type="date" value={birthDate} onChange={(e) => setBirthDate(e.target.value)} className={`${inputClass()} [color-scheme:dark]`} />
         </div>
-        <div className="flex items-center justify-center gap-3 pt-2">
-          <Button type="submit" variant="primary" size="md" disabled={!hasChanges} className={!hasChanges ? 'opacity-50 cursor-not-allowed' : ''}>Update Profile</Button>
-          {saved && <span className="flex items-center gap-1.5 text-sm text-repixl-success" role="status"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5" /></svg>Saved</span>}
+        <div className="flex items-center gap-3 pt-1">
+          <Button type="submit" variant="primary" size="md" disabled={!hasChanges} className={!hasChanges ? 'opacity-50 cursor-not-allowed' : ''}>
+            Save Changes
+          </Button>
+          {saved && (
+            <span className="flex items-center gap-1.5 text-sm text-repixl-success" role="status">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5" /></svg>
+              Saved
+            </span>
+          )}
         </div>
       </form>
     </div>
   )
 }
 
-// ─── Orders Tab ───
+// ─── Orders Tab ──────────────────────────────────────────────────────────────
 function OrdersTab() {
   const allOrders = useOrderHistoryStore((s) => s.orders)
   const userEmail = useAuthStore((s) => s.userEmail)
   const orders = allOrders.filter((o) => o.userEmail === userEmail)
   const [detailOrder, setDetailOrder] = useState<Order | null>(null)
-  const allProducts = useProductStore((s) => s.products)
+  const allProductsStore = useProductStore((s) => s.products)
+
+  const statusColor: Record<string, string> = {
+    Processing: 'bg-repixl-warning/15 text-repixl-warning',
+    Shipped: 'bg-blue-400/15 text-blue-400',
+    Delivered: 'bg-repixl-success/15 text-repixl-success',
+    Completed: 'bg-repixl-success/15 text-repixl-success',
+    Cancelled: 'bg-repixl-red/15 text-repixl-red',
+  }
 
   if (orders.length === 0) {
     return (
-      <div className="flex flex-col items-center rounded-lg border border-repixl-muted/10 bg-repixl-charcoal py-16 text-center">
-        <h2 className="font-display text-lg font-semibold text-repixl-text-light">Order History</h2>
-        <p className="mt-2 text-sm text-repixl-muted">No orders yet. Start shopping!</p>
-        <Link href="/products" className="mt-4"><Button variant="primary" size="sm">Browse Cameras</Button></Link>
+      <div className="rounded-xl border border-repixl-muted/10 bg-repixl-charcoal p-10 text-center">
+        <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-repixl-muted/10">
+          <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-repixl-muted/50" aria-hidden="true">
+            <path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z" />
+          </svg>
+        </div>
+        <p className="font-display text-lg font-semibold text-repixl-text-light">No orders yet</p>
+        <p className="mt-1 text-sm text-repixl-muted">Your order history will appear here.</p>
+        <Link href="/products" className="mt-5 inline-block"><Button variant="primary" size="sm">Browse Cameras</Button></Link>
       </div>
     )
   }
 
   return (
-    <div>
-      <h2 className="text-center font-display text-lg font-semibold text-repixl-text-light">Order History</h2>
-      <div className="mt-6 space-y-4">
-        {orders.map((order) => (
-          <div key={order.orderNumber} className="rounded-lg border border-repixl-muted/10 bg-repixl-charcoal p-5">
-            <div className="flex items-start justify-between">
-              <div>
-                <p className="text-sm font-semibold text-repixl-text-light">Order #{order.orderNumber}</p>
-                <p className="mt-0.5 text-xs text-repixl-muted">Placed on {order.date}</p>
-                <p className="mt-0.5 text-sm text-repixl-text-light">Total: <span className="font-semibold">${order.total}</span></p>
-              </div>
-              <span className="rounded bg-repixl-success/15 px-2 py-0.5 font-mono text-[9px] uppercase text-repixl-success">{order.status}</span>
-            </div>
-            <button onClick={() => setDetailOrder(order)} className="mt-3 rounded border border-repixl-muted/20 px-3 py-1.5 text-xs text-repixl-text-light/70 transition-colors hover:border-repixl-muted/50 hover:text-repixl-text-light">View Details</button>
-          </div>
-        ))}
+    <div className="space-y-3">
+      <div className="mb-1">
+        <span className="font-mono text-[10px] uppercase tracking-widest text-repixl-muted">— {orders.length} {orders.length === 1 ? 'order' : 'orders'}</span>
+        <h2 className="mt-1 font-display text-lg font-semibold text-repixl-text-light">Order History</h2>
       </div>
+      {orders.map((order) => (
+        <div key={order.orderNumber} className="rounded-xl border border-repixl-muted/10 bg-repixl-charcoal p-5">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <p className="font-mono text-xs font-semibold text-repixl-text-light">#{order.orderNumber}</p>
+              <p className="mt-0.5 font-mono text-[10px] text-repixl-muted">{order.date}</p>
+            </div>
+            <div className="flex items-center gap-3">
+              <span className={`rounded-full px-2.5 py-1 font-mono text-[9px] uppercase tracking-wider ${statusColor[order.status] ?? 'bg-repixl-muted/15 text-repixl-muted'}`}>
+                {order.status}
+              </span>
+              <span className="font-display text-lg font-bold text-repixl-text-light">${order.total}</span>
+            </div>
+          </div>
+          <div className="mt-3 flex items-center justify-between border-t border-repixl-muted/10 pt-3">
+            <p className="text-xs text-repixl-muted">{order.courierName} · {order.courierEstimate}</p>
+            <button
+              onClick={() => setDetailOrder(order)}
+              className="font-mono text-[10px] uppercase tracking-wider text-repixl-muted transition-colors hover:text-repixl-text-light"
+            >
+              View Details →
+            </button>
+          </div>
+        </div>
+      ))}
 
-      {/* Order Details Modal */}
+      {/* Order detail modal — unchanged functionality */}
       {detailOrder && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-lg rounded-lg border border-repixl-muted/20 bg-repixl-bg p-6 shadow-2xl receipt-print-area">
+          <div className="w-full max-w-lg rounded-xl border border-repixl-muted/20 bg-repixl-bg p-6 shadow-2xl receipt-print-area">
             <div className="flex items-center justify-between no-print">
               <h3 className="font-display text-lg font-semibold text-repixl-text-light">Order Details</h3>
-              <button onClick={() => setDetailOrder(null)} className="text-repixl-muted hover:text-repixl-text-light"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg></button>
+              <button onClick={() => setDetailOrder(null)} className="text-repixl-muted hover:text-repixl-text-light" aria-label="Close">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg>
+              </button>
             </div>
             <div className="mt-4 space-y-3">
-              {/* Print-only header */}
               <div className="hidden print:block mb-4 border-b border-repixl-muted/10 pb-4 text-center">
                 <p className="font-display text-2xl font-bold text-repixl-text-light print-muted">RePXL</p>
                 <p className="font-mono text-[10px] uppercase tracking-widest text-repixl-muted print-muted">Order Receipt</p>
@@ -374,28 +552,39 @@ function OrdersTab() {
                   <p className="text-sm font-semibold text-repixl-text-light">Order #{detailOrder.orderNumber}</p>
                   <p className="text-xs text-repixl-muted">Placed on {detailOrder.date}</p>
                 </div>
-                <span className="rounded bg-repixl-success/15 px-2 py-0.5 font-mono text-[9px] uppercase text-repixl-success">{detailOrder.status}</span>
+                <span className={`rounded-full px-2.5 py-0.5 font-mono text-[9px] uppercase ${statusColor[detailOrder.status] ?? ''}`}>{detailOrder.status}</span>
               </div>
-              <div className="rounded border border-repixl-muted/10 bg-repixl-charcoal p-3">
+              <div className="rounded-lg border border-repixl-muted/10 bg-repixl-charcoal p-3">
                 <p className="text-center text-xs font-medium text-repixl-text-light/70">Shipping Address</p>
                 <p className="mt-1 text-center text-sm text-repixl-text-light">{detailOrder.fullName}</p>
                 <p className="text-center text-xs text-repixl-muted">{detailOrder.address}, {detailOrder.city} {detailOrder.postalCode}</p>
               </div>
               <div className="flex justify-end"><p className="text-sm text-repixl-text-light">Total: <span className="font-display font-bold">${detailOrder.total}</span></p></div>
-              {/* Items table */}
               <table className="w-full text-sm">
-                <thead className="border-b border-repixl-muted/10"><tr><th className="py-2 text-left text-xs text-repixl-muted">Item</th><th className="py-2 text-right text-xs text-repixl-muted">Price</th><th className="py-2 text-right text-xs text-repixl-muted">Qty</th><th className="py-2 text-right text-xs text-repixl-muted">Subtotal</th></tr></thead>
+                <thead className="border-b border-repixl-muted/10">
+                  <tr>
+                    <th className="py-2 text-left text-xs text-repixl-muted">Item</th>
+                    <th className="py-2 text-right text-xs text-repixl-muted">Price</th>
+                    <th className="py-2 text-right text-xs text-repixl-muted">Qty</th>
+                    <th className="py-2 text-right text-xs text-repixl-muted">Subtotal</th>
+                  </tr>
+                </thead>
                 <tbody className="divide-y divide-repixl-muted/10">
                   {detailOrder.items.map((item) => {
-                    const product = allProducts.find((p) => p.slug === item.slug)
-                    // item.price = unit price snapshot from the order
-                    // item.stock = purchased quantity (mapper encodes qty here)
+                    const product = allProductsStore.find((p) => p.slug === item.slug)
                     const unitPrice = item.price
                     const qty = item.stock
                     const lineTotal = unitPrice * qty
                     return (
                       <tr key={item.slug}>
-                        <td className="py-2"><div className="flex items-center gap-2"><div className="h-8 w-8 overflow-hidden rounded bg-repixl-charcoal">{product && <img src={product.image} alt="" className="h-full w-full object-contain" />}</div><span className="text-repixl-text-light">{product?.name || item.name || item.slug}</span></div></td>
+                        <td className="py-2">
+                          <div className="flex items-center gap-2">
+                            <div className="h-8 w-8 overflow-hidden rounded bg-repixl-charcoal">
+                              {product && <img src={product.image} alt="" className="h-full w-full object-contain" />}
+                            </div>
+                            <span className="text-repixl-text-light">{product?.name || item.name || item.slug}</span>
+                          </div>
+                        </td>
                         <td className="py-2 text-right font-mono text-repixl-text-light/70">${unitPrice.toFixed(2)}</td>
                         <td className="py-2 text-right font-mono text-repixl-text-light/70">{qty}</td>
                         <td className="py-2 text-right font-mono text-repixl-text-light">${lineTotal.toFixed(2)}</td>
@@ -405,11 +594,7 @@ function OrdersTab() {
                 </tbody>
               </table>
               <div className="flex justify-center gap-3 pt-2">
-                <button
-                  type="button"
-                  onClick={() => window.print()}
-                  className="no-print flex items-center gap-2 rounded border border-repixl-muted/20 px-4 py-2 text-sm text-repixl-text-light/70 transition-colors hover:border-repixl-muted/50 hover:text-repixl-text-light"
-                >
+                <button type="button" onClick={() => window.print()} className="no-print flex items-center gap-2 rounded border border-repixl-muted/20 px-4 py-2 text-sm text-repixl-text-light/70 transition-colors hover:border-repixl-muted/50 hover:text-repixl-text-light">
                   <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 6 2 18 2 18 9" /><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" /><rect width="12" height="8" x="6" y="14" /></svg>
                   Print Receipt
                 </button>
@@ -423,7 +608,7 @@ function OrdersTab() {
   )
 }
 
-// ─── Addresses Tab ───
+// ─── Addresses Tab ───────────────────────────────────────────────────────────
 function AddressesTab() {
   const addresses = useAddressStore((s) => s.addresses)
   const addAddress = useAddressStore((s) => s.addAddress)
@@ -442,29 +627,36 @@ function AddressesTab() {
   const editingAddress = editingId ? addresses.find((a) => a.id === editingId) : undefined
 
   return (
-    <div className="rounded-lg border border-repixl-muted/10 bg-repixl-charcoal p-6">
-      <div className="flex items-center justify-between">
-        <h2 className="font-mono text-[10px] uppercase tracking-widest text-repixl-muted">Saved Addresses</h2>
-        {!formOpen && <Button variant="secondary" size="sm" onClick={() => { setEditingId(null); setFormOpen(true) }}>+ Add</Button>}
+    <div className="rounded-xl border border-repixl-muted/10 bg-repixl-charcoal p-6">
+      <div className="mb-5 flex items-center justify-between">
+        <div>
+          <span className="font-mono text-[10px] uppercase tracking-widest text-repixl-muted">— Delivery</span>
+          <h2 className="mt-1 font-display text-lg font-semibold text-repixl-text-light">Saved Addresses</h2>
+        </div>
+        {!formOpen && <Button variant="secondary" size="sm" onClick={() => { setEditingId(null); setFormOpen(true) }}>+ Add Address</Button>}
       </div>
-      {addresses.length === 0 && !formOpen && <p className="mt-4 text-sm text-repixl-muted">No saved addresses yet.</p>}
+      {addresses.length === 0 && !formOpen && (
+        <div className="flex flex-col items-center py-8 text-center">
+          <p className="text-sm text-repixl-muted">No saved addresses yet.</p>
+        </div>
+      )}
       {addresses.length > 0 && !formOpen && (
-        <ul className="mt-4 space-y-3">
+        <ul className="space-y-3">
           {addresses.map((addr) => (
-            <li key={addr.id} className="rounded border border-repixl-muted/10 bg-repixl-bg p-4">
+            <li key={addr.id} className="rounded-lg border border-repixl-muted/10 bg-repixl-bg p-4">
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <div className="flex items-center gap-2">
                     <p className="text-sm font-medium text-repixl-text-light">{addr.fullName}</p>
-                    {addr.isDefault && <span className="rounded bg-repixl-success/15 px-1.5 py-0.5 font-mono text-[9px] uppercase text-repixl-success">Default</span>}
+                    {addr.isDefault && <span className="rounded-full bg-repixl-success/15 px-2 py-0.5 font-mono text-[9px] uppercase text-repixl-success">Default</span>}
                   </div>
-                  <p className="mt-0.5 text-xs text-repixl-text-light/60">{addr.address}, {addr.city} {addr.postalCode}</p>
+                  <p className="mt-0.5 text-xs text-repixl-text-light/60">{addr.address}, {addr.barangay}, {addr.city} {addr.postalCode}</p>
                   {addr.phone && <p className="font-mono text-[10px] text-repixl-muted">{addr.phone}</p>}
                 </div>
-                <div className="flex gap-2">
-                  {!addr.isDefault && <button type="button" onClick={() => setDefault(addr.id)} className="text-[10px] text-repixl-muted hover:text-repixl-text-light">Default</button>}
-                  <button type="button" onClick={() => { setEditingId(addr.id); setFormOpen(true) }} className="text-[10px] text-repixl-muted hover:text-repixl-text-light">Edit</button>
-                  <button type="button" onClick={() => removeAddress(addr.id)} className="text-[10px] text-repixl-muted hover:text-repixl-red">Delete</button>
+                <div className="flex shrink-0 gap-2">
+                  {!addr.isDefault && <button type="button" onClick={() => setDefault(addr.id)} className="font-mono text-[9px] uppercase tracking-wider text-repixl-muted hover:text-repixl-text-light">Default</button>}
+                  <button type="button" onClick={() => { setEditingId(addr.id); setFormOpen(true) }} className="font-mono text-[9px] uppercase tracking-wider text-repixl-muted hover:text-repixl-text-light">Edit</button>
+                  <button type="button" onClick={() => removeAddress(addr.id)} className="font-mono text-[9px] uppercase tracking-wider text-repixl-muted hover:text-repixl-red">Delete</button>
                 </div>
               </div>
             </li>
@@ -503,26 +695,23 @@ function AddressForm({ initial, onSave, onCancel }: { initial?: Address; onSave:
   }
 
   return (
-    <form onSubmit={handleSubmit} noValidate className="mt-4 space-y-3 rounded border border-repixl-muted/10 bg-repixl-bg p-4">
+    <form onSubmit={handleSubmit} noValidate className="mt-5 space-y-3 rounded-lg border border-repixl-muted/10 bg-repixl-bg p-4">
       <div><label htmlFor="a-name" className="mb-1 block text-xs text-repixl-text-light/70">Full Name</label><input id="a-name" type="text" value={fullName} onChange={(e) => setFullName(e.target.value)} className={inputClass(errors.fullName)} />{errors.fullName && <p className="mt-1 text-xs text-red-400">{errors.fullName}</p>}</div>
-      <div><label htmlFor="a-phone" className="mb-1 block text-xs text-repixl-text-light/70">Phone Number</label><input id="a-phone" type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} className={inputClass(errors.phone)} />{errors.phone && <p className="mt-1 text-xs text-red-400">{errors.phone}</p>}</div>
+      <div><label htmlFor="a-phone2" className="mb-1 block text-xs text-repixl-text-light/70">Phone Number</label><input id="a-phone2" type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} className={inputClass(errors.phone)} />{errors.phone && <p className="mt-1 text-xs text-red-400">{errors.phone}</p>}</div>
       <div><label htmlFor="a-street" className="mb-1 block text-xs text-repixl-text-light/70">Street Address</label><input id="a-street" type="text" value={address} onChange={(e) => setAddress(e.target.value)} className={inputClass(errors.address)} />{errors.address && <p className="mt-1 text-xs text-red-400">{errors.address}</p>}</div>
       <div><label htmlFor="a-barangay" className="mb-1 block text-xs text-repixl-text-light/70">Barangay</label><input id="a-barangay" type="text" value={barangay} onChange={(e) => setBarangay(e.target.value)} placeholder="Enter barangay" className={inputClass(errors.barangay)} />{errors.barangay && <p className="mt-1 text-xs text-red-400">{errors.barangay}</p>}</div>
       <div className="grid grid-cols-2 gap-3">
         <div><label htmlFor="a-city" className="mb-1 block text-xs text-repixl-text-light/70">City / Municipality</label><input id="a-city" type="text" value={city} onChange={(e) => setCity(e.target.value)} className={inputClass(errors.city)} />{errors.city && <p className="mt-1 text-xs text-red-400">{errors.city}</p>}</div>
         <div><label htmlFor="a-province" className="mb-1 block text-xs text-repixl-text-light/70">Province</label><input id="a-province" type="text" value={province} onChange={(e) => setProvince(e.target.value)} className={inputClass(errors.province)} />{errors.province && <p className="mt-1 text-xs text-red-400">{errors.province}</p>}</div>
       </div>
-      <div className="grid grid-cols-2 gap-3">
-        <div><label htmlFor="a-zip" className="mb-1 block text-xs text-repixl-text-light/70">Postal Code</label><input id="a-zip" type="text" inputMode="numeric" value={postalCode} onChange={(e) => setPostalCode(e.target.value)} className={inputClass(errors.postalCode)} />{errors.postalCode && <p className="mt-1 text-xs text-red-400">{errors.postalCode}</p>}</div>
-      </div>
-      <div><label htmlFor="a-phone" className="mb-1 block text-xs text-repixl-text-light/70">Phone (optional)</label><input id="a-phone" type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} className={inputClass(errors.phone)} />{errors.phone && <p className="mt-1 text-xs text-red-400">{errors.phone}</p>}</div>
+      <div><label htmlFor="a-zip" className="mb-1 block text-xs text-repixl-text-light/70">Postal Code</label><input id="a-zip" type="text" inputMode="numeric" value={postalCode} onChange={(e) => setPostalCode(e.target.value)} className={inputClass(errors.postalCode)} />{errors.postalCode && <p className="mt-1 text-xs text-red-400">{errors.postalCode}</p>}</div>
       <label className="flex items-center gap-2"><input type="checkbox" checked={isDefault} onChange={(e) => setIsDefault(e.target.checked)} className="h-3.5 w-3.5 rounded border-repixl-muted/30 bg-repixl-charcoal text-repixl-red" /><span className="text-xs text-repixl-text-light/70">Set as default</span></label>
       <div className="flex gap-3 pt-2"><Button type="submit" variant="primary" size="sm">{initial ? 'Update' : 'Save'}</Button><button type="button" onClick={onCancel} className="text-xs text-repixl-muted hover:text-repixl-text-light">Cancel</button></div>
     </form>
   )
 }
 
-// ─── Payments Tab ───
+// ─── Payments Tab ────────────────────────────────────────────────────────────
 function PaymentsTab() {
   const cards = usePaymentStore((s) => s.cards)
   const addCard = usePaymentStore((s) => s.addCard)
@@ -531,29 +720,38 @@ function PaymentsTab() {
   const [formOpen, setFormOpen] = useState(false)
 
   return (
-    <div className="rounded-lg border border-repixl-muted/10 bg-repixl-charcoal p-6">
-      <div className="flex items-center justify-between">
-        <h2 className="font-mono text-[10px] uppercase tracking-widest text-repixl-muted">Payment Methods</h2>
+    <div className="rounded-xl border border-repixl-muted/10 bg-repixl-charcoal p-6">
+      <div className="mb-5 flex items-center justify-between">
+        <div>
+          <span className="font-mono text-[10px] uppercase tracking-widest text-repixl-muted">— Payment</span>
+          <h2 className="mt-1 font-display text-lg font-semibold text-repixl-text-light">Payment Methods</h2>
+        </div>
         {!formOpen && <Button variant="secondary" size="sm" onClick={() => setFormOpen(true)}>+ Add Card</Button>}
       </div>
-      {cards.length === 0 && !formOpen && <p className="mt-4 text-sm text-repixl-muted">No saved cards yet.</p>}
+      {cards.length === 0 && !formOpen && (
+        <div className="flex flex-col items-center py-8 text-center">
+          <p className="text-sm text-repixl-muted">No saved payment methods yet.</p>
+        </div>
+      )}
       {cards.length > 0 && !formOpen && (
-        <ul className="mt-4 space-y-3">
+        <ul className="space-y-3">
           {cards.map((card) => (
-            <li key={card.id} className="flex items-center justify-between rounded border border-repixl-muted/10 bg-repixl-bg p-4">
+            <li key={card.id} className="flex items-center justify-between rounded-lg border border-repixl-muted/10 bg-repixl-bg p-4">
               <div className="flex items-center gap-3">
-                <div className="flex h-9 w-14 items-center justify-center rounded border border-repixl-muted/20 bg-repixl-charcoal"><span className="font-mono text-[9px] font-bold text-repixl-text-light/70">{card.brand}</span></div>
+                <div className="flex h-9 w-14 items-center justify-center rounded-lg border border-repixl-muted/20 bg-repixl-charcoal">
+                  <span className="font-mono text-[9px] font-bold text-repixl-text-light/70">{card.brand}</span>
+                </div>
                 <div>
                   <div className="flex items-center gap-2">
                     <p className="font-mono text-sm text-repixl-text-light">•••• {card.last4}</p>
-                    {card.isDefault && <span className="rounded bg-repixl-success/15 px-1.5 py-0.5 font-mono text-[9px] uppercase text-repixl-success">Default</span>}
+                    {card.isDefault && <span className="rounded-full bg-repixl-success/15 px-2 py-0.5 font-mono text-[9px] uppercase text-repixl-success">Default</span>}
                   </div>
                   <p className="text-xs text-repixl-muted">{card.cardholderName} · {card.expiry}</p>
                 </div>
               </div>
-              <div className="flex gap-2">
-                {!card.isDefault && <button type="button" onClick={() => setDefault(card.id)} className="text-[10px] text-repixl-muted hover:text-repixl-text-light">Default</button>}
-                <button type="button" onClick={() => removeCard(card.id)} aria-label={`Remove card ending in ${card.last4}`} className="text-[10px] text-repixl-muted hover:text-repixl-red">Remove</button>
+              <div className="flex gap-3">
+                {!card.isDefault && <button type="button" onClick={() => setDefault(card.id)} className="font-mono text-[9px] uppercase tracking-wider text-repixl-muted hover:text-repixl-text-light">Default</button>}
+                <button type="button" onClick={() => removeCard(card.id)} aria-label={`Remove card ending in ${card.last4}`} className="font-mono text-[9px] uppercase tracking-wider text-repixl-muted hover:text-repixl-red">Remove</button>
               </div>
             </li>
           ))}
@@ -586,7 +784,7 @@ function CardForm({ onSave, onCancel }: { onSave: (d: Omit<SavedCard, 'id'>) => 
   }
 
   return (
-    <form onSubmit={handleSubmit} noValidate className="mt-4 space-y-3 rounded border border-repixl-muted/10 bg-repixl-bg p-4">
+    <form onSubmit={handleSubmit} noValidate className="mt-5 space-y-3 rounded-lg border border-repixl-muted/10 bg-repixl-bg p-4">
       <div><label htmlFor="c-num" className="mb-1 block text-xs text-repixl-text-light/70">Card Number</label><input id="c-num" type="text" inputMode="numeric" value={cardNumber} onChange={(e) => setCardNumber(e.target.value)} placeholder="1234 5678 9012 3456" className={`font-mono ${inputClass(errors.cardNumber)}`} />{errors.cardNumber && <p className="mt-1 text-xs text-red-400">{errors.cardNumber}</p>}</div>
       <div className="grid grid-cols-2 gap-3">
         <div><label htmlFor="c-exp" className="mb-1 block text-xs text-repixl-text-light/70">Expiry</label><input id="c-exp" type="text" value={expiry} onChange={(e) => setExpiry(e.target.value)} placeholder="MM / YY" className={`font-mono ${inputClass(errors.expiry)}`} />{errors.expiry && <p className="mt-1 text-xs text-red-400">{errors.expiry}</p>}</div>
@@ -598,7 +796,7 @@ function CardForm({ onSave, onCancel }: { onSave: (d: Omit<SavedCard, 'id'>) => 
   )
 }
 
-// ─── Reviews Tab (placeholder) ───
+// ─── Reviews Tab ─────────────────────────────────────────────────────────────
 function ReviewsTab() {
   const { userEmail } = useAuthStore()
   const allReviews = useReviewStore((s) => s.reviews)
@@ -607,68 +805,61 @@ function ReviewsTab() {
   const [searchQuery, setSearchQuery] = useState('')
 
   const avgRating = reviews.length > 0 ? (reviews.reduce((s, r) => s + r.rating, 0) / reviews.length).toFixed(1) : '0'
-  const latestDate = reviews.length > 0 ? reviews[0].date : '-'
   const filteredReviews = searchQuery.trim() ? reviews.filter((r) => {
     const product = allProducts.find((p) => p.slug === r.productSlug)
     return product?.name.toLowerCase().includes(searchQuery.toLowerCase())
   }) : reviews
 
   return (
-    <div>
-      <h2 className="text-center font-display text-lg font-semibold text-repixl-text-light">My Reviews</h2>
-
-      {/* Stats */}
-      <div className="mt-5 grid grid-cols-3 gap-3">
-        <div className="rounded-lg border border-repixl-muted/10 bg-repixl-charcoal p-4 text-center">
-          <p className="font-display text-xl font-bold text-repixl-text-light">{reviews.length}</p>
-          <p className="mt-0.5 text-[10px] text-repixl-muted">Total Reviews</p>
-        </div>
-        <div className="rounded-lg border border-repixl-muted/10 bg-repixl-charcoal p-4 text-center">
-          <p className="font-display text-xl font-bold text-repixl-text-light">{avgRating}</p>
-          <p className="mt-0.5 text-[10px] text-repixl-muted">Average Rating Given</p>
-        </div>
-        <div className="rounded-lg border border-repixl-muted/10 bg-repixl-charcoal p-4 text-center">
-          <p className="font-display text-sm font-bold text-repixl-text-light">{latestDate}</p>
-          <p className="mt-0.5 text-[10px] text-repixl-muted">Latest Review</p>
-        </div>
+    <div className="space-y-4">
+      <div>
+        <span className="font-mono text-[10px] uppercase tracking-widest text-repixl-muted">— Community</span>
+        <h2 className="mt-1 font-display text-lg font-semibold text-repixl-text-light">My Reviews</h2>
       </div>
 
-      {/* Search */}
-      <div className="mt-5">
-        <input type="search" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Search reviews by camera name..." className="w-full rounded border border-repixl-muted/20 bg-repixl-bg px-3 py-2 text-sm text-repixl-text-light placeholder:text-repixl-muted/50 focus:border-repixl-muted/50 focus:outline-none" />
+      {/* Stats row */}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+        {[
+          { label: 'Total Reviews', value: reviews.length },
+          { label: 'Avg Rating Given', value: avgRating },
+          { label: 'Latest', value: reviews.length > 0 ? reviews[0].date : '—' },
+        ].map((s) => (
+          <div key={s.label} className="rounded-xl border border-repixl-muted/10 bg-repixl-charcoal p-4 text-center">
+            <p className="font-display text-xl font-bold text-repixl-text-light">{s.value}</p>
+            <p className="mt-0.5 font-mono text-[9px] uppercase tracking-wider text-repixl-muted">{s.label}</p>
+          </div>
+        ))}
       </div>
 
-      {/* Reviews list or empty state */}
+      <input type="search" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Search reviews by camera name…" className="w-full rounded-xl border border-repixl-muted/20 bg-repixl-charcoal px-4 py-3 text-sm text-repixl-text-light placeholder:text-repixl-muted/40 focus:border-repixl-muted/40 focus:outline-none" />
+
       {filteredReviews.length === 0 ? (
-        <div className="mt-8 flex flex-col items-center py-10 text-center">
-          <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" className="text-repixl-muted/40"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" /></svg>
-          <p className="mt-4 font-display text-sm font-semibold text-repixl-text-light/60">No Reviews Yet</p>
-          <p className="mt-1 text-xs text-repixl-muted">You haven&apos;t written any reviews yet. Start exploring cameras and share your thoughts!</p>
-          <Link href="/products" className="mt-4"><Button variant="primary" size="sm">Browse Cameras</Button></Link>
+        <div className="rounded-xl border border-repixl-muted/10 bg-repixl-charcoal p-10 text-center">
+          <p className="text-sm text-repixl-text-light/60">No reviews yet.</p>
+          <Link href="/products" className="mt-3 inline-block"><Button variant="secondary" size="sm">Browse Cameras</Button></Link>
         </div>
       ) : (
-        <div className="mt-4 space-y-3">
+        <div className="space-y-3">
           {filteredReviews.map((review) => {
             const product = allProducts.find((p) => p.slug === review.productSlug)
             return (
-              <div key={review.id} className="rounded-lg border border-repixl-muted/10 bg-repixl-charcoal p-4">
+              <div key={review.id} className="rounded-xl border border-repixl-muted/10 bg-repixl-charcoal p-4">
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <Link href={`/products/${review.productSlug}`} className="text-sm font-medium text-repixl-text-light hover:underline">{product?.name || review.productSlug}</Link>
                     <div className="mt-1 flex gap-0.5">
                       {Array.from({ length: 5 }, (_, i) => (
-                        <svg key={i} xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill={i < review.rating ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="1.5" className={i < review.rating ? 'text-repixl-warning' : 'text-repixl-muted/40'}><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" /></svg>
+                        <svg key={i} xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill={i < review.rating ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="1.5" className={i < review.rating ? 'text-repixl-warning' : 'text-repixl-muted/40'} aria-hidden="true"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" /></svg>
                       ))}
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex shrink-0 items-center gap-2">
                     <span className="font-mono text-[10px] text-repixl-muted">{review.date}</span>
-                    <Link href={`/products/${review.productSlug}`} className="text-[10px] text-repixl-muted hover:text-repixl-text-light">Edit</Link>
-                    <button type="button" onClick={() => deleteReview(review.id)} className="text-[10px] text-repixl-muted hover:text-repixl-red">Delete</button>
+                    <button type="button" onClick={() => deleteReview(review.id)} className="font-mono text-[9px] uppercase tracking-wider text-repixl-muted hover:text-repixl-red">Delete</button>
                   </div>
                 </div>
                 <p className="mt-2 text-sm text-repixl-text-light/70">{review.comment}</p>
-                {review.verifiedPurchase && <span className="mt-2 inline-block rounded bg-repixl-success/15 px-1.5 py-0.5 font-mono text-[8px] uppercase tracking-wider text-repixl-success">Verified Purchase</span>}
+                {review.verifiedPurchase && <span className="mt-2 inline-block rounded-full bg-repixl-success/15 px-2 py-0.5 font-mono text-[8px] uppercase tracking-wider text-repixl-success">Verified Purchase</span>}
               </div>
             )
           })}
@@ -678,7 +869,7 @@ function ReviewsTab() {
   )
 }
 
-// ─── Security Tab (placeholder) ───
+// ─── Security Tab ────────────────────────────────────────────────────────────
 function SecurityTab() {
   const [currentPassword, setCurrentPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
@@ -694,7 +885,6 @@ function SecurityTab() {
     { label: 'One number', test: (p: string) => /\d/.test(p) },
     { label: 'One special character (!@#$%^&*)', test: (p: string) => /[!@#$%^&*]/.test(p) },
   ]
-
   const allMet = passwordRequirements.every((r) => r.test(newPassword))
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -711,71 +901,67 @@ function SecurityTab() {
   }
 
   return (
-    <div className="rounded-lg border border-repixl-muted/10 bg-repixl-charcoal p-6">
-      <h2 className="font-mono text-[10px] uppercase tracking-widest text-repixl-muted">Security</h2>
-      <form onSubmit={handleSubmit} className="mt-5 space-y-4">
-        <div>
-          <label htmlFor="sec-current" className="mb-1 block text-xs text-repixl-text-light/70">Current Password</label>
-          <PasswordInput id="sec-current" autoComplete="current-password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} />
-        </div>
-        <div>
-          <label htmlFor="sec-new" className="mb-1 block text-xs text-repixl-text-light/70">New Password</label>
-          <PasswordInput id="sec-new" autoComplete="new-password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} />
-          {/* Live password checklist */}
-          <ul className="mt-2.5 space-y-1" aria-label="Password requirements">
-            {passwordRequirements.map((req) => {
-              const met = req.test(newPassword)
-              return (
-                <li key={req.label} className="flex items-center gap-2">
-                  {met ? (
-                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-repixl-success"><path d="M20 6 9 17l-5-5" /></svg>
-                  ) : (
-                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-repixl-muted/40"><circle cx="12" cy="12" r="10" /></svg>
-                  )}
-                  <span className={`text-[11px] ${met ? 'text-repixl-success' : 'text-repixl-muted/60'}`}>{req.label}</span>
-                </li>
-              )
-            })}
-          </ul>
-        </div>
-        <div>
-          <label htmlFor="sec-confirm" className="mb-1 block text-xs text-repixl-text-light/70">Confirm New Password</label>
-          <PasswordInput id="sec-confirm" autoComplete="new-password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} />
-        </div>
-        {error && <p className="text-xs text-red-400" role="alert">{error}</p>}
-        <div className="flex items-center gap-3 pt-2">
-          <Button type="submit" variant="primary" size="md" disabled={!allMet} className={!allMet ? 'opacity-50 cursor-not-allowed' : ''}>
-            Update Password
-          </Button>
-          {saved && <span className="flex items-center gap-1.5 text-sm text-repixl-success" role="status"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5" /></svg>Password updated</span>}
-        </div>
-      </form>
+    <div className="space-y-4">
+      <div>
+        <span className="font-mono text-[10px] uppercase tracking-widest text-repixl-muted">— Account security</span>
+        <h2 className="mt-1 font-display text-lg font-semibold text-repixl-text-light">Change Password</h2>
+      </div>
 
-      {/* Recent Account Activity */}
-      <div className="mt-6 rounded-lg border border-repixl-muted/10 bg-repixl-charcoal p-5">
-        <h3 className="text-center text-sm font-semibold text-repixl-text-light">Recent Account Activity</h3>
-        <dl className="mt-4 space-y-3">
-          <div className="flex justify-between rounded px-2 py-1">
-            <dt className="text-xs font-medium text-repixl-text-light/70">Last Login:</dt>
-            <dd className="text-xs text-repixl-text-light">Today</dd>
+      <div className="rounded-xl border border-repixl-muted/10 bg-repixl-charcoal p-6">
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label htmlFor="sec-current" className="mb-1.5 block text-xs text-repixl-text-light/70">Current Password</label>
+            <PasswordInput id="sec-current" autoComplete="current-password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} />
           </div>
-          <div className="flex justify-between rounded px-2 py-1">
-            <dt className="text-xs font-medium text-repixl-text-light/70">Account Created:</dt>
-            <dd className="text-xs text-repixl-text-light">{new Date().toLocaleDateString()}</dd>
+          <div>
+            <label htmlFor="sec-new" className="mb-1.5 block text-xs text-repixl-text-light/70">New Password</label>
+            <PasswordInput id="sec-new" autoComplete="new-password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} />
+            <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1.5">
+              {passwordRequirements.map((req) => {
+                const met = req.test(newPassword)
+                return (
+                  <div key={req.label} className="flex items-center gap-1.5">
+                    <div className={`h-1.5 w-1.5 flex-shrink-0 rounded-full transition-colors ${met ? 'bg-repixl-success' : 'bg-repixl-muted/30'}`} />
+                    <span className={`text-[10px] transition-colors ${met ? 'text-repixl-success' : 'text-repixl-muted/50'}`}>{req.label}</span>
+                  </div>
+                )
+              })}
+            </div>
           </div>
-          <div className="flex justify-between rounded px-2 py-1">
-            <dt className="text-xs font-medium text-repixl-text-light/70">Profile Last Updated:</dt>
-            <dd className="text-xs text-repixl-text-light">{new Date().toLocaleDateString()}</dd>
+          <div>
+            <label htmlFor="sec-confirm" className="mb-1.5 block text-xs text-repixl-text-light/70">Confirm New Password</label>
+            <PasswordInput id="sec-confirm" autoComplete="new-password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} />
           </div>
+          {error && <p className="text-xs text-red-400" role="alert">{error}</p>}
+          <div className="flex items-center gap-3 pt-1">
+            <Button type="submit" variant="primary" size="md" disabled={!allMet} className={!allMet ? 'opacity-50 cursor-not-allowed' : ''}>Update Password</Button>
+            {saved && <span className="flex items-center gap-1.5 text-sm text-repixl-success" role="status"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5" /></svg>Updated</span>}
+          </div>
+        </form>
+      </div>
+
+      <div className="rounded-xl border border-repixl-muted/10 bg-repixl-charcoal p-6">
+        <h3 className="mb-4 font-mono text-[10px] uppercase tracking-widest text-repixl-muted">Recent Activity</h3>
+        <dl className="space-y-2.5">
+          {[
+            { label: 'Last Login', value: 'Today' },
+            { label: 'Account Created', value: new Date().toLocaleDateString() },
+            { label: 'Profile Last Updated', value: new Date().toLocaleDateString() },
+          ].map((item) => (
+            <div key={item.label} className="flex items-center justify-between rounded-lg bg-repixl-bg/50 px-3 py-2.5">
+              <dt className="text-xs text-repixl-text-light/60">{item.label}</dt>
+              <dd className="font-mono text-xs text-repixl-text-light">{item.value}</dd>
+            </div>
+          ))}
         </dl>
       </div>
     </div>
   )
 }
 
-// ─── Shared ───
+// ─── Shared input style ───────────────────────────────────────────────────────
 function inputClass(error?: string): string {
-  return `w-full rounded border px-3 py-2.5 text-sm text-repixl-text-light placeholder:text-repixl-muted/50 focus:outline-none ${
-    error ? 'border-red-400/60 bg-red-400/5 focus:border-red-400' : 'border-repixl-muted/20 bg-repixl-bg focus:border-repixl-muted/50'
+  return `w-full rounded-xl border px-3 py-2.5 text-sm text-repixl-text-light placeholder:text-repixl-muted/50 focus:outline-none transition-colors ${
+    error ? 'border-red-400/60 bg-red-400/5 focus:border-red-400' : 'border-repixl-muted/20 bg-repixl-bg focus:border-repixl-muted/40'
   }`
 }

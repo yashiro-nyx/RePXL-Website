@@ -51,7 +51,7 @@ export function ProductCard({ product }: ProductCardProps) {
     if (product.stock <= 0) return
     if (cartQty < product.stock) {
       addToCart(product.slug)
-      addToast(`Added to cart: ${product.name}`)
+      addToast(`${product.name} added to cart`, 'success', { label: 'View Cart', href: '/cart' })
     }
   }
 
@@ -63,7 +63,7 @@ export function ProductCard({ product }: ProductCardProps) {
       addToast(`Removed from wishlist`, 'info')
     } else {
       addToWishlist(product.slug)
-      addToast(`Added to wishlist: ${product.name}`)
+      addToast(`${product.name} saved to wishlist`, 'success', { label: 'View Wishlist', href: '/wishlist' })
     }
   }
 

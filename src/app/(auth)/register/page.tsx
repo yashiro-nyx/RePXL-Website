@@ -5,8 +5,9 @@ import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import { motion } from 'framer-motion'
-import { Button, CornerBracket, LegalModal, PasswordInput } from '@/components/ui'
+import { Button, LegalModal, PasswordInput } from '@/components/ui'
 import { SocialAuthButtons } from '@/components/auth/SocialAuthButtons'
+import { AuthLayout } from '@/components/auth/AuthLayout'
 import { useAuthStore } from '@/stores/authStore'
 import { useToastStore } from '@/stores/toastStore'
 import { authService } from '@/lib/data/authService'
@@ -23,15 +24,13 @@ interface RegisterErrors {
 
 const passwordRequirements = [
   { label: 'At least 8 characters', test: (p: string) => p.length >= 8 },
-  { label: 'One uppercase letter',  test: (p: string) => /[A-Z]/.test(p) },
-  { label: 'One lowercase letter',  test: (p: string) => /[a-z]/.test(p) },
-  { label: 'One number',            test: (p: string) => /\d/.test(p) },
+  { label: 'One uppercase letter', test: (p: string) => /[A-Z]/.test(p) },
+  { label: 'One lowercase letter', test: (p: string) => /[a-z]/.test(p) },
+  { label: 'One number', test: (p: string) => /\d/.test(p) },
   { label: 'One special character (!@#$%^&*)', test: (p: string) => /[!@#$%^&*]/.test(p) },
 ]
 
-function isPasswordValid(password: string): boolean {
-  return passwordRequirements.every((req) => req.test(password))
-}
+function isPasswordValid(p: string) { return passwordRequirements.every((r) => r.test(p)) }
 
 function RegisterPage() {
   const [errors, setErrors] = useState<RegisterErrors>({})
@@ -48,7 +47,6 @@ function RegisterPage() {
   const { data: nextAuthSession, status: nextAuthStatus } = useSession()
   const register = useAuthStore((s) => s.register)
 
-  // Handle Google OAuth callback (?oauth=register)
   useEffect(() => {
     const oauthMode = searchParams.get('oauth')
     if (oauthMode !== 'register') return
@@ -135,15 +133,14 @@ function RegisterPage() {
     const lastName = (form.querySelector('#reg-last') as HTMLInputElement)?.value ?? ''
     const email = (form.querySelector('#reg-email') as HTMLInputElement)?.value ?? ''
     const success = await register(firstName.trim(), lastName.trim(), email.trim(), password)
-    if (!success) { setErrors((prev) => ({ ...prev, email: 'An account with this email already exists.' })); return }
+    if (!success) { setErrors((p) => ({ ...p, email: 'An account with this email already exists.' })); return }
     useToastStore.getState().addToast('Account created! Welcome to RePXL.')
     router.push('/account')
   }
 
-  // OAuth loading screen
   if (oauthLoading) {
     return (
-      <div className="burn-subtle flex min-h-screen items-center justify-center px-4">
+      <div className="flex min-h-screen items-center justify-center bg-repixl-bg">
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center">
           <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full border border-repixl-muted/20 bg-repixl-charcoal">
             <svg className="h-5 w-5 animate-spin text-repixl-red" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" aria-hidden="true">
@@ -158,172 +155,142 @@ function RegisterPage() {
   }
 
   return (
-    <div className="burn-subtle flex min-h-screen items-center justify-center px-4 py-12">
-      {/* Atmospheric watermark */}
-      <div className="pointer-events-none fixed inset-0 -z-10 flex select-none items-center justify-center overflow-hidden" aria-hidden="true">
-        <span
-          className="font-display font-bold uppercase leading-none text-white/[0.025]"
-          style={{ fontSize: 'clamp(8rem, 18vw, 20rem)', letterSpacing: '-0.03em' }}
-        >
-          JOIN US
-        </span>
+    <AuthLayout
+      tagline="Join 2,400+ collectors who trust RePXL."
+      subcopy="Create your account to start shopping condition-graded vintage cameras."
+      cameraImage="/images/product-fuji-f30.svg"
+    >
+      {/* OAuth banners */}
+      {oauthError && !oauthAlreadyExists && (
+        <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}
+          className="mb-5 rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3">
+          <p className="text-sm text-red-400">{oauthError}</p>
+        </motion.div>
+      )}
+      {oauthAlreadyExists && (
+        <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}
+          className="mb-5 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-4">
+          <p className="text-sm font-semibold text-amber-300">Account already exists</p>
+          <p className="mt-1 text-sm text-amber-300/80">A RePXL account is already linked to this Google email.</p>
+          <Link href="/login" className="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-amber-500/20 px-3 py-1.5 text-sm font-medium text-amber-300 transition-colors hover:bg-amber-500/30">
+            Go to login →
+          </Link>
+        </motion.div>
+      )}
+
+      {/* Heading */}
+      <div className="mb-7">
+        <h1 className="font-display text-display-md text-repixl-text-light">Create an account</h1>
+        <p className="mt-1.5 text-sm text-repixl-muted">Join the collector community.</p>
       </div>
 
-      <motion.div
-        initial={{ opacity: 0, y: 24 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-        className="w-full max-w-sm"
-      >
-        {/* Logo */}
-        <div className="mb-8 text-center">
-          <Link href="/" aria-label="Go to RePXL home">
-            <CornerBracket size={8} color="rgba(245, 241, 236, 0.3)" className="mx-auto inline-block px-3 py-1.5 transition-opacity hover:opacity-80">
-              <span className="font-display text-xl font-semibold tracking-tight text-repixl-text-light">RePXL</span>
-            </CornerBracket>
-          </Link>
-        </div>
-
-        {/* OAuth error banners */}
-        {oauthError && !oauthAlreadyExists && (
-          <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} className="mb-4 rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3">
-            <p className="text-sm text-red-400">{oauthError}</p>
-          </motion.div>
-        )}
-        {oauthAlreadyExists && (
-          <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} className="mb-4 rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-4">
-            <p className="text-sm font-medium text-amber-300">Account already exists.</p>
-            <p className="mt-1 text-sm text-amber-300/80">
-              A RePXL account is already linked to this Google email.
-            </p>
-            <Link href="/login" className="mt-3 inline-flex items-center gap-1.5 rounded bg-amber-500/20 px-3 py-1.5 text-sm font-medium text-amber-300 transition-colors hover:bg-amber-500/30">
-              Go to login →
-            </Link>
-          </motion.div>
-        )}
-
-        {/* Card */}
-        <div className="rounded-xl border border-repixl-muted/10 bg-repixl-charcoal shadow-2xl shadow-black/40">
-          {/* Card header */}
-          <div className="border-b border-repixl-muted/10 px-6 py-5 md:px-8">
-            <h1 className="font-display text-display-sm text-repixl-text-light">Create an account</h1>
-            <p className="mt-1 text-sm text-repixl-muted">Join the collector community.</p>
+      <form ref={formRef} onSubmit={handleSubmit} noValidate className="space-y-4">
+        {/* Name row */}
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label htmlFor="reg-first" className="mb-1.5 block text-xs font-medium text-repixl-text-light/70">First Name</label>
+            <input id="reg-first" type="text" autoComplete="given-name" className={inputClass(errors.firstName)} />
+            {errors.firstName && <FieldError>{errors.firstName}</FieldError>}
           </div>
-
-          <div className="px-6 py-6 md:px-8">
-            <form ref={formRef} onSubmit={handleSubmit} noValidate className="space-y-4">
-              {/* Name row */}
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label htmlFor="reg-first" className="mb-1.5 block text-xs font-medium text-repixl-text-light/70">First Name</label>
-                  <input id="reg-first" type="text" autoComplete="given-name" className={inputClass(errors.firstName)} />
-                  {errors.firstName && <p className="mt-1 text-xs text-red-400" role="alert">{errors.firstName}</p>}
-                </div>
-                <div>
-                  <label htmlFor="reg-last" className="mb-1.5 block text-xs font-medium text-repixl-text-light/70">Last Name</label>
-                  <input id="reg-last" type="text" autoComplete="family-name" className={inputClass(errors.lastName)} />
-                  {errors.lastName && <p className="mt-1 text-xs text-red-400" role="alert">{errors.lastName}</p>}
-                </div>
-              </div>
-
-              {/* Email */}
-              <div>
-                <label htmlFor="reg-email" className="mb-1.5 block text-xs font-medium text-repixl-text-light/70">Email Address</label>
-                <input id="reg-email" type="email" autoComplete="email" className={inputClass(errors.email)} />
-                {errors.email && <p className="mt-1 text-xs text-red-400" role="alert">{errors.email}</p>}
-              </div>
-
-              {/* Password */}
-              <div>
-                <label htmlFor="reg-password" className="mb-1.5 block text-xs font-medium text-repixl-text-light/70">Password</label>
-                <PasswordInput id="reg-password" autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} error={errors.password} />
-                {errors.password && <p className="mt-1 text-xs text-red-400" role="alert">{errors.password}</p>}
-                {/* Live requirements */}
-                <ul className="mt-3 grid grid-cols-1 gap-y-1.5" aria-label="Password requirements">
-                  {passwordRequirements.map((req) => {
-                    const met = req.test(password)
-                    return (
-                      <li key={req.label} className="flex items-center gap-2">
-                        {met ? (
-                          <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0 text-repixl-success" aria-hidden="true"><path d="M20 6 9 17l-5-5" /></svg>
-                        ) : (
-                          <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0 text-repixl-muted/30" aria-hidden="true"><circle cx="12" cy="12" r="10" /></svg>
-                        )}
-                        <span className={`text-[11px] leading-tight ${met ? 'text-repixl-success' : 'text-repixl-muted/60'}`}>{req.label}</span>
-                      </li>
-                    )
-                  })}
-                </ul>
-              </div>
-
-              {/* Confirm password */}
-              <div>
-                <label htmlFor="reg-confirm" className="mb-1.5 block text-xs font-medium text-repixl-text-light/70">Confirm Password</label>
-                <PasswordInput id="reg-confirm" autoComplete="new-password" error={errors.confirmPassword} />
-                {errors.confirmPassword && <p className="mt-1 text-xs text-red-400" role="alert">{errors.confirmPassword}</p>}
-              </div>
-
-              {/* Terms */}
-              <div>
-                <label className="flex cursor-pointer items-start gap-2">
-                  <input
-                    id="reg-agree"
-                    type="checkbox"
-                    checked={agreeTerms}
-                    onChange={(e) => setAgreeTerms(e.target.checked)}
-                    className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 rounded border-repixl-muted/30 bg-repixl-bg text-repixl-red focus:ring-repixl-red/30"
-                  />
-                  <span className="text-[11px] leading-relaxed text-repixl-muted">
-                    I agree to the{' '}
-                    <button type="button" onClick={() => setTermsModalOpen(true)} className="text-repixl-text-light/80 underline underline-offset-2 hover:text-repixl-text-light">Terms of Service</button>
-                    {' '}and{' '}
-                    <button type="button" onClick={() => setPrivacyModalOpen(true)} className="text-repixl-text-light/80 underline underline-offset-2 hover:text-repixl-text-light">Privacy Policy</button>.
-                  </span>
-                </label>
-                {errors.agreeTerms && <p className="mt-1 text-xs text-red-400" role="alert">{errors.agreeTerms}</p>}
-              </div>
-
-              <Button type="submit" variant="primary" size="lg" className="mt-2 w-full">
-                Create Account
-              </Button>
-            </form>
-
-            {/* Divider */}
-            <div className="my-5 flex items-center gap-3">
-              <span className="h-px flex-1 bg-repixl-muted/15" aria-hidden="true" />
-              <span className="font-mono text-[10px] uppercase tracking-wider text-repixl-muted/70">or sign up with</span>
-              <span className="h-px flex-1 bg-repixl-muted/15" aria-hidden="true" />
-            </div>
-
-            <SocialAuthButtons mode="register" />
+          <div>
+            <label htmlFor="reg-last" className="mb-1.5 block text-xs font-medium text-repixl-text-light/70">Last Name</label>
+            <input id="reg-last" type="text" autoComplete="family-name" className={inputClass(errors.lastName)} />
+            {errors.lastName && <FieldError>{errors.lastName}</FieldError>}
           </div>
         </div>
 
-        <p className="mt-6 text-center text-sm text-repixl-muted">
-          Already have an account?{' '}
-          <Link href="/login" className="font-medium text-repixl-text-light/90 underline underline-offset-2 transition-colors hover:text-repixl-text-light">
-            Log In
-          </Link>
-        </p>
+        <div>
+          <label htmlFor="reg-email" className="mb-1.5 block text-xs font-medium text-repixl-text-light/70">Email Address</label>
+          <input id="reg-email" type="email" autoComplete="email" className={inputClass(errors.email)} />
+          {errors.email && <FieldError>{errors.email}</FieldError>}
+        </div>
 
-        <LegalModal isOpen={termsModalOpen} onClose={() => setTermsModalOpen(false)} title="Terms of Service" content={termsContent} onAgree={() => setAgreeTerms(true)} />
-        <LegalModal isOpen={privacyModalOpen} onClose={() => setPrivacyModalOpen(false)} title="Privacy Policy" content={privacyContent} />
-      </motion.div>
-    </div>
+        <div>
+          <label htmlFor="reg-password" className="mb-1.5 block text-xs font-medium text-repixl-text-light/70">Password</label>
+          <PasswordInput id="reg-password" autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} error={errors.password} />
+          {errors.password && <FieldError>{errors.password}</FieldError>}
+          {/* Requirements */}
+          <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1.5">
+            {passwordRequirements.map((req) => {
+              const met = req.test(password)
+              return (
+                <div key={req.label} className="flex items-center gap-1.5">
+                  <div className={`h-1.5 w-1.5 flex-shrink-0 rounded-full transition-colors ${met ? 'bg-repixl-success' : 'bg-repixl-muted/30'}`} />
+                  <span className={`text-[10px] leading-tight transition-colors ${met ? 'text-repixl-success' : 'text-repixl-muted/50'}`}>{req.label}</span>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+
+        <div>
+          <label htmlFor="reg-confirm" className="mb-1.5 block text-xs font-medium text-repixl-text-light/70">Confirm Password</label>
+          <PasswordInput id="reg-confirm" autoComplete="new-password" error={errors.confirmPassword} />
+          {errors.confirmPassword && <FieldError>{errors.confirmPassword}</FieldError>}
+        </div>
+
+        <div>
+          <label className="flex cursor-pointer items-start gap-2.5">
+            <input id="reg-agree" type="checkbox" checked={agreeTerms} onChange={(e) => setAgreeTerms(e.target.checked)}
+              className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 rounded border-repixl-muted/30 bg-repixl-bg text-repixl-red focus:ring-repixl-red/30" />
+            <span className="text-[11px] leading-relaxed text-repixl-muted">
+              I agree to the{' '}
+              <button type="button" onClick={() => setTermsModalOpen(true)} className="text-repixl-text-light/80 underline underline-offset-2 hover:text-repixl-text-light">Terms of Service</button>
+              {' '}and{' '}
+              <button type="button" onClick={() => setPrivacyModalOpen(true)} className="text-repixl-text-light/80 underline underline-offset-2 hover:text-repixl-text-light">Privacy Policy</button>.
+            </span>
+          </label>
+          {errors.agreeTerms && <FieldError>{errors.agreeTerms}</FieldError>}
+        </div>
+
+        <Button type="submit" variant="primary" size="lg" className="w-full">
+          Create Account
+        </Button>
+      </form>
+
+      <div className="my-6 flex items-center gap-3">
+        <span className="h-px flex-1 bg-repixl-muted/15" />
+        <span className="font-mono text-[10px] uppercase tracking-wider text-repixl-muted/60">or sign up with</span>
+        <span className="h-px flex-1 bg-repixl-muted/15" />
+      </div>
+
+      <SocialAuthButtons mode="register" />
+
+      <p className="mt-7 text-center text-sm text-repixl-muted">
+        Already have an account?{' '}
+        <Link href="/login" className="font-medium text-repixl-text-light underline underline-offset-2 transition-opacity hover:opacity-80">
+          Log In
+        </Link>
+      </p>
+
+      <LegalModal isOpen={termsModalOpen} onClose={() => setTermsModalOpen(false)} title="Terms of Service" content={termsContent} onAgree={() => setAgreeTerms(true)} />
+      <LegalModal isOpen={privacyModalOpen} onClose={() => setPrivacyModalOpen(false)} title="Privacy Policy" content={privacyContent} />
+    </AuthLayout>
+  )
+}
+
+function FieldError({ children }: { children: React.ReactNode }) {
+  return (
+    <p className="mt-1.5 flex items-center gap-1.5 text-xs text-red-400" role="alert">
+      <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden="true">
+        <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
+      </svg>
+      {children}
+    </p>
   )
 }
 
 function inputClass(error?: string): string {
-  return `w-full rounded-lg border px-3 py-2.5 text-sm text-repixl-text-light placeholder:text-repixl-muted/50 focus:outline-none transition-colors ${
+  return `w-full rounded-xl border px-4 py-3 text-sm text-repixl-text-light placeholder:text-repixl-muted/40 focus:outline-none transition-colors ${
     error
       ? 'border-red-400/60 bg-red-400/5 focus:border-red-400'
-      : 'border-repixl-muted/20 bg-repixl-bg focus:border-repixl-muted/50'
+      : 'border-repixl-muted/15 bg-repixl-charcoal/60 focus:border-repixl-muted/40 focus:bg-repixl-charcoal'
   }`
 }
 
 export default function Page() {
   return (
-    <Suspense fallback={<div className="flex min-h-screen items-center justify-center" />}>
+    <Suspense fallback={<div className="flex min-h-screen items-center justify-center bg-repixl-bg" />}>
       <RegisterPage />
     </Suspense>
   )

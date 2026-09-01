@@ -5,8 +5,9 @@ import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import { motion } from 'framer-motion'
-import { Button, CornerBracket, PasswordInput } from '@/components/ui'
+import { Button, PasswordInput } from '@/components/ui'
 import { SocialAuthButtons } from '@/components/auth/SocialAuthButtons'
+import { AuthLayout } from '@/components/auth/AuthLayout'
 import { useAuthStore } from '@/stores/authStore'
 import { useToastStore } from '@/stores/toastStore'
 import { authService } from '@/lib/data/authService'
@@ -37,13 +38,11 @@ function LoginContent() {
   const login = useAuthStore((s) => s.login)
   const addToast = useToastStore((s) => s.addToast)
 
-  // Handle NextAuth ?error= redirects
   useEffect(() => {
     const error = searchParams.get('error')
     if (error) setOauthError(OAUTH_ERROR_MESSAGES[error] ?? OAUTH_ERROR_MESSAGES.Default)
   }, [searchParams])
 
-  // Handle Google OAuth callback (?oauth=login)
   useEffect(() => {
     const oauthMode = searchParams.get('oauth')
     if (oauthMode !== 'login') return
@@ -127,15 +126,10 @@ function LoginContent() {
     router.push('/account')
   }
 
-  // OAuth loading screen
   if (oauthLoading) {
     return (
-      <div className="burn-subtle flex min-h-screen items-center justify-center px-4">
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="text-center"
-        >
+      <div className="flex min-h-screen items-center justify-center bg-repixl-bg">
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center">
           <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full border border-repixl-muted/20 bg-repixl-charcoal">
             <svg className="h-5 w-5 animate-spin text-repixl-red" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" aria-hidden="true">
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
@@ -149,160 +143,103 @@ function LoginContent() {
   }
 
   return (
-    <div className="burn-subtle flex min-h-screen items-center justify-center px-4 py-12">
-      {/* Atmospheric background watermark */}
-      <div className="pointer-events-none fixed inset-0 -z-10 flex select-none items-center justify-center overflow-hidden" aria-hidden="true">
-        <span
-          className="font-display font-bold uppercase leading-none text-white/[0.025]"
-          style={{ fontSize: 'clamp(10rem, 20vw, 22rem)', letterSpacing: '-0.03em' }}
-        >
-          SIGN IN
-        </span>
+    <AuthLayout
+      tagline="The curated marketplace for vintage digital cameras."
+      subcopy="Condition-graded, serial-verified, and trusted by collectors worldwide."
+      cameraImage="/images/hero-camera.svg"
+    >
+      {/* OAuth error banners */}
+      {oauthError && !oauthNotFound && (
+        <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}
+          className="mb-5 rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3">
+          <p className="text-sm text-red-400">{oauthError}</p>
+        </motion.div>
+      )}
+      {oauthNotFound && (
+        <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}
+          className="mb-5 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-4">
+          <p className="text-sm font-semibold text-amber-300">Account not found</p>
+          <p className="mt-1 text-sm text-amber-300/80">No RePXL account is linked to this Google email.</p>
+          <Link href="/register"
+            className="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-amber-500/20 px-3 py-1.5 text-sm font-medium text-amber-300 transition-colors hover:bg-amber-500/30">
+            Create an account →
+          </Link>
+        </motion.div>
+      )}
+
+      {/* Heading */}
+      <div className="mb-8">
+        <h1 className="font-display text-display-md text-repixl-text-light">Welcome back</h1>
+        <p className="mt-1.5 text-sm text-repixl-muted">Sign in to your RePXL account.</p>
       </div>
 
-      <motion.div
-        initial={{ opacity: 0, y: 24 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-        className="w-full max-w-sm"
-      >
-        {/* Logo */}
-        <div className="mb-8 text-center">
-          <Link href="/" aria-label="Go to RePXL home">
-            <CornerBracket size={8} color="rgba(245, 241, 236, 0.3)" className="mx-auto inline-block px-3 py-1.5 transition-opacity hover:opacity-80">
-              <span className="font-display text-xl font-semibold tracking-tight text-repixl-text-light">
-                RePXL
-              </span>
-            </CornerBracket>
-          </Link>
+      {/* Form */}
+      <form ref={formRef} onSubmit={handleSubmit} noValidate className="space-y-5">
+        <div>
+          <label htmlFor="login-email" className="mb-1.5 block text-xs font-medium text-repixl-text-light/70">
+            Email Address
+          </label>
+          <input id="login-email" type="email" autoComplete="email" className={inputClass(errors.email)} />
+          {errors.email && <FieldError>{errors.email}</FieldError>}
         </div>
 
-        {/* OAuth error banners */}
-        {oauthError && !oauthNotFound && (
-          <motion.div
-            initial={{ opacity: 0, y: -8 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="mb-4 rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3"
-          >
-            <p className="text-sm text-red-400">{oauthError}</p>
-          </motion.div>
-        )}
-
-        {/* Account-not-found banner */}
-        {oauthNotFound && (
-          <motion.div
-            initial={{ opacity: 0, y: -8 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="mb-4 rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-4"
-          >
-            <p className="text-sm font-medium text-amber-300">Account not found.</p>
-            <p className="mt-1 text-sm text-amber-300/80">
-              No RePXL account is linked to this Google email.
-            </p>
-            <Link
-              href="/register"
-              className="mt-3 inline-flex items-center gap-1.5 rounded bg-amber-500/20 px-3 py-1.5 text-sm font-medium text-amber-300 transition-colors hover:bg-amber-500/30"
-            >
-              Create an account →
+        <div>
+          <div className="mb-1.5 flex items-center justify-between">
+            <label htmlFor="login-password" className="text-xs font-medium text-repixl-text-light/70">Password</label>
+            <Link href="/forgot-password" className="font-mono text-[10px] uppercase tracking-wider text-repixl-muted transition-colors hover:text-repixl-text-light">
+              Forgot password?
             </Link>
-          </motion.div>
-        )}
-
-        {/* Card */}
-        <div className="rounded-xl border border-repixl-muted/10 bg-repixl-charcoal shadow-2xl shadow-black/40">
-          {/* Card header */}
-          <div className="border-b border-repixl-muted/10 px-6 py-5 md:px-8">
-            <h1 className="font-display text-display-sm text-repixl-text-light">Welcome back</h1>
-            <p className="mt-1 text-sm text-repixl-muted">Sign in to your account to continue.</p>
           </div>
-
-          <div className="px-6 py-6 md:px-8">
-            <form ref={formRef} onSubmit={handleSubmit} noValidate className="space-y-4">
-              {/* Email */}
-              <div>
-                <label htmlFor="login-email" className="mb-1.5 block text-xs font-medium text-repixl-text-light/70">
-                  Email Address
-                </label>
-                <input
-                  id="login-email"
-                  type="email"
-                  autoComplete="email"
-                  className={inputClass(errors.email)}
-                />
-                {errors.email && (
-                  <p className="mt-1 flex items-center gap-1 text-xs text-red-400" role="alert">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden="true"><circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" /></svg>
-                    {errors.email}
-                  </p>
-                )}
-              </div>
-
-              {/* Password */}
-              <div>
-                <div className="mb-1.5 flex items-center justify-between">
-                  <label htmlFor="login-password" className="text-xs font-medium text-repixl-text-light/70">
-                    Password
-                  </label>
-                  <Link
-                    href="/forgot-password"
-                    className="font-mono text-[10px] uppercase tracking-wider text-repixl-muted transition-colors hover:text-repixl-text-light"
-                  >
-                    Forgot?
-                  </Link>
-                </div>
-                <PasswordInput
-                  id="login-password"
-                  autoComplete="current-password"
-                  error={errors.password}
-                />
-                {errors.password && (
-                  <p className="mt-1 flex items-center gap-1 text-xs text-red-400" role="alert">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden="true"><circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" /></svg>
-                    {errors.password}
-                  </p>
-                )}
-              </div>
-
-              <Button type="submit" variant="primary" size="lg" className="mt-2 w-full">
-                Log In
-              </Button>
-            </form>
-
-            {/* Divider */}
-            <div className="my-5 flex items-center gap-3">
-              <span className="h-px flex-1 bg-repixl-muted/15" aria-hidden="true" />
-              <span className="font-mono text-[10px] uppercase tracking-wider text-repixl-muted/70">
-                or continue with
-              </span>
-              <span className="h-px flex-1 bg-repixl-muted/15" aria-hidden="true" />
-            </div>
-
-            <SocialAuthButtons mode="login" />
-          </div>
+          <PasswordInput id="login-password" autoComplete="current-password" error={errors.password} />
+          {errors.password && <FieldError>{errors.password}</FieldError>}
         </div>
 
-        <p className="mt-6 text-center text-sm text-repixl-muted">
-          Don&apos;t have an account?{' '}
-          <Link href="/register" className="font-medium text-repixl-text-light/90 underline underline-offset-2 transition-colors hover:text-repixl-text-light">
-            Register
-          </Link>
-        </p>
-      </motion.div>
-    </div>
+        <Button type="submit" variant="primary" size="lg" className="w-full">
+          Log In
+        </Button>
+      </form>
+
+      {/* Divider */}
+      <div className="my-6 flex items-center gap-3">
+        <span className="h-px flex-1 bg-repixl-muted/15" />
+        <span className="font-mono text-[10px] uppercase tracking-wider text-repixl-muted/60">or continue with</span>
+        <span className="h-px flex-1 bg-repixl-muted/15" />
+      </div>
+
+      <SocialAuthButtons mode="login" />
+
+      <p className="mt-8 text-center text-sm text-repixl-muted">
+        Don&apos;t have an account?{' '}
+        <Link href="/register" className="font-medium text-repixl-text-light underline underline-offset-2 transition-opacity hover:opacity-80">
+          Register
+        </Link>
+      </p>
+    </AuthLayout>
+  )
+}
+
+function FieldError({ children }: { children: React.ReactNode }) {
+  return (
+    <p className="mt-1.5 flex items-center gap-1.5 text-xs text-red-400" role="alert">
+      <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden="true">
+        <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
+      </svg>
+      {children}
+    </p>
   )
 }
 
 function inputClass(error?: string): string {
-  return `w-full rounded-lg border px-3 py-2.5 text-sm text-repixl-text-light placeholder:text-repixl-muted/50 focus:outline-none transition-colors ${
+  return `w-full rounded-xl border px-4 py-3 text-sm text-repixl-text-light placeholder:text-repixl-muted/40 focus:outline-none transition-colors ${
     error
       ? 'border-red-400/60 bg-red-400/5 focus:border-red-400'
-      : 'border-repixl-muted/20 bg-repixl-bg focus:border-repixl-muted/50'
+      : 'border-repixl-muted/15 bg-repixl-charcoal/60 focus:border-repixl-muted/40 focus:bg-repixl-charcoal'
   }`
 }
 
 export default function LoginPage() {
   return (
-    <Suspense fallback={<div className="flex min-h-screen items-center justify-center" />}>
+    <Suspense fallback={<div className="flex min-h-screen items-center justify-center bg-repixl-bg" />}>
       <LoginContent />
     </Suspense>
   )
