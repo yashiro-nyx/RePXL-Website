@@ -15,10 +15,16 @@
  * The redirect is only triggered when we're still on the /login or /register
  * page — if the user is already on another page (e.g. they refreshed), we just
  * sync the session state without navigating.
+ *
+ * Logout persistence fix:
+ * When the user logs out, `authStore.logout()` writes a `repixl-oauth-logged-out`
+ * flag to localStorage AND calls NextAuth `signOut` to clear the JWT cookie.
+ * This hook checks for that flag first — if present, it skips re-syncing the
+ * OAuth session. The flag is cleared on the next successful login.
  */
 
 import { useEffect, useRef } from 'react'
-import { useSession } from 'next-auth/react'
+import { useSession, signOut } from 'next-auth/react'
 import { useRouter, usePathname } from 'next/navigation'
 import { useAuthStore } from '@/stores/authStore'
 
@@ -33,6 +39,23 @@ export function useOAuthSync() {
 
   useEffect(() => {
     if (status !== 'authenticated' || !session?.user?.email) return
+
+    // ── Logout persistence guard ──────────────────────────────────────────────
+    // If the user explicitly logged out, do NOT re-authenticate them from the
+    // still-valid NextAuth JWT cookie. Instead, call NextAuth signOut to clear
+    // the cookie so this condition won't trigger on future page loads.
+    const loggedOut = typeof window !== 'undefined'
+      ? localStorage.getItem('repixl-oauth-logged-out') === '1'
+      : false
+
+    if (loggedOut) {
+      // Silently clear the NextAuth JWT cookie. `redirect: false` prevents a
+      // page navigation; we just want the cookie gone so the status becomes
+      // 'unauthenticated' on the next render.
+      signOut({ redirect: false }).catch(() => { /* ignore */ })
+      return
+    }
+    // ── End logout guard ──────────────────────────────────────────────────────
 
     const googleEmail = session.user.email.toLowerCase()
 

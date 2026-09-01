@@ -3,7 +3,9 @@
 import { useState, useRef, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import { signOut } from 'next-auth/react'
 import { LoginRequiredModal } from '@/components/ui'
+import { LogoutConfirmModal } from '@/components/ui/LogoutConfirmModal'
 import { Logo } from '@/components/ui/Logo'
 import { ThemeToggle } from '@/components/ui/ThemeToggle'
 import { useAuthStore } from '@/stores/authStore'
@@ -16,6 +18,7 @@ export function Navbar() {
   const [query, setQuery] = useState('')
   const [profileOpen, setProfileOpen] = useState(false)
   const [loginModalOpen, setLoginModalOpen] = useState(false)
+  const [logoutModalOpen, setLogoutModalOpen] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
   const profileRef = useRef<HTMLDivElement>(null)
@@ -77,6 +80,25 @@ export function Navbar() {
     } else {
       setLoginModalOpen(true)
     }
+  }
+
+  /**
+   * Called when the user confirms logout in the modal.
+   * 1. Calls the Zustand logout (clears HTTP-only cookie + localStorage session
+   *    + writes the `repixl-oauth-logged-out` flag).
+   * 2. Calls NextAuth signOut to clear the 30-day Google JWT cookie so the
+   *    OAuth sync hook doesn't restore the session on the next page load.
+   */
+  const handleConfirmLogout = () => {
+    setLogoutModalOpen(false)
+    setProfileOpen(false)
+    setMobileMenuOpen(false)
+    logout()
+    // Clear the NextAuth JWT cookie — must happen client-side.
+    // redirect:false keeps us on the current page; we navigate manually.
+    signOut({ redirect: false }).catch(() => { /* non-critical */ })
+    addToast("You've been logged out. See you next time!", 'info')
+    router.push('/')
   }
 
   return (
@@ -199,7 +221,7 @@ export function Navbar() {
                     <li>
                       <button
                         type="button"
-                        onClick={() => { logout(); setProfileOpen(false); addToast('You\'ve been logged out. See you next time!', 'info'); router.push('/') }}
+                        onClick={() => { setProfileOpen(false); setLogoutModalOpen(true) }}
                         className="block w-full rounded px-2 py-1.5 text-left text-sm text-repixl-red hover:bg-repixl-charcoal"
                       >
                         Log Out
@@ -233,7 +255,7 @@ export function Navbar() {
             {isLoggedIn && (
               <div className="mt-4 border-t border-repixl-muted/10 pt-4">
                 <Link href="/account" onClick={() => setMobileMenuOpen(false)} className="block text-sm text-repixl-text-light/80 hover:text-repixl-text-light">My Account</Link>
-                <button type="button" onClick={() => { logout(); setMobileMenuOpen(false); addToast('You\'ve been logged out. See you next time!', 'info'); router.push('/') }} className="mt-2 block text-sm text-repixl-red">Log Out</button>
+                <button type="button" onClick={() => { setMobileMenuOpen(false); setLogoutModalOpen(true) }} className="mt-2 block text-sm text-repixl-red">Log Out</button>
               </div>
             )}
             {!isLoggedIn && (
@@ -247,6 +269,11 @@ export function Navbar() {
       </header>
 
       <LoginRequiredModal isOpen={loginModalOpen} onClose={() => setLoginModalOpen(false)} />
+      <LogoutConfirmModal
+        isOpen={logoutModalOpen}
+        onCancel={() => setLogoutModalOpen(false)}
+        onConfirm={handleConfirmLogout}
+      />
     </>
   )
 }

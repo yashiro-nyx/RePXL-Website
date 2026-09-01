@@ -5,7 +5,7 @@ import { useSearchParams } from 'next/navigation'
 import { motion } from 'framer-motion'
 import { Container } from '@/components/layout/Container'
 import { ProductCard } from '@/components/product/ProductCard'
-import { ConditionBadge, Skeleton } from '@/components/ui'
+import { ConditionBadge, Skeleton, FilmStripLoader } from '@/components/ui'
 import { Footer } from '@/components/layout/Footer'
 import { useProductStore } from '@/stores/productStore'
 import { useReducedMotion } from '@/hooks/useReducedMotion'
@@ -191,22 +191,25 @@ function ProductsContent() {
             </div>
 
             {!hydrated ? (
-              /* Skeleton grid — 6 card placeholders while store hydrates */
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                {Array.from({ length: 6 }).map((_, i) => (
-                  <div key={i} className="overflow-hidden rounded-lg border border-repixl-muted/10 bg-repixl-charcoal">
-                    <Skeleton className="aspect-square w-full rounded-none" />
-                    <div className="p-4 space-y-2">
-                      <Skeleton className="h-3 w-1/3" />
-                      <Skeleton className="h-5 w-3/4" />
-                      <Skeleton className="h-4 w-1/4" />
-                      <div className="flex items-center justify-between pt-1">
-                        <Skeleton className="h-5 w-16" />
-                        <Skeleton className="h-6 w-16 rounded-sm" />
+              /* Film strip loader + skeleton grid while store hydrates */
+              <div className="space-y-8">
+                <FilmStripLoader label="Loading cameras…" className="mx-auto max-w-md" />
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                  {Array.from({ length: 6 }).map((_, i) => (
+                    <div key={i} className="overflow-hidden rounded-lg border border-repixl-muted/10 bg-repixl-charcoal">
+                      <Skeleton className="aspect-square w-full rounded-none" />
+                      <div className="p-4 space-y-2">
+                        <Skeleton className="h-3 w-1/3" />
+                        <Skeleton className="h-5 w-3/4" />
+                        <Skeleton className="h-4 w-1/4" />
+                        <div className="flex items-center justify-between pt-1">
+                          <Skeleton className="h-5 w-16" />
+                          <Skeleton className="h-6 w-16 rounded-sm" />
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
             ) : filtered.length > 0 ? (
               <motion.div

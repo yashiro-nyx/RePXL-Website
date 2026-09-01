@@ -161,6 +161,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   register: async (firstName, lastName, email, password) => {
     const result = await authService.register(firstName, lastName, email, password)
     if (!result.ok) return false
+    // Clear any stale logout flag on new registration.
+    localStorage.removeItem('repixl-oauth-logged-out')
     mirrorUser(result.user, password)
     writeSession('repixl-customer-session', result.user)
     applyUser(set, result.user)
@@ -173,6 +175,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     // API login accepts admins too, but the customer login page only wants
     // customers. Guard here to preserve prior behaviour.
     if (result.user.role !== 'customer') return false
+    // Clear any stale logout flag so the OAuth sync hook is re-enabled.
+    localStorage.removeItem('repixl-oauth-logged-out')
     mirrorUser(result.user, password)
     writeSession('repixl-customer-session', result.user)
     applyUser(set, result.user)
@@ -200,6 +204,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       role: 'customer' as const,
       isSuperAdmin: false,
     }
+    // Clear the logout flag so the OAuth sync hook is re-enabled for future
+    // sessions (e.g. the user signs in again after having logged out).
+    localStorage.removeItem('repixl-oauth-logged-out')
     mirrorUser(user, '')
     writeSession('repixl-customer-session', user)
     applyUser(set, user)
@@ -208,6 +215,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   logout: () => {
     void authService.logout()
     localStorage.removeItem('repixl-customer-session')
+    // Mark that the user explicitly logged out so the OAuth sync hook
+    // doesn't re-authenticate them from the still-valid NextAuth JWT cookie.
+    localStorage.setItem('repixl-oauth-logged-out', '1')
     set(LOGGED_OUT)
   },
 
@@ -254,9 +264,22 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   hydrate: async () => {
     const apiUser = await authService.me()
     if (apiUser && apiUser.role === 'customer') {
+      // Clear any stale logout flag — a valid server session means the user is
+      // actively authenticated (e.g. they logged in again on another tab).
+      localStorage.removeItem('repixl-oauth-logged-out')
       mirrorUser(apiUser)
       writeSession('repixl-customer-session', apiUser)
       applyUser(set, apiUser)
+      return
+    }
+
+    // If the server session is gone, don't fall back to the localStorage marker
+    // when the user has explicitly logged out. This prevents the OAuth sync hook
+    // from writing a new localStorage session that gets picked up on the next
+    // refresh.
+    const loggedOut = localStorage.getItem('repixl-oauth-logged-out') === '1'
+    if (loggedOut) {
+      set(LOGGED_OUT)
       return
     }
 

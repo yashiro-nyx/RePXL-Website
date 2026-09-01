@@ -3,9 +3,10 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import { signOut } from 'next-auth/react'
 import { Container } from '@/components/layout/Container'
 import { Footer } from '@/components/layout/Footer'
-import { Button, ConditionBadge, CornerBracket, PasswordInput } from '@/components/ui'
+import { Button, ConditionBadge, CornerBracket, FilmStripLoader, PasswordInput } from '@/components/ui'
 import { useAuthStore } from '@/stores/authStore'
 import { useToastStore } from '@/stores/toastStore'
 import { useAddressStore, type Address } from '@/stores/addressStore'
@@ -51,12 +52,18 @@ export default function AccountPage() {
   }, [hydrated, isLoggedIn, router])
 
   // Don't render until hydrated and authenticated
-  if (!hydrated || !isLoggedIn) return null
+  if (!hydrated || !isLoggedIn) return (
+    <div className="flex min-h-screen items-center justify-center bg-repixl-bg">
+      <FilmStripLoader label="Loading your account…" className="mx-auto max-w-md px-6" />
+    </div>
+  )
 
   const initials = `${firstName?.[0] || ''}${lastName?.[0] || ''}`.toUpperCase() || '?'
 
   const handleLogout = () => {
     logout()
+    // Clear the NextAuth JWT cookie so OAuth sync doesn't restore the session.
+    signOut({ redirect: false }).catch(() => { /* non-critical */ })
     useToastStore.getState().addToast('You\'ve been logged out. See you next time!', 'info')
     router.push('/')
   }
