@@ -146,7 +146,10 @@ function LoginContent() {
     <AuthLayout
       tagline="The curated marketplace for vintage digital cameras."
       subcopy="Condition-graded, serial-verified, and trusted by collectors worldwide."
-      cameraImage="/images/hero-camera.svg"
+      cardCameraName="Canon PowerShot A520"
+      cardCondition="mint"
+      cardYear="2004"
+      cardMegapixels="4.0"
     >
       {/* OAuth error banners */}
       {oauthError && !oauthNotFound && (

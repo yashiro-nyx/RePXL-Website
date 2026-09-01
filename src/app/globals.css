@@ -478,3 +478,67 @@ body.scroll-locked {
 
 /* Added for the Contact page rebuild */
 [data-theme="light"] .group:hover .group-hover\:border-repixl-red\/40 { border-color: rgba(181, 42, 42, 0.4) !important; }
+
+/* ============================================================
+   Light-mode coverage for ProductCard & BackButton new classes
+   ============================================================ */
+[data-theme="light"] .hover\:shadow-xl:hover { box-shadow: 0 20px 25px -5px rgba(30,25,20,0.10), 0 8px 10px -6px rgba(30,25,20,0.08) !important; }
+[data-theme="light"] .hover\:shadow-black\/30:hover { --tw-shadow-color: rgba(30,25,20,0.18) !important; }
+[data-theme="light"] .shadow-md { box-shadow: 0 4px 6px -1px rgba(30,25,20,0.08), 0 2px 4px -2px rgba(30,25,20,0.06) !important; }
+[data-theme="light"] .shadow-lg { box-shadow: 0 10px 15px -3px rgba(30,25,20,0.08), 0 4px 6px -4px rgba(30,25,20,0.05) !important; }
+[data-theme="light"] .shadow-2xl { box-shadow: 0 25px 50px -12px rgba(30,25,20,0.15) !important; }
+[data-theme="light"] .shadow-repixl-red\/30 { --tw-shadow-color: rgba(181,42,42,0.30) !important; }
+
+/* BackButton panel bg */
+[data-theme="light"] .bg-repixl-charcoal\/60 { background-color: rgba(255,255,255,0.6) !important; }
+
+/* Toast container light mode */
+[data-theme="light"] .shadow-black\/60 { --tw-shadow-color: rgba(30,25,20,0.25) !important; }
+
+/* Spec highlight rows in compare */
+[data-theme="light"] .hover\:bg-repixl-charcoal\/30:hover { background-color: rgba(255,255,255,0.3) !important; }
+[data-theme="light"] .bg-repixl-charcoal\/10 { background-color: rgba(255,255,255,0.55) !important; }
+
+/* ============================================================
+   Auth panel verification card — light mode overrides
+   ============================================================ */
+[data-theme="light"] .bg-repixl-charcoal\/80 { background-color: rgba(255,255,255,0.80) !important; }
+[data-theme="light"] .bg-repixl-charcoal\/90 { background-color: rgba(255,255,255,0.90) !important; }
+[data-theme="light"] .shadow-\[0_24px_60px_rgba\(0\,0\,0\,0\.6\)\,0_8px_20px_rgba\(0\,0\,0\,0\.4\)\] {
+  box-shadow: 0 12px 40px rgba(30,25,20,0.12), 0 4px 12px rgba(30,25,20,0.08) !important;
+}
+
+/* ProductCard action button icon — charcoal bg is always dark-ish, stays readable */
+[data-theme="light"] .bg-repixl-charcoal\/80 { background-color: rgba(240,235,229,0.90) !important; }
+
+/* ============================================================
+   Auth panel — theme-aware right column elements
+   All backgrounds use Tailwind tokens (bg-repixl-*) which are
+   already overridden by [data-theme="light"] rules above, so
+   theme toggle works uniformly across both columns.
+   ============================================================ */
+
+/* Radial glow — dark mode: red tint, light mode: warm neutral */
+.auth-panel-glow {
+  background: radial-gradient(
+    ellipse at center,
+    rgba(194, 44, 44, 0.12) 0%,
+    rgba(194, 44, 44, 0.04) 45%,
+    transparent 70%
+  );
+}
+[data-theme="light"] .auth-panel-glow {
+  background: radial-gradient(
+    ellipse at center,
+    rgba(194, 44, 44, 0.07) 0%,
+    rgba(194, 44, 44, 0.02) 45%,
+    transparent 70%
+  );
+}
+
+/* Camera illustration opacity — removed (no camera image in auth panel) */
+
+/* Right panel overlay — dark: keeps bg dark, light: transparent */
+.auth-panel-right .bg-repixl-charcoal {
+  /* inherits from global [data-theme="light"] .bg-repixl-charcoal override */
+}

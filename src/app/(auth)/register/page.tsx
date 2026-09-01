@@ -158,7 +158,10 @@ function RegisterPage() {
     <AuthLayout
       tagline="Join 2,400+ collectors who trust RePXL."
       subcopy="Create your account to start shopping condition-graded vintage cameras."
-      cameraImage="/images/product-fuji-f30.svg"
+      cardCameraName="Fujifilm FinePix F30"
+      cardCondition="excellent"
+      cardYear="2006"
+      cardMegapixels="6.3"
     >
       {/* OAuth banners */}
       {oauthError && !oauthAlreadyExists && (
