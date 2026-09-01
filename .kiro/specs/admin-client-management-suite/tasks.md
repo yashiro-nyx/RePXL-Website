@@ -310,12 +310,12 @@ and the project production build succeeds with `npm run build -- --no-lint` (exi
 - [x] 15. Checkpoint - Ensure API and logic tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 16. Admin UI: printable documents (utilitarian style, monospace IDs)
-  - [ ] 16.1 Build invoice printable page
+- [x] 16. Admin UI: printable documents (utilitarian style, monospace IDs)
+  - [x] 16.1 Build invoice printable page
     - `src/app/(admin)/admin/orders/[orderNumber]/invoice/page.tsx` with A4/Letter print box, ≥10 mm inset print stylesheet, monospace order number, client Print button, and audit POST on load
     - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.7_
 
-  - [ ] 16.2 Build packing-slip printable page
+  - [x] 16.2 Build packing-slip printable page
     - `.../packing-slip/page.tsx` showing courier + serials ("not recorded" indicator), excluding prices/totals, with missing-field error banner
     - _Requirements: 2.1, 2.2, 2.3, 2.4, 2.5, 2.7_
 
@@ -323,59 +323,59 @@ and the project production build succeeds with `npm run build -- --no-lint` (exi
     - Assert A4/Letter box and 10 mm inset classes are present
     - _Requirements: 1.4_
 
-- [ ] 17. Admin UI: returns queue and detail
-  - [ ] 17.1 Build `ReturnQueueTable` and returns list page
+- [x] 17. Admin UI: returns queue and detail
+  - [x] 17.1 Build `ReturnQueueTable` and returns list page
     - `src/app/(admin)/admin/returns/page.tsx` sorted desc with empty state
     - _Requirements: 4.1, 4.2_
 
-  - [ ] 17.2 Build `ReturnDetailPanel` and detail page
+  - [x] 17.2 Build `ReturnDetailPanel` and detail page
     - `.../returns/[id]/page.tsx` with order/items/reason, transition buttons gated by `canTransition`, reject modal (1–500 chars), and refund control shown only when APPROVED with failure-reason surfacing
     - _Requirements: 4.3, 4.4, 4.5, 4.6, 4.7, 4.8, 4.10, 4.12_
 
-- [ ] 18. Admin UI: CMS management
-  - [ ] 18.1 Build static-page management
+- [x] 18. Admin UI: CMS management
+  - [x] 18.1 Build static-page management
     - `StaticPageTable` + `StaticPageForm` and `src/app/(admin)/admin/cms/pages/...` with field-level validation retaining values and slug-in-use messaging
     - _Requirements: 5.1, 5.2, 5.4, 5.5_
 
-  - [ ] 18.2 Build banner management
+  - [x] 18.2 Build banner management
     - `BannerTable` + `BannerForm` and `.../cms/banners/...` with validation and schedule error messaging
     - _Requirements: 6.1, 6.2, 6.3, 6.4_
 
-  - [ ] 18.3 Build homepage content editor
+  - [x] 18.3 Build homepage content editor
     - `HomepageBlockEditor` and `.../cms/homepage/...` with content/display-order validation and publish action
     - _Requirements: 6.7, 6.8, 6.9_
 
-- [ ] 19. Admin UI: settings and notification templates
-  - [ ] 19.1 Extend the settings page
+- [x] 19. Admin UI: settings and notification templates
+  - [x] 19.1 Extend the settings page
     - Update `src/app/(admin)/admin/settings/page.tsx` to render currency/shipping/payment editors, read-only for non-Super_Admins, checkout-unavailable warning, and save confirmation/error messaging
     - _Requirements: 7.1, 7.2, 7.3, 7.4, 7.5, 7.6, 7.7, 7.9, 7.10_
 
-  - [ ] 19.2 Build notification templates page
+  - [x] 19.2 Build notification templates page
     - `src/app/(admin)/admin/notifications/page.tsx` listing templates (event/subject/channel/enabled) with edit form, validation messaging, and enable/disable toggle
     - _Requirements: 8.1, 8.2, 8.3, 8.5, 8.6_
 
-- [ ] 20. Storefront UI (RePXL design language)
-  - [ ] 20.1 Build order history and tracking views
+- [x] 20. Storefront UI (RePXL design language)
+  - [x] 20.1 Build order history and tracking views
     - Extend `src/app/(storefront)/account/orders/page.tsx` (desc list, empty state, load-error handling) and add `.../[orderNumber]/page.tsx` tracking stepper, courier display, CANCELLED handling, and owner-only 403
     - _Requirements: 10.1, 10.2, 10.3, 10.4, 10.5, 10.6, 10.7, 10.8_
 
-  - [ ] 20.2 Build return request form and status badge
+  - [x] 20.2 Build return request form and status badge
     - `ReturnRequestForm` (item multi-select + reason 10–1000, inline validation retaining data) and `ReturnStatusBadge` at `.../[orderNumber]/return/page.tsx`, with window-expired disabled state
     - _Requirements: 3.1, 3.2, 3.4, 3.5, 3.8_
 
-  - [ ] 20.3 Build notification bell and center
+  - [x] 20.3 Build notification bell and center
     - `NotificationBell` (unread count, "99+") and `NotificationCenter` at `.../account/notifications/page.tsx` with mark-read on open and mark-all-read
     - _Requirements: 9.3, 9.4, 9.5, 9.6_
 
-  - [ ] 20.4 Build dynamic CMS static page route
-    - `src/app/(storefront)/[slug]/page.tsx` serving published pages with corner-bracket framing and `notFound()` for draft pages to non-admins
+  - [x] 20.4 Build dynamic CMS static page route
+    - `src/app/(storefront)/pages/[slug]/page.tsx` serving published pages with corner-bracket framing and `notFound()` for draft pages to non-admins
     - _Requirements: 5.6, 5.7, 5.8_
 
-  - [ ] 20.5 Render homepage content blocks and visible banners
+  - [x] 20.5 Render homepage content blocks and visible banners
     - Read `HomepageContentBlock` rows ordered by `displayOrder` (published only) and filter banners through `isBannerVisible`
     - _Requirements: 6.5, 6.6, 6.9_
 
-- [ ] 21. Checkpoint - Ensure UI and integration tests pass
+- [x] 21. Checkpoint - Ensure UI and integration tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
 - [ ] 22. Integration and end-to-end tests
@@ -395,7 +395,7 @@ and the project production build succeeds with `npm run build -- --no-lint` (exi
     - Admin creates + publishes a static page reachable at its slug; draft page 404s for anonymous visitors
     - _Requirements: 5.6, 5.7_
 
-- [ ] 23. Final checkpoint - Ensure all tests pass
+- [x] 23. Final checkpoint - Ensure all tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
 ## Notes

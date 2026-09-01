@@ -7,7 +7,7 @@ import dynamic from 'next/dynamic'
 import { motion } from 'framer-motion'
 import { Container } from '@/components/layout/Container'
 import { Footer } from '@/components/layout/Footer'
-import { Button, ConditionBadge, CornerBracket, LoginRequiredModal } from '@/components/ui'
+import { Accordion, BackButton, Button, ConditionBadge, CornerBracket, LoginRequiredModal } from '@/components/ui'
 import { useRevealAnimation } from '@/hooks/useRevealAnimation'
 import { CompareToast } from '@/components/ui/CompareToast'
 import { ProductCard } from '@/components/product/ProductCard'
@@ -144,7 +144,7 @@ export default function ProductDetailPage() {
           variants={fadeUp}
           initial="hidden"
           animate="show"
-          className="mb-8 flex items-center justify-between gap-4"
+          className="mb-8 flex flex-wrap items-center justify-between gap-3"
         >
           <nav aria-label="Breadcrumb">
             <ol className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-widest text-repixl-muted">
@@ -152,17 +152,10 @@ export default function ProductDetailPage() {
               <li aria-hidden="true" className="text-repixl-muted/40">/</li>
               <li><Link href={`/products?brand=${product.brand.toLowerCase()}`} className="transition-colors hover:text-repixl-text-light">{product.brand}</Link></li>
               <li aria-hidden="true" className="text-repixl-muted/40">/</li>
-              <li className="text-repixl-text-light/50">{product.name}</li>
+              <li className="max-w-[160px] truncate text-repixl-text-light/50">{product.name}</li>
             </ol>
           </nav>
-          <button
-            type="button"
-            onClick={() => router.back()}
-            className="flex items-center gap-1.5 rounded border border-repixl-muted/20 px-3 py-1.5 font-mono text-[10px] uppercase tracking-widest text-repixl-muted transition-colors hover:border-repixl-muted/40 hover:text-repixl-text-light"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M19 12H5"/><path d="m12 5-7 7 7 7"/></svg>
-            Back
-          </button>
+          <BackButton />
         </motion.div>
 
         {/* Main product layout */}
@@ -251,7 +244,7 @@ export default function ProductDetailPage() {
                   if (!isLoggedIn) { setLoginModalOpen(true); return }
                   if (product && product.stock > 0 && cartQty < product.stock) {
                     addToCart(product.slug, selectedQty)
-                    addToast(`Added ${selectedQty} to cart: ${product.name}`)
+                    addToast(`Added ${selectedQty} to cart: ${product.name}`, 'success', { label: 'View Cart', href: '/cart' }, 5000, product.image)
                   }
                 }}
               >
@@ -264,7 +257,7 @@ export default function ProductDetailPage() {
                   if (!isLoggedIn) { setLoginModalOpen(true); return }
                   if (product) {
                     if (inWishlist) { removeFromWishlist(product.slug); addToast('Removed from wishlist', 'info') }
-                    else { addToWishlist(product.slug); addToast(`Added to wishlist: ${product.name}`) }
+                    else { addToWishlist(product.slug); addToast(`${product.name} saved to wishlist`, 'success', { label: 'View Wishlist', href: '/wishlist' }, 5000, product.image) }
                   }
                 }}
               >
@@ -330,36 +323,87 @@ export default function ProductDetailPage() {
             )}
             {toast && <CompareToast message={toast.message} type={toast.type} visible={!!toast} onDismiss={() => setToast(null)} />}
 
-            {/* Description */}
+            {/* Description + Accordion info sections */}
             <motion.div variants={staggerItem} className="mt-8 border-t border-repixl-muted/10 pt-8">
-              <h2 className="font-mono text-[10px] uppercase tracking-widest text-repixl-muted">About this camera</h2>
-              <p className="mt-3 text-sm leading-relaxed text-repixl-text-light/80">{product.description}</p>
-            </motion.div>
-
-            {/* Spec sheet */}
-            <motion.div variants={staggerItem} className="mt-8 border-t border-repixl-muted/10 pt-8">
-              <h2 className="font-mono text-[10px] uppercase tracking-widest text-repixl-muted">Specifications</h2>
-              <dl className="mt-4 grid grid-cols-2 gap-x-6 gap-y-4 rounded-lg border border-repixl-muted/10 bg-repixl-charcoal p-4">
-                <SpecRow label="Resolution" value={`${product.specs.megapixels} MP`} />
-                <SpecRow label="Zoom" value={product.specs.zoom} />
-                <SpecRow label="Storage" value={product.specs.storage} />
-                <SpecRow label="Year" value={String(product.specs.year)} />
-                <SpecRow label="Condition" value={product.condition.charAt(0).toUpperCase() + product.condition.slice(1)} />
-                <SpecRow label="Brand" value={product.brand} />
-              </dl>
-            </motion.div>
-
-            {/* Authenticity note */}
-            <motion.div variants={staggerItem} className="mt-5 flex items-start gap-3 rounded border border-repixl-muted/10 bg-repixl-charcoal/50 p-4">
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="mt-0.5 flex-shrink-0 text-repixl-success" aria-hidden="true">
-                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/>
-              </svg>
-              <div>
-                <p className="font-mono text-[10px] uppercase tracking-widest text-repixl-muted">Authenticity</p>
-                <p className="mt-1 text-sm text-repixl-text-light/70">
-                  Serial number verified. Multi-angle photos available. Inspected and graded by our team.
-                </p>
-              </div>
+              <Accordion
+                items={[
+                  {
+                    id: 'about',
+                    label: 'About this camera',
+                    defaultOpen: true,
+                    children: (
+                      <p className="text-sm leading-relaxed text-repixl-text-light/75">{product.description}</p>
+                    ),
+                  },
+                  {
+                    id: 'specs',
+                    label: 'Specifications',
+                    defaultOpen: true,
+                    children: (
+                      <dl className="grid grid-cols-2 gap-x-6 gap-y-4">
+                        {[
+                          { label: 'Resolution', value: `${product.specs.megapixels} MP` },
+                          { label: 'Zoom', value: product.specs.zoom },
+                          { label: 'Storage', value: product.specs.storage },
+                          { label: 'Year', value: String(product.specs.year) },
+                          { label: 'Brand', value: product.brand },
+                          { label: 'Series', value: product.series },
+                        ].map(({ label, value }) => (
+                          <div key={label}>
+                            <dt className="font-mono text-[9px] uppercase tracking-wider text-repixl-muted">{label}</dt>
+                            <dd className="mt-0.5 font-mono text-sm text-repixl-text-light">{value}</dd>
+                          </div>
+                        ))}
+                      </dl>
+                    ),
+                  },
+                  {
+                    id: 'condition',
+                    label: 'Condition Details',
+                    children: (
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2">
+                          <ConditionBadge condition={product.condition} />
+                          <span className="text-sm text-repixl-text-light/70">
+                            {product.condition === 'mint' && 'Like-new. No visible wear, fully tested, all functions perfect.'}
+                            {product.condition === 'excellent' && 'Minimal signs of use. Light cosmetic marks only — fully functional.'}
+                            {product.condition === 'good' && 'Normal wear from regular use. Minor scuffs — core functions working.'}
+                            {product.condition === 'fair' && 'Visible wear or cosmetic damage. Fully functional but shows history.'}
+                          </span>
+                        </div>
+                      </div>
+                    ),
+                  },
+                  {
+                    id: 'authenticity',
+                    label: 'Authenticity & Verification',
+                    children: (
+                      <div className="flex items-start gap-3">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="mt-0.5 flex-shrink-0 text-repixl-success" aria-hidden="true">
+                          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/>
+                        </svg>
+                        <p className="text-sm text-repixl-text-light/70">
+                          Serial number verified. Multi-angle photos on file. Every camera is physically inspected and graded by our team before listing. We stand behind every grade.
+                        </p>
+                      </div>
+                    ),
+                  },
+                  {
+                    id: 'shipping',
+                    label: 'Shipping & Returns',
+                    children: (
+                      <div className="space-y-2 text-sm text-repixl-text-light/70">
+                        <p>Ships within 1–2 business days of order confirmation.</p>
+                        <p>Free shipping on orders over $150.</p>
+                        <p className="flex items-center gap-1.5">
+                          <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-repixl-success flex-shrink-0" aria-hidden="true"><path d="M20 6 9 17l-5-5" /></svg>
+                          14-day return window. Item must be in original condition.
+                        </p>
+                      </div>
+                    ),
+                  },
+                ]}
+              />
             </motion.div>
           </motion.div>
         </div>

@@ -11,7 +11,9 @@ export interface Toast {
     label: string
     href: string
   }
-  /** How long (ms) the toast lives — defaults to 4500 */
+  /** Optional product image URL shown in the toast */
+  image?: string
+  /** How long (ms) the toast lives — defaults to 5000 */
   duration: number
   /** Timestamp when the toast was created — used to drive the progress bar */
   createdAt: number
@@ -23,19 +25,20 @@ interface ToastState {
     message: string,
     type?: Toast['type'],
     action?: Toast['action'],
-    duration?: number
+    duration?: number,
+    image?: string
   ) => void
   removeToast: (id: string) => void
 }
 
-const DEFAULT_DURATION = 4500
+const DEFAULT_DURATION = 5000
 
 export const useToastStore = create<ToastState>((set, get) => ({
   toasts: [],
 
-  addToast: (message, type = 'success', action, duration = DEFAULT_DURATION) => {
+  addToast: (message, type = 'success', action, duration = DEFAULT_DURATION, image) => {
     const id = `toast-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
-    const toast: Toast = { id, message, type, action, duration, createdAt: Date.now() }
+    const toast: Toast = { id, message, type, action, duration, createdAt: Date.now(), image }
     set({ toasts: [...get().toasts, toast] })
     setTimeout(() => {
       set({ toasts: get().toasts.filter((t) => t.id !== id) })

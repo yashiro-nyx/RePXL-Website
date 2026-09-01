@@ -19,6 +19,7 @@ export default function CartPage() {
   const [promoApplied, setPromoApplied] = useState(false)
   const [promoDiscount, setPromoDiscount] = useState(0)
   const [promoError, setPromoError] = useState('')
+  const [clearModalOpen, setClearModalOpen] = useState(false)
 
   const { fadeUp, staggerContainer, staggerItem, viewport, reducedMotion } = useRevealAnimation()
 
@@ -26,6 +27,7 @@ export default function CartPage() {
   const cartItems = useCartStore((s) => s.items)
   const removeFromCart = useCartStore((s) => s.removeFromCart)
   const updateQuantity = useCartStore((s) => s.updateQuantity)
+  const clearCart = useCartStore((s) => s.clearCart)
   const allProducts = useProductStore((s) => s.products)
   const validateCode = useVoucherStore((s) => s.validateCode)
   const useVoucher = useVoucherStore((s) => s.useVoucher)
@@ -43,7 +45,8 @@ export default function CartPage() {
 
   const resolvedItems = cartItems.map((item) => {
     const product = allProducts.find((p) => p.slug === item.slug)
-    return product ? { product, quantity: item.quantity } : null
+    // Clamp stock to 0 minimum — never show negative stock values
+    return product ? { product: { ...product, stock: Math.max(0, product.stock) }, quantity: item.quantity } : null
   }).filter(Boolean) as { product: typeof allProducts[0]; quantity: number }[]
 
   const SHIPPING_COST = 12
@@ -107,15 +110,31 @@ export default function CartPage() {
             animate="show"
             className="mb-8 border-b border-repixl-muted/10 pb-6"
           >
-            <span className="font-mono text-xs uppercase tracking-widest text-repixl-muted">
-              — Your selection
-            </span>
-            <h1 className="mt-2 font-display text-display-md text-repixl-text-light md:text-display-lg">
-              Cart
-            </h1>
-            <p className="mt-1 text-sm text-repixl-muted">
-              {totalQty} {totalQty === 1 ? 'item' : 'items'}
-            </p>
+            <div className="flex items-end justify-between gap-4">
+              <div>
+                <span className="font-mono text-xs uppercase tracking-widest text-repixl-muted">
+                  — Your selection
+                </span>
+                <h1 className="mt-2 font-display text-display-md text-repixl-text-light md:text-display-lg">
+                  Cart
+                </h1>
+                <p className="mt-1 text-sm text-repixl-muted">
+                  {totalQty} {totalQty === 1 ? 'item' : 'items'}
+                </p>
+              </div>
+              {/* Clear cart — visible, but requires confirmation */}
+              <button
+                type="button"
+                onClick={() => setClearModalOpen(true)}
+                className="mb-1 flex items-center gap-1.5 rounded-lg border border-repixl-muted/20 px-3 py-2 font-mono text-[10px] uppercase tracking-wider text-repixl-muted transition-colors hover:border-repixl-red/40 hover:text-repixl-red"
+                aria-label="Clear all items from cart"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden="true">
+                  <path d="M3 6h18" /><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" /><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+                </svg>
+                Clear Cart
+              </button>
+            </div>
           </motion.div>
 
           <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
@@ -301,6 +320,43 @@ export default function CartPage() {
         </Container>
       </div>
       <Footer />
+
+      {/* Clear Cart confirmation modal */}
+      {clearModalOpen && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.96 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="w-full max-w-sm rounded-xl border border-repixl-muted/20 bg-repixl-charcoal p-6 shadow-2xl"
+          >
+            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-repixl-red/10">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-repixl-red" aria-hidden="true">
+                <path d="M3 6h18" /><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" /><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+              </svg>
+            </div>
+            <h3 className="text-center font-display text-lg font-semibold text-repixl-text-light">Clear Cart?</h3>
+            <p className="mt-2 text-center text-sm text-repixl-muted">
+              Are you sure you want to remove all {totalQty} {totalQty === 1 ? 'item' : 'items'} from your cart? This cannot be undone.
+            </p>
+            <div className="mt-6 flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => setClearModalOpen(false)}
+                className="flex-1 rounded-xl border border-repixl-muted/20 px-4 py-2.5 text-sm text-repixl-text-light/70 transition-colors hover:bg-repixl-bg hover:text-repixl-text-light"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => { clearCart(); setClearModalOpen(false) }}
+                className="flex-1 rounded-xl bg-repixl-red px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-red-700"
+              >
+                Clear Cart
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
     </>
   )
 }

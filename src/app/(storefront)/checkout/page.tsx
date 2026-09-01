@@ -501,8 +501,11 @@ export default function CheckoutPage() {
         <form ref={formRef} onSubmit={handleSubmit} noValidate className="mt-6 grid grid-cols-1 gap-8 lg:grid-cols-3">
           <div className="space-y-8 lg:col-span-2">
             {/* Shipping info */}
-            <section>
-              <h2 className="mb-5 font-mono text-[10px] uppercase tracking-widest text-repixl-muted">Shipping Information</h2>
+            <section className="rounded-xl border border-repixl-muted/10 bg-repixl-charcoal/30 p-6">
+              <div className="mb-5 flex items-center gap-3">
+                <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-repixl-red/15 font-mono text-xs font-bold text-repixl-red">1</div>
+                <h2 className="font-display text-base font-semibold text-repixl-text-light">Shipping Information</h2>
+              </div>
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <FieldWrapper id="full-name" label="Full Name" error={errors.fullName} className="sm:col-span-2">
                   <input id="full-name" type="text" autoComplete="name" className={inputClass(errors.fullName)} />
@@ -532,9 +535,12 @@ export default function CheckoutPage() {
             </section>
 
             {/* Delivery courier */}
-            <section>
-              <h2 className="font-mono text-[10px] uppercase tracking-widest text-repixl-muted">Delivery Courier</h2>
-              <fieldset className="mt-5">
+            <section className="rounded-xl border border-repixl-muted/10 bg-repixl-charcoal/30 p-6">
+              <div className="mb-5 flex items-center gap-3">
+                <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-repixl-red/15 font-mono text-xs font-bold text-repixl-red">2</div>
+                <h2 className="font-display text-base font-semibold text-repixl-text-light">Delivery Courier</h2>
+              </div>
+              <fieldset>
                 <legend className="sr-only">Select delivery courier</legend>
                 <div className="space-y-2">
                   {couriers.map((c) => (
@@ -557,9 +563,12 @@ export default function CheckoutPage() {
             </section>
 
             {/* Payment method */}
-            <section>
-              <h2 className="font-mono text-[10px] uppercase tracking-widest text-repixl-muted">Payment Method</h2>
-              <fieldset className="mt-5">
+            <section className="rounded-xl border border-repixl-muted/10 bg-repixl-charcoal/30 p-6">
+              <div className="mb-5 flex items-center gap-3">
+                <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-repixl-red/15 font-mono text-xs font-bold text-repixl-red">3</div>
+                <h2 className="font-display text-base font-semibold text-repixl-text-light">Payment Method</h2>
+              </div>
+              <fieldset>
                 <legend className="sr-only">Select payment method</legend>
                 <div className="flex flex-wrap gap-3">
                   {([{ id: 'card' as const, label: 'Credit / Debit Card' }, { id: 'gcash' as const, label: 'GCash' }, { id: 'paypal' as const, label: 'PayPal' }]).map((method) => (
@@ -590,12 +599,19 @@ export default function CheckoutPage() {
 
           {/* Order summary sidebar */}
           <aside className="lg:col-span-1">
-            <div className="sticky top-24 rounded-lg border border-repixl-muted/10 bg-repixl-charcoal p-6">
-              <h2 className="font-mono text-[10px] uppercase tracking-widest text-repixl-muted">Order Review</h2>
-              <ul className="mt-5 space-y-3">
+            <div className="sticky top-24 overflow-hidden rounded-xl border border-repixl-muted/10 bg-repixl-charcoal">
+              {/* Sidebar header */}
+              <div className="border-b border-repixl-muted/10 px-6 py-4">
+                <div className="flex items-center gap-2">
+                  <div className="flex h-5 w-5 items-center justify-center rounded-full bg-repixl-red/15 font-mono text-[10px] font-bold text-repixl-red">4</div>
+                  <h2 className="font-display text-sm font-semibold text-repixl-text-light">Order Summary</h2>
+                </div>
+              </div>
+              <div className="p-6">
+              <ul className="space-y-3">
                 {cartItems.map((item) => (
                   <li key={item.product.slug} className="flex items-center gap-3">
-                    <div className="h-12 w-12 flex-shrink-0 overflow-hidden rounded bg-repixl-bg">
+                    <div className="h-12 w-12 flex-shrink-0 overflow-hidden rounded-lg bg-repixl-bg">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img src={item.product.image} alt={item.product.name} className="h-full w-full object-contain" />
                     </div>
@@ -615,6 +631,11 @@ export default function CheckoutPage() {
               <Button type="submit" variant="primary" size="lg" disabled={submitting} className="mt-6 w-full disabled:opacity-60">
                 {submitting ? 'Placing Order...' : 'Place Order'}
               </Button>
+              {/* Security trust note */}
+              <div className="mt-3 flex items-center justify-center gap-1.5">
+                <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-repixl-muted/50" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                <span className="font-mono text-[9px] text-repixl-muted/50">Secure · Encrypted · Protected</span>
+              </div>
               <div className="mt-4">
                 <label className="flex cursor-pointer items-start gap-2">
                   <input
@@ -644,6 +665,7 @@ export default function CheckoutPage() {
               </div>
               <LegalModal isOpen={termsModalOpen} onClose={() => setTermsModalOpen(false)} title="Terms of Service" content={termsContent} onAgree={() => setAgreeTerms(true)} />
               <LegalModal isOpen={privacyModalOpen} onClose={() => setPrivacyModalOpen(false)} title="Privacy Policy" content={privacyContent} />
+              </div>{/* close p-6 */}
             </div>
           </aside>
         </form>

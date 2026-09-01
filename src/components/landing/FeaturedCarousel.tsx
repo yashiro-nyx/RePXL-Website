@@ -187,7 +187,7 @@ function CenterCard({ product }: { product: any }) {
   const handleAddToCart = () => {
     if (!isLoggedIn) { addToast('Please log in to add items to cart', 'info'); return }
     addToCart(product.slug, 1)
-    addToast(`Added to cart: ${product.name}`)
+    addToast(`${product.name} added to cart`, 'success', { label: 'View Cart', href: '/cart' }, 5000, product.image)
   }
 
   return (
