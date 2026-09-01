@@ -14,25 +14,28 @@ datasource db {
 // ─── USER & AUTH ────────────────────────────────────────────────────────────────
 
 model User {
-  id            String    @id @default(cuid())
-  email         String    @unique
-  password      String
-  firstName     String    @map("first_name")
-  lastName      String    @map("last_name")
-  phone         String    @default("")
-  role          Role      @default(CUSTOMER)
-  isSuperAdmin  Boolean   @default(false) @map("is_super_admin")
-  isArchived    Boolean   @default(false) @map("is_archived")
-  archivedAt    DateTime? @map("archived_at")
-  createdAt     DateTime  @default(now()) @map("created_at")
-  updatedAt     DateTime  @updatedAt @map("updated_at")
+  id           String    @id @default(cuid())
+  email        String    @unique
+  password     String
+  firstName    String    @map("first_name")
+  lastName     String    @map("last_name")
+  phone        String    @default("")
+  role         Role      @default(CUSTOMER)
+  isSuperAdmin Boolean   @default(false) @map("is_super_admin")
+  isArchived   Boolean   @default(false) @map("is_archived")
+  archivedAt   DateTime? @map("archived_at")
+  promoOptOut  Boolean   @default(false) @map("promo_opt_out")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
 
   // Relations
-  cartItems     CartItem[]
-  orders        Order[]
-  reviews       Review[]
-  addresses     Address[]
-  wishlistItems WishlistItem[]
+  cartItems      CartItem[]
+  orders         Order[]
+  reviews        Review[]
+  addresses      Address[]
+  wishlistItems  WishlistItem[]
+  notifications  Notification[]
+  returnRequests ReturnRequest[]
 
   @@map("users")
 }
@@ -47,12 +50,12 @@ enum Role {
 // The raw token is only ever sent in the reset email; we persist a SHA-256 hash.
 
 model PasswordResetToken {
-  id        String   @id @default(cuid())
-  tokenHash String   @unique @map("token_hash")
+  id        String    @id @default(cuid())
+  tokenHash String    @unique @map("token_hash")
   email     String
-  expiresAt DateTime @map("expires_at")
+  expiresAt DateTime  @map("expires_at")
   usedAt    DateTime? @map("used_at")
-  createdAt DateTime @default(now()) @map("created_at")
+  createdAt DateTime  @default(now()) @map("created_at")
 
   @@index([email])
   @@map("password_reset_tokens")
@@ -76,19 +79,19 @@ model Product {
   conditionNotes String?       @map("condition_notes")
 
   // Specs (embedded as JSON for flexibility)
-  megapixels     Float
-  zoom           String
-  storage        String
-  year           Int
+  megapixels Float
+  zoom       String
+  storage    String
+  year       Int
 
-  createdAt      DateTime      @default(now()) @map("created_at")
-  updatedAt      DateTime      @updatedAt @map("updated_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   // Relations
-  cartItems      CartItem[]
-  orderItems     OrderItem[]
-  reviews        Review[]
-  wishlistItems  WishlistItem[]
+  cartItems     CartItem[]
+  orderItems    OrderItem[]
+  reviews       Review[]
+  wishlistItems WishlistItem[]
 
   @@map("products")
 }
@@ -141,26 +144,29 @@ model Order {
   voucherCode     String?     @map("voucher_code")
 
   // Payment gateway (PayMongo) tracking
-  paymentStatus     PaymentStatus @default(PENDING) @map("payment_status")
-  paymentSessionId  String?       @map("payment_session_id")
-  paymentIntentId   String?       @map("payment_intent_id")
-  paymentReference  String?       @map("payment_reference")
+  paymentStatus    PaymentStatus @default(PENDING) @map("payment_status")
+  paymentSessionId String?       @map("payment_session_id")
+  paymentIntentId  String?       @map("payment_intent_id")
+  paymentReference String?       @map("payment_reference")
 
   // Shipping address (snapshot at time of order)
-  fullName        String      @map("full_name")
-  address         String
-  barangay        String      @default("")
-  city            String
-  province        String      @default("")
-  postalCode      String      @map("postal_code")
+  fullName   String @map("full_name")
+  address    String
+  barangay   String @default("")
+  city       String
+  province   String @default("")
+  postalCode String @map("postal_code")
 
-  isArchived      Boolean     @default(false) @map("is_archived")
-  createdAt       DateTime    @default(now()) @map("created_at")
-  updatedAt       DateTime    @updatedAt @map("updated_at")
+  isArchived  Boolean   @default(false) @map("is_archived")
+  deliveredAt DateTime? @map("delivered_at")
+  completedAt DateTime? @map("completed_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
 
   // Relations
-  user            User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  items           OrderItem[]
+  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items          OrderItem[]
+  returnRequests ReturnRequest[]
 
   @@map("orders")
 }
@@ -170,7 +176,7 @@ model OrderItem {
   orderId   String @map("order_id")
   productId String @map("product_id")
   quantity  Int
-  price     Float  // Price at time of purchase
+  price     Float // Price at time of purchase
 
   order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
   product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
@@ -200,7 +206,7 @@ model Review {
   productId        String   @map("product_id")
   userId           String   @map("user_id")
   reviewerName     String   @map("reviewer_name")
-  rating           Int      // 1-5
+  rating           Int // 1-5
   comment          String
   verifiedPurchase Boolean  @default(false) @map("verified_purchase")
   createdAt        DateTime @default(now()) @map("created_at")
@@ -307,4 +313,153 @@ model NewsletterSubscriber {
   updatedAt    DateTime @updatedAt @map("updated_at")
 
   @@map("newsletter_subscribers")
+}
+
+// ─── ADMIN & CLIENT MANAGEMENT SUITE ─────────────────────────────────────────────
+
+enum ReturnStatus {
+  REQUESTED
+  UNDER_REVIEW
+  APPROVED
+  REJECTED
+  REFUNDED
+}
+
+enum PageStatus {
+  DRAFT
+  PUBLISHED
+}
+
+enum BannerPlacement {
+  HOMEPAGE_HERO
+  HOMEPAGE_STRIP
+  SIDEBAR
+}
+
+enum NotificationEvent {
+  ORDER_CONFIRMATION
+  ORDER_STATUS_CHANGE
+  RETURN_RECEIVED
+  RETURN_STATUS_CHANGE
+  REFUND_COMPLETED
+  PROMOTION
+}
+
+enum NotificationChannel {
+  IN_APP
+  EMAIL
+  BOTH
+}
+
+// ─── RETURNS ────────────────────────────────────────────────────────────────────
+
+model ReturnRequest {
+  id              String       @id @default(cuid())
+  orderId         String       @map("order_id")
+  userId          String       @map("user_id")
+  status          ReturnStatus @default(REQUESTED)
+  reason          String // 10–1000 chars (validated in app layer)
+  rejectionReason String?      @map("rejection_reason") // 1–500 chars when REJECTED
+  refundId        String?      @map("refund_id") // PayMongo refund id
+  createdAt       DateTime     @default(now()) @map("created_at")
+  updatedAt       DateTime     @updatedAt @map("updated_at")
+
+  order Order               @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  user  User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items ReturnRequestItem[]
+
+  @@index([orderId])
+  @@index([status])
+  @@map("return_requests")
+}
+
+model ReturnRequestItem {
+  id              String @id @default(cuid())
+  returnRequestId String @map("return_request_id")
+  orderItemId     String @map("order_item_id")
+  quantity        Int
+
+  returnRequest ReturnRequest @relation(fields: [returnRequestId], references: [id], onDelete: Cascade)
+
+  @@map("return_request_items")
+}
+
+// ─── CMS ────────────────────────────────────────────────────────────────────────
+
+model StaticPage {
+  id        String     @id @default(cuid())
+  slug      String     @unique // 1–100, lowercase/digits/hyphen
+  title     String // 1–200
+  body      String // 1–100000
+  status    PageStatus @default(DRAFT)
+  createdAt DateTime   @default(now()) @map("created_at")
+  updatedAt DateTime   @updatedAt @map("updated_at")
+
+  @@map("static_pages")
+}
+
+model Banner {
+  id         String          @id @default(cuid())
+  title      String // 1–120
+  imageRef   String          @map("image_ref")
+  placement  BannerPlacement
+  linkTarget String          @map("link_target") // valid URL
+  startDate  DateTime?       @map("start_date")
+  endDate    DateTime?       @map("end_date")
+  isActive   Boolean         @default(true) @map("is_active")
+  createdAt  DateTime        @default(now()) @map("created_at")
+  updatedAt  DateTime        @updatedAt @map("updated_at")
+
+  @@map("banners")
+}
+
+model HomepageContentBlock {
+  id           String   @id @default(cuid())
+  type         String // e.g. "featured", "editorial", "brand_gallery"
+  content      Json // structured block content
+  displayOrder Int      @map("display_order") // 1–999
+  isPublished  Boolean  @default(false) @map("is_published")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  @@map("homepage_content_blocks")
+}
+
+// ─── SETTINGS ───────────────────────────────────────────────────────────────────
+
+model PlatformSetting {
+  id        String   @id @default(cuid())
+  key       String   @unique // "currency" | "shippingOptions" | "paymentOptions"
+  value     Json // scalar or structured value
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("platform_settings")
+}
+
+// ─── NOTIFICATIONS ──────────────────────────────────────────────────────────────
+
+model NotificationTemplate {
+  event     NotificationEvent   @unique
+  subject   String // 1–200
+  body      String // 1–10000
+  channel   NotificationChannel @default(BOTH)
+  isEnabled Boolean             @default(true) @map("is_enabled")
+  updatedAt DateTime            @updatedAt @map("updated_at")
+
+  @@map("notification_templates")
+}
+
+model Notification {
+  id        String              @id @default(cuid())
+  userId    String              @map("user_id")
+  event     NotificationEvent
+  message   String // rendered text, ≤ 500 chars for display
+  channel   NotificationChannel
+  isRead    Boolean             @default(false) @map("is_read")
+  createdAt DateTime            @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isRead])
+  @@map("notifications")
 }

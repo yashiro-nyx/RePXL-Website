@@ -419,6 +419,129 @@ async function main() {
   }
   console.log(`  ✓ ${vouchersData.length} vouchers seeded`)
 
+  // ─── Seed Notification Templates ────────────────────────────────────────────
+  const templatesData = [
+    {
+      event: 'ORDER_CONFIRMATION' as const,
+      subject: 'Order Confirmed - {{orderNumber}}',
+      body: 'Thank you for your purchase! Your order {{orderNumber}} has been confirmed.\n\nOrder Total: {{orderTotal}}\n\nWe will notify you when your order ships.',
+      channel: 'BOTH' as const,
+      isEnabled: true,
+    },
+    {
+      event: 'ORDER_STATUS_CHANGE' as const,
+      subject: 'Order {{orderNumber}} Status Update',
+      body: 'Your order {{orderNumber}} has been {{orderStatus}}.\n\nTracking: {{courierName}} - {{courierEstimate}}',
+      channel: 'BOTH' as const,
+      isEnabled: true,
+    },
+    {
+      event: 'RETURN_RECEIVED' as const,
+      subject: 'Return Request Received - {{orderNumber}}',
+      body: 'We have received your return request for order {{orderNumber}}. Our team will review it within 3 business days.\n\nReturn ID: {{returnRequestId}}',
+      channel: 'BOTH' as const,
+      isEnabled: true,
+    },
+    {
+      event: 'RETURN_STATUS_CHANGE' as const,
+      subject: 'Return Status Update - {{returnRequestId}}',
+      body: 'Your return request {{returnRequestId}} status has changed to: {{returnStatus}}',
+      channel: 'BOTH' as const,
+      isEnabled: true,
+    },
+    {
+      event: 'REFUND_COMPLETED' as const,
+      subject: 'Refund Completed - {{orderNumber}}',
+      body: 'Your refund has been processed successfully!\n\nRefund Amount: {{refundAmount}}\n\nIt may take 3-5 business days to appear in your account.',
+      channel: 'BOTH' as const,
+      isEnabled: true,
+    },
+    {
+      event: 'PROMOTION' as const,
+      subject: '{{promotionTitle}}',
+      body: '{{promotionBody}}\n\nUse code: {{promotionCode}}',
+      channel: 'BOTH' as const,
+      isEnabled: true,
+    },
+  ]
+
+  for (const t of templatesData) {
+    await prisma.notificationTemplate.upsert({
+      where: { event: t.event },
+      update: {},
+      create: t,
+    })
+  }
+  console.log(`  ✓ ${templatesData.length} notification templates seeded`)
+
+  // ─── Seed Platform Settings ────────────────────────────────────────────────
+  const settingsData = [
+    {
+      key: 'currency',
+      value: { code: 'PHP', symbol: '₱', decimal: 2 },
+    },
+    {
+      key: 'shippingOptions',
+      value: [
+        {
+          id: 'standard',
+          name: 'Standard Shipping (5-7 days)',
+          cost: 50,
+          estimatedDays: '5-7',
+          isAvailable: true,
+        },
+        {
+          id: 'express',
+          name: 'Express Shipping (2-3 days)',
+          cost: 150,
+          estimatedDays: '2-3',
+          isAvailable: true,
+        },
+        {
+          id: 'overnight',
+          name: 'Overnight Shipping (Next day)',
+          cost: 300,
+          estimatedDays: '1',
+          isAvailable: false,
+        },
+      ],
+    },
+    {
+      key: 'paymentOptions',
+      value: [
+        {
+          method: 'credit_card',
+          name: 'Credit Card',
+          isEnabled: true,
+        },
+        {
+          method: 'debit_card',
+          name: 'Debit Card',
+          isEnabled: true,
+        },
+        {
+          method: 'gcash',
+          name: 'GCash',
+          isEnabled: true,
+        },
+        {
+          method: 'paymaya',
+          name: 'PayMaya',
+          isEnabled: false,
+        },
+      ],
+    },
+  ]
+
+  for (const s of settingsData) {
+    await prisma.platformSetting.upsert({
+      where: { key: s.key },
+      update: { value: s.value },
+      create: s,
+    })
+  }
+  console.log(`  ✓ ${settingsData.length} platform settings seeded`)
+
   // ─── Seed Admin Log ─────────────────────────────────────────────────────────
   await prisma.adminLog.create({
     data: {

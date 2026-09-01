@@ -8,6 +8,8 @@
     "vercel-build": "prisma generate && prisma migrate deploy && next build",
     "start": "next start",
     "lint": "next lint",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "postinstall": "prisma generate",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate deploy",
@@ -35,6 +37,7 @@
     "zustand": "5.0.0"
   },
   "devDependencies": {
+    "@fast-check/vitest": "^0.2.4",
     "@types/bcryptjs": "^2.4.6",
     "@types/node": "22.7.5",
     "@types/nodemailer": "^8.0.1",
@@ -43,12 +46,14 @@
     "autoprefixer": "10.4.20",
     "eslint": "8.57.1",
     "eslint-config-next": "14.2.15",
+    "fast-check": "^3.23.2",
     "postcss": "8.4.47",
     "prettier": "3.3.3",
     "prettier-plugin-tailwindcss": "0.6.8",
     "prisma": "5.22.0",
     "tailwindcss": "3.4.13",
     "tsx": "^4.19.2",
-    "typescript": "5.6.3"
+    "typescript": "5.6.3",
+    "vitest": "^2.1.9"
   }
 }

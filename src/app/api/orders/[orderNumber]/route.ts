@@ -9,6 +9,8 @@ import {
 } from '@/lib/api'
 import { getCurrentUser, getCurrentAdmin } from '@/lib/auth-helpers'
 import { updateOrderStatusSchema } from '@/lib/validations'
+import { emitNotification } from '@/lib/notifications'
+import { buildOrderStatusUpdate } from '@/lib/order-status'
 
 // This route reads cookies / session state and must run per-request.
 export const dynamic = 'force-dynamic'
@@ -76,13 +78,31 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       return notFoundResponse('Order not found')
     }
 
+    const updateData = buildOrderStatusUpdate(
+      {
+        status: order.status,
+        deliveredAt: order.deliveredAt,
+        completedAt: order.completedAt,
+      },
+      status
+    )
+
     const updated = await prisma.order.update({
       where: { orderNumber: params.orderNumber },
-      data: { status },
+      data: updateData,
       include: {
         items: { include: { product: true } },
         user: { select: { id: true, email: true, firstName: true, lastName: true } },
       },
+    })
+
+    await emitNotification({
+      userId: updated.user.id,
+      event: 'ORDER_STATUS_CHANGE',
+      subject: `Order ${updated.orderNumber} Status Update`,
+      body: `Your order ${updated.orderNumber} status has changed from ${order.status} to ${updated.status}.`,
+      channel: 'BOTH',
+      recipientEmail: updated.user.email,
     })
 
     // Log admin action

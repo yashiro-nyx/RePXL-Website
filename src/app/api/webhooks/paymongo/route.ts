@@ -5,6 +5,7 @@ import {
   type PaymongoWebhookEvent,
 } from '@/lib/paymongo'
 import { createTransporter, isMailerConfigured } from '@/lib/mailer'
+import { emitNotification } from '@/lib/notifications'
 
 // Webhooks must run per-request and read the raw body for signature verification.
 export const dynamic = 'force-dynamic'
@@ -157,8 +158,19 @@ async function finalizePaidOrder(orderNumber: string): Promise<void> {
     await tx.cartItem.deleteMany({ where: { userId: order.userId } })
   })
 
-  // Send confirmation email outside the transaction so a mail failure does
-  // NOT roll back the order finalization.
+  // Send confirmation email and notification outside the transaction so a mail
+  // failure does NOT roll back the order finalization.
+  await emitNotification({
+    userId: orderBefore.userId,
+    event: 'ORDER_CONFIRMATION',
+    subject: `Order Confirmed - ${orderBefore.orderNumber}`,
+    body: `Thank you for your purchase. Your order ${orderBefore.orderNumber} has been confirmed.`,
+    channel: 'BOTH',
+    recipientEmail: orderBefore.user?.email ?? undefined,
+  }).catch((err) => {
+    console.error('[paymongo webhook] order confirmation notification failed (non-fatal):', err)
+  })
+
   await sendConfirmationEmail(orderBefore).catch((err) => {
     console.error('[paymongo webhook] confirmation email failed (non-fatal):', err)
   })

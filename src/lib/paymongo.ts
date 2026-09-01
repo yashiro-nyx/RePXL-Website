@@ -207,3 +207,100 @@ export interface PaymongoWebhookEvent {
     }
   }
 }
+
+// ─── Refunds (Requirement 4) ─────────────────────────────────────────────────────
+// Full/partial refund of a captured payment. Used by the admin returns workflow
+// once a return request is APPROVED and the order's payment status is PAID.
+
+export interface RefundInput {
+  /** PayMongo payment id (from Order.paymentReference / payments[].id). */
+  paymentId: string
+  /** Amount to refund, in centavos (e.g. ₱89.00 → 8900). */
+  amount: number
+  /** PayMongo-accepted refund reason. Defaults to requested_by_customer. */
+  reason?: 'requested_by_customer' | 'others'
+  /** Optional free-text note stored on the refund. */
+  notes?: string
+}
+
+export interface RefundResult {
+  id: string
+  status: string
+}
+
+/**
+ * Create a refund for a captured PayMongo payment.
+ * Throws with the PayMongo error detail on a non-ok response (gateway failure).
+ * Callers that need the 30s bound (Req 4.12) should use `createRefundWithTimeout`.
+ */
+export async function createRefund(input: RefundInput): Promise<RefundResult> {
+  const payload = {
+    data: {
+      attributes: {
+        amount: input.amount,
+        payment_id: input.paymentId,
+        reason: input.reason ?? 'requested_by_customer',
+        ...(input.notes ? { notes: input.notes } : {}),
+      },
+    },
+  }
+
+  const res = await paymongoRequest<{
+    data: { id: string; attributes: { status: string } }
+  }>('/refunds', 'POST', payload)
+
+  return { id: res.data.id, status: res.data.attributes.status }
+}
+
+/** Retrieve a previously-created refund by id. */
+export async function retrieveRefund(id: string): Promise<RefundResult> {
+  const res = await paymongoRequest<{
+    data: { id: string; attributes: { status: string } }
+  }>(`/refunds/${id}`, 'GET')
+
+  return { id: res.data.id, status: res.data.attributes.status }
+}
+
+// ─── Timeout wrapper (Req 4.12) ──────────────────────────────────────────────────
+// A caller-facing timeout so the refund call can't hang the admin request. A
+// timeout is surfaced as a typed `TimeoutError` so it is distinguishable from a
+// gateway error (which is a plain `Error` carrying the PayMongo detail).
+
+export const REFUND_TIMEOUT_MS = 30_000
+
+/** Thrown when a wrapped promise does not settle within the allotted time. */
+export class TimeoutError extends Error {
+  readonly isTimeout = true as const
+  constructor(ms: number) {
+    super(`Operation timed out after ${ms}ms`)
+    this.name = 'TimeoutError'
+  }
+}
+
+/** Type guard so callers can branch on timeout vs. gateway failure. */
+export function isTimeoutError(err: unknown): err is TimeoutError {
+  return err instanceof TimeoutError || (typeof err === 'object' && err !== null && (err as { isTimeout?: boolean }).isTimeout === true)
+}
+
+/**
+ * Race `promise` against a timer. Rejects with `TimeoutError` if `ms` elapses
+ * first; otherwise resolves/rejects exactly as the wrapped promise does.
+ */
+export function withTimeout<T>(promise: Promise<T>, ms: number = REFUND_TIMEOUT_MS): Promise<T> {
+  let timer: ReturnType<typeof setTimeout>
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new TimeoutError(ms)), ms)
+  })
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer)) as Promise<T>
+}
+
+/**
+ * Create a refund bounded by a 30s timeout (Req 4.12). On timeout, rejects with
+ * a `TimeoutError`; on gateway failure, rejects with the PayMongo error detail.
+ */
+export function createRefundWithTimeout(
+  input: RefundInput,
+  ms: number = REFUND_TIMEOUT_MS
+): Promise<RefundResult> {
+  return withTimeout(createRefund(input), ms)
+}

@@ -1,0 +1,830 @@
+{
+  "pbtResults": {
+    "6.2 Write property test for template validation": {
+      "status": "passed",
+      "lastRunTimestamp": 1788186463298
+    },
+    "6.3 Write property test for placeholder resolution": {
+      "status": "passed",
+      "lastRunTimestamp": 1788186464818
+    },
+    "6.4 Write property test for unknown token detection": {
+      "status": "passed",
+      "lastRunTimestamp": 1788186465419
+    },
+    "3.2 Write property test for return-window enforcement": {
+      "status": "passed",
+      "lastRunTimestamp": 1788186485032
+    },
+    "3.3 Write property test for valid submission creation": {
+      "status": "passed",
+      "lastRunTimestamp": 1788186486031
+    },
+    "3.4 Write property test for invalid submission rejection": {
+      "status": "passed",
+      "lastRunTimestamp": 1788186487434
+    },
+    "3.5 Write property test for single active request": {
+      "status": "passed",
+      "lastRunTimestamp": 1788186488351
+    },
+    "3.6 Write property test for status transitions": {
+      "status": "passed",
+      "lastRunTimestamp": 1788186489289
+    },
+    "3.7 Write property test for whitespace rejection reason": {
+      "status": "passed",
+      "lastRunTimestamp": 1788186490722
+    },
+    "4.2 Write property test for static page ordering": {
+      "status": "passed",
+      "lastRunTimestamp": 1788186491163
+    },
+    "3.8 Write property test for refund eligibility": {
+      "status": "passed",
+      "lastRunTimestamp": 1788186491530
+    },
+    "4.3 Write property test for static page validation": {
+      "status": "passed",
+      "lastRunTimestamp": 1788186491825
+    },
+    "4.4 Write property test for slug uniqueness": {
+      "status": "passed",
+      "lastRunTimestamp": 1788186492900
+    },
+    "4.5 Write property test for draft visibility": {
+      "status": "passed",
+      "lastRunTimestamp": 1788186494218
+    },
+    "4.6 Write property test for banner validation": {
+      "status": "passed",
+      "lastRunTimestamp": 1788186495117
+    },
+    "4.7 Write property test for banner schedule": {
+      "status": "passed",
+      "lastRunTimestamp": 1788186496076
+    },
+    "4.8 Write property test for banner visibility": {
+      "status": "passed",
+      "lastRunTimestamp": 1788186497519
+    },
+    "4.9 Write property test for homepage block validation": {
+      "status": "passed",
+      "lastRunTimestamp": 1788186498232
+    }
+  },
+  "executionHistory": {
+    "1.1 Add all schema changes to `prisma/schema.prisma`": [
+      {
+        "executionId": "daf68f14-a171-4fde-ac87-76715f32f47a",
+        "chatSessionId": "sess_f2bb3dbb-4baa-4276-97c2-556859c754df",
+        "timestamp": 1788184735198
+      },
+      {
+        "executionId": "daf68f14-a171-4fde-ac87-76715f32f47a",
+        "chatSessionId": "sess_f2bb3dbb-4baa-4276-97c2-556859c754df",
+        "timestamp": 1788184756281
+      },
+      {
+        "executionId": "daf68f14-a171-4fde-ac87-76715f32f47a",
+        "chatSessionId": "sess_f2bb3dbb-4baa-4276-97c2-556859c754df",
+        "timestamp": 1788185226610
+      }
+    ],
+    "1.2 Generate and apply the Prisma migration": [
+      {
+        "executionId": "daf68f14-a171-4fde-ac87-76715f32f47a",
+        "chatSessionId": "sess_f2bb3dbb-4baa-4276-97c2-556859c754df",
+        "timestamp": 1788184735900
+      },
+      {
+        "executionId": "daf68f14-a171-4fde-ac87-76715f32f47a",
+        "chatSessionId": "sess_f2bb3dbb-4baa-4276-97c2-556859c754df",
+        "timestamp": 1788185233789
+      },
+      {
+        "executionId": "daf68f14-a171-4fde-ac87-76715f32f47a",
+        "chatSessionId": "sess_f2bb3dbb-4baa-4276-97c2-556859c754df",
+        "timestamp": 1788185878293
+      }
+    ],
+    "1.3 Seed default notification templates and platform settings in `prisma/seed.ts`": [
+      {
+        "executionId": "daf68f14-a171-4fde-ac87-76715f32f47a",
+        "chatSessionId": "sess_f2bb3dbb-4baa-4276-97c2-556859c754df",
+        "timestamp": 1788184736199
+      }
+    ],
+    "2.1 Implement document builders and money formatting": [
+      {
+        "executionId": "daf68f14-a171-4fde-ac87-76715f32f47a",
+        "chatSessionId": "sess_f2bb3dbb-4baa-4276-97c2-556859c754df",
+        "timestamp": 1788184736507
+      },
+      {
+        "executionId": "daf68f14-a171-4fde-ac87-76715f32f47a",
+        "chatSessionId": "sess_f2bb3dbb-4baa-4276-97c2-556859c754df",
+        "timestamp": 1788185893626
+      },
+      {
+        "executionId": "daf68f14-a171-4fde-ac87-76715f32f47a",
+        "chatSessionId": "sess_f2bb3dbb-4baa-4276-97c2-556859c754df",
+        "timestamp": 1788186553046
+      }
+    ],
+    "3.1 Implement return-window, transition, eligibility, and submission validation": [
+      {
+        "executionId": "daf68f14-a171-4fde-ac87-76715f32f47a",
+        "chatSessionId": "sess_f2bb3dbb-4baa-4276-97c2-556859c754df",
+        "timestamp": 1788184736957
+      },
+      {
+        "executionId": "daf68f14-a171-4fde-ac87-76715f32f47a",
+        "chatSessionId": "sess_f2bb3dbb-4baa-4276-97c2-556859c754df",
+        "timestamp": 1788185894918
+      },
+      {
+        "executionId": "daf68f14-a171-4fde-ac87-76715f32f47a",
+        "chatSessionId": "sess_f2bb3dbb-4baa-4276-97c2-556859c754df",
+        "timestamp": 1788186561052
+      }
+    ],
+    "4.1 Implement slug, banner, schedule, and content validation helpers": [
+      {
+        "executionId": "daf68f14-a171-4fde-ac87-76715f32f47a",
+        "chatSessionId": "sess_f2bb3dbb-4baa-4276-97c2-556859c754df",
+        "timestamp": 1788184737216
+      },
+      {
+        "executionId": "daf68f14-a171-4fde-ac87-76715f32f47a",
+        "chatSessionId": "sess_f2bb3dbb-4baa-4276-97c2-556859c754df",
+        "timestamp": 1788185895865
+      },
+      {
+        "executionId": "daf68f14-a171-4fde-ac87-76715f32f47a",
+        "chatSessionId": "sess_f2bb3dbb-4baa-4276-97c2-556859c754df",
+        "timestamp": 1788186574446
+      }
+    ],
+    "5.1 Implement settings accessors, validation, and access control": [
+      {
+        "executionId": "daf68f14-a171-4fde-ac87-76715f32f47a",
+        "chatSessionId": "sess_f2bb3dbb-4baa-4276-97c2-556859c754df",
+        "timestamp": 1788184737488
+      },
+      {
+        "executionId": "daf68f14-a171-4fde-ac87-76715f32f47a",
+        "chatSessionId": "sess_f2bb3dbb-4baa-4276-97c2-556859c754df",
+        "timestamp": 1788186610172
+      },
+      {
+        "executionId": "daf68f14-a171-4fde-ac87-76715f32f47a",
+        "chatSessionId": "sess_f2bb3dbb-4baa-4276-97c2-556859c754df",
+        "timestamp": 1788186851704
+      }
+    ],
+    "6.1 Implement token registry, placeholder resolution, and template validation": [
+      {
+        "executionId": "daf68f14-a171-4fde-ac87-76715f32f47a",
+        "chatSessionId": "sess_f2bb3dbb-4baa-4276-97c2-556859c754df",
+        "timestamp": 1788184737715
+      },
+      {
+        "executionId": "daf68f14-a171-4fde-ac87-76715f32f47a",
+        "chatSessionId": "sess_f2bb3dbb-4baa-4276-97c2-556859c754df",
+        "timestamp": 1788185897265
+      },
+      {
+        "executionId": "daf68f14-a171-4fde-ac87-76715f32f47a",
+        "chatSessionId": "sess_f2bb3dbb-4baa-4276-97c2-556859c754df",
+        "timestamp": 1788186584294
+      }
+    ],
+    "7.1 Implement pure notification helpers": [
+      {
+        "executionId": "daf68f14-a171-4fde-ac87-76715f32f47a",
+        "chatSessionId": "sess_f2bb3dbb-4baa-4276-97c2-556859c754df",
+        "timestamp": 1788184738132
+      },
+      {
+        "executionId": "daf68f14-a171-4fde-ac87-76715f32f47a",
+        "chatSessionId": "sess_f2bb3dbb-4baa-4276-97c2-556859c754df",
+        "timestamp": 1788186611057
+      },
+      {
+        "executionId": "daf68f14-a171-4fde-ac87-76715f32f47a",
+        "chatSessionId": "sess_f2bb3dbb-4baa-4276-97c2-556859c754df",
+        "timestamp": 1788186858726
+      }
+    ],
+    "8.1 Implement ordering, stepper, and ownership helpers": [
+      {
+        "executionId": "daf68f14-a171-4fde-ac87-76715f32f47a",
+        "chatSessionId": "sess_f2bb3dbb-4baa-4276-97c2-556859c754df",
+        "timestamp": 1788184738763
+      },
+      {
+        "executionId": "daf68f14-a171-4fde-ac87-76715f32f47a",
+        "chatSessionId": "sess_f2bb3dbb-4baa-4276-97c2-556859c754df",
+        "timestamp": 1788185898292
+      },
+      {
+        "executionId": "daf68f14-a171-4fde-ac87-76715f32f47a",
+        "chatSessionId": "sess_f2bb3dbb-4baa-4276-97c2-556859c754df",
+        "timestamp": 1788186589026
+      }
+    ],
+    "9. Checkpoint - Ensure all pure-logic tests pass": [
+      {
+        "executionId": "daf68f14-a171-4fde-ac87-76715f32f47a",
+        "chatSessionId": "sess_f2bb3dbb-4baa-4276-97c2-556859c754df",
+        "timestamp": 1788184738957
+      },
+      {
+        "executionId": "daf68f14-a171-4fde-ac87-76715f32f47a",
+        "chatSessionId": "sess_f2bb3dbb-4baa-4276-97c2-556859c754df",
+        "timestamp": 1788186880511
+      }
+    ],
+    "10.1 Extend `src/lib/paymongo.ts` with refund support": [
+      {
+        "executionId": "daf68f14-a171-4fde-ac87-76715f32f47a",
+        "chatSessionId": "sess_f2bb3dbb-4baa-4276-97c2-556859c754df",
+        "timestamp": 1788184739074
+      },
+      {
+        "executionId": "daf68f14-a171-4fde-ac87-76715f32f47a",
+        "chatSessionId": "sess_f2bb3dbb-4baa-4276-97c2-556859c754df",
+        "timestamp": 1788186612482
+      },
+      {
+        "executionId": "daf68f14-a171-4fde-ac87-76715f32f47a",
+        "chatSessionId": "sess_f2bb3dbb-4baa-4276-97c2-556859c754df",
+        "timestamp": 1788186867681
+      }
+    ],
+    "10.3 Extend `src/lib/mailer.ts` with `sendNotificationEmail` and retry": [
+      {
+        "executionId": "daf68f14-a171-4fde-ac87-76715f32f47a",
+        "chatSessionId": "sess_f2bb3dbb-4baa-4276-97c2-556859c754df",
+        "timestamp": 1788184739256
+      },
+      {
+        "executionId": "daf68f14-a171-4fde-ac87-76715f32f47a",
+        "chatSessionId": "sess_f2bb3dbb-4baa-4276-97c2-556859c754df",
+        "timestamp": 1788186613549
+      },
+      {
+        "executionId": "daf68f14-a171-4fde-ac87-76715f32f47a",
+        "chatSessionId": "sess_f2bb3dbb-4baa-4276-97c2-556859c754df",
+        "timestamp": 1788186870027
+      }
+    ],
+    "11.1 Implement `emitNotification`, `markRead`, `markAllRead` DB operations in `src/lib/notifications.ts`": [
+      {
+        "executionId": "daf68f14-a171-4fde-ac87-76715f32f47a",
+        "chatSessionId": "sess_f2bb3dbb-4baa-4276-97c2-556859c754df",
+        "timestamp": 1788184739596
+      }
+    ],
+    "12.1 Implement invoice and packing-slip audit routes": [
+      {
+        "executionId": "daf68f14-a171-4fde-ac87-76715f32f47a",
+        "chatSessionId": "sess_f2bb3dbb-4baa-4276-97c2-556859c754df",
+        "timestamp": 1788184739724
+      }
+    ],
+    "12.2 Implement admin returns routes": [
+      {
+        "executionId": "daf68f14-a171-4fde-ac87-76715f32f47a",
+        "chatSessionId": "sess_f2bb3dbb-4baa-4276-97c2-556859c754df",
+        "timestamp": 1788184739846
+      }
+    ],
+    "12.3 Implement CMS static-page routes": [
+      {
+        "executionId": "daf68f14-a171-4fde-ac87-76715f32f47a",
+        "chatSessionId": "sess_f2bb3dbb-4baa-4276-97c2-556859c754df",
+        "timestamp": 1788184739986
+      }
+    ],
+    "12.4 Implement CMS banner routes": [
+      {
+        "executionId": "daf68f14-a171-4fde-ac87-76715f32f47a",
+        "chatSessionId": "sess_f2bb3dbb-4baa-4276-97c2-556859c754df",
+        "timestamp": 1788184740174
+      }
+    ],
+    "12.5 Implement CMS homepage routes": [
+      {
+        "executionId": "daf68f14-a171-4fde-ac87-76715f32f47a",
+        "chatSessionId": "sess_f2bb3dbb-4baa-4276-97c2-556859c754df",
+        "timestamp": 1788184740300
+      }
+    ],
+    "12.6 Implement settings routes": [
+      {
+        "executionId": "daf68f14-a171-4fde-ac87-76715f32f47a",
+        "chatSessionId": "sess_f2bb3dbb-4baa-4276-97c2-556859c754df",
+        "timestamp": 1788184740424
+      }
+    ],
+    "12.7 Implement notification-template routes": [
+      {
+        "executionId": "daf68f14-a171-4fde-ac87-76715f32f47a",
+        "chatSessionId": "sess_f2bb3dbb-4baa-4276-97c2-556859c754df",
+        "timestamp": 1788184740550
+      }
+    ],
+    "13.1 Implement customer returns routes": [
+      {
+        "executionId": "daf68f14-a171-4fde-ac87-76715f32f47a",
+        "chatSessionId": "sess_f2bb3dbb-4baa-4276-97c2-556859c754df",
+        "timestamp": 1788184740681
+      }
+    ],
+    "13.2 Implement customer notifications routes": [
+      {
+        "executionId": "daf68f14-a171-4fde-ac87-76715f32f47a",
+        "chatSessionId": "sess_f2bb3dbb-4baa-4276-97c2-556859c754df",
+        "timestamp": 1788184740825
+      }
+    ],
+    "14.1 Update the order-status update handler": [
+      {
+        "executionId": "daf68f14-a171-4fde-ac87-76715f32f47a",
+        "chatSessionId": "sess_f2bb3dbb-4baa-4276-97c2-556859c754df",
+        "timestamp": 1788184740941
+      }
+    ],
+    "14.2 Read platform settings in checkout and money formatting": [
+      {
+        "executionId": "daf68f14-a171-4fde-ac87-76715f32f47a",
+        "chatSessionId": "sess_f2bb3dbb-4baa-4276-97c2-556859c754df",
+        "timestamp": 1788184741058
+      }
+    ],
+    "15. Checkpoint - Ensure API and logic tests pass": [
+      {
+        "executionId": "daf68f14-a171-4fde-ac87-76715f32f47a",
+        "chatSessionId": "sess_f2bb3dbb-4baa-4276-97c2-556859c754df",
+        "timestamp": 1788184741184
+      }
+    ],
+    "16.1 Build invoice printable page": [
+      {
+        "executionId": "daf68f14-a171-4fde-ac87-76715f32f47a",
+        "chatSessionId": "sess_f2bb3dbb-4baa-4276-97c2-556859c754df",
+        "timestamp": 1788184741327
+      }
+    ],
+    "16.2 Build packing-slip printable page": [
+      {
+        "executionId": "daf68f14-a171-4fde-ac87-76715f32f47a",
+        "chatSessionId": "sess_f2bb3dbb-4baa-4276-97c2-556859c754df",
+        "timestamp": 1788184741481
+      }
+    ],
+    "17.1 Build `ReturnQueueTable` and returns list page": [
+      {
+        "executionId": "daf68f14-a171-4fde-ac87-76715f32f47a",
+        "chatSessionId": "sess_f2bb3dbb-4baa-4276-97c2-556859c754df",
+        "timestamp": 1788184741609
+      }
+    ],
+    "17.2 Build `ReturnDetailPanel` and detail page": [
+      {
+        "executionId": "daf68f14-a171-4fde-ac87-76715f32f47a",
+        "chatSessionId": "sess_f2bb3dbb-4baa-4276-97c2-556859c754df",
+        "timestamp": 1788184741734
+      }
+    ],
+    "18.1 Build static-page management": [
+      {
+        "executionId": "daf68f14-a171-4fde-ac87-76715f32f47a",
+        "chatSessionId": "sess_f2bb3dbb-4baa-4276-97c2-556859c754df",
+        "timestamp": 1788184741903
+      }
+    ],
+    "18.2 Build banner management": [
+      {
+        "executionId": "daf68f14-a171-4fde-ac87-76715f32f47a",
+        "chatSessionId": "sess_f2bb3dbb-4baa-4276-97c2-556859c754df",
+        "timestamp": 1788184742075
+      }
+    ],
+    "18.3 Build homepage content editor": [
+      {
+        "executionId": "daf68f14-a171-4fde-ac87-76715f32f47a",
+        "chatSessionId": "sess_f2bb3dbb-4baa-4276-97c2-556859c754df",
+        "timestamp": 1788184742189
+      }
+    ],
+    "19.1 Extend the settings page": [
+      {
+        "executionId": "daf68f14-a171-4fde-ac87-76715f32f47a",
+        "chatSessionId": "sess_f2bb3dbb-4baa-4276-97c2-556859c754df",
+        "timestamp": 1788184742307
+      }
+    ],
+    "19.2 Build notification templates page": [
+      {
+        "executionId": "daf68f14-a171-4fde-ac87-76715f32f47a",
+        "chatSessionId": "sess_f2bb3dbb-4baa-4276-97c2-556859c754df",
+        "timestamp": 1788184742440
+      }
+    ],
+    "20.1 Build order history and tracking views": [
+      {
+        "executionId": "daf68f14-a171-4fde-ac87-76715f32f47a",
+        "chatSessionId": "sess_f2bb3dbb-4baa-4276-97c2-556859c754df",
+        "timestamp": 1788184742557
+      }
+    ],
+    "20.2 Build return request form and status badge": [
+      {
+        "executionId": "daf68f14-a171-4fde-ac87-76715f32f47a",
+        "chatSessionId": "sess_f2bb3dbb-4baa-4276-97c2-556859c754df",
+        "timestamp": 1788184742696
+      }
+    ],
+    "20.3 Build notification bell and center": [
+      {
+        "executionId": "daf68f14-a171-4fde-ac87-76715f32f47a",
+        "chatSessionId": "sess_f2bb3dbb-4baa-4276-97c2-556859c754df",
+        "timestamp": 1788184742822
+      }
+    ],
+    "20.4 Build dynamic CMS static page route": [
+      {
+        "executionId": "daf68f14-a171-4fde-ac87-76715f32f47a",
+        "chatSessionId": "sess_f2bb3dbb-4baa-4276-97c2-556859c754df",
+        "timestamp": 1788184742964
+      }
+    ],
+    "20.5 Render homepage content blocks and visible banners": [
+      {
+        "executionId": "daf68f14-a171-4fde-ac87-76715f32f47a",
+        "chatSessionId": "sess_f2bb3dbb-4baa-4276-97c2-556859c754df",
+        "timestamp": 1788184743148
+      }
+    ],
+    "21. Checkpoint - Ensure UI and integration tests pass": [
+      {
+        "executionId": "daf68f14-a171-4fde-ac87-76715f32f47a",
+        "chatSessionId": "sess_f2bb3dbb-4baa-4276-97c2-556859c754df",
+        "timestamp": 1788184743257
+      }
+    ],
+    "23. Final checkpoint - Ensure all tests pass": [
+      {
+        "executionId": "daf68f14-a171-4fde-ac87-76715f32f47a",
+        "chatSessionId": "sess_f2bb3dbb-4baa-4276-97c2-556859c754df",
+        "timestamp": 1788184743381
+      }
+    ],
+    "2. Invoice & packing-slip formatting library (`src/lib/documents.ts`)": [
+      {
+        "executionId": "daf68f14-a171-4fde-ac87-76715f32f47a",
+        "chatSessionId": "sess_f2bb3dbb-4baa-4276-97c2-556859c754df",
+        "timestamp": 1788186553230
+      }
+    ],
+    "2.2 Write property test for invoice consistency": [
+      {
+        "executionId": "daf68f14-a171-4fde-ac87-76715f32f47a",
+        "chatSessionId": "sess_f2bb3dbb-4baa-4276-97c2-556859c754df",
+        "timestamp": 1788186553983
+      }
+    ],
+    "2.3 Write property test for money formatting": [
+      {
+        "executionId": "daf68f14-a171-4fde-ac87-76715f32f47a",
+        "chatSessionId": "sess_f2bb3dbb-4baa-4276-97c2-556859c754df",
+        "timestamp": 1788186555010
+      }
+    ],
+    "2.4 Write property test for packing-slip required fields": [
+      {
+        "executionId": "daf68f14-a171-4fde-ac87-76715f32f47a",
+        "chatSessionId": "sess_f2bb3dbb-4baa-4276-97c2-556859c754df",
+        "timestamp": 1788186556335
+      }
+    ],
+    "2.5 Write property test for serial-number rendering": [
+      {
+        "executionId": "daf68f14-a171-4fde-ac87-76715f32f47a",
+        "chatSessionId": "sess_f2bb3dbb-4baa-4276-97c2-556859c754df",
+        "timestamp": 1788186557295
+      }
+    ],
+    "2.6 Write property test for price/total exclusion": [
+      {
+        "executionId": "daf68f14-a171-4fde-ac87-76715f32f47a",
+        "chatSessionId": "sess_f2bb3dbb-4baa-4276-97c2-556859c754df",
+        "timestamp": 1788186558689
+      }
+    ],
+    "2.7 Write property test for packing-slip validation": [
+      {
+        "executionId": "daf68f14-a171-4fde-ac87-76715f32f47a",
+        "chatSessionId": "sess_f2bb3dbb-4baa-4276-97c2-556859c754df",
+        "timestamp": 1788186559614
+      }
+    ],
+    "3. Returns workflow logic library (`src/lib/returns.ts`)": [
+      {
+        "executionId": "daf68f14-a171-4fde-ac87-76715f32f47a",
+        "chatSessionId": "sess_f2bb3dbb-4baa-4276-97c2-556859c754df",
+        "timestamp": 1788186561235
+      }
+    ],
+    "3.2 Write property test for return-window enforcement": [
+      {
+        "executionId": "daf68f14-a171-4fde-ac87-76715f32f47a",
+        "chatSessionId": "sess_f2bb3dbb-4baa-4276-97c2-556859c754df",
+        "timestamp": 1788186562004
+      }
+    ],
+    "3.3 Write property test for valid submission creation": [
+      {
+        "executionId": "daf68f14-a171-4fde-ac87-76715f32f47a",
+        "chatSessionId": "sess_f2bb3dbb-4baa-4276-97c2-556859c754df",
+        "timestamp": 1788186562969
+      }
+    ],
+    "3.4 Write property test for invalid submission rejection": [
+      {
+        "executionId": "daf68f14-a171-4fde-ac87-76715f32f47a",
+        "chatSessionId": "sess_f2bb3dbb-4baa-4276-97c2-556859c754df",
+        "timestamp": 1788186564317
+      }
+    ],
+    "3.5 Write property test for single active request": [
+      {
+        "executionId": "daf68f14-a171-4fde-ac87-76715f32f47a",
+        "chatSessionId": "sess_f2bb3dbb-4baa-4276-97c2-556859c754df",
+        "timestamp": 1788186565259
+      }
+    ],
+    "3.6 Write property test for status transitions": [
+      {
+        "executionId": "daf68f14-a171-4fde-ac87-76715f32f47a",
+        "chatSessionId": "sess_f2bb3dbb-4baa-4276-97c2-556859c754df",
+        "timestamp": 1788186566253
+      }
+    ],
+    "3.7 Write property test for whitespace rejection reason": [
+      {
+        "executionId": "daf68f14-a171-4fde-ac87-76715f32f47a",
+        "chatSessionId": "sess_f2bb3dbb-4baa-4276-97c2-556859c754df",
+        "timestamp": 1788186567701
+      }
+    ],
+    "3.8 Write property test for refund eligibility": [
+      {
+        "executionId": "daf68f14-a171-4fde-ac87-76715f32f47a",
+        "chatSessionId": "sess_f2bb3dbb-4baa-4276-97c2-556859c754df",
+        "timestamp": 1788186568567
+      }
+    ],
+    "4. CMS logic library (`src/lib/cms.ts`)": [
+      {
+        "executionId": "daf68f14-a171-4fde-ac87-76715f32f47a",
+        "chatSessionId": "sess_f2bb3dbb-4baa-4276-97c2-556859c754df",
+        "timestamp": 1788186574576
+      }
+    ],
+    "4.2 Write property test for static page ordering": [
+      {
+        "executionId": "daf68f14-a171-4fde-ac87-76715f32f47a",
+        "chatSessionId": "sess_f2bb3dbb-4baa-4276-97c2-556859c754df",
+        "timestamp": 1788186575377
+      }
+    ],
+    "4.3 Write property test for static page validation": [
+      {
+        "executionId": "daf68f14-a171-4fde-ac87-76715f32f47a",
+        "chatSessionId": "sess_f2bb3dbb-4baa-4276-97c2-556859c754df",
+        "timestamp": 1788186577834
+      }
+    ],
+    "4.4 Write property test for slug uniqueness": [
+      {
+        "executionId": "daf68f14-a171-4fde-ac87-76715f32f47a",
+        "chatSessionId": "sess_f2bb3dbb-4baa-4276-97c2-556859c754df",
+        "timestamp": 1788186578252
+      }
+    ],
+    "4.5 Write property test for draft visibility": [
+      {
+        "executionId": "daf68f14-a171-4fde-ac87-76715f32f47a",
+        "chatSessionId": "sess_f2bb3dbb-4baa-4276-97c2-556859c754df",
+        "timestamp": 1788186579125
+      }
+    ],
+    "4.6 Write property test for banner validation": [
+      {
+        "executionId": "daf68f14-a171-4fde-ac87-76715f32f47a",
+        "chatSessionId": "sess_f2bb3dbb-4baa-4276-97c2-556859c754df",
+        "timestamp": 1788186580086
+      }
+    ],
+    "4.7 Write property test for banner schedule": [
+      {
+        "executionId": "daf68f14-a171-4fde-ac87-76715f32f47a",
+        "chatSessionId": "sess_f2bb3dbb-4baa-4276-97c2-556859c754df",
+        "timestamp": 1788186581030
+      }
+    ],
+    "4.8 Write property test for banner visibility": [
+      {
+        "executionId": "daf68f14-a171-4fde-ac87-76715f32f47a",
+        "chatSessionId": "sess_f2bb3dbb-4baa-4276-97c2-556859c754df",
+        "timestamp": 1788186581963
+      }
+    ],
+    "4.9 Write property test for homepage block validation": [
+      {
+        "executionId": "daf68f14-a171-4fde-ac87-76715f32f47a",
+        "chatSessionId": "sess_f2bb3dbb-4baa-4276-97c2-556859c754df",
+        "timestamp": 1788186583409
+      }
+    ],
+    "6. Notification template library (`src/lib/notification-templates.ts`)": [
+      {
+        "executionId": "daf68f14-a171-4fde-ac87-76715f32f47a",
+        "chatSessionId": "sess_f2bb3dbb-4baa-4276-97c2-556859c754df",
+        "timestamp": 1788186584430
+      }
+    ],
+    "6.2 Write property test for template validation": [
+      {
+        "executionId": "daf68f14-a171-4fde-ac87-76715f32f47a",
+        "chatSessionId": "sess_f2bb3dbb-4baa-4276-97c2-556859c754df",
+        "timestamp": 1788186585717
+      }
+    ],
+    "6.3 Write property test for placeholder resolution": [
+      {
+        "executionId": "daf68f14-a171-4fde-ac87-76715f32f47a",
+        "chatSessionId": "sess_f2bb3dbb-4baa-4276-97c2-556859c754df",
+        "timestamp": 1788186586683
+      }
+    ],
+    "6.4 Write property test for unknown token detection": [
+      {
+        "executionId": "daf68f14-a171-4fde-ac87-76715f32f47a",
+        "chatSessionId": "sess_f2bb3dbb-4baa-4276-97c2-556859c754df",
+        "timestamp": 1788186587583
+      }
+    ],
+    "8. Order tracking logic library (`src/lib/order-tracking.ts`)": [
+      {
+        "executionId": "daf68f14-a171-4fde-ac87-76715f32f47a",
+        "chatSessionId": "sess_f2bb3dbb-4baa-4276-97c2-556859c754df",
+        "timestamp": 1788186589261
+      }
+    ],
+    "8.2 Write property test for order history ordering": [
+      {
+        "executionId": "daf68f14-a171-4fde-ac87-76715f32f47a",
+        "chatSessionId": "sess_f2bb3dbb-4baa-4276-97c2-556859c754df",
+        "timestamp": 1788186589930
+      }
+    ],
+    "8.3 Write property test for status progression": [
+      {
+        "executionId": "daf68f14-a171-4fde-ac87-76715f32f47a",
+        "chatSessionId": "sess_f2bb3dbb-4baa-4276-97c2-556859c754df",
+        "timestamp": 1788186591383
+      }
+    ],
+    "8.4 Write property test for owner-only access": [
+      {
+        "executionId": "daf68f14-a171-4fde-ac87-76715f32f47a",
+        "chatSessionId": "sess_f2bb3dbb-4baa-4276-97c2-556859c754df",
+        "timestamp": 1788186592204
+      }
+    ],
+    "5. Platform settings library (`src/lib/settings.ts`)": [
+      {
+        "executionId": "daf68f14-a171-4fde-ac87-76715f32f47a",
+        "chatSessionId": "sess_f2bb3dbb-4baa-4276-97c2-556859c754df",
+        "timestamp": 1788186851859
+      }
+    ],
+    "5.2 Write property test for currency round-trip": [
+      {
+        "executionId": "daf68f14-a171-4fde-ac87-76715f32f47a",
+        "chatSessionId": "sess_f2bb3dbb-4baa-4276-97c2-556859c754df",
+        "timestamp": 1788186853067
+      }
+    ],
+    "5.3 Write property test for shipping option validation": [
+      {
+        "executionId": "daf68f14-a171-4fde-ac87-76715f32f47a",
+        "chatSessionId": "sess_f2bb3dbb-4baa-4276-97c2-556859c754df",
+        "timestamp": 1788186854043
+      }
+    ],
+    "5.4 Write property test for disabled payment exclusion": [
+      {
+        "executionId": "daf68f14-a171-4fde-ac87-76715f32f47a",
+        "chatSessionId": "sess_f2bb3dbb-4baa-4276-97c2-556859c754df",
+        "timestamp": 1788186855478
+      }
+    ],
+    "5.5 Write property test for checkout-unavailable warning": [
+      {
+        "executionId": "daf68f14-a171-4fde-ac87-76715f32f47a",
+        "chatSessionId": "sess_f2bb3dbb-4baa-4276-97c2-556859c754df",
+        "timestamp": 1788186856424
+      }
+    ],
+    "5.6 Write property test for Super_Admin write gate": [
+      {
+        "executionId": "daf68f14-a171-4fde-ac87-76715f32f47a",
+        "chatSessionId": "sess_f2bb3dbb-4baa-4276-97c2-556859c754df",
+        "timestamp": 1788186857873
+      }
+    ],
+    "7. Notification state library (`src/lib/notifications.ts`)": [
+      {
+        "executionId": "daf68f14-a171-4fde-ac87-76715f32f47a",
+        "chatSessionId": "sess_f2bb3dbb-4baa-4276-97c2-556859c754df",
+        "timestamp": 1788186858912
+      }
+    ],
+    "7.2 Write property test for disabled-template suppression": [
+      {
+        "executionId": "daf68f14-a171-4fde-ac87-76715f32f47a",
+        "chatSessionId": "sess_f2bb3dbb-4baa-4276-97c2-556859c754df",
+        "timestamp": 1788186859715
+      }
+    ],
+    "7.3 Write property test for bounded message display": [
+      {
+        "executionId": "daf68f14-a171-4fde-ac87-76715f32f47a",
+        "chatSessionId": "sess_f2bb3dbb-4baa-4276-97c2-556859c754df",
+        "timestamp": 1788186861103
+      }
+    ],
+    "7.4 Write property test for unread-count display": [
+      {
+        "executionId": "daf68f14-a171-4fde-ac87-76715f32f47a",
+        "chatSessionId": "sess_f2bb3dbb-4baa-4276-97c2-556859c754df",
+        "timestamp": 1788186862064
+      }
+    ],
+    "7.5 Write property test for mark-read decrement": [
+      {
+        "executionId": "daf68f14-a171-4fde-ac87-76715f32f47a",
+        "chatSessionId": "sess_f2bb3dbb-4baa-4276-97c2-556859c754df",
+        "timestamp": 1788186863420
+      }
+    ],
+    "7.6 Write property test for mark-all-read idempotency": [
+      {
+        "executionId": "daf68f14-a171-4fde-ac87-76715f32f47a",
+        "chatSessionId": "sess_f2bb3dbb-4baa-4276-97c2-556859c754df",
+        "timestamp": 1788186864524
+      }
+    ],
+    "7.7 Write property test for in-app retention": [
+      {
+        "executionId": "daf68f14-a171-4fde-ac87-76715f32f47a",
+        "chatSessionId": "sess_f2bb3dbb-4baa-4276-97c2-556859c754df",
+        "timestamp": 1788186865357
+      }
+    ],
+    "7.8 Write property test for promo opt-out": [
+      {
+        "executionId": "daf68f14-a171-4fde-ac87-76715f32f47a",
+        "chatSessionId": "sess_f2bb3dbb-4baa-4276-97c2-556859c754df",
+        "timestamp": 1788186866735
+      }
+    ],
+    "10.2 Write unit tests for refund helper": [
+      {
+        "executionId": "daf68f14-a171-4fde-ac87-76715f32f47a",
+        "chatSessionId": "sess_f2bb3dbb-4baa-4276-97c2-556859c754df",
+        "timestamp": 1788186869068
+      }
+    ],
+    "10. Extend external-service helpers": [
+      {
+        "executionId": "daf68f14-a171-4fde-ac87-76715f32f47a",
+        "chatSessionId": "sess_f2bb3dbb-4baa-4276-97c2-556859c754df",
+        "timestamp": 1788186870212
+      }
+    ],
+    "10.4 Write unit tests for mailer retry": [
+      {
+        "executionId": "daf68f14-a171-4fde-ac87-76715f32f47a",
+        "chatSessionId": "sess_f2bb3dbb-4baa-4276-97c2-556859c754df",
+        "timestamp": 1788186871268
+      }
+    ]
+  }
+}
