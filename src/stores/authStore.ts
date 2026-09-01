@@ -285,7 +285,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
     const session = getCustomerSession()
     if (!session) {
-      set(LOGGED_OUT)
+      // Only clear login state if the store doesn't already show a logged-in
+      // user. This prevents hydrate() from wiping state that was just set by
+      // a concurrent loginWithOAuth() call (the OAuth sync race condition).
+      const currentState = get()
+      if (!currentState.isLoggedIn) {
+        set(LOGGED_OUT)
+      }
       return
     }
     // Use cached profile from the session marker, or the local user table.
