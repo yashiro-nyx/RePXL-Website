@@ -78,7 +78,6 @@ export default function OrderDetailPage() {
   const { orderNumber } = useParams<{ orderNumber: string }>()
   const router = useRouter()
   const { isLoggedIn, userEmail, hydrate } = useAuthStore()
-  const allOrders = useOrderHistoryStore((s) => s.orders)
   const updateStatus = useOrderHistoryStore((s) => s.updateStatus)
   const [hydrated, setHydrated] = useState(false)
   const [order, setOrder] = useState<Order | null>(null)
@@ -108,11 +107,52 @@ export default function OrderDetailPage() {
   useEffect(() => {
     if (!hydrated) return
     if (!isLoggedIn) { router.push('/login'); return }
-    const found = allOrders.find((o) => o.orderNumber === orderNumber)
-    if (!found) { setNotFound(true); return }
-    if (found.userEmail && found.userEmail !== userEmail) { setNotFound(true); return }
-    setOrder(found)
-  }, [hydrated, isLoggedIn, allOrders, orderNumber, userEmail, router])
+
+    // Fetch the specific order directly from the API so we always get the
+    // latest tracking fields (deliveryStatus, trackingProgress, etc.)
+    // rather than relying on the potentially-stale store list.
+    const fetchOrder = async () => {
+      try {
+        const res = await fetch(`/api/orders/${encodeURIComponent(orderNumber ?? '')}`, {
+          credentials: 'include',
+          cache: 'no-store',
+        })
+        if (res.status === 401 || res.status === 403) {
+          router.push('/login')
+          return
+        }
+        if (res.status === 404) {
+          setNotFound(true)
+          return
+        }
+        if (!res.ok) {
+          setNotFound(true)
+          return
+        }
+        const json = await res.json().catch(() => null)
+        if (!json?.success || !json?.data) {
+          setNotFound(true)
+          return
+        }
+
+        // Map the raw API order to the client Order shape using the existing mapper
+        const { apiToClientOrder } = await import('@/lib/mappers')
+        const mapped = apiToClientOrder(json.data)
+
+        // Ownership check — ensure this order belongs to the logged-in user
+        if (mapped.userEmail && mapped.userEmail !== userEmail) {
+          setNotFound(true)
+          return
+        }
+
+        setOrder(mapped)
+      } catch {
+        setNotFound(true)
+      }
+    }
+
+    void fetchOrder()
+  }, [hydrated, isLoggedIn, orderNumber, userEmail, router])
 
   // ── Cancel order handler ──
   const handleCancelConfirm = async () => {
