@@ -501,8 +501,6 @@ function OrdersTab() {
   const allOrders = useOrderHistoryStore((s) => s.orders)
   const userEmail = useAuthStore((s) => s.userEmail)
   const orders = allOrders.filter((o) => o.userEmail === userEmail)
-  const [detailOrder, setDetailOrder] = useState<Order | null>(null)
-  const allProductsStore = useProductStore((s) => s.products)
 
   const statusColor: Record<string, string> = {
     Processing: 'bg-repixl-warning/15 text-repixl-warning',
@@ -557,89 +555,16 @@ function OrdersTab() {
           </div>
           <div className="mt-3 flex items-center justify-between border-t border-repixl-muted/10 pt-3">
             <p className="text-xs text-repixl-muted">{order.courierName} · {order.courierEstimate}</p>
-            <button
-              onClick={() => setDetailOrder(order)}
+            <Link
+              href={`/account/orders/${order.orderNumber}`}
               className="font-mono text-[10px] uppercase tracking-wider text-repixl-muted transition-colors hover:text-repixl-text-light"
             >
               View Details →
-            </button>
+            </Link>
           </div>
         </div>
         )
       })}
-
-      {/* Order detail modal — unchanged functionality */}
-      {detailOrder && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-lg rounded-xl border border-repixl-muted/20 bg-repixl-bg p-6 shadow-2xl receipt-print-area">
-            <div className="flex items-center justify-between no-print">
-              <h3 className="font-display text-lg font-semibold text-repixl-text-light">Order Details</h3>
-              <button onClick={() => setDetailOrder(null)} className="text-repixl-muted hover:text-repixl-text-light" aria-label="Close">
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg>
-              </button>
-            </div>
-            <div className="mt-4 space-y-3">
-              <div className="hidden print:block mb-4 border-b border-repixl-muted/10 pb-4 text-center">
-                <p className="font-display text-2xl font-bold text-repixl-text-light print-muted">RePXL</p>
-                <p className="font-mono text-[10px] uppercase tracking-widest text-repixl-muted print-muted">Order Receipt</p>
-              </div>
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-semibold text-repixl-text-light">Order #{detailOrder.orderNumber}</p>
-                  <p className="text-xs text-repixl-muted">Placed on {detailOrder.date}</p>
-                </div>
-                <span className={`rounded-full px-2.5 py-0.5 font-mono text-[9px] uppercase ${statusColor[detailOrder.status] ?? ''}`}>{detailOrder.status}</span>
-              </div>
-              <div className="rounded-lg border border-repixl-muted/10 bg-repixl-charcoal p-3">
-                <p className="text-center text-xs font-medium text-repixl-text-light/70">Shipping Address</p>
-                <p className="mt-1 text-center text-sm text-repixl-text-light">{detailOrder.fullName}</p>
-                <p className="text-center text-xs text-repixl-muted">{detailOrder.address}, {detailOrder.city} {detailOrder.postalCode}</p>
-              </div>
-              <div className="flex justify-end"><p className="text-sm text-repixl-text-light">Total: <span className="font-display font-bold">${detailOrder.total}</span></p></div>
-              <table className="w-full text-sm">
-                <thead className="border-b border-repixl-muted/10">
-                  <tr>
-                    <th className="py-2 text-left text-xs text-repixl-muted">Item</th>
-                    <th className="py-2 text-right text-xs text-repixl-muted">Price</th>
-                    <th className="py-2 text-right text-xs text-repixl-muted">Qty</th>
-                    <th className="py-2 text-right text-xs text-repixl-muted">Subtotal</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-repixl-muted/10">
-                  {detailOrder.items.map((item) => {
-                    const product = allProductsStore.find((p) => p.slug === item.slug)
-                    const unitPrice = item.price
-                    const qty = item.stock
-                    const lineTotal = unitPrice * qty
-                    return (
-                      <tr key={item.slug}>
-                        <td className="py-2">
-                          <div className="flex items-center gap-2">
-                            <div className="h-8 w-8 overflow-hidden rounded bg-repixl-charcoal">
-                              {product && <img src={product.image} alt="" className="h-full w-full object-contain" />}
-                            </div>
-                            <span className="text-repixl-text-light">{product?.name || item.name || item.slug}</span>
-                          </div>
-                        </td>
-                        <td className="py-2 text-right font-mono text-repixl-text-light/70">${unitPrice.toFixed(2)}</td>
-                        <td className="py-2 text-right font-mono text-repixl-text-light/70">{qty}</td>
-                        <td className="py-2 text-right font-mono text-repixl-text-light">${lineTotal.toFixed(2)}</td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
-              <div className="flex justify-center gap-3 pt-2">
-                <button type="button" onClick={() => window.print()} className="no-print flex items-center gap-2 rounded border border-repixl-muted/20 px-4 py-2 text-sm text-repixl-text-light/70 transition-colors hover:border-repixl-muted/50 hover:text-repixl-text-light">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 6 2 18 2 18 9" /><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" /><rect width="12" height="8" x="6" y="14" /></svg>
-                  Print Receipt
-                </button>
-                <button onClick={() => setDetailOrder(null)} className="no-print rounded bg-repixl-red px-4 py-2 text-sm font-medium text-white hover:bg-red-700">Close</button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   )
 }
