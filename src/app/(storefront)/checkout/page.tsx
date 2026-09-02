@@ -55,6 +55,7 @@ interface FormErrors {
   fullName?: string
   email?: string
   address?: string
+  region?: string
   barangay?: string
   city?: string
   province?: string
@@ -194,19 +195,35 @@ export default function CheckoutPage() {
     const form = formRef.current
     const get = (id: string) => (form?.querySelector(`#${id}`) as HTMLInputElement)?.value ?? ''
     const errs: FormErrors = {}
+
+    // Shipping fields
     if (!nonEmpty(fullName)) errs.fullName = 'Full name is required.'
     if (!isValidEmail(email)) errs.email = 'Enter a valid email address.'
     if (!nonEmpty(streetAddress)) errs.address = 'Street address is required.'
-    if (!nonEmpty(phAddr.barangay)) errs.barangay = 'Barangay is required.'
-    if (!nonEmpty(phAddr.city)) errs.city = 'City / Municipality is required.'
-    if (!nonEmpty(phAddr.province)) errs.province = 'Province is required.'
+
+    // Address dropdowns — must select Region first, then City, then Barangay
+    if (!nonEmpty(phAddr.regionCode)) {
+      errs.region = 'Please select a Region.'
+    } else {
+      // Province required only when the region has provinces (NCR has none — provinceCode = regionCode)
+      if (phAddr.provinceCode !== phAddr.regionCode && !nonEmpty(phAddr.provinceCode)) {
+        errs.province = 'Please select a Province / District.'
+      }
+      if (!nonEmpty(phAddr.cityCode)) errs.city = 'Please select a City / Municipality.'
+      if (!nonEmpty(phAddr.barangay)) errs.barangay = 'Please select a Barangay.'
+    }
+
     if (!isValidPostalCode(postalCode)) errs.postalCode = 'Enter a valid postal code (4–6 digits).'
     if (!validatePHPhone(phone.replace(/\D/g, ''))) errs.phone = 'Enter a valid PH mobile number (09XXXXXXXXX).'
+
+    // Card fields
     if (paymentMethod === 'card') {
       if (!isValidCardNumber(get('card-number'))) errs.cardNumber = 'Enter a valid 16-digit card number.'
-      if (!isValidExpiry(get('card-expiry'))) errs.cardExpiry = 'Enter a valid, non-expired date (MM/YY).'
+      const expiryRaw = get('card-expiry').replace(/\s/g, '')
+      if (!isValidExpiry(expiryRaw)) errs.cardExpiry = 'Enter a valid, non-expired date (MM/YY).'
       if (!isValidCvc(get('card-cvc'))) errs.cardCvc = 'Enter a valid 3 or 4-digit CVC.'
     }
+
     if (!agreeTerms) errs.agreeTerms = 'You must agree to the Terms of Service and Privacy Policy.'
     return errs
   }
@@ -216,11 +233,17 @@ export default function CheckoutPage() {
       fullName: 'full-name', email: 'email', address: 'address',
       postalCode: 'postal-code', phone: 'phone',
       cardNumber: 'card-number', cardExpiry: 'card-expiry', cardCvc: 'card-cvc',
+      // Dropdown fields scroll to the section label
+      barangay: 'ph-barangay', city: 'ph-city', province: 'ph-province', region: 'ph-region',
     }
     for (const key of Object.keys(errs) as (keyof FormErrors)[]) {
       if (errs[key]) {
-        const el = formRef.current?.querySelector(`#${fieldMap[key] ?? key}`) as HTMLElement | null
-        el?.focus()
+        const id = fieldMap[key] ?? key
+        const el = formRef.current?.querySelector(`#${id}`) as HTMLElement | null
+        if (el) {
+          el.focus()
+          el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+        }
         break
       }
     }
@@ -288,8 +311,15 @@ export default function CheckoutPage() {
           type: pmTypeMap[paymentMethod] as 'card' | 'gcash' | 'grab_pay' | 'paymaya',
           card: paymentMethod === 'card' ? {
             cardNumber: get('card-number'),
-            expMonth: parseInt(get('card-expiry').split('/')[0]?.trim() ?? '1', 10),
-            expYear: parseInt(get('card-expiry').split('/')[1]?.trim() ?? '30', 10) + 2000,
+            expMonth: (() => {
+              const raw = get('card-expiry').replace(/\s/g, '')
+              return parseInt(raw.split('/')[0] ?? '1', 10)
+            })(),
+            expYear: (() => {
+              const raw = get('card-expiry').replace(/\s/g, '')
+              const yy = parseInt(raw.split('/')[1] ?? '30', 10)
+              return yy < 100 ? yy + 2000 : yy
+            })(),
             cvc: get('card-cvc'),
             cardholderName: get('cardholder-name') || fullName,
             billingEmail: email,
@@ -519,6 +549,21 @@ export default function CheckoutPage() {
         </motion.div>
 
         <form ref={formRef} onSubmit={handleSubmit} noValidate className="mt-6 grid grid-cols-1 gap-8 lg:grid-cols-3">
+          {/* Validation error summary — shown when user hits submit with errors */}
+          {Object.keys(errors).length > 0 && (
+            <div
+              role="alert"
+              aria-live="polite"
+              className="lg:col-span-3 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3"
+            >
+              <p className="text-sm font-semibold text-red-400">Please fix the following before placing your order:</p>
+              <ul className="mt-1.5 list-inside list-disc space-y-0.5">
+                {(Object.values(errors).filter(Boolean) as string[]).map((msg) => (
+                  <li key={msg} className="text-xs text-red-400/80">{msg}</li>
+                ))}
+              </ul>
+            </div>
+          )}
           <div className="space-y-8 lg:col-span-2">
             {/* Shipping info */}
             <section className="rounded-xl border border-repixl-muted/10 bg-repixl-charcoal/30 p-6">
@@ -575,11 +620,12 @@ export default function CheckoutPage() {
                     value={phAddr}
                     onChange={setPhAddr}
                     errors={{
+                      region: errors.region,
                       province: errors.province,
                       city: errors.city,
                       barangay: errors.barangay,
                     }}
-                    disabled={submitting}
+                    disabled={submitting || paymentProcessing}
                   />
                 </div>
 
@@ -593,6 +639,7 @@ export default function CheckoutPage() {
                     value={postalCode}
                     onChange={(e) => setPostalCode(e.target.value)}
                     className={inputClass(errors.postalCode)}
+                    disabled={submitting || paymentProcessing}
                     {...digitsFilter}
                   />
                 </FieldWrapper>
