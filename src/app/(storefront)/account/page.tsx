@@ -314,11 +314,17 @@ function DashboardTab({ onNavigate }: { onNavigate: (tab: Tab) => void }) {
           </div>
         ) : (
           <div className="space-y-2">
-            {recentOrders.map((order) => (
+            {recentOrders.map((order) => {
+              const first = order.items[0]
+              const extra = order.items.length - 1
+              return (
               <div key={order.orderNumber} className="flex items-center justify-between rounded-lg border border-repixl-muted/8 bg-repixl-bg/50 px-4 py-3">
                 <div className="min-w-0 flex-1">
-                  <p className="truncate font-mono text-xs text-repixl-text-light">#{order.orderNumber}</p>
-                  <p className="font-mono text-[10px] text-repixl-muted">{order.date}</p>
+                  <p className="truncate text-xs font-medium text-repixl-text-light">
+                    {first?.name ?? 'Order'}
+                    {extra > 0 && <span className="text-repixl-muted"> +{extra}</span>}
+                  </p>
+                  <p className="font-mono text-[10px] text-repixl-muted">#{order.orderNumber} · {order.date}</p>
                 </div>
                 <div className="ml-3 flex items-center gap-3">
                   <span className={`rounded-full px-2 py-0.5 font-mono text-[9px] uppercase tracking-wider ${statusColor[order.status] ?? 'bg-repixl-muted/15 text-repixl-muted'}`}>
@@ -327,7 +333,8 @@ function DashboardTab({ onNavigate }: { onNavigate: (tab: Tab) => void }) {
                   <span className="font-display text-sm font-semibold text-repixl-text-light">${order.total}</span>
                 </div>
               </div>
-            ))}
+              )
+            })}
           </div>
         )}
       </div>
@@ -526,12 +533,20 @@ function OrdersTab() {
         <span className="font-mono text-[10px] uppercase tracking-widest text-repixl-muted">— {orders.length} {orders.length === 1 ? 'order' : 'orders'}</span>
         <h2 className="mt-1 font-display text-lg font-semibold text-repixl-text-light">Order History</h2>
       </div>
-      {orders.map((order) => (
+      {orders.map((order) => {
+        const firstItem = order.items[0]
+        const extraCount = order.items.length - 1
+        return (
         <div key={order.orderNumber} className="rounded-xl border border-repixl-muted/10 bg-repixl-charcoal p-5">
           <div className="flex items-start justify-between gap-4">
             <div>
-              <p className="font-mono text-xs font-semibold text-repixl-text-light">#{order.orderNumber}</p>
-              <p className="mt-0.5 font-mono text-[10px] text-repixl-muted">{order.date}</p>
+              {/* Item name — primary */}
+              <p className="text-sm font-semibold text-repixl-text-light">
+                {firstItem?.name ?? 'Order'}
+                {extraCount > 0 && <span className="text-repixl-muted"> +{extraCount} more</span>}
+              </p>
+              {/* Order number — secondary */}
+              <p className="mt-0.5 font-mono text-[10px] text-repixl-muted">#{order.orderNumber} · {order.date}</p>
             </div>
             <div className="flex items-center gap-3">
               <span className={`rounded-full px-2.5 py-1 font-mono text-[9px] uppercase tracking-wider ${statusColor[order.status] ?? 'bg-repixl-muted/15 text-repixl-muted'}`}>
@@ -550,7 +565,8 @@ function OrdersTab() {
             </button>
           </div>
         </div>
-      ))}
+        )
+      })}
 
       {/* Order detail modal — unchanged functionality */}
       {detailOrder && (

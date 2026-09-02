@@ -74,13 +74,23 @@ export default function OrderHistoryPage() {
             </div>
           ) : (
             <div className="space-y-3">
-              {orders.map((order) => (
+              {orders.map((order) => {
+                const first = order.items[0]
+                const extra = order.items.length - 1
+                const primaryLabel = first?.name ?? 'Order'
+                const extraLabel = extra > 0 ? ` + ${extra} more` : ''
+                return (
                 <div key={order.orderNumber} className="rounded-2xl border border-repixl-muted/10 bg-repixl-charcoal p-5 transition-colors hover:border-repixl-muted/20">
                   <div className="flex flex-wrap items-start justify-between gap-4">
                     <div>
-                      <div className="flex items-center gap-2">
-                        <p className="font-mono text-sm font-semibold text-repixl-red">#{order.orderNumber}</p>
-                        <span className={`rounded-full border px-2.5 py-0.5 font-mono text-[9px] uppercase tracking-wider ${statusStyles[order.status] ?? 'bg-repixl-muted/10 text-repixl-muted'}`}>
+                      {/* Item name — primary */}
+                      <p className="text-sm font-semibold text-repixl-text-light">
+                        {primaryLabel}<span className="text-repixl-muted">{extraLabel}</span>
+                      </p>
+                      {/* Order number + status — secondary */}
+                      <div className="mt-0.5 flex items-center gap-2">
+                        <p className="font-mono text-[10px] text-repixl-muted">#{order.orderNumber}</p>
+                        <span className={`rounded-full border px-2 py-0.5 font-mono text-[9px] uppercase tracking-wider ${statusStyles[order.status] ?? 'bg-repixl-muted/10 text-repixl-muted'}`}>
                           {order.status}
                         </span>
                       </div>
@@ -101,7 +111,8 @@ export default function OrderHistoryPage() {
                     </Link>
                   </div>
                 </div>
-              ))}
+                )
+              })}
             </div>
           )}
         </Container>
