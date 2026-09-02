@@ -107,11 +107,19 @@ export default function OrderDetailPage() {
   useEffect(() => {
     if (!hydrated) return
     if (!isLoggedIn) { router.push('/login'); return }
+    // Don't attempt to fetch until auth has resolved the user's email.
+    // userEmail starts as '' and is populated after auth hydration.
+    // Fetching before it's populated causes a false ownership-check failure.
+    if (!userEmail) return
 
     // Fetch the specific order directly from the API so we always get the
     // latest tracking fields (deliveryStatus, trackingProgress, etc.)
     // rather than relying on the potentially-stale store list.
     const fetchOrder = async () => {
+      // Reset notFound so a retry (e.g. after userEmail populates) doesn't
+      // stay stuck showing the not-found screen.
+      setNotFound(false)
+
       try {
         const res = await fetch(`/api/orders/${encodeURIComponent(orderNumber ?? '')}`, {
           credentials: 'include',
@@ -139,8 +147,11 @@ export default function OrderDetailPage() {
         const { apiToClientOrder } = await import('@/lib/mappers')
         const mapped = apiToClientOrder(json.data)
 
-        // Ownership check — ensure this order belongs to the logged-in user
-        if (mapped.userEmail && mapped.userEmail !== userEmail) {
+        // Ownership check — the server already scopes GET /api/orders/[orderNumber]
+        // to the authenticated user, so a 404 means it's not theirs. The client
+        // check here is a secondary guard using the email field. Only reject if
+        // userEmail is populated AND it doesn't match — never reject on empty string.
+        if (mapped.userEmail && userEmail && mapped.userEmail !== userEmail) {
           setNotFound(true)
           return
         }
