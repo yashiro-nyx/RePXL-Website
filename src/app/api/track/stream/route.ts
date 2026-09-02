@@ -1,14 +1,14 @@
-// GET /api/track/stream?tracking=CAM-XXXXXX
+// GET /api/track/stream?tracking=<orderNumber>
 // Server-Sent Events endpoint that streams real-time tracking updates.
-// Uses Edge Runtime + @neondatabase/serverless for non-blocking polling.
-// Polls the DB every 2500ms; fires a data event only when updatedAt changes.
+// Polls the DB every 3 seconds using the Node.js runtime (Edge doesn't support setInterval).
 
-export const runtime = 'edge'
+export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
-import { neon } from '@neondatabase/serverless'
+import { prisma } from '@/lib/prisma'
+import { NextRequest } from 'next/server'
 
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
   const trackingNumber = searchParams.get('tracking')
 
@@ -16,78 +16,79 @@ export async function GET(request: Request) {
     return new Response('Missing ?tracking= parameter', { status: 400 })
   }
 
-  const sql = neon(process.env.DATABASE_URL!)
-
-  const { readable, writable } = new TransformStream()
-  const writer = writable.getWriter()
   const encoder = new TextEncoder()
 
-  let lastUpdatedAt: string | null = null
-  let intervalId: ReturnType<typeof setInterval> | null = null
+  const stream = new ReadableStream({
+    async start(controller) {
+      let lastUpdatedAt: string | null = null
+      let closed = false
 
-  const sendEvent = (data: Record<string, unknown>) => {
-    writer.write(encoder.encode(`data: ${JSON.stringify(data)}\n\n`))
-  }
-
-  // Initial fetch — send current state immediately
-  const poll = async () => {
-    try {
-      // Query by order_number first (most reliable), then fall back to tracking_number.
-      // After update-tracking runs, tracking_number === order_number, so both work.
-      const rows = await sql`
-        SELECT
-          delivery_status      AS status,
-          tracking_progress    AS progress,
-          tracking_description AS description,
-          updated_at           AS updated_at
-        FROM orders
-        WHERE order_number = ${trackingNumber}
-           OR (tracking_number = ${trackingNumber} AND tracking_number != '')
-        ORDER BY updated_at DESC
-        LIMIT 1
-      `
-
-      if (rows.length === 0) return
-
-      const row = rows[0] as {
-        status: string
-        progress: number
-        description: string
-        updated_at: string
+      const send = (data: Record<string, unknown>) => {
+        if (closed) return
+        try {
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify(data)}\n\n`))
+        } catch {
+          // Controller already closed
+        }
       }
 
-      const rowTs = new Date(row.updated_at).toISOString()
+      const poll = async () => {
+        if (closed) return
+        try {
+          // Query by order_number (primary) or tracking_number (set after first admin update)
+          const order = await prisma.order.findFirst({
+            where: {
+              OR: [
+                { orderNumber: trackingNumber },
+                { trackingNumber: trackingNumber.trim() !== '' ? trackingNumber : '__never__' },
+              ],
+            },
+            select: {
+              deliveryStatus: true,
+              trackingProgress: true,
+              trackingDescription: true,
+              updatedAt: true,
+            },
+            orderBy: { updatedAt: 'desc' },
+          })
 
-      if (lastUpdatedAt === null || rowTs !== lastUpdatedAt) {
-        lastUpdatedAt = rowTs
-        sendEvent({
-          status: row.status,
-          progress: row.progress,
-          description: row.description,
-        })
+          if (!order) return
+
+          const rowTs = order.updatedAt.toISOString()
+          if (lastUpdatedAt === null || rowTs !== lastUpdatedAt) {
+            lastUpdatedAt = rowTs
+            send({
+              status: order.deliveryStatus,
+              progress: order.trackingProgress,
+              description: order.trackingDescription,
+            })
+          }
+        } catch (err) {
+          console.error('[SSE stream] poll error:', err)
+        }
       }
-    } catch (err) {
-      // Non-fatal — log and continue polling
-      console.error('[SSE stream] poll error:', err)
-    }
-  }
 
-  // Run first poll immediately, then every 2500ms
-  void poll()
-  intervalId = setInterval(() => { void poll() }, 2500)
+      // Initial poll immediately
+      await poll()
 
-  // Clean up on client disconnect
-  request.signal.addEventListener('abort', () => {
-    if (intervalId) clearInterval(intervalId)
-    writer.close().catch(() => { /* ignore */ })
+      // Poll every 3 seconds
+      const intervalId = setInterval(() => { void poll() }, 3000)
+
+      // Stop polling when client disconnects
+      request.signal.addEventListener('abort', () => {
+        closed = true
+        clearInterval(intervalId)
+        try { controller.close() } catch { /* already closed */ }
+      })
+    },
   })
 
-  return new Response(readable, {
+  return new Response(stream, {
     headers: {
-      'Content-Type':  'text/event-stream',
-      'Cache-Control': 'no-cache',
-      'Connection':    'keep-alive',
-      'X-Accel-Buffering': 'no', // Nginx / Vercel: disable buffering
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache, no-transform',
+      'Connection': 'keep-alive',
+      'X-Accel-Buffering': 'no',
     },
   })
 }
