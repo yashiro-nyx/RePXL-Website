@@ -190,28 +190,25 @@ function OrderDetailModal({ order, onClose, onStatusChange }: {
     setFiring(step.step)
     setFeedback(null)
     try {
-      const res = await fetch('/api/admin/simulate-webhook', {
+      const res = await fetch('/api/admin/update-tracking', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ trackingNumber: order.orderNumber, step: step.step }),
+        body: JSON.stringify({ orderNumber: order.orderNumber, step: step.step }),
         credentials: 'include',
       })
       const data = await res.json().catch(() => ({}))
-      if (res.ok) {
-        setCurrentDeliveryStatus(
-          step.step === 'transit' ? 'In Transit'
-          : step.step === 'out_for_delivery' ? 'Out for Delivery'
-          : 'Delivered'
-        )
-        // Also update Zustand order status so the table reflects change
+      if (res.ok && data.success) {
+        setCurrentDeliveryStatus(data.deliveryStatus ?? step.step.replace(/_/g, ' '))
         if (step.step === 'out_for_delivery') onStatusChange('Shipped')
         if (step.step === 'delivered') onStatusChange('Delivered')
-        setFeedback({ ok: true, message: `✓ ${step.label} — customer tracking updated in real time` })
+        setFeedback({ ok: true, message: `✓ ${step.label} — customer tracking updated` })
       } else {
-        setFeedback({ ok: false, message: `✗ ${data.error ?? 'Webhook call failed'}` })
+        const errMsg = data.error ?? 'Update failed'
+        console.error('[tracking] update failed:', errMsg)
+        setFeedback({ ok: false, message: `✗ Tracking update failed: ${errMsg}` })
       }
     } catch (err) {
-      setFeedback({ ok: false, message: `✗ ${err instanceof Error ? err.message : 'Network error'}` })
+      setFeedback({ ok: false, message: `✗ Network error: ${err instanceof Error ? err.message : 'Unknown error'}` })
     } finally {
       setFiring(null)
     }
