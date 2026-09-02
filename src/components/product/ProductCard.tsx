@@ -131,7 +131,7 @@ export function ProductCard({ product }: ProductCardProps) {
           </div>
 
           {/* Spec tag — slides up on hover */}
-          <div className="absolute bottom-3 left-3 translate-y-2 rounded-xl bg-white/95 px-2.5 py-1.5 opacity-0 shadow-lg backdrop-blur-sm transition-all duration-300 group-hover:translate-y-0 group-hover:opacity-100">
+          <div className="absolute bottom-3 left-3 translate-y-2 rounded-xl border border-repixl-muted/10 bg-repixl-bone px-2.5 py-1.5 opacity-0 shadow-lg backdrop-blur-sm transition-all duration-300 group-hover:translate-y-0 group-hover:opacity-100">
             <p className="whitespace-nowrap font-mono text-[9px] font-medium leading-relaxed text-repixl-text-dark/75">
               {product.specs.year} · {product.specs.megapixels}MP · {product.specs.zoom}
             </p>

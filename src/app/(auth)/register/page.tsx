@@ -233,16 +233,39 @@ function RegisterPage() {
         </div>
 
         <div>
-          <label className="flex cursor-pointer items-start gap-2.5">
-            <input id="reg-agree" type="checkbox" checked={agreeTerms} onChange={(e) => setAgreeTerms(e.target.checked)}
-              className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 rounded border-repixl-muted/30 bg-repixl-bg text-repixl-red focus:ring-repixl-red/30" />
+          <div className="flex items-start gap-2.5">
+            {/* Clicking the checkbox opens Terms modal — only checked after "I Agree" */}
+            <button
+              id="reg-agree"
+              type="button"
+              role="checkbox"
+              aria-checked={agreeTerms}
+              onClick={() => {
+                if (!agreeTerms) {
+                  setTermsModalOpen(true)
+                } else {
+                  setAgreeTerms(false)
+                }
+              }}
+              className={`mt-0.5 flex h-3.5 w-3.5 flex-shrink-0 items-center justify-center rounded border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-repixl-red/40 ${
+                agreeTerms
+                  ? 'border-repixl-red bg-repixl-red'
+                  : 'border-repixl-muted/30 bg-repixl-bg'
+              }`}
+            >
+              {agreeTerms && (
+                <svg xmlns="http://www.w3.org/2000/svg" width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M20 6 9 17l-5-5" />
+                </svg>
+              )}
+            </button>
             <span className="text-[11px] leading-relaxed text-repixl-muted">
               I agree to the{' '}
               <button type="button" onClick={() => setTermsModalOpen(true)} className="text-repixl-text-light/80 underline underline-offset-2 hover:text-repixl-text-light">Terms of Service</button>
               {' '}and{' '}
               <button type="button" onClick={() => setPrivacyModalOpen(true)} className="text-repixl-text-light/80 underline underline-offset-2 hover:text-repixl-text-light">Privacy Policy</button>.
             </span>
-          </label>
+          </div>
           {errors.agreeTerms && <FieldError>{errors.agreeTerms}</FieldError>}
         </div>
 
@@ -266,7 +289,7 @@ function RegisterPage() {
         </Link>
       </p>
 
-      <LegalModal isOpen={termsModalOpen} onClose={() => setTermsModalOpen(false)} title="Terms of Service" content={termsContent} onAgree={() => setAgreeTerms(true)} />
+      <LegalModal isOpen={termsModalOpen} onClose={() => setTermsModalOpen(false)} title="Terms of Service" content={termsContent} onAgree={() => { setAgreeTerms(true) }} />
       <LegalModal isOpen={privacyModalOpen} onClose={() => setPrivacyModalOpen(false)} title="Privacy Policy" content={privacyContent} />
     </AuthLayout>
   )

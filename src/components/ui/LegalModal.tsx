@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState, useCallback } from 'react'
+import { createPortal } from 'react-dom'
 import { Button } from './Button'
 import { useScrollLock } from '@/hooks/useScrollLock'
 
@@ -18,6 +19,10 @@ export function LegalModal({ isOpen, onClose, title, content, onAgree }: LegalMo
   const contentRef = useRef<HTMLDivElement>(null)
   const triggerRef = useRef<HTMLElement | null>(null)
   const [scrolledToBottom, setScrolledToBottom] = useState(false)
+  const [mounted, setMounted] = useState(false)
+
+  // Only render portal on the client
+  useEffect(() => { setMounted(true) }, [])
 
   useScrollLock(isOpen)
 
@@ -36,7 +41,6 @@ export function LegalModal({ isOpen, onClose, title, content, onAgree }: LegalMo
     const overlay = overlayRef.current
     if (!overlay) return
 
-    // Focus the modal content area
     const firstFocusable = overlay.querySelector<HTMLElement>(
       'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
     )
@@ -88,7 +92,6 @@ export function LegalModal({ isOpen, onClose, title, content, onAgree }: LegalMo
     if (!isOpen) return
     const el = contentRef.current
     if (!el) return
-    // Small delay so the DOM is painted
     const timer = setTimeout(() => {
       if (el.scrollHeight <= el.clientHeight + 30) {
         setScrolledToBottom(true)
@@ -97,7 +100,7 @@ export function LegalModal({ isOpen, onClose, title, content, onAgree }: LegalMo
     return () => clearTimeout(timer)
   }, [isOpen])
 
-  if (!isOpen) return null
+  if (!isOpen || !mounted) return null
 
   // Simple markdown-to-HTML (handles ##, ###, **, -, and line breaks)
   const renderContent = (md: string) => {
@@ -111,11 +114,17 @@ export function LegalModal({ isOpen, onClose, title, content, onAgree }: LegalMo
         return <h2 key={i} className="mb-3 font-display text-lg font-semibold text-repixl-text-light">{trimmed.slice(3)}</h2>
       }
       if (trimmed.startsWith('- ')) {
-        return <li key={i} className="ml-4 list-disc text-sm leading-relaxed text-repixl-text-light/70" dangerouslySetInnerHTML={{ __html: boldify(trimmed.slice(2)) }} />
+        return (
+          <li key={i} className="ml-4 list-disc text-sm leading-relaxed text-repixl-text-light/70"
+            dangerouslySetInnerHTML={{ __html: boldify(trimmed.slice(2)) }} />
+        )
       }
       if (trimmed === '') return <div key={i} className="h-2" />
 
-      return <p key={i} className="text-sm leading-relaxed text-repixl-text-light/70" dangerouslySetInnerHTML={{ __html: boldify(trimmed) }} />
+      return (
+        <p key={i} className="text-sm leading-relaxed text-repixl-text-light/70"
+          dangerouslySetInnerHTML={{ __html: boldify(trimmed) }} />
+      )
     })
   }
 
@@ -124,23 +133,28 @@ export function LegalModal({ isOpen, onClose, title, content, onAgree }: LegalMo
     onClose()
   }
 
-  return (
+  /**
+   * Rendered via createPortal so it always mounts on document.body,
+   * escaping any parent stacking context (Framer Motion transforms,
+   * overflow-hidden panels, etc.) that would clip a fixed overlay.
+   */
+  return createPortal(
     <div
       ref={overlayRef}
       role="dialog"
       aria-modal="true"
       aria-label={title}
-      className="fixed inset-0 z-[100] flex items-center justify-center p-4"
+      className="fixed inset-0 z-[200] flex items-center justify-center p-4 sm:p-6"
     >
-      {/* Backdrop */}
+      {/* Backdrop — covers the entire viewport */}
       <div
-        className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+        className="absolute inset-0 bg-black/75 backdrop-blur-sm"
         onClick={onClose}
         aria-hidden="true"
       />
 
-      {/* Modal */}
-      <div className="relative flex max-h-[85vh] w-full max-w-2xl flex-col rounded-lg border border-repixl-muted/20 bg-repixl-bg shadow-2xl">
+      {/* Modal panel */}
+      <div className="relative flex max-h-[90vh] w-full max-w-2xl flex-col rounded-2xl border border-repixl-muted/20 bg-repixl-bg shadow-2xl">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-repixl-muted/10 px-6 py-4">
           <h2 className="font-display text-lg font-semibold text-repixl-text-light">{title}</h2>
@@ -170,7 +184,9 @@ export function LegalModal({ isOpen, onClose, title, content, onAgree }: LegalMo
           {onAgree ? (
             <>
               <p className="text-[10px] text-repixl-muted">
-                {scrolledToBottom ? 'You\u2019ve read the full document.' : 'Scroll to the bottom to enable agreement.'}
+                {scrolledToBottom
+                  ? 'You\u2019ve read the full document.'
+                  : 'Scroll to the bottom to enable agreement.'}
               </p>
               <Button
                 variant="primary"
@@ -191,7 +207,8 @@ export function LegalModal({ isOpen, onClose, title, content, onAgree }: LegalMo
           )}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }
 

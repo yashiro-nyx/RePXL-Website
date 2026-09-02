@@ -98,18 +98,15 @@ export function AuthLayout({
 
       {/* ══════════════════════════════════════
           RIGHT — visual brand panel
-          All classes use Tailwind tokens so
-          [data-theme="light"] overrides work.
+          Uses a single CSS-class background that
+          switches cleanly via [data-theme="light"].
           ══════════════════════════════════════ */}
       <div
         className="auth-panel-right relative hidden overflow-hidden lg:flex lg:w-[54%]"
         aria-hidden="true"
       >
-        {/* Base background */}
-        <div className="absolute inset-0 bg-repixl-bg" />
-
-        {/* Charcoal overlay — darkens further in dark mode */}
-        <div className="absolute inset-0 bg-repixl-charcoal opacity-70" />
+        {/* Single unified background — avoids stacking opacity bugs across themes */}
+        <div className="absolute inset-0 auth-panel-bg" />
 
         {/* Radial red glow — centered */}
         <div

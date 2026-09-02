@@ -502,43 +502,47 @@ body.scroll-locked {
 /* ============================================================
    Auth panel verification card — light mode overrides
    ============================================================ */
-[data-theme="light"] .bg-repixl-charcoal\/80 { background-color: rgba(255,255,255,0.80) !important; }
+/* Single merged rule — last wins, so this is the final value */
+[data-theme="light"] .bg-repixl-charcoal\/80 { background-color: rgba(240,235,229,0.90) !important; }
 [data-theme="light"] .bg-repixl-charcoal\/90 { background-color: rgba(255,255,255,0.90) !important; }
 [data-theme="light"] .shadow-\[0_24px_60px_rgba\(0\,0\,0\,0\.6\)\,0_8px_20px_rgba\(0\,0\,0\,0\.4\)\] {
   box-shadow: 0 12px 40px rgba(30,25,20,0.12), 0 4px 12px rgba(30,25,20,0.08) !important;
 }
 
-/* ProductCard action button icon — charcoal bg is always dark-ish, stays readable */
-[data-theme="light"] .bg-repixl-charcoal\/80 { background-color: rgba(240,235,229,0.90) !important; }
-
 /* ============================================================
-   Auth panel — theme-aware right column elements
-   All backgrounds use Tailwind tokens (bg-repixl-*) which are
-   already overridden by [data-theme="light"] rules above, so
-   theme toggle works uniformly across both columns.
+   Auth panel — theme-aware right column background + elements
+   auth-panel-bg is a single class that switches cleanly.
+   Using a CSS custom property approach avoids stacking-context
+   opacity bugs from layering two bg- divs at different opacities.
    ============================================================ */
 
-/* Radial glow — dark mode: red tint, light mode: warm neutral */
+/* Auth panel right column: single unified background */
+.auth-panel-bg {
+  background-color: #16131a; /* repixl-charcoal dark */
+}
+[data-theme="light"] .auth-panel-bg {
+  background-color: #f0ebe5; /* warm bone for light mode */
+}
+
+/* Radial glow — dark mode: red tint, light mode: subtle warm */
 .auth-panel-glow {
   background: radial-gradient(
     ellipse at center,
-    rgba(194, 44, 44, 0.12) 0%,
-    rgba(194, 44, 44, 0.04) 45%,
+    rgba(194, 44, 44, 0.13) 0%,
+    rgba(194, 44, 44, 0.05) 45%,
     transparent 70%
   );
 }
 [data-theme="light"] .auth-panel-glow {
   background: radial-gradient(
     ellipse at center,
-    rgba(194, 44, 44, 0.07) 0%,
+    rgba(194, 44, 44, 0.06) 0%,
     rgba(194, 44, 44, 0.02) 45%,
     transparent 70%
   );
 }
 
-/* Camera illustration opacity — removed (no camera image in auth panel) */
-
-/* Right panel overlay — dark: keeps bg dark, light: transparent */
+/* Right panel old overlay class — no longer used, kept as safety no-op */
 .auth-panel-right .bg-repixl-charcoal {
-  /* inherits from global [data-theme="light"] .bg-repixl-charcoal override */
+  /* removed — replaced by auth-panel-bg */
 }
