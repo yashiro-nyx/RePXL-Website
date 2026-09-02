@@ -22,7 +22,6 @@ export default function OrderHistoryPage() {
   const { isLoggedIn, userEmail, hydrate } = useAuthStore()
   const allOrders = useOrderHistoryStore((s) => s.orders)
   const [hydrated, setHydrated] = useState(false)
-  const [error] = useState<string | null>(null)
 
   useEffect(() => {
     hydrate().then(() => {
@@ -54,12 +53,6 @@ export default function OrderHistoryPage() {
             <h1 className="mt-3 font-display text-display-md text-repixl-text-light">Order History</h1>
             <p className="mt-1 text-sm text-repixl-muted">{orders.length} {orders.length === 1 ? 'order' : 'orders'}</p>
           </div>
-
-          {error && (
-            <div className="mb-6 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3">
-              <p className="text-sm text-red-400">{error}</p>
-            </div>
-          )}
 
           {orders.length === 0 ? (
             <div className="flex flex-col items-center rounded-2xl border border-dashed border-repixl-muted/20 py-24 text-center">

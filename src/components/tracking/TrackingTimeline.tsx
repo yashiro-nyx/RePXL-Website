@@ -38,26 +38,45 @@ export function TrackingTimeline({ trackingNumber, initialState }: TrackingTimel
   useEffect(() => {
     if (!trackingNumber) return
 
-    const es = new EventSource(`/api/track/stream?tracking=${encodeURIComponent(trackingNumber)}`)
+    let es: EventSource
+    let reconnectTimer: ReturnType<typeof setTimeout> | null = null
+    let retryCount = 0
+    const MAX_RETRIES = 5
 
-    es.onopen = () => { setConnected(true); setError(false) }
+    const connect = () => {
+      es = new EventSource(`/api/track/stream?tracking=${encodeURIComponent(trackingNumber)}`)
 
-    es.onmessage = (event) => {
-      try {
-        const data: TrackingState = JSON.parse(event.data)
-        setState(data)
-      } catch {
-        // Ignore malformed events
+      es.onopen = () => { setConnected(true); setError(false); retryCount = 0 }
+
+      es.onmessage = (event) => {
+        try {
+          const data: TrackingState = JSON.parse(event.data)
+          setState(data)
+        } catch {
+          // Ignore malformed events
+        }
+      }
+
+      es.onerror = () => {
+        setConnected(false)
+        es.close()
+        if (retryCount < MAX_RETRIES) {
+          retryCount += 1
+          // Exponential back-off: 2s, 4s, 8s … capped at 30s
+          const delay = Math.min(2000 * Math.pow(2, retryCount - 1), 30000)
+          reconnectTimer = setTimeout(connect, delay)
+        } else {
+          setError(true)
+        }
       }
     }
 
-    es.onerror = () => {
-      setConnected(false)
-      setError(true)
-      es.close()
-    }
+    connect()
 
-    return () => { es.close() }
+    return () => {
+      es?.close()
+      if (reconnectTimer) clearTimeout(reconnectTimer)
+    }
   }, [trackingNumber])
 
   return (
@@ -99,9 +118,15 @@ export function TrackingTimeline({ trackingNumber, initialState }: TrackingTimel
 
         {MILESTONES.map((m, i) => {
           const reached = state.progress >= m.progress
-          const isCurrent = state.status === m.key ||
-            // "Order Placed" is always reached if we have any progress
-            (m.progress === 25 && state.progress > 0)
+          // A milestone is "current" only when it is the highest reached one
+          // and the order is not yet at 100% progress.
+          // Finding the last reached milestone avoids the bug where step 1
+          // always glows red (because 25 > 0 is always true).
+          const lastReachedIndex = [...MILESTONES]
+            .reverse()
+            .findIndex((ms) => state.progress >= ms.progress)
+          const reversedIdx = lastReachedIndex === -1 ? -1 : MILESTONES.length - 1 - lastReachedIndex
+          const isCurrent = i === reversedIdx && state.progress < 100
 
           return (
             <div key={m.key} className="relative flex flex-col items-center gap-2 text-center" style={{ flex: 1 }}>

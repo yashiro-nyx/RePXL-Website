@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, createRef } from 'react'
+import { useEffect, useState } from 'react'
 import dynamic from 'next/dynamic'
 import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
@@ -286,10 +286,7 @@ export default function OrderDetailPage() {
 
               {/* ── Delivery Tracking (always shown for non-cancelled) ── */}
               {!cancelled && (
-                <div className="rounded-2xl border border-repixl-muted/10 bg-repixl-charcoal p-5">
-                  <p className="mb-4 font-mono text-[10px] uppercase tracking-widest text-repixl-muted">
-                    Delivery Tracking
-                  </p>
+                <div className="space-y-0">
                   <TrackingTimeline
                     trackingNumber={order.orderNumber}
                     initialState={{

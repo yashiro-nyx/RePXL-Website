@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getCurrentAdmin } from '@/lib/auth-helpers'
 import { successResponse, errorResponse, unauthorizedResponse } from '@/lib/api'
+import { emitNotification } from '@/lib/notifications'
 
 /**
  * POST /api/admin/update-tracking
@@ -108,6 +109,44 @@ export async function POST(request: NextRequest) {
   }
 
   console.log(`[update-tracking] ✓ ${orderNumber} → ${tracking.deliveryStatus} (${tracking.trackingProgress}%)`)
+
+  // Emit customer notification + create admin log entry (non-blocking).
+  // Fetch the order's userId and user email for the notification.
+  try {
+    const order = await prisma.order.findUnique({
+      where: { orderNumber: orderNumber.trim() },
+      select: {
+        userId: true,
+        user: { select: { email: true } },
+      },
+    })
+
+    if (order) {
+      await emitNotification({
+        userId: order.userId,
+        event: 'ORDER_STATUS_CHANGE',
+        subject: `Order ${orderNumber} — ${tracking.deliveryStatus}`,
+        body: tracking.trackingDescription,
+        channel: 'BOTH',
+        recipientEmail: order.user?.email ?? undefined,
+      }).catch((err) => {
+        console.error('[update-tracking] notification failed (non-fatal):', err)
+      })
+    }
+
+    await prisma.adminLog.create({
+      data: {
+        action: 'UPDATE_TRACKING',
+        details: `Order ${orderNumber} tracking updated to "${tracking.deliveryStatus}" (step: ${step}) by ${admin.email}`,
+        adminId: admin.id,
+        adminName: `${admin.firstName} ${admin.lastName}`,
+      },
+    }).catch((err) => {
+      console.error('[update-tracking] admin log failed (non-fatal):', err)
+    })
+  } catch (notifyErr) {
+    console.error('[update-tracking] post-update tasks failed (non-fatal):', notifyErr)
+  }
 
   return successResponse({
     orderNumber,
