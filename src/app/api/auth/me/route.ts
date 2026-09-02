@@ -1,16 +1,19 @@
 import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { successResponse, errorResponse, unauthorizedResponse, validationError } from '@/lib/api'
-import { getCurrentUser } from '@/lib/auth-helpers'
+import { getCurrentUser, getCurrentAdmin } from '@/lib/auth-helpers'
 import { updateProfileSchema } from '@/lib/validations'
 
 // This route reads cookies / session state and must run per-request.
 export const dynamic = 'force-dynamic'
 
 // GET /api/auth/me — Get current user profile
+// Checks admin session cookie first, then customer session cookie.
 export async function GET() {
   try {
-    const user = await getCurrentUser()
+    // Check admin cookie first so hydrateAdmin() works via the admin session.
+    const admin = await getCurrentAdmin()
+    const user = admin ?? (await getCurrentUser())
     if (!user) {
       return unauthorizedResponse()
     }
@@ -43,7 +46,8 @@ export async function GET() {
 // PUT /api/auth/me — Update current user profile
 export async function PUT(request: NextRequest) {
   try {
-    const user = await getCurrentUser()
+    const admin = await getCurrentAdmin()
+    const user = admin ?? (await getCurrentUser())
     if (!user) {
       return unauthorizedResponse()
     }
