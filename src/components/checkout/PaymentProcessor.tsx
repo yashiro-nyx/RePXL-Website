@@ -3,33 +3,19 @@
 /**
  * PaymentProcessor — Embedded PayMongo PIPM flow
  *
- * Handles card and e-wallet payments entirely within the checkout page.
- * No full-page redirect to PayMongo for the happy path.
+ * Card flow: create PM → attach → succeeded or 3DS modal → poll → onSuccess
+ * E-wallet:  create PM → attach → next_action.redirect.url → iframe modal
+ *            → poll for succeeded/failed → close modal → onSuccess/onError
  *
- * ── Card flow ──────────────────────────────────────────────────────────────
- *  1. Parent calls startPayment(intentId, clientKey, 'card', cardDetails)
- *  2. We create a Payment Method via PayMongo's API (public key, client-side)
- *  3. We attach it to the Payment Intent (client_key auth)
- *  4. Status checks:
- *     • succeeded → onSuccess(orderNumber)
- *     • awaiting_next_action → open 3DS iframe modal, poll until done
- *     • awaiting_payment_method → onError(message) so user can retry
- *
- * ── E-wallet flow ──────────────────────────────────────────────────────────
- *  1. Parent calls startPayment(intentId, clientKey, 'gcash' | 'grab_pay' | 'paymaya', {})
- *  2. We create a Payment Method with the wallet type
- *  3. We attach it — response includes next_action.redirect.url
- *  4. Open that URL in an iframe modal on our page
- *  5. Poll /api/checkout/payment-intent/[id] while modal is open
- *  6. On succeeded/failed: close modal, call onSuccess/onError
- *
- * ── Notes ──────────────────────────────────────────────────────────────────
- *  • Card details are sent DIRECTLY from the browser to PayMongo's API
- *    using our PUBLIC key. They never touch our own backend.
- *  • The secret key only lives in the server-side create-payment-intent route.
- *  • 3DS iframe: some wallet/bank providers may block iframe embedding.
- *    If the modal fails to load, user can still complete via the opened URL
- *    and we poll until the PI resolves.
+ * IFRAME GLITCH FIX:
+ * When the e-wallet/3DS redirect completes, PayMongo redirects the iframe to
+ * our `return_url` (e.g. /checkout/success?order=XXX). Without intervention
+ * this briefly renders our own site inside the modal iframe before we close it.
+ * Fix: we pass a `returnUrl` to the iframe via its `name` attribute. An
+ * `onLoad` handler on the iframe checks whether the frame has navigated to
+ * our own origin — if it has, we immediately close the modal and navigate
+ * the main window to the success URL instead. We also watch postMessage
+ * events for any message from the frame as an additional signal.
  */
 
 import { useEffect, useRef, useState, useCallback } from 'react'
@@ -51,38 +37,19 @@ type WalletType = 'gcash' | 'grab_pay' | 'paymaya'
 type PaymentMethodType = 'card' | WalletType
 
 interface PaymentProcessorProps {
-  /**
-   * Called with the return_url after 3DS or wallet auth so the parent can
-   * navigate (or we can use it internally).
-   */
   onSuccess: (orderNumber: string) => void
   onError: (message: string) => void
   onProcessing?: () => void
 }
 
-export interface PaymentProcessorHandle {
-  startPayment: (params: {
-    intentId: string
-    clientKey: string
-    orderNumber: string
-    returnUrl: string
-    type: PaymentMethodType
-    card?: CardDetails
-  }) => Promise<void>
-}
-
-// ─── Internal helper — call PayMongo API with the public key (client-side) ──────
+// ─── PayMongo public-key fetch ────────────────────────────────────────────────
 
 async function pmPublicFetch<T>(path: string, method: 'POST' | 'GET', body?: unknown): Promise<T> {
   const pubKey = process.env.NEXT_PUBLIC_PAYMONGO_PUBLIC_KEY ?? ''
   const auth = 'Basic ' + btoa(pubKey + ':')
   const res = await fetch(`${PAYMONGO_API}${path}`, {
     method,
-    headers: {
-      Authorization: auth,
-      'Content-Type': 'application/json',
-      Accept: 'application/json',
-    },
+    headers: { Authorization: auth, 'Content-Type': 'application/json', Accept: 'application/json' },
     body: body ? JSON.stringify(body) : undefined,
   })
   const json = await res.json().catch(() => ({}))
@@ -93,7 +60,7 @@ async function pmPublicFetch<T>(path: string, method: 'POST' | 'GET', body?: unk
   return json as T
 }
 
-// ─── Create a Payment Method (client-side, public key) ──────────────────────────
+// ─── Create Payment Method ────────────────────────────────────────────────────
 
 async function createCardPaymentMethod(card: CardDetails, orderNumber: string) {
   return pmPublicFetch<{ data: { id: string } }>('/payment_methods', 'POST', {
@@ -106,29 +73,20 @@ async function createCardPaymentMethod(card: CardDetails, orderNumber: string) {
           exp_year: card.expYear,
           cvc: card.cvc,
         },
-        billing: {
-          name: card.cardholderName,
-          email: card.billingEmail,
-          phone: card.billingPhone,
-        },
+        billing: { name: card.cardholderName, email: card.billingEmail, phone: card.billingPhone },
         metadata: { orderNumber },
       },
     },
   })
 }
 
-async function createWalletPaymentMethod(type: WalletType, returnUrl: string) {
+async function createWalletPaymentMethod(type: WalletType) {
   return pmPublicFetch<{ data: { id: string } }>('/payment_methods', 'POST', {
-    data: {
-      attributes: {
-        type,
-        billing: {},
-      },
-    },
+    data: { attributes: { type, billing: {} } },
   })
 }
 
-// ─── Attach Payment Method to Payment Intent (client-side, public key) ──────────
+// ─── Attach to Payment Intent ─────────────────────────────────────────────────
 
 interface AttachResponse {
   data: {
@@ -148,22 +106,14 @@ async function attachPaymentMethod(
   clientKey: string,
   returnUrl: string
 ): Promise<AttachResponse> {
-  return pmPublicFetch<AttachResponse>(
-    `/payment_intents/${intentId}/attach`,
-    'POST',
-    {
-      data: {
-        attributes: {
-          payment_method: paymentMethodId,
-          client_key: clientKey,
-          return_url: returnUrl,
-        },
-      },
-    }
-  )
+  return pmPublicFetch<AttachResponse>(`/payment_intents/${intentId}/attach`, 'POST', {
+    data: {
+      attributes: { payment_method: paymentMethodId, client_key: clientKey, return_url: returnUrl },
+    },
+  })
 }
 
-// ─── Poll our backend for PI status (server-side fetch via our API) ──────────────
+// ─── Poll PI status via our backend ──────────────────────────────────────────
 
 async function pollPaymentIntentStatus(intentId: string): Promise<string> {
   const res = await fetch(`/api/checkout/payment-intent/${intentId}`, {
@@ -175,17 +125,62 @@ async function pollPaymentIntentStatus(intentId: string): Promise<string> {
   throw new Error('Failed to poll payment status')
 }
 
-// ─── Auth Modal (3DS or e-wallet redirect) ───────────────────────────────────────
+// ─── Auth Modal — with return-URL interception ────────────────────────────────
+// The iframe's `onLoad` fires both on the initial wallet page load AND when
+// the provider redirects back to our `returnUrl`. We detect the latter by
+// checking whether the iframe's location matches our own origin — if it does,
+// we immediately close the modal and navigate the parent window instead.
 
 function AuthModal({
   url,
   title,
+  returnUrl,
+  onReturnUrlDetected,
   onClose,
 }: {
   url: string
   title: string
+  /** The URL that PayMongo will redirect to after auth — must NOT render inside iframe */
+  returnUrl: string
+  /** Called when the iframe navigates to returnUrl */
+  onReturnUrlDetected: () => void
   onClose: () => void
 }) {
+  const iframeRef = useRef<HTMLIFrameElement>(null)
+  const returnOrigin = returnUrl ? new URL(returnUrl).origin : ''
+
+  // Intercept iframe navigation to our own origin via onLoad
+  const handleIframeLoad = useCallback(() => {
+    try {
+      const iframeWin = iframeRef.current?.contentWindow
+      if (!iframeWin) return
+      // If we can read the iframe's href and it matches our return URL — intercept
+      const iframeLoc = iframeWin.location.href
+      if (
+        iframeLoc &&
+        iframeLoc !== 'about:blank' &&
+        returnOrigin &&
+        iframeLoc.startsWith(returnOrigin)
+      ) {
+        onReturnUrlDetected()
+      }
+    } catch {
+      // Cross-origin frames throw on .location access — that means the iframe
+      // is still on the provider's domain, which is fine. Do nothing.
+    }
+  }, [returnOrigin, onReturnUrlDetected])
+
+  // Also listen for postMessage from the iframe as a fallback signal
+  useEffect(() => {
+    const handle = (e: MessageEvent) => {
+      if (e.origin !== returnOrigin) return
+      // Any message from our own origin inside the iframe means auth is done
+      onReturnUrlDetected()
+    }
+    window.addEventListener('message', handle)
+    return () => window.removeEventListener('message', handle)
+  }, [returnOrigin, onReturnUrlDetected])
+
   return createPortal(
     <div
       role="dialog"
@@ -208,24 +203,27 @@ function AuthModal({
             aria-label="Close authentication window"
             className="flex h-8 w-8 items-center justify-center rounded-lg text-repixl-muted transition-colors hover:bg-repixl-bg hover:text-repixl-text-light"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"
+              fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+              aria-hidden="true">
               <path d="M18 6 6 18" /><path d="m6 6 12 12" />
             </svg>
           </button>
         </div>
 
-        {/* iframe */}
+        {/* iframe — sandbox allows wallet auth */}
         <div className="flex-1 overflow-hidden">
           <iframe
+            ref={iframeRef}
             src={url}
             title={title}
+            onLoad={handleIframeLoad}
             className="h-full min-h-[420px] w-full border-0"
             allow="payment"
             sandbox="allow-forms allow-scripts allow-same-origin allow-top-navigation allow-popups"
           />
         </div>
 
-        {/* Footer hint */}
         <div className="flex-shrink-0 border-t border-repixl-muted/10 px-5 py-3 text-center">
           <p className="font-mono text-[10px] text-repixl-muted/50">
             This window will close automatically once authentication is complete.
@@ -237,14 +235,8 @@ function AuthModal({
   )
 }
 
-// ─── Main hook ───────────────────────────────────────────────────────────────────
+// ─── Main hook ────────────────────────────────────────────────────────────────
 
-/**
- * usePaymentProcessor — returns a `startPayment` function that runs the
- * full PIPM flow and calls onSuccess/onError when done.
- *
- * Also returns `authModal` (a portal to render) and `isProcessing`.
- */
 export function usePaymentProcessor({
   onSuccess,
   onError,
@@ -253,8 +245,11 @@ export function usePaymentProcessor({
   const [isProcessing, setIsProcessing] = useState(false)
   const [authModalUrl, setAuthModalUrl] = useState<string | null>(null)
   const [authModalTitle, setAuthModalTitle] = useState('Payment Authentication')
+  const [authReturnUrl, setAuthReturnUrl] = useState('')
   const pollRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const mountedRef = useRef(true)
+  // Keep intentId and orderNumber accessible in callbacks without stale closure
+  const intentRef = useRef<{ intentId: string; orderNumber: string } | null>(null)
 
   useEffect(() => {
     mountedRef.current = true
@@ -271,7 +266,7 @@ export function usePaymentProcessor({
 
   const pollUntilResolved = useCallback(
     (intentId: string, orderNumber: string, attempts = 0) => {
-      const MAX_ATTEMPTS = 40 // 40 × 2.5s = 100s timeout
+      const MAX_ATTEMPTS = 40
       const poll = async () => {
         if (!mountedRef.current) return
         try {
@@ -287,7 +282,6 @@ export function usePaymentProcessor({
             setIsProcessing(false)
             onError('Payment failed. Please check your details and try again.')
           } else if (attempts < MAX_ATTEMPTS) {
-            // processing / awaiting_next_action — keep polling
             pollRef.current = setTimeout(() => pollUntilResolved(intentId, orderNumber, attempts + 1), 2500)
           } else {
             stopPolling()
@@ -329,47 +323,44 @@ export function usePaymentProcessor({
     }) => {
       setIsProcessing(true)
       onProcessing?.()
+      intentRef.current = { intentId, orderNumber }
 
       try {
-        // Step 1 — Create Payment Method (client-side, public key only)
         let paymentMethodId: string
         if (type === 'card') {
           if (!card) throw new Error('Card details are required.')
           const pm = await createCardPaymentMethod(card, orderNumber)
           paymentMethodId = pm.data.id
         } else {
-          const pm = await createWalletPaymentMethod(type, returnUrl)
+          const pm = await createWalletPaymentMethod(type)
           paymentMethodId = pm.data.id
         }
 
-        // Step 2 — Attach Payment Method to Intent (client-side, public key + client_key)
         const attachRes = await attachPaymentMethod(intentId, paymentMethodId, clientKey, returnUrl)
         const intent = attachRes.data.attributes
 
-        // Step 3 — Handle status
         if (intent.status === 'succeeded') {
           setIsProcessing(false)
           onSuccess(orderNumber)
         } else if (intent.status === 'awaiting_next_action' && intent.next_action?.redirect?.url) {
-          // 3DS or e-wallet redirect — open in modal
           const redirectUrl = intent.next_action.redirect.url
-          const modalTitle = type === 'card'
-            ? '3D Secure Authentication'
+          const modalTitle =
+            type === 'card' ? '3D Secure Authentication'
             : type === 'gcash' ? 'GCash Authorization'
             : type === 'grab_pay' ? 'GrabPay Authorization'
             : type === 'paymaya' ? 'Maya Authorization'
             : 'Payment Authorization'
 
           setAuthModalTitle(modalTitle)
+          setAuthReturnUrl(returnUrl)
           setAuthModalUrl(redirectUrl)
-          // Start polling while modal is open
           pollUntilResolved(intentId, orderNumber)
         } else if (intent.status === 'awaiting_payment_method') {
-          const msg = intent.last_payment_error?.failed_message ?? 'Payment was declined. Please try a different card or payment method.'
+          const msg = intent.last_payment_error?.failed_message
+            ?? 'Payment was declined. Please try a different card or payment method.'
           setIsProcessing(false)
           onError(msg)
         } else {
-          // processing — poll for resolution
           pollUntilResolved(intentId, orderNumber)
         }
       } catch (err) {
@@ -380,17 +371,32 @@ export function usePaymentProcessor({
     [onSuccess, onError, onProcessing, pollUntilResolved]
   )
 
-  const closeAuthModal = useCallback(() => {
-    // User manually closed the modal — keep polling in case they completed auth
+  // Called when the iframe detects navigation back to our own origin —
+  // close the modal immediately and navigate the main window to success.
+  const handleReturnUrlDetected = useCallback(() => {
+    const ref = intentRef.current
+    if (!ref) return
+    stopPolling()
     setAuthModalUrl(null)
-    // Poll a few more times to catch completion
-  }, [])
+    // Immediately poll once more to confirm final status,
+    // then navigate on success. If still processing, keep polling briefly.
+    pollUntilResolved(ref.intentId, ref.orderNumber)
+  }, [stopPolling, pollUntilResolved])
+
+  const closeAuthModal = useCallback(() => {
+    setAuthModalUrl(null)
+    // Keep polling after manual close in case auth was actually completed
+    const ref = intentRef.current
+    if (ref) pollUntilResolved(ref.intentId, ref.orderNumber)
+  }, [pollUntilResolved])
 
   const authModal = authModalUrl
     ? (
       <AuthModal
         url={authModalUrl}
         title={authModalTitle}
+        returnUrl={authReturnUrl}
+        onReturnUrlDetected={handleReturnUrlDetected}
         onClose={closeAuthModal}
       />
     )

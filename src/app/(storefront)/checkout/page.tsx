@@ -258,6 +258,8 @@ export default function CheckoutPage() {
 
   // ── Payment processor (PIPM embedded flow) ──
   const [paymentError, setPaymentError] = useState<string | null>(null)
+  const [checkoutStep, setCheckoutStep] = useState<'form' | 'review'>('form')
+
   const { startPayment, isProcessing: paymentProcessing, authModal } = usePaymentProcessor({
     onSuccess: (orderNumber) => {
       // PayMongo confirmed — redirect to success page (which polls the DB)
@@ -270,12 +272,19 @@ export default function CheckoutPage() {
     onProcessing: () => setPaymentError(null),
   })
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  // ── "Place Order" → validate → show review step ──
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     const newErrors = validate()
     setErrors(newErrors)
     if (Object.keys(newErrors).length > 0) { focusFirstError(newErrors); return }
+    // Validation passed — show order review
+    setCheckoutStep('review')
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
 
+  // ── "Confirm & Pay" → actually fire the payment ──
+  const handleConfirmAndPay = async () => {
     const form = formRef.current!
     const get = (id: string) => (form.querySelector(`#${id}`) as HTMLInputElement)?.value ?? ''
 
@@ -286,7 +295,7 @@ export default function CheckoutPage() {
     const dateStr = now.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
     const orderNum = generateOrderNumber()
 
-    // ── Embedded PIPM flow (card / GCash / GrabPay / Maya) ──
+    // ── Embedded PIPM flow ──
     if (isPaymongoEnabled()) {
       try {
         const { clientKey, intentId, orderNumber } = await startPaymentIntent({
@@ -305,7 +314,7 @@ export default function CheckoutPage() {
         const pmTypeMap: Record<PaymentMethod, string> = {
           card: 'card',
           gcash: 'gcash',
-          paypal: 'card', // PayPal not a PIPM type — fall back to card
+          paypal: 'card',
         }
         const siteUrl = process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, '') ?? 'http://localhost:3000'
         const returnUrl = `${siteUrl}/checkout/success?order=${orderNumber}`
@@ -340,27 +349,17 @@ export default function CheckoutPage() {
       }
     }
 
-    // ── Fallback: direct-order flow (PayMongo not configured) ──
+    // ── Fallback: direct-order flow ──
     const orderData = {
-      orderNumber: orderNum,
-      date: dateStr,
+      orderNumber: orderNum, date: dateStr,
       items: cartItems.map((i) => i.product),
-      subtotal,
-      shippingCost: courier.price,
-      total: subtotal + courier.price,
-      courierName: courier.name,
-      courierEstimate: courier.estimate,
+      subtotal, shippingCost: courier.price, total: subtotal + courier.price,
+      courierName: courier.name, courierEstimate: courier.estimate,
       paymentMethod: paymentLabels[paymentMethod],
-      fullName,
-      address: streetAddress,
-      barangay: phAddr.barangay,
-      city: phAddr.city,
-      province: phAddr.province,
-      postalCode,
-      status: 'Processing' as const,
-      userEmail: useAuthStore.getState().userEmail,
+      fullName, address: streetAddress, barangay: phAddr.barangay,
+      city: phAddr.city, province: phAddr.province, postalCode,
+      status: 'Processing' as const, userEmail: useAuthStore.getState().userEmail,
     }
-
     addOrder(orderData)
     clearCart()
 
@@ -541,6 +540,165 @@ export default function CheckoutPage() {
   }
 
   if (!hydrated || !isLoggedIn) return null
+
+  // ─── ORDER REVIEW STEP ───
+  if (checkoutStep === 'review') {
+    return (
+      <div className="burn-subtle min-h-screen pb-20 pt-24">
+        <Container>
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+            className="mx-auto max-w-2xl"
+          >
+            {/* Header */}
+            <div className="mb-8 border-b border-repixl-muted/10 pb-6">
+              <span className="font-mono text-xs uppercase tracking-widest text-repixl-muted">— Review your order</span>
+              <h1 className="mt-2 font-display text-display-md text-repixl-text-light">Order Review</h1>
+              <p className="mt-1 text-sm text-repixl-muted">Please confirm your details before payment.</p>
+            </div>
+
+            {/* Items */}
+            <section className="mb-5 rounded-xl border border-repixl-muted/10 bg-repixl-charcoal/30 p-5">
+              <div className="mb-4 flex items-center justify-between">
+                <h2 className="font-display text-sm font-semibold text-repixl-text-light">Items</h2>
+                <Link href="/cart" className="font-mono text-[10px] uppercase tracking-wider text-repixl-muted transition-colors hover:text-repixl-text-light">
+                  Edit Cart →
+                </Link>
+              </div>
+              <ul className="space-y-3">
+                {cartItems.map((item) => (
+                  <li key={item.product.slug} className="flex items-center gap-3">
+                    <div className="h-14 w-14 flex-shrink-0 overflow-hidden rounded-lg border border-repixl-muted/10 bg-repixl-bg">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={item.product.image} alt={item.product.name} className="h-full w-full object-contain p-1" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-repixl-text-light truncate">{item.product.name}</p>
+                      <ConditionBadge condition={item.product.condition} className="mt-0.5 origin-left scale-90" />
+                      {item.quantity > 1 && <p className="font-mono text-[10px] text-repixl-muted">×{item.quantity}</p>}
+                    </div>
+                    <span className="font-mono text-sm font-semibold text-repixl-text-light flex-shrink-0">
+                      ${(item.product.price * item.quantity).toFixed(2)}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </section>
+
+            {/* Shipping address */}
+            <section className="mb-5 rounded-xl border border-repixl-muted/10 bg-repixl-charcoal/30 p-5">
+              <div className="mb-3 flex items-center justify-between">
+                <h2 className="font-display text-sm font-semibold text-repixl-text-light">Shipping Address</h2>
+                <button
+                  type="button"
+                  onClick={() => { setCheckoutStep('form'); window.scrollTo({ top: 0 }) }}
+                  className="font-mono text-[10px] uppercase tracking-wider text-repixl-muted transition-colors hover:text-repixl-text-light"
+                >
+                  Edit →
+                </button>
+              </div>
+              <div className="space-y-0.5 text-sm text-repixl-text-light/80">
+                <p className="font-medium text-repixl-text-light">{fullName}</p>
+                <p>{streetAddress}</p>
+                {phAddr.barangay && <p>{phAddr.barangay}</p>}
+                <p>{phAddr.city}{phAddr.province ? `, ${phAddr.province}` : ''}</p>
+                <p>{postalCode}</p>
+                <p className="font-mono text-xs text-repixl-muted">{phone}</p>
+                <p className="font-mono text-xs text-repixl-muted">{email}</p>
+              </div>
+            </section>
+
+            {/* Courier + Payment */}
+            <section className="mb-5 rounded-xl border border-repixl-muted/10 bg-repixl-charcoal/30 p-5">
+              <div className="mb-3 flex items-center justify-between">
+                <h2 className="font-display text-sm font-semibold text-repixl-text-light">Delivery & Payment</h2>
+                <button
+                  type="button"
+                  onClick={() => { setCheckoutStep('form'); window.scrollTo({ top: 0 }) }}
+                  className="font-mono text-[10px] uppercase tracking-wider text-repixl-muted transition-colors hover:text-repixl-text-light"
+                >
+                  Edit →
+                </button>
+              </div>
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-repixl-text-light/70">Courier</span>
+                <span className="text-repixl-text-light">{courier.name} · {courier.estimate}</span>
+              </div>
+              <div className="mt-1 flex items-center justify-between text-sm">
+                <span className="text-repixl-text-light/70">Payment</span>
+                <span className="text-repixl-text-light">{paymentLabels[paymentMethod]}</span>
+              </div>
+            </section>
+
+            {/* Price breakdown */}
+            <section className="mb-6 rounded-xl border border-repixl-muted/10 bg-repixl-charcoal/30 p-5">
+              <h2 className="mb-3 font-display text-sm font-semibold text-repixl-text-light">Price Breakdown</h2>
+              <dl className="space-y-2">
+                <div className="flex justify-between text-sm">
+                  <dt className="text-repixl-text-light/70">Subtotal ({cartItems.length} {cartItems.length === 1 ? 'item' : 'items'})</dt>
+                  <dd className="font-mono text-repixl-text-light">${subtotal.toFixed(2)}</dd>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <dt className="text-repixl-text-light/70">Shipping ({courier.name})</dt>
+                  <dd className="font-mono text-repixl-text-light">${courier.price.toFixed(2)}</dd>
+                </div>
+                <div className="flex justify-between border-t border-repixl-muted/10 pt-2">
+                  <dt className="font-semibold text-repixl-text-light">Total</dt>
+                  <dd className="font-display text-xl font-bold text-repixl-text-light">${total.toFixed(2)}</dd>
+                </div>
+              </dl>
+            </section>
+
+            {/* Error */}
+            {paymentError && (
+              <div className="mb-4 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3" role="alert">
+                <p className="text-sm text-red-400">{paymentError}</p>
+                <p className="mt-1 text-[10px] text-red-400/70">Please go back and check your payment details, then try again.</p>
+              </div>
+            )}
+
+            {/* Actions */}
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <button
+                type="button"
+                onClick={() => { setCheckoutStep('form'); window.scrollTo({ top: 0 }) }}
+                className="order-2 sm:order-1 rounded-xl border border-repixl-muted/20 px-6 py-3 text-sm text-repixl-text-light/70 transition-colors hover:border-repixl-muted/40 hover:text-repixl-text-light"
+              >
+                ← Back to Edit
+              </button>
+              <Button
+                type="button"
+                variant="primary"
+                size="lg"
+                onClick={() => void handleConfirmAndPay()}
+                disabled={submitting || paymentProcessing}
+                className="order-1 sm:order-2 disabled:opacity-60"
+              >
+                {(submitting || paymentProcessing) ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <svg className="h-4 w-4 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" aria-hidden="true">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                    </svg>
+                    Processing…
+                  </span>
+                ) : `Confirm & Pay $${total.toFixed(2)}`}
+              </Button>
+            </div>
+
+            <div className="mt-4 flex items-center justify-center gap-1.5">
+              <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-repixl-muted/50" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+              <span className="font-mono text-[9px] text-repixl-muted/50">Secure · Encrypted · PayMongo test mode</span>
+            </div>
+          </motion.div>
+        </Container>
+        {authModal}
+        <MinimalFooter />
+      </div>
+    )
+  }
 
   return (
     <div className="burn-subtle min-h-screen pb-20 pt-24">
@@ -809,28 +967,12 @@ export default function CheckoutPage() {
                 <div className="flex justify-between border-t border-repixl-muted/10 pt-2"><dt className="text-sm font-medium text-repixl-text-light">Total</dt><dd className="font-display text-xl font-bold text-repixl-text-light">${total}</dd></div>
               </dl>
               <Button type="submit" variant="primary" size="lg" disabled={submitting || paymentProcessing} className="mt-6 w-full disabled:opacity-60">
-                {(submitting || paymentProcessing) ? (
-                  <span className="flex items-center justify-center gap-2">
-                    <svg className="h-4 w-4 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" aria-hidden="true">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                    </svg>
-                    Processing…
-                  </span>
-                ) : 'Place Order'}
+                Review Order →
               </Button>
-
-              {/* Payment error inline */}
-              {paymentError && (
-                <div className="mt-3 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3" role="alert">
-                  <p className="text-xs text-red-400">{paymentError}</p>
-                  <p className="mt-1 text-[10px] text-red-400/70">Please check your details and try again, or choose a different payment method.</p>
-                </div>
-              )}
               {/* Security trust note */}
               <div className="mt-3 flex items-center justify-center gap-1.5">
                 <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-repixl-muted/50" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-                <span className="font-mono text-[9px] text-repixl-muted/50">Secure · Encrypted · Protected</span>
+                <span className="font-mono text-[9px] text-repixl-muted/50">You'll review your order before payment</span>
               </div>
               <div className="mt-4">
                 <label className="flex cursor-pointer items-start gap-2">
