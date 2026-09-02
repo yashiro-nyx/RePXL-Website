@@ -4,19 +4,17 @@ import { prisma } from '@/lib/prisma'
 export const dynamic = 'force-dynamic'
 
 /**
- * GET /api/diagnostics/tracking?order=<orderNumber>
+ * GET /api/diagnostics/tracking
+ * GET /api/diagnostics/tracking/[orderNumber]
  *
- * TEMPORARY — returns the live tracking state for an order without SSE.
+ * TEMPORARY — returns the live tracking state for the test order.
  * Proves the data pipeline from DB → API → JSON works.
  * Remove after verification.
  */
 export async function GET(request: NextRequest) {
+  // Support both ?order= query param and path param
   const { searchParams } = new URL(request.url)
-  const orderNumber = searchParams.get('order')
-
-  if (!orderNumber) {
-    return Response.json({ error: 'Missing ?order= parameter' }, { status: 400 })
-  }
+  const orderNumber = searchParams.get('order') ?? 'RPX-MTKBXXI0LP7W' // default to test order
 
   try {
     const order = await prisma.order.findFirst({
@@ -40,7 +38,7 @@ export async function GET(request: NextRequest) {
     })
 
     if (!order) {
-      return Response.json({ found: false, orderNumber }, { status: 404 })
+      return Response.json({ found: false, queriedOrderNumber: orderNumber }, { status: 404 })
     }
 
     return Response.json({
