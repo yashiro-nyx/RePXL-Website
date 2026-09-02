@@ -51,6 +51,73 @@ async function paymongoRequest<T>(
   return json as T
 }
 
+// ─── Payment Intents (PIPM — embedded flow) ──────────────────────────────────────
+
+export interface CreatePaymentIntentInput {
+  /** Total amount in centavos (e.g. ₱100.00 → 10000) */
+  amount: number
+  currency?: 'PHP'
+  description?: string
+  /** e.g. ['card'] or ['gcash'] or ['card','gcash','grab_pay','paymaya'] */
+  paymentMethodAllowed: string[]
+  metadata?: Record<string, string>
+}
+
+export interface PaymentIntentAttributes {
+  status:
+    | 'awaiting_payment_method'
+    | 'awaiting_next_action'
+    | 'processing'
+    | 'succeeded'
+    | 'failed'
+  amount: number
+  currency: string
+  client_key: string
+  description?: string
+  last_payment_error?: { failed_code?: string; failed_message?: string }
+  next_action?: {
+    type: 'redirect'
+    redirect?: { url: string; return_url?: string }
+  }
+  payments?: Array<{ id: string; attributes?: { status?: string } }>
+  metadata?: Record<string, string>
+}
+
+export interface PaymentIntent {
+  id: string
+  attributes: PaymentIntentAttributes
+}
+
+export async function createPaymentIntent(
+  input: CreatePaymentIntentInput
+): Promise<PaymentIntent> {
+  const payload = {
+    data: {
+      attributes: {
+        amount: input.amount,
+        currency: input.currency ?? 'PHP',
+        payment_method_allowed: input.paymentMethodAllowed,
+        description: input.description,
+        metadata: input.metadata,
+      },
+    },
+  }
+  const res = await paymongoRequest<{ data: PaymentIntent }>(
+    '/payment_intents',
+    'POST',
+    payload
+  )
+  return res.data
+}
+
+export async function retrievePaymentIntent(id: string): Promise<PaymentIntent> {
+  const res = await paymongoRequest<{ data: PaymentIntent }>(
+    `/payment_intents/${id}`,
+    'GET'
+  )
+  return res.data
+}
+
 // ─── Checkout Sessions ──────────────────────────────────────────────────────────
 
 export interface CheckoutLineItem {

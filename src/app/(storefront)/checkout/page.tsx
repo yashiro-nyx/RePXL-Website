@@ -18,7 +18,8 @@ import { useAddressStore } from '@/stores/addressStore'
 import { useRevealAnimation } from '@/hooks/useRevealAnimation'
 import { useFilteredInput, nameChars, digitsOnly } from '@/hooks/useFilteredInput'
 import { validatePHPhone } from '@/components/ui/PhoneInput'
-import { isPaymongoEnabled, startPaymongoCheckout } from '@/lib/data/checkoutService'
+import { isPaymongoEnabled, startPaymentIntent } from '@/lib/data/checkoutService'
+import { usePaymentProcessor } from '@/components/checkout/PaymentProcessor'
 import { termsContent, privacyContent } from '@/data/legal'
 import type { Product, CartItem } from '@/types'
 
@@ -225,6 +226,20 @@ export default function CheckoutPage() {
     }
   }
 
+  // ── Payment processor (PIPM embedded flow) ──
+  const [paymentError, setPaymentError] = useState<string | null>(null)
+  const { startPayment, isProcessing: paymentProcessing, authModal } = usePaymentProcessor({
+    onSuccess: (orderNumber) => {
+      // PayMongo confirmed — redirect to success page (which polls the DB)
+      router.push(`/checkout/success?order=${orderNumber}`)
+    },
+    onError: (message) => {
+      setPaymentError(message)
+      setSubmitting(false)
+    },
+    onProcessing: () => setPaymentError(null),
+  })
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     const newErrors = validate()
@@ -235,15 +250,16 @@ export default function CheckoutPage() {
     const get = (id: string) => (form.querySelector(`#${id}`) as HTMLInputElement)?.value ?? ''
 
     setSubmitting(true)
+    setPaymentError(null)
 
     const now = new Date()
     const dateStr = now.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
     const orderNum = generateOrderNumber()
 
-    // ── Real payment path (PayMongo) ──
+    // ── Embedded PIPM flow (card / GCash / GrabPay / Maya) ──
     if (isPaymongoEnabled()) {
       try {
-        const { checkoutUrl } = await startPaymongoCheckout({
+        const { clientKey, intentId, orderNumber } = await startPaymentIntent({
           fullName,
           address: streetAddress,
           barangay: phAddr.barangay,
@@ -255,15 +271,39 @@ export default function CheckoutPage() {
           paymentMethod: paymentLabels[paymentMethod],
           shippingCost: courier.price,
         })
-        window.location.href = checkoutUrl
+
+        const pmTypeMap: Record<PaymentMethod, string> = {
+          card: 'card',
+          gcash: 'gcash',
+          paypal: 'card', // PayPal not a PIPM type — fall back to card
+        }
+        const siteUrl = process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, '') ?? 'http://localhost:3000'
+        const returnUrl = `${siteUrl}/checkout/success?order=${orderNumber}`
+
+        await startPayment({
+          intentId,
+          clientKey,
+          orderNumber,
+          returnUrl,
+          type: pmTypeMap[paymentMethod] as 'card' | 'gcash' | 'grab_pay' | 'paymaya',
+          card: paymentMethod === 'card' ? {
+            cardNumber: get('card-number'),
+            expMonth: parseInt(get('card-expiry').split('/')[0]?.trim() ?? '1', 10),
+            expYear: parseInt(get('card-expiry').split('/')[1]?.trim() ?? '30', 10) + 2000,
+            cvc: get('card-cvc'),
+            cardholderName: get('cardholder-name') || fullName,
+            billingEmail: email,
+            billingPhone: phone,
+          } : undefined,
+        })
         return
       } catch (err) {
-        console.warn('PayMongo checkout unavailable, using direct order flow.', err)
+        console.warn('PayMongo PIPM unavailable, using direct order flow.', err)
         setSubmitting(false)
       }
     }
 
-    // Direct-order flow
+    // ── Fallback: direct-order flow (PayMongo not configured) ──
     const orderData = {
       orderNumber: orderNum,
       date: dateStr,
@@ -293,49 +333,24 @@ export default function CheckoutPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          orderNumber: orderNum,
-          date: dateStr,
-          email,
-          fullName,
-          phone,
-          address: streetAddress,
-          barangay: phAddr.barangay,
-          city: phAddr.city,
-          province: phAddr.province,
-          postalCode,
-          paymentMethod: paymentLabels[paymentMethod],
-          courierName: courier.name,
+          orderNumber: orderNum, date: dateStr, email, fullName, phone,
+          address: streetAddress, barangay: phAddr.barangay, city: phAddr.city,
+          province: phAddr.province, postalCode,
+          paymentMethod: paymentLabels[paymentMethod], courierName: courier.name,
           items: cartItems.map((i) => ({ name: i.product.name, quantity: i.quantity, price: i.product.price })),
-          subtotal,
-          shippingCost: courier.price,
-          total: subtotal + courier.price,
+          subtotal, shippingCost: courier.price, total: subtotal + courier.price,
         }),
       })
       emailSent = res.ok
-    } catch {
-      emailSent = false
-    }
+    } catch { emailSent = false }
 
     setSubmitting(false)
     setConfirmation({
-      orderNumber: orderNum,
-      fullName,
-      email,
-      phone,
-      address: streetAddress,
-      barangay: phAddr.barangay,
-      city: phAddr.city,
-      province: phAddr.province,
-      postalCode,
-      paymentMethod,
-      courier,
-      date: dateStr,
-      subtotal,
-      total: subtotal + courier.price,
-      items: cartItems,
-      emailSent,
+      orderNumber: orderNum, fullName, email, phone,
+      address: streetAddress, barangay: phAddr.barangay, city: phAddr.city,
+      province: phAddr.province, postalCode, paymentMethod, courier, date: dateStr,
+      subtotal, total: subtotal + courier.price, items: cartItems, emailSent,
     })
-
     window.scrollTo({ top: 0 })
   }
 
@@ -631,11 +646,16 @@ export default function CheckoutPage() {
               </fieldset>
               {paymentMethod === 'card' && (
                 <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-3">
+                  <FieldWrapper id="cardholder-name" label="Cardholder Name" error={undefined} className="sm:col-span-3">
+                    <input id="cardholder-name" type="text" placeholder="As shown on card" autoComplete="cc-name"
+                      defaultValue={fullName}
+                      className={`font-mono ${inputClass()}`} {...nameFilter} />
+                  </FieldWrapper>
                   <FieldWrapper id="card-number" label="Card Number" error={errors.cardNumber} className="sm:col-span-3">
                     <input id="card-number" type="text" inputMode="numeric" placeholder="1234 5678 9012 3456" autoComplete="cc-number" maxLength={19}
                       className={`font-mono ${inputClass(errors.cardNumber)}`} {...digitsFilter} />
                   </FieldWrapper>
-                  <FieldWrapper id="card-expiry" label="Expiry Date" error={errors.cardExpiry} className="sm:col-span-2">
+                  <FieldWrapper id="card-expiry" label="Expiry (MM/YY)" error={errors.cardExpiry} className="sm:col-span-2">
                     <input id="card-expiry" type="text" placeholder="MM / YY" autoComplete="cc-exp" className={`font-mono ${inputClass(errors.cardExpiry)}`} />
                   </FieldWrapper>
                   <FieldWrapper id="card-cvc" label="CVC" error={errors.cardCvc}>
@@ -644,9 +664,17 @@ export default function CheckoutPage() {
                   </FieldWrapper>
                 </div>
               )}
-              {paymentMethod === 'gcash' && <div className="mt-5 rounded border border-repixl-muted/10 bg-repixl-charcoal p-4"><p className="text-sm text-repixl-text-light/70">You&apos;ll be redirected to GCash to complete payment after placing your order.</p></div>}
-              {paymentMethod === 'paypal' && <div className="mt-5 rounded border border-repixl-muted/10 bg-repixl-charcoal p-4"><p className="text-sm text-repixl-text-light/70">You&apos;ll be redirected to PayPal to complete payment after placing your order.</p></div>}
-            </section>
+              {paymentMethod === 'gcash' && (
+                <div className="mt-5 rounded-xl border border-repixl-muted/10 bg-repixl-charcoal p-4">
+                  <p className="text-sm font-medium text-repixl-text-light">GCash</p>
+                  <p className="mt-1 text-xs text-repixl-muted">After placing your order, you&apos;ll authorize the GCash payment in a secure window on this page — no full redirect needed.</p>
+                </div>
+              )}
+              {paymentMethod === 'paypal' && (
+                <div className="mt-5 rounded-xl border border-repixl-muted/10 bg-repixl-charcoal p-4">
+                  <p className="text-sm text-repixl-text-light/70">PayPal is processed as a card payment via PayMongo.</p>
+                </div>
+              )}            </section>
           </div>
 
           {/* Order summary sidebar */}
@@ -680,9 +708,25 @@ export default function CheckoutPage() {
                 <div className="flex justify-between text-sm"><dt className="text-repixl-text-light/70">Shipping ({courier.name})</dt><dd className="font-mono text-repixl-text-light">${courier.price}</dd></div>
                 <div className="flex justify-between border-t border-repixl-muted/10 pt-2"><dt className="text-sm font-medium text-repixl-text-light">Total</dt><dd className="font-display text-xl font-bold text-repixl-text-light">${total}</dd></div>
               </dl>
-              <Button type="submit" variant="primary" size="lg" disabled={submitting} className="mt-6 w-full disabled:opacity-60">
-                {submitting ? 'Placing Order...' : 'Place Order'}
+              <Button type="submit" variant="primary" size="lg" disabled={submitting || paymentProcessing} className="mt-6 w-full disabled:opacity-60">
+                {(submitting || paymentProcessing) ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <svg className="h-4 w-4 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" aria-hidden="true">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                    </svg>
+                    Processing…
+                  </span>
+                ) : 'Place Order'}
               </Button>
+
+              {/* Payment error inline */}
+              {paymentError && (
+                <div className="mt-3 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3" role="alert">
+                  <p className="text-xs text-red-400">{paymentError}</p>
+                  <p className="mt-1 text-[10px] text-red-400/70">Please check your details and try again, or choose a different payment method.</p>
+                </div>
+              )}
               {/* Security trust note */}
               <div className="mt-3 flex items-center justify-center gap-1.5">
                 <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-repixl-muted/50" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
@@ -722,6 +766,8 @@ export default function CheckoutPage() {
           </aside>
         </form>
       </Container>
+      {/* 3DS / e-wallet auth modal — rendered as a portal over the full page */}
+      {authModal}
       <MinimalFooter />
     </div>
   )

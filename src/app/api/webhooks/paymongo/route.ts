@@ -61,6 +61,16 @@ export async function POST(request: NextRequest) {
       if (orderNumber) {
         await finalizePaidOrder(orderNumber)
       }
+    } else if (type === 'payment_intent.succeeded') {
+      // PIPM embedded flow: the metadata on the payment intent contains orderNumber.
+      const resource = event.data.attributes.data.attributes
+      const orderNumber =
+        resource.metadata?.orderNumber ??
+        resource.reference_number
+
+      if (orderNumber) {
+        await finalizePaidOrder(orderNumber)
+      }
     } else if (type === 'payment.failed') {
       const resource = event.data.attributes.data.attributes
       const orderNumber = resource.reference_number ?? resource.metadata?.orderNumber
