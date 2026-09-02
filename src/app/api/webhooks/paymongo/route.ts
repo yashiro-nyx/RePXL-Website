@@ -179,8 +179,26 @@ async function finalizePaidOrder(orderNumber: string): Promise<void> {
         .catch(() => undefined)
     }
 
-    // Clear the buyer's cart.
-    await tx.cartItem.deleteMany({ where: { userId: order.userId } })
+    // Clear ONLY the purchased products from the buyer's cart.
+    // Use the authoritative order_items records — never trust client state.
+    // If cart quantity exactly matches purchased quantity → delete the row.
+    // If cart quantity exceeds purchased quantity → decrement it.
+    for (const item of order.items) {
+      const cartRow = await tx.cartItem.findFirst({
+        where: { userId: order.userId, productId: item.productId },
+      })
+      if (!cartRow) continue
+
+      if (cartRow.quantity <= item.quantity) {
+        await tx.cartItem.delete({ where: { id: cartRow.id } })
+      } else {
+        await tx.cartItem.update({
+          where: { id: cartRow.id },
+          data: { quantity: { decrement: item.quantity } },
+        })
+      }
+    }
+    console.log(`[paymongo webhook] transaction: cleared purchased cart items for order ${orderNumber}`)
   })
 
   // Send confirmation email and notification outside the transaction so a mail

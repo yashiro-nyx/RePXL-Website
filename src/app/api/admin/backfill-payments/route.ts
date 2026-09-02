@@ -86,7 +86,21 @@ export async function POST(request: NextRequest) {
             }).catch(() => undefined)
           }
 
-          await tx.cartItem.deleteMany({ where: { userId: fresh.userId } })
+          // Clear ONLY the purchased products from the buyer's cart
+          for (const item of fresh.items) {
+            const cartRow = await tx.cartItem.findFirst({
+              where: { userId: fresh.userId, productId: item.productId },
+            })
+            if (!cartRow) continue
+            if (cartRow.quantity <= item.quantity) {
+              await tx.cartItem.delete({ where: { id: cartRow.id } })
+            } else {
+              await tx.cartItem.update({
+                where: { id: cartRow.id },
+                data: { quantity: { decrement: item.quantity } },
+              })
+            }
+          }
         })
 
         // Non-blocking notification

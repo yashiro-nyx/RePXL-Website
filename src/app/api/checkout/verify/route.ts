@@ -81,9 +81,17 @@ export async function POST(request: NextRequest) {
     return errorResponse('Order not found', 404)
   }
 
-  // Already finalized — idempotent return
+  // Already finalized — but cart may still need clearing (e.g. backfill ran without clearing).
+  // Fall through to finalizeOrder which handles the already-PAID case by skipping
+  // status/stock/voucher but still clearing any remaining cart rows.
   if (order.paymentStatus === 'PAID') {
-    console.log(`[CHECKOUT verify] Order already PAID: ${orderNumber}`)
+    console.log(`[CHECKOUT verify] Order already PAID: ${orderNumber} — checking cart`)
+    try {
+      await finalizeOrder(order)
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
+      console.error(`[CHECKOUT verify] Cart clear failed for already-PAID order ${orderNumber}:`, msg)
+    }
     return successResponse({ orderNumber, status: order.status, paymentStatus: 'PAID', alreadyFinalized: true })
   }
 
@@ -176,46 +184,70 @@ async function finalizeOrder(order: OrderWithItemsAndUser): Promise<void> {
       where: { id: order.id },
       include: { items: true },
     })
-    if (!fresh || fresh.paymentStatus === 'PAID') {
-      console.log(`[CHECKOUT verify] Transaction: order ${order.orderNumber} already PAID, skipping`)
+    if (!fresh) {
+      console.log(`[CHECKOUT verify] Transaction: order ${order.orderNumber} not found, skipping`)
       return
     }
 
-    console.log(`[CHECKOUT verify] Transaction: updating order ${order.orderNumber} to PAID`)
+    const alreadyPaid = fresh.paymentStatus === 'PAID'
 
-    await tx.order.update({
-      where: { id: order.id },
-      data: { paymentStatus: 'PAID', status: 'PROCESSING' },
-    })
+    if (!alreadyPaid) {
+      console.log(`[CHECKOUT verify] Transaction: updating order ${order.orderNumber} to PAID`)
 
-    // Decrement stock for each purchased item
-    for (const item of fresh.items) {
-      const updated = await tx.product.updateMany({
-        where: { id: item.productId, stock: { gte: item.quantity } },
-        data: { stock: { decrement: item.quantity } },
+      await tx.order.update({
+        where: { id: order.id },
+        data: { paymentStatus: 'PAID', status: 'PROCESSING' },
       })
-      if (updated.count === 0) {
-        await tx.product.updateMany({
-          where: { id: item.productId, stock: { gt: 0 } },
-          data: { stock: 0 },
+
+      // Decrement stock for each purchased item
+      for (const item of fresh.items) {
+        const updated = await tx.product.updateMany({
+          where: { id: item.productId, stock: { gte: item.quantity } },
+          data: { stock: { decrement: item.quantity } },
+        })
+        if (updated.count === 0) {
+          await tx.product.updateMany({
+            where: { id: item.productId, stock: { gt: 0 } },
+            data: { stock: 0 },
+          })
+        }
+      }
+      console.log(`[CHECKOUT verify] Transaction: stock decremented for ${fresh.items.length} item(s)`)
+
+      // Increment voucher usage if one was applied
+      if (fresh.voucherCode) {
+        await tx.voucher
+          .updateMany({
+            where: { code: fresh.voucherCode },
+            data: { used: { increment: 1 } },
+          })
+          .catch(() => undefined)
+      }
+    } else {
+      console.log(`[CHECKOUT verify] Transaction: order ${order.orderNumber} already PAID — skipping status/stock/voucher, checking cart`)
+    }
+
+    // Always attempt cart clearing — even if already PAID.
+    // The cart clear is NOT idempotent-guarded (deleting a non-existent row is safe),
+    // so this corrects cases where the backfill ran but the cart was never cleared.
+    for (const item of fresh.items) {
+      const cartRow = await tx.cartItem.findFirst({
+        where: { userId: fresh.userId, productId: item.productId },
+      })
+      if (!cartRow) continue
+
+      if (cartRow.quantity <= item.quantity) {
+        // Entire cart quantity was purchased — remove the row
+        await tx.cartItem.delete({ where: { id: cartRow.id } })
+      } else {
+        // Only part of the cart quantity was purchased — decrement
+        await tx.cartItem.update({
+          where: { id: cartRow.id },
+          data: { quantity: { decrement: item.quantity } },
         })
       }
     }
-    console.log(`[CHECKOUT verify] Transaction: stock decremented for ${fresh.items.length} item(s)`)
-
-    // Increment voucher usage if one was applied
-    if (fresh.voucherCode) {
-      await tx.voucher
-        .updateMany({
-          where: { code: fresh.voucherCode },
-          data: { used: { increment: 1 } },
-        })
-        .catch(() => undefined)
-    }
-
-    // Clear the buyer's cart from the database
-    const deleted = await tx.cartItem.deleteMany({ where: { userId: fresh.userId } })
-    console.log(`[CHECKOUT verify] Transaction: cleared ${deleted.count} cart item(s)`)
+    console.log(`[CHECKOUT verify] Transaction: cleared cart items for ${fresh.items.length} purchased product(s)`)
   })
 
   // Non-blocking: emit notification + send email (failures don't affect order state)
