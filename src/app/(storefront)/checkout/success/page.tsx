@@ -64,40 +64,82 @@ function SuccessInner() {
       return
     }
 
-    let tries = 0
-    const MAX_TRIES = 8
+    let cancelled = false
 
-    const poll = async () => {
+    const run = async () => {
+      // ── Step 1: Server-side payment verification ──────────────────────────────
+      // Call /api/checkout/verify to confirm payment with PayMongo directly and
+      // finalize the order (PENDING → PAID, stock decremented, cart cleared).
+      // This is the primary finalization path — the webhook is a backup.
       try {
-        const res = await fetch(`/api/orders/${encodeURIComponent(orderNumber)}`, {
+        const verifyRes = await fetch('/api/checkout/verify', {
+          method: 'POST',
           credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ orderNumber }),
           cache: 'no-store',
         })
 
-        if (res.ok) {
-          const json = await res.json()
-          if (json.success && json.data) {
-            setOrder(json.data)
-            setFetchStatus('found')
-            return
-          }
-        }
-
-        // 401/404 — order not yet visible (webhook still processing) or user not authed
-        tries += 1
-        if (tries < MAX_TRIES) {
-          setTimeout(poll, 1800)
+        if (!verifyRes.ok) {
+          // 401 = user not authenticated; 404 = order not found for this user
+          // 422 = no payment intent (fallback order); 502 = PayMongo unreachable
+          // In all these cases we still try to poll below — don't bail early.
+          console.warn('[success] verify returned', verifyRes.status)
         } else {
-          setFetchStatus('pending')
+          const vData = await verifyRes.json().catch(() => ({}))
+          console.log('[success] verify result:', vData?.data)
         }
-      } catch {
-        tries += 1
-        if (tries < MAX_TRIES) setTimeout(poll, 1800)
-        else setFetchStatus('pending')
+      } catch (err) {
+        // Network error — continue to polling anyway
+        console.warn('[success] verify network error:', err)
       }
+
+      if (cancelled) return
+
+      // Re-hydrate cart/products after finalization
+      useCartStore.getState().hydrate()
+      useProductStore.getState().hydrate()
+
+      // ── Step 2: Poll GET /api/orders/{orderNumber} for the receipt data ────────
+      let tries = 0
+      const MAX_TRIES = 10
+
+      const poll = async () => {
+        if (cancelled) return
+        try {
+          const res = await fetch(`/api/orders/${encodeURIComponent(orderNumber)}`, {
+            credentials: 'include',
+            cache: 'no-store',
+          })
+
+          if (res.ok) {
+            const json = await res.json()
+            if (json.success && json.data) {
+              setOrder(json.data)
+              setFetchStatus('found')
+              return
+            }
+          }
+
+          tries += 1
+          if (tries < MAX_TRIES) {
+            setTimeout(poll, 1500)
+          } else {
+            setFetchStatus('pending')
+          }
+        } catch {
+          tries += 1
+          if (tries < MAX_TRIES) setTimeout(poll, 1500)
+          else setFetchStatus('pending')
+        }
+      }
+
+      poll()
     }
 
-    poll()
+    run()
+
+    return () => { cancelled = true }
   }, [orderNumber])
 
   const dateStr = order

@@ -23,15 +23,23 @@ export async function POST(request: NextRequest) {
   const rawBody = await request.text()
   const signature = request.headers.get('paymongo-signature')
 
+  console.log('[paymongo webhook] received event, signature present:', !!signature)
+  console.log('[paymongo webhook] webhook secret configured:', !!process.env.PAYMONGO_WEBHOOK_SECRET)
+
   const verification = verifyWebhookSignature(
     rawBody,
     signature,
-    process.env.PAYMONGO_WEBHOOK_SECRET
+    process.env.PAYMONGO_WEBHOOK_SECRET,
+    { toleranceSeconds: 15 * 60 } // 15 min — handles clock skew between PayMongo and Vercel
   )
   if (!verification.valid) {
-    console.warn('[paymongo webhook] rejected:', verification.reason)
-    return NextResponse.json({ received: false }, { status: 401 })
+    console.warn('[paymongo webhook] signature rejected:', verification.reason)
+    // Log first 100 chars of raw body for debugging (no secrets in webhook body)
+    console.warn('[paymongo webhook] raw body preview:', rawBody.slice(0, 100))
+    return NextResponse.json({ received: false, reason: verification.reason }, { status: 401 })
   }
+
+  console.log('[paymongo webhook] signature verified OK')
 
   let event: PaymongoWebhookEvent
   try {
@@ -42,6 +50,8 @@ export async function POST(request: NextRequest) {
 
   const eventId = event.data?.id
   const type = event.data?.attributes?.type
+
+  console.log(`[paymongo webhook] event id=${eventId} type=${type}`)
 
   // 2) Acknowledge fast + idempotency short-circuit.
   if (eventId && processedEvents.has(eventId)) {
@@ -59,6 +69,7 @@ export async function POST(request: NextRequest) {
         resource.payment_intent?.attributes?.metadata?.orderNumber
 
       if (orderNumber) {
+        console.log(`[paymongo webhook] finalizing order from checkout_session/payment.paid: ${orderNumber}`)
         await finalizePaidOrder(orderNumber)
       }
     } else if (type === 'payment_intent.succeeded') {
@@ -69,6 +80,7 @@ export async function POST(request: NextRequest) {
         resource.reference_number
 
       if (orderNumber) {
+        console.log(`[paymongo webhook] finalizing order from payment_intent.succeeded: ${orderNumber}`)
         await finalizePaidOrder(orderNumber)
       }
     } else if (type === 'payment.failed') {
@@ -99,6 +111,7 @@ export async function POST(request: NextRequest) {
  * After the transaction succeeds, sends a confirmation email (non-blocking).
  */
 async function finalizePaidOrder(orderNumber: string): Promise<void> {
+  console.log(`[paymongo webhook] finalizePaidOrder: ${orderNumber}`)
   // Fetch full order with items + user outside the transaction first, so we
   // have the email address available for the confirmation email.
   const orderBefore = await prisma.order.findUnique({
@@ -118,6 +131,7 @@ async function finalizePaidOrder(orderNumber: string): Promise<void> {
     return
   }
 
+  console.log(`[paymongo webhook] running finalization transaction for: ${orderNumber}`)
   // Run the state-changing work inside a transaction so stock/status/cart are
   // always consistent even if something fails mid-way.
   await prisma.$transaction(async (tx) => {
@@ -132,6 +146,7 @@ async function finalizePaidOrder(orderNumber: string): Promise<void> {
       where: { id: order.id },
       data: { paymentStatus: 'PAID', status: 'PROCESSING' },
     })
+    console.log(`[paymongo webhook] transaction: order ${orderNumber} marked PAID`)
 
     // Decrement stock for each purchased item using the actual quantity stored
     // on the OrderItem row. We use updateMany with a stock >= quantity guard so
