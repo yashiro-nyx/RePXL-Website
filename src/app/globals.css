@@ -138,6 +138,32 @@ body.scroll-locked {
   overflow: hidden;
 }
 
+/*
+ * Leaflet z-index cap — keeps all Leaflet layers (panes, controls, tooltips,
+ * popups) below the application modal stack (z-[1000]).
+ * Leaflet's defaults: .leaflet-pane=400, .leaflet-control=800.
+ * We cap them at 999 so our modals at 1000 always render on top.
+ */
+.leaflet-pane,
+.leaflet-map-pane,
+.leaflet-tile-pane,
+.leaflet-overlay-pane,
+.leaflet-shadow-pane,
+.leaflet-marker-pane,
+.leaflet-tooltip-pane,
+.leaflet-popup-pane {
+  z-index: 400 !important;
+  max-z-index: 599;
+}
+.leaflet-control {
+  z-index: 800 !important;
+}
+/* Belt-and-suspenders: ensure the container itself doesn't create a
+   new stacking context that could trap the Leaflet layers above modals */
+.leaflet-container {
+  isolation: auto;
+}
+
 /* Print styles — receipt only */
 @media print {
   /* 1. Hide everything on the page */

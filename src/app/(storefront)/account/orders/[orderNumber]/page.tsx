@@ -499,7 +499,7 @@ export default function OrderDetailPage() {
 
       {/* ── Cancel Order Modal ── */}
       {cancelModalOpen && createPortal(
-        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
+        <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
           <div className="w-full max-w-sm rounded-2xl border border-repixl-muted/20 bg-repixl-charcoal p-6 shadow-2xl">
             <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-red-500/10">
               <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-red-400" aria-hidden="true"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg>
@@ -529,7 +529,7 @@ export default function OrderDetailPage() {
 
       {/* ── Confirm Receipt + Feedback Modal ── */}
       {confirmModalOpen && createPortal(
-        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
+        <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
           <div className="w-full max-w-md rounded-2xl border border-repixl-muted/20 bg-repixl-charcoal p-6 shadow-2xl">
 
             {!reviewStep ? (
