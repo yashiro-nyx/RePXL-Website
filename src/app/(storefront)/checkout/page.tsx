@@ -32,10 +32,7 @@ const PHAddressSelect = dynamic(
   { ssr: false, loading: () => <div className="h-28 animate-pulse rounded-xl bg-repixl-charcoal/40" /> }
 )
 
-const fallbackItems: CartItem[] = [
-  { slug: 'canon-powershot-a520', quantity: 1 },
-  { slug: 'fujifilm-finepix-f30', quantity: 1 },
-]
+const fallbackItems: CartItem[] = []
 
 type PaymentMethod = 'card' | 'gcash' | 'paypal'
 
@@ -131,7 +128,17 @@ export default function CheckoutPage() {
   const addresses = useAddressStore((s) => s.addresses)
   const defaultAddress = addresses.find((a) => a.isDefault)
 
-  const itemsToResolve = cartItemsRaw.length > 0 ? cartItemsRaw : fallbackItems
+  // Respect the subset selected on the cart page (stored in sessionStorage).
+  // If no selection key is present, all cart items are checked out (direct nav).
+  const selectedSlugsJson = typeof window !== 'undefined'
+    ? sessionStorage.getItem('repixl-checkout-selected')
+    : null
+  const selectedSlugs: string[] | null = selectedSlugsJson ? JSON.parse(selectedSlugsJson) : null
+
+  const itemsToResolve = selectedSlugs
+    ? cartItemsRaw.filter((i) => selectedSlugs.includes(i.slug))
+    : cartItemsRaw.length > 0 ? cartItemsRaw : fallbackItems
+
   const cartItems = itemsToResolve.map((item) => {
     const product = allProducts.find((p) => p.slug === item.slug)
     return product ? { product, quantity: item.quantity } : null
