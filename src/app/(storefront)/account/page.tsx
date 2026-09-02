@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import dynamic from 'next/dynamic'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { signOut } from 'next-auth/react'
@@ -8,6 +9,8 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { Container } from '@/components/layout/Container'
 import { Footer } from '@/components/layout/Footer'
 import { Button, ConditionBadge, CornerBracket, FilmStripLoader, PasswordInput } from '@/components/ui'
+import { PhoneInput } from '@/components/ui/PhoneInput'
+import { emptyPHAddress, type PHAddressValue } from '@/components/ui/PHAddressSelect'
 import { useAuthStore } from '@/stores/authStore'
 import { useToastStore } from '@/stores/toastStore'
 import { useAddressStore, type Address } from '@/stores/addressStore'
@@ -18,7 +21,16 @@ import { useWishlistStore } from '@/stores/wishlistStore'
 import { useCartStore } from '@/stores/cartStore'
 import { useProductStore } from '@/stores/productStore'
 import { useRevealAnimation } from '@/hooks/useRevealAnimation'
+import { useFilteredInput, nameChars, digitsOnly } from '@/hooks/useFilteredInput'
+import { validatePHPhone } from '@/components/ui/PhoneInput'
 import { products as allProducts } from '@/data/products'
+
+// Lazy-load the PH address component so the ~840KB address dataset only
+// loads when the Addresses tab is opened, not on every account page visit.
+const PHAddressSelect = dynamic(
+  () => import('@/components/ui/PHAddressSelect').then((m) => ({ default: m.PHAddressSelect })),
+  { ssr: false, loading: () => <div className="h-28 animate-pulse rounded-xl bg-repixl-charcoal/40" /> }
+)
 
 type Tab = 'dashboard' | 'profile' | 'orders' | 'addresses' | 'payments' | 'reviews' | 'security'
 
@@ -383,6 +395,7 @@ function ProfileTab() {
   const [origBirthDate, setOrigBirthDate] = useState('')
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [saved, setSaved] = useState(false)
+  const nameFilter = useFilteredInput(nameChars)
 
   useEffect(() => {
     setFirst(firstName); setLast(lastName); setEmail(userEmail); setPhone(userPhone)
@@ -402,9 +415,8 @@ function ProfileTab() {
     if (!first.trim()) errs.first = 'First name is required.'
     if (!last.trim()) errs.last = 'Last name is required.'
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) errs.email = 'Enter a valid email address.'
-    if (phone.trim()) {
-      const digits = phone.replace(/[\s\-+()]/g, '')
-      if (!/^\d{7,15}$/.test(digits)) errs.phone = 'Enter a valid phone number.'
+    if (phone.trim() && !validatePHPhone(phone.replace(/\D/g, ''))) {
+      errs.phone = 'Enter a valid PH mobile number (09XXXXXXXXX).'
     }
     setErrors(errs)
     if (Object.keys(errs).length > 0) return
@@ -430,12 +442,12 @@ function ProfileTab() {
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label htmlFor="p-first" className="mb-1.5 block text-xs text-repixl-text-light/70">First Name</label>
-            <input id="p-first" type="text" value={first} onChange={(e) => setFirst(e.target.value)} className={inputClass(errors.first)} />
+            <input id="p-first" type="text" value={first} onChange={(e) => setFirst(e.target.value)} className={inputClass(errors.first)} {...nameFilter} />
             {errors.first && <p className="mt-1 text-xs text-red-400">{errors.first}</p>}
           </div>
           <div>
             <label htmlFor="p-last" className="mb-1.5 block text-xs text-repixl-text-light/70">Last Name</label>
-            <input id="p-last" type="text" value={last} onChange={(e) => setLast(e.target.value)} className={inputClass(errors.last)} />
+            <input id="p-last" type="text" value={last} onChange={(e) => setLast(e.target.value)} className={inputClass(errors.last)} {...nameFilter} />
             {errors.last && <p className="mt-1 text-xs text-red-400">{errors.last}</p>}
           </div>
         </div>
@@ -446,8 +458,13 @@ function ProfileTab() {
         </div>
         <div>
           <label htmlFor="p-phone" className="mb-1.5 block text-xs text-repixl-text-light/70">Phone Number</label>
-          <input id="p-phone" type="tel" inputMode="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+63 912 345 6789" className={inputClass(errors.phone)} />
-          {errors.phone && <p className="mt-1 text-xs text-red-400">{errors.phone}</p>}
+          <PhoneInput
+            id="p-phone"
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+            error={errors.phone}
+            autoComplete="tel"
+          />
         </div>
         <div>
           <label htmlFor="p-birth" className="mb-1.5 block text-xs text-repixl-text-light/70">Birth Date</label>
@@ -670,43 +687,104 @@ function AddressesTab() {
 
 function AddressForm({ initial, onSave, onCancel }: { initial?: Address; onSave: (d: Omit<Address, 'id'>) => void; onCancel: () => void }) {
   const [fullName, setFullName] = useState(initial?.fullName ?? '')
-  const [address, setAddress] = useState(initial?.address ?? '')
-  const [barangay, setBarangay] = useState(initial?.barangay ?? '')
-  const [city, setCity] = useState(initial?.city ?? '')
-  const [province, setProvince] = useState(initial?.province ?? '')
+  const [streetAddress, setStreetAddress] = useState(initial?.address ?? '')
   const [postalCode, setPostalCode] = useState(initial?.postalCode ?? '')
   const [phone, setPhone] = useState(initial?.phone ?? '')
   const [isDefault, setIsDefault] = useState(initial?.isDefault ?? false)
   const [errors, setErrors] = useState<Record<string, string>>({})
+  const nameFilter = useFilteredInput(nameChars)
+  const postalFilter = useFilteredInput(digitsOnly)
+
+  // PHAddressSelect state
+  const [phAddr, setPhAddr] = useState<PHAddressValue>({
+    ...emptyPHAddress,
+    // Pre-fill names from existing address (codes will be empty — user must re-select)
+    region: '', province: initial?.province ?? '', city: initial?.city ?? '', barangay: initial?.barangay ?? '',
+    regionCode: '', provinceCode: '', cityCode: '',
+  })
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     const errs: Record<string, string> = {}
     if (!fullName.trim()) errs.fullName = 'Required.'
-    if (!address.trim()) errs.address = 'Required.'
-    if (!barangay.trim()) errs.barangay = 'Required.'
-    if (!city.trim()) errs.city = 'Required.'
-    if (!province.trim()) errs.province = 'Required.'
-    if (!/^\d{4,6}$/.test(postalCode.replace(/\s/g, ''))) errs.postalCode = '4–6 digits.'
-    if (phone.trim() && !/^\d{7,15}$/.test(phone.replace(/[\s\-+()]/g, ''))) errs.phone = 'Invalid phone.'
+    if (!streetAddress.trim()) errs.address = 'Required.'
+    if (!phAddr.city) errs.city = 'Required.'
+    if (!phAddr.province) errs.province = 'Required.'
+    if (!phAddr.barangay) errs.barangay = 'Required.'
+    if (!/^\d{4,6}$/.test(postalCode.replace(/\s/g, ''))) errs.postalCode = '4–6 digits required.'
+    if (phone.trim() && !validatePHPhone(phone.replace(/\D/g, ''))) {
+      errs.phone = 'Enter a valid PH mobile number (09XXXXXXXXX).'
+    }
     setErrors(errs)
     if (Object.keys(errs).length > 0) return
-    onSave({ fullName: fullName.trim(), address: address.trim(), barangay: barangay.trim(), city: city.trim(), province: province.trim(), postalCode: postalCode.trim(), phone: phone.trim(), isDefault })
+    onSave({
+      fullName: fullName.trim(),
+      address: streetAddress.trim(),
+      barangay: phAddr.barangay,
+      city: phAddr.city,
+      province: phAddr.province,
+      postalCode: postalCode.trim(),
+      phone: phone.trim(),
+      isDefault,
+    })
   }
 
   return (
     <form onSubmit={handleSubmit} noValidate className="mt-5 space-y-3 rounded-lg border border-repixl-muted/10 bg-repixl-bg p-4">
-      <div><label htmlFor="a-name" className="mb-1 block text-xs text-repixl-text-light/70">Full Name</label><input id="a-name" type="text" value={fullName} onChange={(e) => setFullName(e.target.value)} className={inputClass(errors.fullName)} />{errors.fullName && <p className="mt-1 text-xs text-red-400">{errors.fullName}</p>}</div>
-      <div><label htmlFor="a-phone2" className="mb-1 block text-xs text-repixl-text-light/70">Phone Number</label><input id="a-phone2" type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} className={inputClass(errors.phone)} />{errors.phone && <p className="mt-1 text-xs text-red-400">{errors.phone}</p>}</div>
-      <div><label htmlFor="a-street" className="mb-1 block text-xs text-repixl-text-light/70">Street Address</label><input id="a-street" type="text" value={address} onChange={(e) => setAddress(e.target.value)} className={inputClass(errors.address)} />{errors.address && <p className="mt-1 text-xs text-red-400">{errors.address}</p>}</div>
-      <div><label htmlFor="a-barangay" className="mb-1 block text-xs text-repixl-text-light/70">Barangay</label><input id="a-barangay" type="text" value={barangay} onChange={(e) => setBarangay(e.target.value)} placeholder="Enter barangay" className={inputClass(errors.barangay)} />{errors.barangay && <p className="mt-1 text-xs text-red-400">{errors.barangay}</p>}</div>
-      <div className="grid grid-cols-2 gap-3">
-        <div><label htmlFor="a-city" className="mb-1 block text-xs text-repixl-text-light/70">City / Municipality</label><input id="a-city" type="text" value={city} onChange={(e) => setCity(e.target.value)} className={inputClass(errors.city)} />{errors.city && <p className="mt-1 text-xs text-red-400">{errors.city}</p>}</div>
-        <div><label htmlFor="a-province" className="mb-1 block text-xs text-repixl-text-light/70">Province</label><input id="a-province" type="text" value={province} onChange={(e) => setProvince(e.target.value)} className={inputClass(errors.province)} />{errors.province && <p className="mt-1 text-xs text-red-400">{errors.province}</p>}</div>
+      <div>
+        <label htmlFor="a-name" className="mb-1 block text-xs text-repixl-text-light/70">Full Name</label>
+        <input id="a-name" type="text" value={fullName} onChange={(e) => setFullName(e.target.value)} className={inputClass(errors.fullName)} {...nameFilter} />
+        {errors.fullName && <p className="mt-1 text-xs text-red-400">{errors.fullName}</p>}
       </div>
-      <div><label htmlFor="a-zip" className="mb-1 block text-xs text-repixl-text-light/70">Postal Code</label><input id="a-zip" type="text" inputMode="numeric" value={postalCode} onChange={(e) => setPostalCode(e.target.value)} className={inputClass(errors.postalCode)} />{errors.postalCode && <p className="mt-1 text-xs text-red-400">{errors.postalCode}</p>}</div>
-      <label className="flex items-center gap-2"><input type="checkbox" checked={isDefault} onChange={(e) => setIsDefault(e.target.checked)} className="h-3.5 w-3.5 rounded border-repixl-muted/30 bg-repixl-charcoal text-repixl-red" /><span className="text-xs text-repixl-text-light/70">Set as default</span></label>
-      <div className="flex gap-3 pt-2"><Button type="submit" variant="primary" size="sm">{initial ? 'Update' : 'Save'}</Button><button type="button" onClick={onCancel} className="text-xs text-repixl-muted hover:text-repixl-text-light">Cancel</button></div>
+      <div>
+        <label htmlFor="a-phone2" className="mb-1 block text-xs text-repixl-text-light/70">Phone Number</label>
+        <PhoneInput
+          id="a-phone2"
+          value={phone}
+          onChange={(e) => setPhone(e.target.value)}
+          error={errors.phone}
+          className="rounded-lg"
+        />
+      </div>
+      <div>
+        <label htmlFor="a-street" className="mb-1 block text-xs text-repixl-text-light/70">Street Address / House No.</label>
+        <input id="a-street" type="text" value={streetAddress} onChange={(e) => setStreetAddress(e.target.value)} className={inputClass(errors.address)} />
+        {errors.address && <p className="mt-1 text-xs text-red-400">{errors.address}</p>}
+      </div>
+
+      {/* Cascading PH address dropdowns */}
+      <PHAddressSelect
+        value={phAddr}
+        onChange={setPhAddr}
+        errors={{
+          province: errors.province,
+          city: errors.city,
+          barangay: errors.barangay,
+        }}
+      />
+
+      <div>
+        <label htmlFor="a-zip" className="mb-1 block text-xs text-repixl-text-light/70">Postal Code</label>
+        <input
+          id="a-zip"
+          type="text"
+          inputMode="numeric"
+          maxLength={6}
+          value={postalCode}
+          onChange={(e) => setPostalCode(e.target.value)}
+          className={inputClass(errors.postalCode)}
+          {...postalFilter}
+        />
+        {errors.postalCode && <p className="mt-1 text-xs text-red-400">{errors.postalCode}</p>}
+      </div>
+      <label className="flex items-center gap-2">
+        <input type="checkbox" checked={isDefault} onChange={(e) => setIsDefault(e.target.checked)} className="h-3.5 w-3.5 rounded border-repixl-muted/30 bg-repixl-charcoal text-repixl-red" />
+        <span className="text-xs text-repixl-text-light/70">Set as default</span>
+      </label>
+      <div className="flex gap-3 pt-2">
+        <Button type="submit" variant="primary" size="sm">{initial ? 'Update' : 'Save'}</Button>
+        <button type="button" onClick={onCancel} className="text-xs text-repixl-muted hover:text-repixl-text-light">Cancel</button>
+      </div>
     </form>
   )
 }

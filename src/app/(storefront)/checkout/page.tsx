@@ -1,11 +1,14 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
+import dynamic from 'next/dynamic'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
 import { Container } from '@/components/layout/Container'
 import { Button, ConditionBadge, LegalModal } from '@/components/ui'
+import { PhoneInput } from '@/components/ui/PhoneInput'
+import { emptyPHAddress, type PHAddressValue } from '@/components/ui/PHAddressSelect'
 import { MinimalFooter } from '@/components/layout/MinimalFooter'
 import { useAuthStore } from '@/stores/authStore'
 import { useCartStore } from '@/stores/cartStore'
@@ -13,9 +16,18 @@ import { useProductStore } from '@/stores/productStore'
 import { useOrderHistoryStore } from '@/stores/orderHistoryStore'
 import { useAddressStore } from '@/stores/addressStore'
 import { useRevealAnimation } from '@/hooks/useRevealAnimation'
+import { useFilteredInput, nameChars, digitsOnly } from '@/hooks/useFilteredInput'
+import { validatePHPhone } from '@/components/ui/PhoneInput'
 import { isPaymongoEnabled, startPaymongoCheckout } from '@/lib/data/checkoutService'
 import { termsContent, privacyContent } from '@/data/legal'
 import type { Product, CartItem } from '@/types'
+
+// Lazy-load the PH address component — keeps the address dataset out of the
+// initial checkout bundle; it loads only when the form renders.
+const PHAddressSelect = dynamic(
+  () => import('@/components/ui/PHAddressSelect').then((m) => ({ default: m.PHAddressSelect })),
+  { ssr: false, loading: () => <div className="h-28 animate-pulse rounded-xl bg-repixl-charcoal/40" /> }
+)
 
 const fallbackItems: CartItem[] = [
   { slug: 'canon-powershot-a520', quantity: 1 },
@@ -121,6 +133,14 @@ export default function CheckoutPage() {
     return product ? { product, quantity: item.quantity } : null
   }).filter(Boolean) as { product: Product; quantity: number }[]
 
+  // ── Controlled field state (address dropdowns need controlled values) ──
+  const [fullName, setFullName] = useState('')
+  const [email, setEmail] = useState('')
+  const [phone, setPhone] = useState('')
+  const [streetAddress, setStreetAddress] = useState('')
+  const [postalCode, setPostalCode] = useState('')
+  const [phAddr, setPhAddr] = useState<PHAddressValue>(emptyPHAddress)
+
   const [hydrated, setHydrated] = useState(false)
   const [confirmation, setConfirmation] = useState<OrderConfirmation | null>(null)
   const [submitting, setSubmitting] = useState(false)
@@ -133,9 +153,12 @@ export default function CheckoutPage() {
   const [prefilled, setPrefilled] = useState(false)
   const formRef = useRef<HTMLFormElement>(null)
 
+  // Input filters
+  const nameFilter = useFilteredInput(nameChars)
+  const digitsFilter = useFilteredInput(digitsOnly)
+
   useEffect(() => {
     const init = async () => {
-      // Auth must settle first so currentEmail() is correct when the cart hydrates.
       await hydrateAuth()
       await useCartStore.getState().hydrate()
       useProductStore.getState().hydrate()
@@ -146,28 +169,18 @@ export default function CheckoutPage() {
     void init()
   }, [hydrateAuth])
 
+  // Pre-fill from auth + default address (controlled fields)
   useEffect(() => {
-    if (!hydrated || prefilled || !formRef.current) return
-    const form = formRef.current
-    const setVal = (id: string, value: string) => {
-      const el = form.querySelector(`#${id}`) as HTMLInputElement | null
-      if (el && !el.value) {
-        const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')?.set
-        setter?.call(el, value)
-        el.dispatchEvent(new Event('input', { bubbles: true }))
-      }
-    }
-    if (userName) setVal('full-name', userName)
-    if (userEmail) setVal('email', userEmail)
-    if (userPhone) setVal('phone', userPhone)
+    if (!hydrated || prefilled) return
+    if (userName) setFullName(userName)
+    if (userEmail) setEmail(userEmail)
+    if (userPhone) setPhone(userPhone)
     if (defaultAddress) {
-      if (defaultAddress.fullName) setVal('full-name', defaultAddress.fullName)
-      if (defaultAddress.address) setVal('address', defaultAddress.address)
-      if (defaultAddress.barangay) setVal('barangay', defaultAddress.barangay)
-      if (defaultAddress.city) setVal('city', defaultAddress.city)
-      if (defaultAddress.province) setVal('province', defaultAddress.province)
-      if (defaultAddress.postalCode) setVal('postal-code', defaultAddress.postalCode)
-      if (defaultAddress.phone) setVal('phone', defaultAddress.phone)
+      if (defaultAddress.fullName) setFullName(defaultAddress.fullName)
+      if (defaultAddress.address) setStreetAddress(defaultAddress.address)
+      if (defaultAddress.postalCode) setPostalCode(defaultAddress.postalCode)
+      if (defaultAddress.phone) setPhone(defaultAddress.phone)
+      // province/city/barangay are now dropdown-driven; free-text fallback for display
     }
     setPrefilled(true)
   }, [hydrated, prefilled, userName, userEmail, userPhone, defaultAddress])
@@ -178,17 +191,16 @@ export default function CheckoutPage() {
 
   const validate = (): FormErrors => {
     const form = formRef.current
-    if (!form) return {}
-    const get = (id: string) => (form.querySelector(`#${id}`) as HTMLInputElement)?.value ?? ''
+    const get = (id: string) => (form?.querySelector(`#${id}`) as HTMLInputElement)?.value ?? ''
     const errs: FormErrors = {}
-    if (!nonEmpty(get('full-name'))) errs.fullName = 'Full name is required.'
-    if (!isValidEmail(get('email'))) errs.email = 'Enter a valid email address.'
-    if (!nonEmpty(get('address'))) errs.address = 'Street address is required.'
-    if (!nonEmpty(get('barangay'))) errs.barangay = 'Barangay is required.'
-    if (!nonEmpty(get('city'))) errs.city = 'City / Municipality is required.'
-    if (!nonEmpty(get('province'))) errs.province = 'Province is required.'
-    if (!isValidPostalCode(get('postal-code'))) errs.postalCode = 'Enter a valid postal code (4–6 digits).'
-    if (!isValidPhone(get('phone'))) errs.phone = 'Enter a valid phone number.'
+    if (!nonEmpty(fullName)) errs.fullName = 'Full name is required.'
+    if (!isValidEmail(email)) errs.email = 'Enter a valid email address.'
+    if (!nonEmpty(streetAddress)) errs.address = 'Street address is required.'
+    if (!nonEmpty(phAddr.barangay)) errs.barangay = 'Barangay is required.'
+    if (!nonEmpty(phAddr.city)) errs.city = 'City / Municipality is required.'
+    if (!nonEmpty(phAddr.province)) errs.province = 'Province is required.'
+    if (!isValidPostalCode(postalCode)) errs.postalCode = 'Enter a valid postal code (4–6 digits).'
+    if (!validatePHPhone(phone.replace(/\D/g, ''))) errs.phone = 'Enter a valid PH mobile number (09XXXXXXXXX).'
     if (paymentMethod === 'card') {
       if (!isValidCardNumber(get('card-number'))) errs.cardNumber = 'Enter a valid 16-digit card number.'
       if (!isValidExpiry(get('card-expiry'))) errs.cardExpiry = 'Enter a valid, non-expired date (MM/YY).'
@@ -201,14 +213,12 @@ export default function CheckoutPage() {
   const focusFirstError = (errs: FormErrors) => {
     const fieldMap: Record<string, string> = {
       fullName: 'full-name', email: 'email', address: 'address',
-      barangay: 'barangay', city: 'city', province: 'province',
       postalCode: 'postal-code', phone: 'phone',
       cardNumber: 'card-number', cardExpiry: 'card-expiry', cardCvc: 'card-cvc',
-      agreeTerms: 'agree-terms',
     }
     for (const key of Object.keys(errs) as (keyof FormErrors)[]) {
       if (errs[key]) {
-        const el = formRef.current?.querySelector(`#${fieldMap[key]}`) as HTMLInputElement | null
+        const el = formRef.current?.querySelector(`#${fieldMap[key] ?? key}`) as HTMLElement | null
         el?.focus()
         break
       }
@@ -231,17 +241,15 @@ export default function CheckoutPage() {
     const orderNum = generateOrderNumber()
 
     // ── Real payment path (PayMongo) ──
-    // If the gateway is enabled, create a hosted-checkout session and redirect
-    // the customer to PayMongo. The order is finalized by the webhook on payment.
     if (isPaymongoEnabled()) {
       try {
         const { checkoutUrl } = await startPaymongoCheckout({
-          fullName: get('full-name'),
-          address: get('address'),
-          barangay: get('barangay'),
-          city: get('city'),
-          province: get('province'),
-          postalCode: get('postal-code'),
+          fullName,
+          address: streetAddress,
+          barangay: phAddr.barangay,
+          city: phAddr.city,
+          province: phAddr.province,
+          postalCode,
           courierName: courier.name,
           courierEstimate: courier.estimate,
           paymentMethod: paymentLabels[paymentMethod],
@@ -250,13 +258,12 @@ export default function CheckoutPage() {
         window.location.href = checkoutUrl
         return
       } catch (err) {
-        // Gateway unavailable — fall through to the direct-order flow below.
         console.warn('PayMongo checkout unavailable, using direct order flow.', err)
         setSubmitting(false)
       }
     }
 
-    // Direct-order flow (demo / gateway-not-configured / gateway-unavailable).
+    // Direct-order flow
     const orderData = {
       orderNumber: orderNum,
       date: dateStr,
@@ -267,21 +274,19 @@ export default function CheckoutPage() {
       courierName: courier.name,
       courierEstimate: courier.estimate,
       paymentMethod: paymentLabels[paymentMethod],
-      fullName: get('full-name'),
-      address: get('address'),
-      barangay: get('barangay'),
-      city: get('city'),
-      province: get('province'),
-      postalCode: get('postal-code'),
+      fullName,
+      address: streetAddress,
+      barangay: phAddr.barangay,
+      city: phAddr.city,
+      province: phAddr.province,
+      postalCode,
       status: 'Processing' as const,
       userEmail: useAuthStore.getState().userEmail,
     }
 
-    // Save order to store
     addOrder(orderData)
     clearCart()
 
-    // Send confirmation email (non-blocking — order stays even if email fails)
     let emailSent = false
     try {
       const res = await fetch('/api/orders/confirmation', {
@@ -290,14 +295,14 @@ export default function CheckoutPage() {
         body: JSON.stringify({
           orderNumber: orderNum,
           date: dateStr,
-          email: get('email'),
-          fullName: get('full-name'),
-          phone: get('phone'),
-          address: get('address'),
-          barangay: get('barangay'),
-          city: get('city'),
-          province: get('province'),
-          postalCode: get('postal-code'),
+          email,
+          fullName,
+          phone,
+          address: streetAddress,
+          barangay: phAddr.barangay,
+          city: phAddr.city,
+          province: phAddr.province,
+          postalCode,
           paymentMethod: paymentLabels[paymentMethod],
           courierName: courier.name,
           items: cartItems.map((i) => ({ name: i.product.name, quantity: i.quantity, price: i.product.price })),
@@ -308,21 +313,20 @@ export default function CheckoutPage() {
       })
       emailSent = res.ok
     } catch {
-      // Email failed — order is still good
       emailSent = false
     }
 
     setSubmitting(false)
     setConfirmation({
       orderNumber: orderNum,
-      fullName: get('full-name'),
-      email: get('email'),
-      phone: get('phone'),
-      address: get('address'),
-      barangay: get('barangay'),
-      city: get('city'),
-      province: get('province'),
-      postalCode: get('postal-code'),
+      fullName,
+      email,
+      phone,
+      address: streetAddress,
+      barangay: phAddr.barangay,
+      city: phAddr.city,
+      province: phAddr.province,
+      postalCode,
       paymentMethod,
       courier,
       date: dateStr,
@@ -334,6 +338,7 @@ export default function CheckoutPage() {
 
     window.scrollTo({ top: 0 })
   }
+
 
   useEffect(() => {
     if (hydrated && !isLoggedIn && !confirmation) {
@@ -508,28 +513,73 @@ export default function CheckoutPage() {
               </div>
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <FieldWrapper id="full-name" label="Full Name" error={errors.fullName} className="sm:col-span-2">
-                  <input id="full-name" type="text" autoComplete="name" className={inputClass(errors.fullName)} />
+                  <input
+                    id="full-name"
+                    type="text"
+                    autoComplete="name"
+                    value={fullName}
+                    onChange={(e) => setFullName(e.target.value)}
+                    className={inputClass(errors.fullName)}
+                    {...nameFilter}
+                  />
                 </FieldWrapper>
                 <FieldWrapper id="email" label="Email Address" error={errors.email} className="sm:col-span-2">
-                  <input id="email" type="email" autoComplete="email" className={inputClass(errors.email)} />
+                  <input
+                    id="email"
+                    type="email"
+                    autoComplete="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className={inputClass(errors.email)}
+                  />
                 </FieldWrapper>
-                <FieldWrapper id="phone" label="Phone Number" error={errors.phone} className="sm:col-span-2">
-                  <input id="phone" type="tel" inputMode="tel" autoComplete="tel" className={inputClass(errors.phone)} />
+                <div className="sm:col-span-2">
+                  <label htmlFor="phone" className="mb-1 block text-xs text-repixl-text-light/70">Phone Number</label>
+                  <PhoneInput
+                    id="phone"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    error={errors.phone}
+                    autoComplete="tel"
+                  />
+                </div>
+                <FieldWrapper id="address" label="Street Address / House No." error={errors.address} className="sm:col-span-2">
+                  <input
+                    id="address"
+                    type="text"
+                    autoComplete="street-address"
+                    value={streetAddress}
+                    onChange={(e) => setStreetAddress(e.target.value)}
+                    className={inputClass(errors.address)}
+                  />
                 </FieldWrapper>
-                <FieldWrapper id="address" label="Street Address" error={errors.address} className="sm:col-span-2">
-                  <input id="address" type="text" autoComplete="street-address" className={inputClass(errors.address)} />
-                </FieldWrapper>
-                <FieldWrapper id="barangay" label="Barangay" error={errors.barangay} className="sm:col-span-2">
-                  <input id="barangay" type="text" className={inputClass(errors.barangay)} placeholder="Enter your barangay" />
-                </FieldWrapper>
-                <FieldWrapper id="city" label="City / Municipality" error={errors.city}>
-                  <input id="city" type="text" autoComplete="address-level2" className={inputClass(errors.city)} />
-                </FieldWrapper>
-                <FieldWrapper id="province" label="Province" error={errors.province}>
-                  <input id="province" type="text" className={inputClass(errors.province)} placeholder="e.g. Metro Manila" />
-                </FieldWrapper>
+
+                {/* Cascading PH address dropdowns */}
+                <div className="sm:col-span-2">
+                  <PHAddressSelect
+                    value={phAddr}
+                    onChange={setPhAddr}
+                    errors={{
+                      province: errors.province,
+                      city: errors.city,
+                      barangay: errors.barangay,
+                    }}
+                    disabled={submitting}
+                  />
+                </div>
+
                 <FieldWrapper id="postal-code" label="Postal Code" error={errors.postalCode}>
-                  <input id="postal-code" type="text" inputMode="numeric" autoComplete="postal-code" className={inputClass(errors.postalCode)} />
+                  <input
+                    id="postal-code"
+                    type="text"
+                    inputMode="numeric"
+                    autoComplete="postal-code"
+                    maxLength={6}
+                    value={postalCode}
+                    onChange={(e) => setPostalCode(e.target.value)}
+                    className={inputClass(errors.postalCode)}
+                    {...digitsFilter}
+                  />
                 </FieldWrapper>
               </div>
             </section>
@@ -582,13 +632,15 @@ export default function CheckoutPage() {
               {paymentMethod === 'card' && (
                 <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-3">
                   <FieldWrapper id="card-number" label="Card Number" error={errors.cardNumber} className="sm:col-span-3">
-                    <input id="card-number" type="text" inputMode="numeric" placeholder="1234 5678 9012 3456" autoComplete="cc-number" className={`font-mono ${inputClass(errors.cardNumber)}`} />
+                    <input id="card-number" type="text" inputMode="numeric" placeholder="1234 5678 9012 3456" autoComplete="cc-number" maxLength={19}
+                      className={`font-mono ${inputClass(errors.cardNumber)}`} {...digitsFilter} />
                   </FieldWrapper>
                   <FieldWrapper id="card-expiry" label="Expiry Date" error={errors.cardExpiry} className="sm:col-span-2">
                     <input id="card-expiry" type="text" placeholder="MM / YY" autoComplete="cc-exp" className={`font-mono ${inputClass(errors.cardExpiry)}`} />
                   </FieldWrapper>
                   <FieldWrapper id="card-cvc" label="CVC" error={errors.cardCvc}>
-                    <input id="card-cvc" type="text" inputMode="numeric" placeholder="123" autoComplete="cc-csc" className={`font-mono ${inputClass(errors.cardCvc)}`} />
+                    <input id="card-cvc" type="text" inputMode="numeric" placeholder="123" autoComplete="cc-csc" maxLength={4}
+                      className={`font-mono ${inputClass(errors.cardCvc)}`} {...digitsFilter} />
                   </FieldWrapper>
                 </div>
               )}

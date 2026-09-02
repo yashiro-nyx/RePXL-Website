@@ -24,6 +24,7 @@
     "seed": "node_modules/.bin/tsx prisma/seed.ts"
   },
   "dependencies": {
+    "@aivangogh/ph-address": "2026.2.3",
     "@prisma/client": "5.22.0",
     "bcryptjs": "^2.4.3",
     "framer-motion": "11.11.1",

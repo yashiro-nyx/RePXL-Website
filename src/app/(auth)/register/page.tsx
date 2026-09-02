@@ -12,6 +12,7 @@ import { useAuthStore } from '@/stores/authStore'
 import { useToastStore } from '@/stores/toastStore'
 import { authService } from '@/lib/data/authService'
 import { termsContent, privacyContent } from '@/data/legal'
+import { useFilteredInput, nameChars } from '@/hooks/useFilteredInput'
 
 interface RegisterErrors {
   firstName?: string
@@ -46,6 +47,7 @@ function RegisterPage() {
   const searchParams = useSearchParams()
   const { data: nextAuthSession, status: nextAuthStatus } = useSession()
   const register = useAuthStore((s) => s.register)
+  const nameFilter = useFilteredInput(nameChars)
 
   useEffect(() => {
     const oauthMode = searchParams.get('oauth')
@@ -192,12 +194,12 @@ function RegisterPage() {
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label htmlFor="reg-first" className="mb-1.5 block text-xs font-medium text-repixl-text-light/70">First Name</label>
-            <input id="reg-first" type="text" autoComplete="given-name" className={inputClass(errors.firstName)} />
+            <input id="reg-first" type="text" autoComplete="given-name" className={inputClass(errors.firstName)} {...nameFilter} />
             {errors.firstName && <FieldError>{errors.firstName}</FieldError>}
           </div>
           <div>
             <label htmlFor="reg-last" className="mb-1.5 block text-xs font-medium text-repixl-text-light/70">Last Name</label>
-            <input id="reg-last" type="text" autoComplete="family-name" className={inputClass(errors.lastName)} />
+            <input id="reg-last" type="text" autoComplete="family-name" className={inputClass(errors.lastName)} {...nameFilter} />
             {errors.lastName && <FieldError>{errors.lastName}</FieldError>}
           </div>
         </div>
