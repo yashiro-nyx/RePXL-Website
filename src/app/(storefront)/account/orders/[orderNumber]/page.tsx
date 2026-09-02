@@ -11,12 +11,11 @@ import { useAuthStore } from '@/stores/authStore'
 import { useOrderHistoryStore, type Order } from '@/stores/orderHistoryStore'
 import { computeStepperState } from '@/lib/order-tracking'
 import { TrackingTimeline } from '@/components/tracking/TrackingTimeline'
-import { AdminControlPanel } from '@/components/tracking/AdminControlPanel'
 
 // Leaflet requires the browser — lazy-load to avoid SSR crash
 const TrackingMap = dynamic(
   () => import('@/components/tracking/TrackingMap').then((m) => ({ default: m.TrackingMap })),
-  { ssr: false, loading: () => <div className="mt-5 h-[320px] animate-pulse rounded-2xl bg-repixl-charcoal/40" /> }
+  { ssr: false, loading: () => <div className="mt-4 h-[300px] animate-pulse rounded-2xl bg-repixl-charcoal/40" /> }
 )
 
 const STEP_LABELS: Record<string, string> = {
@@ -37,7 +36,7 @@ const statusStyles: Record<string, string> = {
 export default function OrderDetailPage() {
   const { orderNumber } = useParams<{ orderNumber: string }>()
   const router = useRouter()
-  const { isLoggedIn, userEmail, role, hydrate } = useAuthStore()
+  const { isLoggedIn, userEmail, hydrate } = useAuthStore()
   const allOrders = useOrderHistoryStore((s) => s.orders)
   const [hydrated, setHydrated] = useState(false)
   const [order, setOrder] = useState<Order | null>(null)
@@ -158,27 +157,39 @@ export default function OrderDetailPage() {
                 )}
               </div>
 
-              {/* Real-time tracking timeline + map — shown for shipped/active orders */}
+              {/* ── Delivery Tracking ─────────────────────────────────── */}
               {order.status !== 'Cancelled' && (
-                <>
+                <div className="rounded-2xl border border-repixl-muted/10 bg-repixl-charcoal p-5">
+                  <p className="mb-4 font-mono text-[10px] uppercase tracking-widest text-repixl-muted">
+                    Delivery Tracking
+                  </p>
+
+                  {/* Live tracking timeline — connects via SSE */}
                   <TrackingTimeline
                     trackingNumber={order.orderNumber}
                     initialState={{
-                      status: order.status === 'Processing' ? 'Order Placed'
+                      status:
+                        order.status === 'Processing' ? 'Order Placed'
                         : order.status === 'Shipped' ? 'In Transit'
                         : order.status === 'Delivered' || order.status === 'Completed' ? 'Delivered'
                         : 'Order Placed',
-                      progress: order.status === 'Processing' ? 25
+                      progress:
+                        order.status === 'Processing' ? 25
                         : order.status === 'Shipped' ? 50
                         : order.status === 'Delivered' || order.status === 'Completed' ? 100
                         : 25,
-                      description: order.status === 'Processing'
-                        ? 'We are preparing your camera gear and checking lens optics.'
-                        : order.status === 'Shipped'
-                        ? 'Your camera is on its way to you.'
-                        : 'Your camera has been delivered. Enjoy!',
+                      description:
+                        order.status === 'Processing'
+                          ? 'We are preparing your camera gear and checking lens optics.'
+                          : order.status === 'Shipped'
+                          ? 'Your camera is on its way to you.'
+                          : 'Your camera has been delivered. Enjoy!',
                     }}
                   />
+
+                  {/* Delivery map — visible for all non-cancelled orders.
+                      Shows simulated route when In Transit / Out for Delivery / Delivered.
+                      Shows a "preparing" placeholder for Processing orders. */}
                   <TrackingMap
                     status={
                       order.status === 'Delivered' || order.status === 'Completed' ? 'Delivered'
@@ -191,7 +202,7 @@ export default function OrderDetailPage() {
                       : 25
                     }
                   />
-                </>
+                </div>
               )}
 
               {/* Items */}
@@ -219,11 +230,6 @@ export default function OrderDetailPage() {
                   <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" /><path d="M3 3v5h5" /></svg>
                   Request Return / Refund
                 </Link>
-              )}
-
-              {/* Admin: simulate shipping webhook for testing */}
-              {role === 'admin' && (
-                <AdminControlPanel trackingNumber={order.orderNumber} />
               )}
             </div>
 
