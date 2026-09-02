@@ -22,17 +22,54 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22   # Node 22 LTS — avoids the "Node 20 deprecated" warning
           cache: npm
 
       - name: Install dependencies
         run: npm ci
 
+      # ── Safety check ──────────────────────────────────────────────────────
+      # Confirm both secrets are present BEFORE passing them to Prisma.
+      # Never prints the values — only reports whether they are set.
+      - name: Validate environment variables
+        run: |
+          missing=0
+          if [ -z "$DATABASE_URL" ]; then
+            echo "ERROR: DATABASE_URL is not configured."
+            echo "Add it under: GitHub repo → Settings → Secrets and variables → Actions → New repository secret"
+            missing=1
+          else
+            echo "DATABASE_URL: present"
+          fi
+          if [ -z "$DIRECT_URL" ]; then
+            echo "ERROR: DIRECT_URL is not configured."
+            echo "Add it under: GitHub repo → Settings → Secrets and variables → Actions → New repository secret"
+            missing=1
+          else
+            echo "DIRECT_URL: present"
+          fi
+          if [ $missing -eq 1 ]; then
+            exit 1
+          fi
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DIRECT_URL: ${{ secrets.DIRECT_URL }}
+
+      # ── Apply migrations ───────────────────────────────────────────────────
+      # Uses the DIRECT (non-pooled) connection string for both vars.
+      # Prisma uses DATABASE_URL at runtime and DIRECT_URL for the migration CLI.
+      # Both are supplied here so schema validation passes for both fields.
+      #
+      # To add these secrets:
+      #   GitHub repo → Settings → Secrets and variables → Actions → New repository secret
+      #   DATABASE_URL  →  your Neon POOLED connection string
+      #   DIRECT_URL    →  your Neon DIRECT (non-pooled) connection string
+      #
+      # Obtain both from: Neon console → your project → Connection Details
+      #   Toggle "Pooled connection" on  → DATABASE_URL  (host contains -pooler)
+      #   Toggle "Pooled connection" off → DIRECT_URL    (host has no -pooler)
       - name: Apply migrations
         run: npx prisma migrate deploy
         env:
-          # Migrations use the DIRECT (non-pooled) connection string.
-          # Add this in: GitHub repo → Settings → Secrets and variables →
-          # Actions → New repository secret.
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
           DIRECT_URL: ${{ secrets.DIRECT_URL }}
-          DATABASE_URL: ${{ secrets.DIRECT_URL }}
