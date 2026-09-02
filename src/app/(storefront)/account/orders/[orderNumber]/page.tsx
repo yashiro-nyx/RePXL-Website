@@ -87,9 +87,23 @@ export default function OrderDetailPage() {
               <span>/</span>
               <span className="text-repixl-text-light/50">{order.orderNumber}</span>
             </nav>
-            <span className={`rounded-full border px-2.5 py-1 font-mono text-[10px] uppercase tracking-wider ${statusStyles[order.status] ?? ''}`}>
-              {order.status}
-            </span>
+            <div className="flex items-center gap-3">
+              <span className={`rounded-full border px-2.5 py-1 font-mono text-[10px] uppercase tracking-wider ${statusStyles[order.status] ?? ''}`}>
+                {order.status}
+              </span>
+              <button
+                type="button"
+                onClick={() => window.print()}
+                className="no-print flex items-center gap-1.5 rounded-lg border border-repixl-muted/20 px-3 py-1.5 font-mono text-[10px] uppercase tracking-wider text-repixl-muted transition-colors hover:border-repixl-muted/40 hover:text-repixl-text-light"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <polyline points="6 9 6 2 18 2 18 9" />
+                  <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
+                  <rect width="12" height="8" x="6" y="14" />
+                </svg>
+                Print Receipt
+              </button>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
@@ -202,6 +216,92 @@ export default function OrderDetailPage() {
         </Container>
       </div>
       <Footer />
+
+      {/* ── PRINT-ONLY RECEIPT ── */}
+      {/* Hidden on screen, visible only during window.print() */}
+      <div className="receipt-print-area hidden">
+        {/* Receipt header */}
+        <div style={{ textAlign: 'center', marginBottom: '24px', paddingBottom: '16px', borderBottom: '1px solid #d0d0d0' }}>
+          <p style={{ fontFamily: 'Georgia, serif', fontSize: '22px', fontWeight: 700, margin: '0 0 4px' }}>RePXL</p>
+          <p style={{ fontFamily: 'monospace', fontSize: '10px', textTransform: 'uppercase', letterSpacing: '2px', margin: 0, color: '#555' }}>Order Receipt</p>
+        </div>
+
+        {/* Order meta */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '20px', paddingBottom: '16px', borderBottom: '1px solid #d0d0d0' }}>
+          {[
+            ['Order Number', order.orderNumber],
+            ['Order Date', order.date],
+            ['Status', order.status],
+            ['Payment', order.paymentMethod],
+            ['Courier', order.courierName],
+            ['Estimate', order.courierEstimate],
+          ].map(([label, value]) => (
+            <div key={label}>
+              <p style={{ fontFamily: 'monospace', fontSize: '9px', textTransform: 'uppercase', letterSpacing: '1px', color: '#555', margin: '0 0 2px' }}>{label}</p>
+              <p style={{ fontFamily: 'monospace', fontSize: '12px', margin: 0 }}>{value}</p>
+            </div>
+          ))}
+        </div>
+
+        {/* Shipping address */}
+        <div style={{ marginBottom: '20px', paddingBottom: '16px', borderBottom: '1px solid #d0d0d0' }}>
+          <p style={{ fontFamily: 'monospace', fontSize: '9px', textTransform: 'uppercase', letterSpacing: '1px', color: '#555', margin: '0 0 8px' }}>Shipping Address</p>
+          <p style={{ fontFamily: 'sans-serif', fontSize: '13px', lineHeight: 1.6, margin: 0 }}>
+            {order.fullName}<br />
+            {order.address}<br />
+            {order.barangay && <>{order.barangay}<br /></>}
+            {order.city}{order.province ? `, ${order.province}` : ''}<br />
+            {order.postalCode}
+          </p>
+        </div>
+
+        {/* Items table */}
+        <div style={{ marginBottom: '20px', paddingBottom: '16px', borderBottom: '1px solid #d0d0d0' }}>
+          <p style={{ fontFamily: 'monospace', fontSize: '9px', textTransform: 'uppercase', letterSpacing: '1px', color: '#555', margin: '0 0 8px' }}>Order Items</p>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+            <thead>
+              <tr style={{ borderBottom: '1px solid #d0d0d0' }}>
+                <th style={{ textAlign: 'left', fontFamily: 'monospace', fontSize: '9px', textTransform: 'uppercase', letterSpacing: '1px', color: '#555', paddingBottom: '6px' }}>Item</th>
+                <th style={{ textAlign: 'center', fontFamily: 'monospace', fontSize: '9px', textTransform: 'uppercase', letterSpacing: '1px', color: '#555', paddingBottom: '6px' }}>Qty</th>
+                <th style={{ textAlign: 'right', fontFamily: 'monospace', fontSize: '9px', textTransform: 'uppercase', letterSpacing: '1px', color: '#555', paddingBottom: '6px' }}>Unit</th>
+                <th style={{ textAlign: 'right', fontFamily: 'monospace', fontSize: '9px', textTransform: 'uppercase', letterSpacing: '1px', color: '#555', paddingBottom: '6px' }}>Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              {order.items.map((item, i) => (
+                <tr key={i} style={{ borderBottom: '1px solid #ebebeb', pageBreakInside: 'avoid' }}>
+                  <td style={{ padding: '8px 0', fontFamily: 'sans-serif' }}>{item.name || item.slug}</td>
+                  <td style={{ padding: '8px 0', fontFamily: 'monospace', textAlign: 'center', color: '#555' }}>{item.stock}</td>
+                  <td style={{ padding: '8px 0', fontFamily: 'monospace', textAlign: 'right', color: '#555' }}>${item.price.toFixed(2)}</td>
+                  <td style={{ padding: '8px 0', fontFamily: 'monospace', textAlign: 'right' }}>${(item.price * item.stock).toFixed(2)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Totals */}
+        <div style={{ marginBottom: '24px' }}>
+          {[
+            ['Subtotal', `$${order.subtotal.toFixed(2)}`],
+            [`Shipping (${order.courierName})`, `$${order.shippingCost.toFixed(2)}`],
+          ].map(([label, value]) => (
+            <div key={label} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px', fontFamily: 'sans-serif', fontSize: '13px', color: '#555' }}>
+              <span>{label}</span><span style={{ fontFamily: 'monospace' }}>{value}</span>
+            </div>
+          ))}
+          <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: '8px', borderTop: '1px solid #d0d0d0', fontFamily: 'sans-serif', fontSize: '15px', fontWeight: 700 }}>
+            <span>Total</span>
+            <span style={{ fontFamily: 'monospace' }}>${order.total.toFixed(2)}</span>
+          </div>
+        </div>
+
+        {/* Receipt footer */}
+        <div style={{ textAlign: 'center', paddingTop: '16px', borderTop: '1px solid #d0d0d0' }}>
+          <p style={{ fontFamily: 'monospace', fontSize: '9px', textTransform: 'uppercase', letterSpacing: '2px', color: '#555', margin: '0 0 4px' }}>Thank you for shopping with RePXL</p>
+          <p style={{ fontFamily: 'sans-serif', fontSize: '10px', color: '#888', margin: 0 }}>Vintage Digital Cameras · Condition-graded · Serial-verified</p>
+        </div>
+      </div>
     </>
   )
 }

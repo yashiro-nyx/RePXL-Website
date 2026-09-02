@@ -168,6 +168,11 @@ body.scroll-locked {
     visibility: visible !important;
   }
 
+  /* Un-hide the print-only receipt div (screen uses display:none via .hidden) */
+  .receipt-print-area.hidden {
+    display: block !important;
+  }
+
   /* Hide elements explicitly marked no-print */
   .no-print {
     display: none !important;
@@ -216,15 +221,26 @@ body.scroll-locked {
     color: #c22c2c !important;
   }
 
-  /* 8. Tables */
+  /* 8. Tables — prevent rows from splitting across pages */
   .receipt-print-area table {
     width: 100% !important;
     border-collapse: collapse !important;
   }
 
+  .receipt-print-area tr {
+    page-break-inside: avoid !important;
+  }
+
+  .receipt-print-area thead {
+    display: table-header-group !important;
+  }
+
   @page {
     margin: 12mm;
     size: A4;
+    /* Remove browser-default header/footer (URL, date, page number) */
+    margin-top: 10mm;
+    margin-bottom: 10mm;
   }
 }
 

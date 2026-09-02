@@ -255,8 +255,13 @@ async function sendConfirmationEmail(order: OrderWithItemsAndUser): Promise<void
     return `  ${name} ×${item.quantity} @ $${item.price.toFixed(2)} = $${(item.price * item.quantity).toFixed(2)}`
   }).join('\n')
 
-  const transporter = createTransporter()
-  await transporter.sendMail({
+  // Retry up to 3 times for transient SMTP failures
+  const maxAttempts = 3
+  let lastErr: unknown
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      const transporter = createTransporter()
+      await transporter.sendMail({
     from: `"RePXL" <${process.env.GMAIL_USER}>`,
     to: email,
     subject: `Order Confirmed — ${order.orderNumber}`,
@@ -378,7 +383,15 @@ async function sendConfirmationEmail(order: OrderWithItemsAndUser): Promise<void
 </body>
 </html>`,
     text: `ORDER CONFIRMED — ${order.orderNumber}\n\nThank you, ${order.fullName}. Your payment was received.\n\nOrder: ${order.orderNumber}\nDate: ${dateStr}\nPayment: ${order.paymentMethod}\nStatus: Paid & Processing\n\nItems:\n${itemsText}\n\nSubtotal: $${order.subtotal.toFixed(2)}\nShipping (${order.courierName}): $${order.shippingCost.toFixed(2)}\nTotal: $${order.total.toFixed(2)}\n\nShip to:\n${order.fullName}\n${order.address}\n${order.barangay}\n${order.city}, ${order.province} ${order.postalCode}\n\n© ${new Date().getFullYear()} RePXL`,
-  })
-
-  console.log(`[paymongo webhook] confirmation email sent to ${email} for order ${order.orderNumber}`)
+      })
+      console.log(`[paymongo webhook] confirmation email sent to ${email} for order ${order.orderNumber} (attempt ${attempt})`)
+      return // success — stop retrying
+    } catch (err) {
+      lastErr = err
+      console.warn(`[paymongo webhook] email attempt ${attempt}/${maxAttempts} failed for ${order.orderNumber}:`, err)
+      if (attempt < maxAttempts) await new Promise((r) => setTimeout(r, 1000 * attempt))
+    }
+  }
+  // All attempts exhausted — surface the error so the caller's .catch() logs it
+  throw lastErr
 }
