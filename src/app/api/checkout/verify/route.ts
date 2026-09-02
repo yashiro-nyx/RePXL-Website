@@ -11,7 +11,7 @@ import {
   retrievePaymentIntent,
 } from '@/lib/paymongo'
 import { emitNotification } from '@/lib/notifications'
-import { createTransporter, isMailerConfigured } from '@/lib/mailer'
+import { sendOrderConfirmationEmail } from '@/lib/order-email'
 
 export const dynamic = 'force-dynamic'
 
@@ -159,6 +159,7 @@ interface OrderWithItemsAndUser {
   paymentMethod: string
   subtotal: number
   shippingCost: number
+  discount: number
   total: number
   courierName: string
   fullName: string
@@ -257,45 +258,32 @@ async function finalizeOrder(order: OrderWithItemsAndUser): Promise<void> {
       userId: order.userId,
       event: 'ORDER_CONFIRMATION',
       subject: `Order Confirmed — ${order.orderNumber}`,
-      body: `Your order ${order.orderNumber} has been confirmed. Total: ${order.total}`,
+      body: `Your order ${order.orderNumber} has been confirmed. Total: $${order.total.toFixed(2)}`,
       channel: 'BOTH',
       recipientEmail: userEmail,
     }).catch((err) => {
       console.error(`[CHECKOUT verify] Notification failed (non-fatal):`, err)
     })
 
-    sendConfirmationEmail(order).catch((err) => {
+    sendOrderConfirmationEmail({
+      orderNumber: order.orderNumber,
+      createdAt: order.createdAt,
+      fullName: order.fullName,
+      address: order.address,
+      barangay: order.barangay,
+      city: order.city,
+      province: order.province,
+      postalCode: order.postalCode,
+      paymentMethod: order.paymentMethod,
+      courierName: order.courierName,
+      subtotal: order.subtotal,
+      shippingCost: order.shippingCost,
+      discount: order.discount,
+      total: order.total,
+      items: order.items,
+      userEmail,
+    }).catch((err) => {
       console.error(`[CHECKOUT verify] Confirmation email failed (non-fatal):`, err)
     })
-  }
-}
-
-async function sendConfirmationEmail(order: OrderWithItemsAndUser): Promise<void> {
-  if (!isMailerConfigured()) return
-  const email = order.user?.email
-  if (!email) return
-
-  const safe = (s: string) =>
-    String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-
-  const dateStr = order.createdAt.toLocaleDateString('en-US', {
-    year: 'numeric', month: 'long', day: 'numeric',
-  })
-
-  const itemText = order.items
-    .map((i) => `  ${i.product?.name ?? 'Product'} ×${i.quantity} @ $${i.price.toFixed(2)}`)
-    .join('\n')
-
-  try {
-    const transporter = createTransporter()
-    await transporter.sendMail({
-      from: `"RePXL" <${process.env.GMAIL_USER}>`,
-      to: email,
-      subject: `Order Confirmed — ${order.orderNumber}`,
-      text: `ORDER CONFIRMED — ${order.orderNumber}\n\nThank you, ${order.fullName}.\n\nItems:\n${itemText}\n\nTotal: $${order.total.toFixed(2)}\nShipping (${order.courierName}): $${order.shippingCost.toFixed(2)}\n\nShip to:\n${order.fullName}\n${order.address}, ${order.barangay}\n${order.city}, ${order.province} ${order.postalCode}\n\n© ${new Date().getFullYear()} RePXL`,
-    })
-    console.log(`[CHECKOUT verify] Confirmation email sent to ${email}`)
-  } catch (err) {
-    throw err
   }
 }
