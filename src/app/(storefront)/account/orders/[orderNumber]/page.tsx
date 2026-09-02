@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
 import { Container } from '@/components/layout/Container'
 import { Footer } from '@/components/layout/Footer'
-import { Button } from '@/components/ui'
+import { Button, PageLoader } from '@/components/ui'
 import { useAuthStore } from '@/stores/authStore'
 import { useOrderHistoryStore, type Order } from '@/stores/orderHistoryStore'
 import { computeStepperState } from '@/lib/order-tracking'
@@ -51,7 +51,8 @@ export default function OrderDetailPage() {
     setOrder(found)
   }, [hydrated, isLoggedIn, allOrders, orderNumber, userEmail, router])
 
-  if (!hydrated || !isLoggedIn) return null
+  if (!hydrated || !isLoggedIn) return <PageLoader label="Loading order…" />
+  if (!order) return null
 
   if (notFound) {
     return (

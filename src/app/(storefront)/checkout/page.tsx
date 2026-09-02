@@ -6,7 +6,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
 import { Container } from '@/components/layout/Container'
-import { Button, ConditionBadge, LegalModal } from '@/components/ui'
+import { Button, ConditionBadge, LegalModal, PageLoader } from '@/components/ui'
 import { PhoneInput } from '@/components/ui/PhoneInput'
 import { emptyPHAddress, type PHAddressValue } from '@/components/ui/PHAddressSelect'
 import { MinimalFooter } from '@/components/layout/MinimalFooter'
@@ -546,7 +546,7 @@ export default function CheckoutPage() {
     )
   }
 
-  if (!hydrated || !isLoggedIn) return null
+  if (!hydrated || !isLoggedIn) return <PageLoader label="Loading checkout…" />
 
   // ─── ORDER REVIEW STEP ───
   if (checkoutStep === 'review') {

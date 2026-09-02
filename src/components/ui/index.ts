@@ -7,6 +7,7 @@ export { FilmStripLoader } from './FilmStripLoader'
 export { LegalModal } from './LegalModal'
 export { LoginRequiredModal } from './LoginRequiredModal'
 export { LogoutConfirmModal } from './LogoutConfirmModal'
+export { PageLoader, InlineLoader } from './PageLoader'
 export { PasswordInput } from './PasswordInput'
 // PHAddressSelect and PhoneInput are NOT re-exported here — they must be imported
 // directly from their own files to keep the address dataset (~840KB) out of the

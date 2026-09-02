@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Container } from '@/components/layout/Container'
 import { Footer } from '@/components/layout/Footer'
-import { Button } from '@/components/ui'
+import { Button, PageLoader } from '@/components/ui'
 import { useAuthStore } from '@/stores/authStore'
 import { useOrderHistoryStore } from '@/stores/orderHistoryStore'
 
@@ -35,7 +35,7 @@ export default function OrderHistoryPage() {
     if (hydrated && !isLoggedIn) router.push('/login')
   }, [hydrated, isLoggedIn, router])
 
-  if (!hydrated || !isLoggedIn) return null
+  if (!hydrated || !isLoggedIn) return <PageLoader label="Loading orders…" />
 
   const orders = [...allOrders]
     .filter((o) => o.userEmail === userEmail)

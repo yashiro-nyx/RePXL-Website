@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Container } from '@/components/layout/Container'
 import { Footer } from '@/components/layout/Footer'
-import { Button } from '@/components/ui'
+import { Button, PageLoader, InlineLoader } from '@/components/ui'
 import { useAuthStore } from '@/stores/authStore'
 
 interface Notification {
@@ -61,7 +61,9 @@ export default function NotificationCenterPage() {
     setMarkingAll(false)
   }
 
-  if (!hydrated || !isLoggedIn) return null
+  if (!hydrated || !isLoggedIn) return <PageLoader label="Loading notifications…" />
+
+  if (loading) return <InlineLoader label="Loading notifications…" className="min-h-screen" />
 
   return (
     <>

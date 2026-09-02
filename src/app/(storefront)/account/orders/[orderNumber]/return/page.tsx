@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
 import { Container } from '@/components/layout/Container'
 import { Footer } from '@/components/layout/Footer'
-import { Button } from '@/components/ui'
+import { Button, PageLoader } from '@/components/ui'
 import { useAuthStore } from '@/stores/authStore'
 import { useOrderHistoryStore } from '@/stores/orderHistoryStore'
 
@@ -67,7 +67,7 @@ export default function ReturnRequestPage() {
     setSubmitting(false)
   }
 
-  if (!hydrated || !isLoggedIn) return null
+  if (!hydrated || !isLoggedIn) return <PageLoader label="Loading…" />
 
   if (!order) {
     return (
