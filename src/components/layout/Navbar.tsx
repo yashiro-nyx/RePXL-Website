@@ -20,6 +20,7 @@ export function Navbar() {
   const [loginModalOpen, setLoginModalOpen] = useState(false)
   const [logoutModalOpen, setLogoutModalOpen] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [authHydrated, setAuthHydrated] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
   const profileRef = useRef<HTMLDivElement>(null)
   const router = useRouter()
@@ -30,11 +31,16 @@ export function Navbar() {
   const cartCount = useCartStore((s) => s.items.reduce((sum, i) => sum + i.quantity, 0))
   const wishlistCount = useWishlistStore((s) => s.slugs.length)
 
-  // Hydrate all stores from localStorage on mount
+  // Await auth hydration before revealing auth-dependent UI — prevents the
+  // logged-out flash on page refresh while the session is still being read.
   useEffect(() => {
-    hydrate()
-    useCartStore.getState().hydrate()
-    useWishlistStore.getState().hydrate()
+    const init = async () => {
+      await hydrate()
+      useCartStore.getState().hydrate()
+      useWishlistStore.getState().hydrate()
+      setAuthHydrated(true)
+    }
+    void init()
   }, [hydrate])
 
   // Re-hydrate per-user stores when login state changes
@@ -182,31 +188,36 @@ export function Navbar() {
               )}
             </button>
 
-            {/* Profile / Account */}
+            {/* Profile / Account — neutral placeholder until auth hydrates */}
             <div className="relative" ref={profileRef}>
-              <button
-                type="button"
-                aria-label={isLoggedIn ? 'Account menu' : 'Sign in'}
-                onClick={handleProfileClick}
-                className={`flex h-8 w-8 items-center justify-center rounded-full transition-colors ${
-                  isLoggedIn
-                    ? 'bg-repixl-red/20'
-                    : 'text-repixl-text-light/80 hover:text-repixl-text-light'
-                }`}
-              >
-                {isLoggedIn ? (
-                  <span className="font-display text-xs font-bold text-repixl-red">
-                    {`${firstName?.[0] || ''}${lastName?.[0] || ''}`.toUpperCase() || '?'}
-                  </span>
-                ) : (
-                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" />
-                  </svg>
-                )}
-              </button>
+              {!authHydrated ? (
+                // Neutral skeleton — prevents logged-out icon flash on refresh
+                <div className="h-8 w-8 rounded-full bg-repixl-muted/10" aria-hidden="true" />
+              ) : (
+                <button
+                  type="button"
+                  aria-label={isLoggedIn ? 'Account menu' : 'Sign in'}
+                  onClick={handleProfileClick}
+                  className={`flex h-8 w-8 items-center justify-center rounded-full transition-colors ${
+                    isLoggedIn
+                      ? 'bg-repixl-red/20'
+                      : 'text-repixl-text-light/80 hover:text-repixl-text-light'
+                  }`}
+                >
+                  {isLoggedIn ? (
+                    <span className="font-display text-xs font-bold text-repixl-red">
+                      {`${firstName?.[0] || ''}${lastName?.[0] || ''}`.toUpperCase() || '?'}
+                    </span>
+                  ) : (
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" />
+                    </svg>
+                  )}
+                </button>
+              )}
 
-              {/* Dropdown */}
-              {profileOpen && isLoggedIn && (
+              {/* Dropdown — only visible after hydration + login */}
+              {authHydrated && profileOpen && isLoggedIn && (
                 <div className="absolute right-0 top-full mt-2 w-56 rounded-lg border border-repixl-muted/20 bg-repixl-bg p-3 shadow-xl">
                   <div className="mb-3 border-b border-repixl-muted/10 pb-3">
                     <p className="text-sm font-medium text-repixl-text-light">{firstName} {lastName}</p>

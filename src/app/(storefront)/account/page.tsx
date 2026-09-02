@@ -53,14 +53,17 @@ export default function AccountPage() {
   const { fadeUp, reducedMotion } = useRevealAnimation()
 
   useEffect(() => {
-    hydrate()
-    useAddressStore.getState().hydrate()
-    usePaymentStore.getState().hydrate()
-    useOrderHistoryStore.getState().hydrate()
-    useReviewStore.getState().hydrate()
-    useWishlistStore.getState().hydrate()
-    useCartStore.getState().hydrate()
-    setHydrated(true)
+    const init = async () => {
+      await hydrate()
+      useAddressStore.getState().hydrate()
+      usePaymentStore.getState().hydrate()
+      useOrderHistoryStore.getState().hydrate()
+      useReviewStore.getState().hydrate()
+      useWishlistStore.getState().hydrate()
+      useCartStore.getState().hydrate()
+      setHydrated(true)
+    }
+    void init()
   }, [hydrate])
 
   useEffect(() => {
