@@ -1,6 +1,7 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import Link from 'next/link'
 import { Button } from './Button'
 import { useScrollLock } from '@/hooks/useScrollLock'
@@ -12,7 +13,9 @@ interface LoginRequiredModalProps {
 
 export function LoginRequiredModal({ isOpen, onClose }: LoginRequiredModalProps) {
   const overlayRef = useRef<HTMLDivElement>(null)
+  const [mounted, setMounted] = useState(false)
 
+  useEffect(() => { setMounted(true) }, [])
   useScrollLock(isOpen)
 
   useEffect(() => {
@@ -41,10 +44,10 @@ export function LoginRequiredModal({ isOpen, onClose }: LoginRequiredModalProps)
     }
   }, [isOpen, onClose])
 
-  if (!isOpen) return null
+  if (!isOpen || !mounted) return null
 
-  return (
-    <div ref={overlayRef} role="dialog" aria-modal="true" aria-label="Login required" className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+  return createPortal(
+    <div ref={overlayRef} role="dialog" aria-modal="true" aria-label="Login required" className="fixed inset-0 z-[200] flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} aria-hidden="true" />
       <div className="relative w-full max-w-sm rounded-lg border border-repixl-muted/20 bg-repixl-bg p-6 shadow-2xl">
         {/* Close button */}
@@ -84,6 +87,7 @@ export function LoginRequiredModal({ isOpen, onClose }: LoginRequiredModalProps)
           </Link>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }

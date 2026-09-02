@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import dynamic from 'next/dynamic'
+import { createPortal } from 'react-dom'
 import { motion } from 'framer-motion'
 import { Container } from '@/components/layout/Container'
 import { Footer } from '@/components/layout/Footer'
@@ -30,8 +31,10 @@ const CameraFilterDemo = dynamic(
 
 function FilterDemoButton({ brand, model, slug }: { brand: string; model: string; slug: string }) {
   const [open, setOpen] = useState(false)
+  const [mounted, setMounted] = useState(false)
   const profile = getColorProfile(brand, slug)
 
+  useEffect(() => { setMounted(true) }, [])
   useScrollLock(open)
 
   return (
@@ -52,21 +55,48 @@ function FilterDemoButton({ brand, model, slug }: { brand: string; model: string
           <path d="M5 12h14" /><path d="m12 5 7 7-7 7" />
         </svg>
       </button>
-      {open && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-xl rounded-xl border border-repixl-muted/20 bg-repixl-charcoal p-5 shadow-2xl">
-            <div className="mb-4 flex items-center justify-between">
+
+      {/* Portal modal — renders on document.body, never trapped by parent transforms */}
+      {open && mounted && createPortal(
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Try the Look — camera color preview"
+          className="fixed inset-0 z-[200] flex items-center justify-center p-4 sm:p-6"
+        >
+          {/* Backdrop */}
+          <div
+            className="absolute inset-0 bg-black/80 backdrop-blur-sm"
+            onClick={() => setOpen(false)}
+            aria-hidden="true"
+          />
+
+          {/* Modal panel — sticky header/footer, scrollable body */}
+          <div className="relative flex max-h-[90vh] w-full max-w-xl flex-col rounded-2xl border border-repixl-muted/20 bg-repixl-charcoal shadow-2xl">
+            {/* Sticky header */}
+            <div className="flex flex-shrink-0 items-center justify-between border-b border-repixl-muted/10 px-5 py-4">
               <div>
                 <h2 className="font-display text-lg font-semibold text-repixl-text-light">Try the Look</h2>
                 <p className="font-mono text-[10px] uppercase tracking-wider text-repixl-muted">{profile.name}</p>
               </div>
-              <button onClick={() => setOpen(false)} className="flex h-8 w-8 items-center justify-center rounded-lg text-repixl-muted hover:bg-repixl-bg hover:text-repixl-text-light">
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg>
+              <button
+                onClick={() => setOpen(false)}
+                aria-label="Close filter demo"
+                className="flex h-8 w-8 items-center justify-center rounded-lg text-repixl-muted transition-colors hover:bg-repixl-bg hover:text-repixl-text-light"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M18 6 6 18" /><path d="m6 6 12 12" />
+                </svg>
               </button>
             </div>
-            <CameraFilterDemo brand={brand} model={model} slug={slug} />
+
+            {/* Scrollable content area */}
+            <div className="flex-1 overflow-y-auto px-5 py-4">
+              <CameraFilterDemo brand={brand} model={model} slug={slug} />
+            </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </>
   )
@@ -289,9 +319,14 @@ export default function ProductDetailPage() {
 
             <LoginRequiredModal isOpen={loginModalOpen} onClose={() => setLoginModalOpen(false)} />
 
-            {/* Compare confirmation modal */}
-            {compareModal && (
-              <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+            {/* Compare confirmation modal — portaled to escape Framer Motion stacking context */}
+            {compareModal && createPortal(
+              <div
+                role="dialog"
+                aria-modal="true"
+                aria-label="Compare action"
+                className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
+              >
                 <div className="w-full max-w-sm rounded-xl border border-repixl-muted/20 bg-repixl-charcoal p-6 shadow-2xl">
                   {compareModal === 'added' ? (
                     <>
@@ -319,7 +354,8 @@ export default function ProductDetailPage() {
                     </>
                   )}
                 </div>
-              </div>
+              </div>,
+              document.body
             )}
             {toast && <CompareToast message={toast.message} type={toast.type} visible={!!toast} onDismiss={() => setToast(null)} />}
 

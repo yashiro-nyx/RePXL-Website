@@ -1,6 +1,7 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { Button } from './Button'
 import { useScrollLock } from '@/hooks/useScrollLock'
 
@@ -16,7 +17,9 @@ interface LogoutConfirmModalProps {
  */
 export function LogoutConfirmModal({ isOpen, onCancel, onConfirm }: LogoutConfirmModalProps) {
   const overlayRef = useRef<HTMLDivElement>(null)
+  const [mounted, setMounted] = useState(false)
 
+  useEffect(() => { setMounted(true) }, [])
   useScrollLock(isOpen)
 
   useEffect(() => {
@@ -49,10 +52,11 @@ export function LogoutConfirmModal({ isOpen, onCancel, onConfirm }: LogoutConfir
     return () => document.removeEventListener('keydown', handleKeyDown)
   }, [isOpen, onCancel])
 
-  if (!isOpen) return null
+  if (!isOpen || !mounted) return null
 
-  return (
-    /* Full-viewport overlay — fixed + flex center both axes */
+  return createPortal(
+    /* Full-viewport overlay — portaled to document.body so Framer Motion
+       transforms on parent pages never trap this fixed overlay */
     <div
       ref={overlayRef}
       role="dialog"
@@ -152,6 +156,7 @@ export function LogoutConfirmModal({ isOpen, onCancel, onConfirm }: LogoutConfir
           </Button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }
