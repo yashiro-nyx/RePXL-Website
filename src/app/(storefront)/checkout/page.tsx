@@ -316,6 +316,9 @@ export default function CheckoutPage() {
           courierEstimate: courier.estimate,
           paymentMethod: paymentLabels[paymentMethod],
           shippingCost: courier.price,
+          // Pass selected product slugs so the server creates the order from
+          // ONLY these items — not the customer's entire DB cart.
+          selectedProductIds: cartItems.map((i) => i.product.slug),
         })
 
         const pmTypeMap: Record<PaymentMethod, string> = {

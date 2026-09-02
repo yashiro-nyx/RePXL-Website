@@ -49,10 +49,22 @@ export async function POST(request: NextRequest) {
     const data = parsed.data
 
     const cartItems = await prisma.cartItem.findMany({
-      where: { userId: user.id },
+      where: {
+        userId: user.id,
+        // If the client sent a list of selected product slugs, restrict the
+        // DB cart query to only those products. The server resolves slugs →
+        // productIds internally so we never trust client-supplied prices.
+        ...(data.selectedProductIds && data.selectedProductIds.length > 0
+          ? {
+              product: {
+                slug: { in: data.selectedProductIds },
+              },
+            }
+          : {}),
+      },
       include: { product: true },
     })
-    if (cartItems.length === 0) return errorResponse('Cart is empty', 400)
+    if (cartItems.length === 0) return errorResponse('No matching items found in cart. Please go back and re-select your items.', 400)
 
     for (const item of cartItems) {
       if (item.product.stock < item.quantity) {

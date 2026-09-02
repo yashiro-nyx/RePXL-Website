@@ -65,6 +65,8 @@ export async function startPaymentIntent(input: {
   paymentMethod: string
   voucherCode?: string | null
   shippingCost: number
+  /** Product IDs the customer selected — server filters the DB cart to only these. */
+  selectedProductIds?: string[]
 }): Promise<PaymentIntentResponse> {
   return apiClient.post<PaymentIntentResponse>('/api/checkout/payment-intent', input)
 }

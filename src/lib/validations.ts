@@ -74,6 +74,11 @@ export const createOrderSchema = z.object({
   paymentMethod: z.string().min(1, 'Payment method is required'),
   voucherCode: z.string().optional().nullable(),
   shippingCost: z.number().min(0),
+  // Selected product IDs: client sends the subset the customer chose on the
+  // cart page. Server validates ownership (userId) and ignores any IDs that
+  // don't belong to the user's cart. If omitted, falls back to the full cart
+  // (backward-compatible for the fallback direct-order flow).
+  selectedProductIds: z.array(z.string().min(1)).min(1, 'Select at least one item').optional(),
 })
 
 export const updateOrderStatusSchema = z.object({
