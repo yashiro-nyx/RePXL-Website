@@ -20,6 +20,8 @@ import { useFilteredInput, nameChars, digitsOnly } from '@/hooks/useFilteredInpu
 import { validatePHPhone } from '@/components/ui/PhoneInput'
 import { isPaymongoEnabled, startPaymentIntent } from '@/lib/data/checkoutService'
 import { usePaymentProcessor } from '@/components/checkout/PaymentProcessor'
+import { CardNumberInput } from '@/components/ui/CardNumberInput'
+import { CardExpiryInput } from '@/components/ui/CardExpiryInput'
 import { termsContent, privacyContent } from '@/data/legal'
 import type { Product, CartItem } from '@/types'
 
@@ -143,6 +145,11 @@ export default function CheckoutPage() {
   const [postalCode, setPostalCode] = useState('')
   const [phAddr, setPhAddr] = useState<PHAddressValue>(emptyPHAddress)
 
+  // ── Card field state (auto-formatted, controlled) ──
+  const [cardNumber, setCardNumber] = useState('') // raw digits only
+  const [cardExpiry, setCardExpiry] = useState('') // formatted "MM/YY"
+  const [cardCvc, setCardCvc] = useState('')        // raw digits
+
   const [hydrated, setHydrated] = useState(false)
   const [confirmation, setConfirmation] = useState<OrderConfirmation | null>(null)
   const [submitting, setSubmitting] = useState(false)
@@ -218,10 +225,10 @@ export default function CheckoutPage() {
 
     // Card fields
     if (paymentMethod === 'card') {
-      if (!isValidCardNumber(get('card-number'))) errs.cardNumber = 'Enter a valid 16-digit card number.'
-      const expiryRaw = get('card-expiry').replace(/\s/g, '')
+      if (!isValidCardNumber(cardNumber)) errs.cardNumber = 'Enter a valid 16-digit card number.'
+      const expiryRaw = cardExpiry.replace(/\s/g, '')
       if (!isValidExpiry(expiryRaw)) errs.cardExpiry = 'Enter a valid, non-expired date (MM/YY).'
-      if (!isValidCvc(get('card-cvc'))) errs.cardCvc = 'Enter a valid 3 or 4-digit CVC.'
+      if (!isValidCvc(cardCvc)) errs.cardCvc = 'Enter a valid 3 or 4-digit CVC.'
     }
 
     if (!agreeTerms) errs.agreeTerms = 'You must agree to the Terms of Service and Privacy Policy.'
@@ -310,17 +317,17 @@ export default function CheckoutPage() {
           returnUrl,
           type: pmTypeMap[paymentMethod] as 'card' | 'gcash' | 'grab_pay' | 'paymaya',
           card: paymentMethod === 'card' ? {
-            cardNumber: get('card-number'),
+            cardNumber,
             expMonth: (() => {
-              const raw = get('card-expiry').replace(/\s/g, '')
+              const raw = cardExpiry.replace(/\s/g, '')
               return parseInt(raw.split('/')[0] ?? '1', 10)
             })(),
             expYear: (() => {
-              const raw = get('card-expiry').replace(/\s/g, '')
+              const raw = cardExpiry.replace(/\s/g, '')
               const yy = parseInt(raw.split('/')[1] ?? '30', 10)
               return yy < 100 ? yy + 2000 : yy
             })(),
-            cvc: get('card-cvc'),
+            cvc: cardCvc,
             cardholderName: get('cardholder-name') || fullName,
             billingEmail: email,
             billingPhone: phone,
@@ -693,21 +700,67 @@ export default function CheckoutPage() {
               </fieldset>
               {paymentMethod === 'card' && (
                 <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-3">
+                  {/* Cardholder name */}
                   <FieldWrapper id="cardholder-name" label="Cardholder Name" error={undefined} className="sm:col-span-3">
-                    <input id="cardholder-name" type="text" placeholder="As shown on card" autoComplete="cc-name"
+                    <input
+                      id="cardholder-name"
+                      type="text"
+                      placeholder="As shown on card"
+                      autoComplete="cc-name"
                       defaultValue={fullName}
-                      className={`font-mono ${inputClass()}`} {...nameFilter} />
+                      className={`font-mono ${inputClass()}`}
+                      disabled={submitting || paymentProcessing}
+                      {...nameFilter}
+                    />
                   </FieldWrapper>
-                  <FieldWrapper id="card-number" label="Card Number" error={errors.cardNumber} className="sm:col-span-3">
-                    <input id="card-number" type="text" inputMode="numeric" placeholder="1234 5678 9012 3456" autoComplete="cc-number" maxLength={19}
-                      className={`font-mono ${inputClass(errors.cardNumber)}`} {...digitsFilter} />
-                  </FieldWrapper>
-                  <FieldWrapper id="card-expiry" label="Expiry (MM/YY)" error={errors.cardExpiry} className="sm:col-span-2">
-                    <input id="card-expiry" type="text" placeholder="MM / YY" autoComplete="cc-exp" className={`font-mono ${inputClass(errors.cardExpiry)}`} />
-                  </FieldWrapper>
+
+                  {/* Card number — auto-formats as XXXX XXXX XXXX XXXX */}
+                  <div className="sm:col-span-3">
+                    <label htmlFor="card-number" className="mb-1 block text-xs text-repixl-text-light/70">
+                      Card Number
+                    </label>
+                    <CardNumberInput
+                      id="card-number"
+                      value={cardNumber}
+                      onChange={setCardNumber}
+                      error={errors.cardNumber}
+                      autoComplete="cc-number"
+                      className={`font-mono ${inputClass(errors.cardNumber)}`}
+                      disabled={submitting || paymentProcessing}
+                    />
+                  </div>
+
+                  {/* Expiry — auto-inserts "/" after month */}
+                  <div className="sm:col-span-2">
+                    <label htmlFor="card-expiry" className="mb-1 block text-xs text-repixl-text-light/70">
+                      Expiry (MM/YY)
+                    </label>
+                    <CardExpiryInput
+                      id="card-expiry"
+                      value={cardExpiry}
+                      onChange={setCardExpiry}
+                      error={errors.cardExpiry}
+                      autoComplete="cc-exp"
+                      className={`font-mono ${inputClass(errors.cardExpiry)}`}
+                      disabled={submitting || paymentProcessing}
+                    />
+                  </div>
+
+                  {/* CVC — digits only, max 4 */}
                   <FieldWrapper id="card-cvc" label="CVC" error={errors.cardCvc}>
-                    <input id="card-cvc" type="text" inputMode="numeric" placeholder="123" autoComplete="cc-csc" maxLength={4}
-                      className={`font-mono ${inputClass(errors.cardCvc)}`} {...digitsFilter} />
+                    <input
+                      id="card-cvc"
+                      type="text"
+                      inputMode="numeric"
+                      placeholder="123"
+                      autoComplete="cc-csc"
+                      maxLength={4}
+                      value={cardCvc}
+                      onChange={(e) => setCardCvc(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                      className={`font-mono ${inputClass(errors.cardCvc)}`}
+                      disabled={submitting || paymentProcessing}
+                      {...digitsFilter}
+                    />
                   </FieldWrapper>
                 </div>
               )}
