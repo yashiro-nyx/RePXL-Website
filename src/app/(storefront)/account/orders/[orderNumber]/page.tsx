@@ -196,15 +196,18 @@ export default function OrderDetailPage() {
   const enumStatus = statusMap[order.status] as any
   const stepper = computeStepperState(enumStatus)
 
-  // Map status → tracking map props
+  // Map status → tracking map props — use real DB deliveryStatus if available
+  const dbDeliveryStatus = order.deliveryStatus ?? ''
   const mapStatus =
-    order.status === 'Delivered' || order.status === 'Completed' ? 'Delivered'
-    : order.status === 'Shipped' ? 'Out for Delivery'
+    dbDeliveryStatus === 'Delivered' || order.status === 'Delivered' || order.status === 'Completed' ? 'Delivered'
+    : dbDeliveryStatus === 'Out for Delivery' ? 'Out for Delivery'
+    : dbDeliveryStatus === 'In Transit' || order.status === 'Shipped' ? 'In Transit'
     : 'Order Placed'
 
   const mapProgress =
-    order.status === 'Delivered' || order.status === 'Completed' ? 100
-    : order.status === 'Shipped' ? 75
+    dbDeliveryStatus === 'Delivered' || order.status === 'Delivered' || order.status === 'Completed' ? 100
+    : dbDeliveryStatus === 'Out for Delivery' ? 75
+    : dbDeliveryStatus === 'In Transit' || order.status === 'Shipped' ? 50
     : 25
 
   const cancellable = order.status === 'Processing'
@@ -290,22 +293,28 @@ export default function OrderDetailPage() {
                   <TrackingTimeline
                     trackingNumber={order.orderNumber}
                     initialState={{
-                      status:
+                      // Prefer real DB tracking fields; fall back to status-derived values
+                      // so orders placed before the tracking system existed still show
+                      // a sensible initial state.
+                      status: order.deliveryStatus ?? (
                         order.status === 'Processing' ? 'Order Placed'
                         : order.status === 'Shipped' ? 'In Transit'
                         : order.status === 'Delivered' || order.status === 'Completed' ? 'Delivered'
-                        : 'Order Placed',
-                      progress:
+                        : 'Order Placed'
+                      ),
+                      progress: order.trackingProgress ?? (
                         order.status === 'Processing' ? 25
                         : order.status === 'Shipped' ? 50
                         : order.status === 'Delivered' || order.status === 'Completed' ? 100
-                        : 25,
-                      description:
+                        : 25
+                      ),
+                      description: order.trackingDescription ?? (
                         order.status === 'Processing'
                           ? 'We are preparing your camera gear and checking lens optics.'
                           : order.status === 'Shipped'
                           ? 'Your camera is on its way to you.'
-                          : 'Your camera has been delivered. Enjoy!',
+                          : 'Your camera has been delivered. Enjoy!'
+                      ),
                     }}
                   />
                   <TrackingMap status={mapStatus} progress={mapProgress} />

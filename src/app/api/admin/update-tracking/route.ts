@@ -77,6 +77,9 @@ export async function POST(request: NextRequest) {
     updated = await prisma.order.updateMany({
       where: { orderNumber: orderNumber.trim() },
       data: {
+        // Use the orderNumber as the tracking number so the SSE stream
+        // (which queries by tracking_number) can find this order.
+        trackingNumber: orderNumber.trim(),
         deliveryStatus: tracking.deliveryStatus,
         trackingProgress: tracking.trackingProgress,
         trackingDescription: tracking.trackingDescription,

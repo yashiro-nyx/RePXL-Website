@@ -129,9 +129,17 @@ function OrderRow({ order, updateStatus, onArchive, onView }: {
   onArchive: () => void
   onView: () => void
 }) {
-  const handleStatusChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+  const handleStatusChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
     const newStatus = e.target.value as Order['status']
-    if (newStatus !== order.status) updateStatus(order.orderNumber, newStatus)
+    if (newStatus === order.status) return
+    // Block admin from directly marking Delivered → Completed.
+    // Completed must come from the customer confirm-receipt flow.
+    if (newStatus === 'Completed' && order.status === 'Delivered') {
+      alert('Completed status can only be set by the customer after confirming receipt and submitting feedback.')
+      e.target.value = order.status
+      return
+    }
+    updateStatus(order.orderNumber, newStatus)
   }
 
   return (
@@ -184,7 +192,10 @@ function OrderDetailModal({ order, onClose, onStatusChange }: {
 }) {
   const [firing, setFiring] = useState<string | null>(null)
   const [feedback, setFeedback] = useState<{ ok: boolean; message: string } | null>(null)
-  const [currentDeliveryStatus, setCurrentDeliveryStatus] = useState('Order Placed')
+  // Initialise from the DB-sourced order tracking state
+  const [currentDeliveryStatus, setCurrentDeliveryStatus] = useState(
+    order.deliveryStatus ?? 'Order Placed'
+  )
 
   const fireStep = async (step: typeof DELIVERY_STEPS[0]) => {
     setFiring(step.step)
@@ -250,20 +261,32 @@ function OrderDetailModal({ order, onClose, onStatusChange }: {
           <div className="rounded-xl border border-repixl-muted/10 bg-repixl-bg/30 p-4">
             <p className="mb-3 font-mono text-[10px] uppercase tracking-wider text-repixl-muted">Order Status</p>
             <div className="flex flex-wrap gap-2">
-              {allStatuses.map((s) => (
-                <button
-                  key={s}
-                  type="button"
-                  onClick={() => onStatusChange(s)}
-                  className={`rounded-full border px-3 py-1.5 font-mono text-[10px] uppercase tracking-wider transition-all ${
-                    order.status === s
-                      ? `${statusStyles[s]} border-current`
-                      : 'border-repixl-muted/20 text-repixl-muted hover:border-repixl-muted/40 hover:text-repixl-text-light'
-                  }`}
-                >
-                  {s}
-                </button>
-              ))}
+              {allStatuses.map((s) => {
+                const isBlockedTransition = s === 'Completed' && order.status === 'Delivered'
+                return (
+                  <button
+                    key={s}
+                    type="button"
+                    onClick={() => {
+                      if (isBlockedTransition) {
+                        setFeedback({ ok: false, message: '✗ Completed can only be set by the customer after confirming receipt.' })
+                        return
+                      }
+                      onStatusChange(s)
+                    }}
+                    title={isBlockedTransition ? 'Customer must confirm receipt to complete this order' : undefined}
+                    className={`rounded-full border px-3 py-1.5 font-mono text-[10px] uppercase tracking-wider transition-all ${
+                      order.status === s
+                        ? `${statusStyles[s]} border-current`
+                        : isBlockedTransition
+                        ? 'cursor-not-allowed border-repixl-muted/10 text-repixl-muted/30'
+                        : 'border-repixl-muted/20 text-repixl-muted hover:border-repixl-muted/40 hover:text-repixl-text-light'
+                    }`}
+                  >
+                    {s}
+                  </button>
+                )
+              })}
             </div>
           </div>
 

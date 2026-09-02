@@ -11,12 +11,24 @@ import { getCurrentUser, getCurrentAdmin } from '@/lib/auth-helpers'
 import { updateOrderStatusSchema } from '@/lib/validations'
 import { emitNotification } from '@/lib/notifications'
 import { buildOrderStatusUpdate } from '@/lib/order-status'
+import type { OrderStatus } from '@prisma/client'
 
 // This route reads cookies / session state and must run per-request.
 export const dynamic = 'force-dynamic'
 
 interface RouteParams {
   params: { orderNumber: string }
+}
+
+// Valid admin-driven status transitions.
+// DELIVERED → COMPLETED is intentionally absent: that transition is
+// customer-only (via /api/orders/[orderNumber]/confirm-receipt).
+const ALLOWED_ADMIN_TRANSITIONS: Partial<Record<OrderStatus, OrderStatus[]>> = {
+  PROCESSING: ['SHIPPED', 'CANCELLED'],
+  SHIPPED: ['DELIVERED'],
+  DELIVERED: ['DELIVERED'], // admin can re-set Delivered; cannot set Completed
+  COMPLETED: [],
+  CANCELLED: [],
 }
 
 // GET /api/orders/[orderNumber] — Get single order
@@ -76,6 +88,22 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 
     if (!order) {
       return notFoundResponse('Order not found')
+    }
+
+    // Enforce server-side transition rules.
+    const allowed = ALLOWED_ADMIN_TRANSITIONS[order.status] ?? []
+    if (!allowed.includes(status)) {
+      // Special case: DELIVERED → COMPLETED is blocked for admins.
+      if (order.status === 'DELIVERED' && status === 'COMPLETED') {
+        return errorResponse(
+          'Order cannot be marked Completed by admin. The customer must confirm receipt and submit feedback.',
+          409
+        )
+      }
+      return errorResponse(
+        `Invalid status transition: ${order.status} → ${status}`,
+        409
+      )
     }
 
     const updateData = buildOrderStatusUpdate(

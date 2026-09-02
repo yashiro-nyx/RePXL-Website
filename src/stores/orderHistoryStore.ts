@@ -22,6 +22,11 @@ export interface Order {
   postalCode: string
   status: 'Processing' | 'Shipped' | 'Delivered' | 'Completed' | 'Cancelled'
   userEmail?: string
+  // Package tracking — populated by the admin update-tracking endpoint
+  trackingNumber?: string
+  deliveryStatus?: string
+  trackingDescription?: string
+  trackingProgress?: number
 }
 
 interface OrderHistoryState {

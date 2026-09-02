@@ -32,14 +32,18 @@ export async function GET(request: Request) {
   // Initial fetch — send current state immediately
   const poll = async () => {
     try {
+      // Query by order_number first (most reliable), then fall back to tracking_number.
+      // After update-tracking runs, tracking_number === order_number, so both work.
       const rows = await sql`
         SELECT
-          delivery_status   AS status,
-          tracking_progress AS progress,
+          delivery_status      AS status,
+          tracking_progress    AS progress,
           tracking_description AS description,
-          updated_at        AS updated_at
+          updated_at           AS updated_at
         FROM orders
-        WHERE tracking_number = ${trackingNumber}
+        WHERE order_number = ${trackingNumber}
+           OR (tracking_number = ${trackingNumber} AND tracking_number != '')
+        ORDER BY updated_at DESC
         LIMIT 1
       `
 

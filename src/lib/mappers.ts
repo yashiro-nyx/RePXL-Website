@@ -224,6 +224,11 @@ export interface ApiOrder {
   postalCode: string
   isArchived: boolean
   createdAt: string
+  // Package tracking fields (populated by update-tracking)
+  trackingNumber?: string
+  deliveryStatus?: string
+  trackingDescription?: string
+  trackingProgress?: number
   items: ApiOrderItem[]
   user?: { email: string }
 }
@@ -286,5 +291,10 @@ export function apiToClientOrder(o: ApiOrder): ClientOrder {
     postalCode: o.postalCode,
     status: ORDER_STATUS_TO_CLIENT[o.status] ?? 'Processing',
     userEmail: o.user?.email,
+    // Tracking fields — pass through from DB
+    trackingNumber: o.trackingNumber ?? '',
+    deliveryStatus: o.deliveryStatus ?? 'Order Placed',
+    trackingDescription: o.trackingDescription ?? 'We are preparing your camera gear and checking lens optics.',
+    trackingProgress: o.trackingProgress ?? 25,
   }
 }
