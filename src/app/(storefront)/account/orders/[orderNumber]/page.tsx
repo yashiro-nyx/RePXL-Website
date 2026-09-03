@@ -361,7 +361,10 @@ export default function OrderDetailPage() {
 
               {/* Order status stepper */}
               <div className="rounded-2xl border border-repixl-muted/10 bg-repixl-charcoal p-5">
-                <p className="mb-5 font-mono text-[10px] uppercase tracking-widest text-repixl-muted">Order Status</p>
+                <div className="mb-5">
+                  <p className="font-mono text-[10px] uppercase tracking-widest text-repixl-muted">Order Status</p>
+                  <p className="mt-0.5 text-xs text-repixl-muted/60">Overall order lifecycle — Processing → Shipped → Delivered → Completed</p>
+                </div>
                 {stepper.cancelled ? (
                   <div className="flex items-center gap-3 rounded-xl border border-red-500/20 bg-red-500/5 px-4 py-3">
                     <div className="flex h-8 w-8 items-center justify-center rounded-full bg-red-500/20">
@@ -397,6 +400,10 @@ export default function OrderDetailPage() {
               {/* ── Delivery Tracking (always shown for non-cancelled) ── */}
               {!cancelled && (
                 <div className="space-y-0">
+                  <div className="mb-2 px-1">
+                    <p className="font-mono text-[10px] uppercase tracking-widest text-repixl-muted">Delivery Tracking</p>
+                    <p className="mt-0.5 text-xs text-repixl-muted/60">Package delivery journey — Order Placed → In Transit → Out for Delivery → Delivered</p>
+                  </div>
                   <TrackingTimeline
                     trackingNumber={order.orderNumber}
                     initialState={{

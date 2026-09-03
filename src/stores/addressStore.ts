@@ -28,6 +28,7 @@ interface AddressState {
   setDefault: (id: string) => Promise<void>
   getDefault: () => Address | undefined
   hydrate: () => Promise<void>
+  reset: () => void
 }
 
 function currentEmail(): string | null {
@@ -36,6 +37,8 @@ function currentEmail(): string | null {
 
 export const useAddressStore = create<AddressState>((set, get) => ({
   addresses: [],
+
+  reset: () => set({ addresses: [] }),
 
   addAddress: async (addr) => {
     const addresses = get().addresses
@@ -76,8 +79,16 @@ export const useAddressStore = create<AddressState>((set, get) => ({
   getDefault: () => get().addresses.find((a) => a.isDefault),
 
   hydrate: async () => {
+    const email = currentEmail()
+    // Do not hydrate if auth has not resolved yet — prevents cross-user data bleed
+    // through the guest localStorage key. The calling component must ensure auth
+    // has resolved (userEmail is populated) before calling hydrate().
+    if (!email) {
+      set({ addresses: [] })
+      return
+    }
     try {
-      const addresses = await addressService.list(currentEmail())
+      const addresses = await addressService.list(email)
       set({ addresses })
     } catch {
       set({ addresses: [] })

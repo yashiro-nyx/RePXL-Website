@@ -19,6 +19,7 @@ interface PaymentState {
   setDefault: (id: string) => void
   getDefault: () => SavedCard | undefined
   hydrate: () => void
+  reset: () => void
 }
 
 function detectBrand(firstDigit: string): SavedCard['brand'] {
@@ -27,17 +28,21 @@ function detectBrand(firstDigit: string): SavedCard['brand'] {
   return 'Card'
 }
 
-function getKey() {
+function getKey(): string | null {
   const email = useAuthStore.getState().userEmail
-  return email ? `repixl-payments-${email}` : 'repixl-payments-guest'
+  return email ? `repixl-payments-${email}` : null
 }
 
 function persist(cards: SavedCard[]) {
-  localStorage.setItem(getKey(), JSON.stringify(cards))
+  const key = getKey()
+  if (!key) return // never write to guest key
+  localStorage.setItem(key, JSON.stringify(cards))
 }
 
 export const usePaymentStore = create<PaymentState>((set, get) => ({
   cards: [],
+
+  reset: () => set({ cards: [] }),
 
   addCard: (card) => {
     const id = `card-${Date.now().toString(36)}`
@@ -65,8 +70,14 @@ export const usePaymentStore = create<PaymentState>((set, get) => ({
   getDefault: () => get().cards.find((c) => c.isDefault),
 
   hydrate: () => {
+    const key = getKey()
+    if (!key) {
+      // No authenticated user yet — do not load from guest key, clear instead
+      set({ cards: [] })
+      return
+    }
     try {
-      const stored = localStorage.getItem(getKey())
+      const stored = localStorage.getItem(key)
       if (stored) set({ cards: JSON.parse(stored) })
       else set({ cards: [] })
     } catch { set({ cards: [] }) }

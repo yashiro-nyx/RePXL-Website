@@ -58,7 +58,9 @@ export default function AccountPage() {
   useEffect(() => {
     const init = async () => {
       await hydrate()
-      useAddressStore.getState().hydrate()
+      useAddressStore.getState().reset()
+      usePaymentStore.getState().reset()
+      await useAddressStore.getState().hydrate()
       usePaymentStore.getState().hydrate()
       useOrderHistoryStore.getState().hydrate()
       useReviewStore.getState().hydrate()
@@ -85,6 +87,8 @@ export default function AccountPage() {
   const handleLogout = () => {
     logout()
     signOut({ redirect: false }).catch(() => { /* non-critical */ })
+    useAddressStore.getState().reset()
+    usePaymentStore.getState().reset()
     useToastStore.getState().addToast('You\'ve been logged out. See you next time!', 'info')
     router.push('/')
   }
@@ -831,7 +835,7 @@ function PaymentsTab() {
                 </div>
               </div>
               <div className="flex gap-3">
-                {!card.isDefault && <button type="button" onClick={() => setDefault(card.id)} className="font-mono text-[9px] uppercase tracking-wider text-repixl-muted hover:text-repixl-text-light">Default</button>}
+                {!card.isDefault && <button type="button" onClick={() => setDefault(card.id)} className="rounded-full border border-repixl-muted/20 px-2 py-0.5 font-mono text-[9px] uppercase tracking-wider text-repixl-muted hover:border-repixl-muted/40 hover:text-repixl-text-light">Set as Default</button>}
                 <button type="button" onClick={() => removeCard(card.id)} aria-label={`Remove card ending in ${card.last4}`} className="font-mono text-[9px] uppercase tracking-wider text-repixl-muted hover:text-repixl-red">Remove</button>
               </div>
             </li>

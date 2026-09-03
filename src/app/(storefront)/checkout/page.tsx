@@ -185,6 +185,8 @@ export default function CheckoutPage() {
       await hydrateAuth()
       await useCartStore.getState().hydrate()
       useProductStore.getState().hydrate()
+      useAddressStore.getState().reset()
+      usePaymentStore.getState().reset()
       await useAddressStore.getState().hydrate()
       usePaymentStore.getState().hydrate()
       useOrderHistoryStore.getState().hydrate()
@@ -785,64 +787,6 @@ export default function CheckoutPage() {
             </div>
           )}
           <div className="space-y-8 lg:col-span-2">
-            {/* Saved Address Picker — shown when user has saved addresses */}
-            {addresses.length > 0 && (
-              <section className="rounded-xl border border-repixl-muted/10 bg-repixl-charcoal/30 p-5">
-                <div className="mb-3 flex items-center gap-3">
-                  <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-repixl-red/15 font-mono text-xs font-bold text-repixl-red">✓</div>
-                  <h2 className="font-display text-base font-semibold text-repixl-text-light">Saved Addresses</h2>
-                </div>
-                <div className="space-y-2">
-                  {addresses.map((addr) => (
-                    <label
-                      key={addr.id}
-                      className={`flex cursor-pointer items-start gap-3 rounded-xl border px-4 py-3 transition-colors ${
-                        selectedAddressId === addr.id
-                          ? 'border-repixl-red bg-repixl-red/5'
-                          : 'border-repixl-muted/20 hover:border-repixl-muted/40'
-                      }`}
-                    >
-                      <input
-                        type="radio"
-                        name="saved-address"
-                        className="sr-only"
-                        checked={selectedAddressId === addr.id}
-                        onChange={() => applyAddress(addr)}
-                      />
-                      <div className={`mt-0.5 flex h-4 w-4 flex-shrink-0 items-center justify-center rounded-full border ${
-                        selectedAddressId === addr.id ? 'border-repixl-red' : 'border-repixl-muted/40'
-                      }`}>
-                        {selectedAddressId === addr.id && <span className="h-2 w-2 rounded-full bg-repixl-red" />}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <p className="text-sm font-medium text-repixl-text-light">{addr.fullName}</p>
-                          {addr.isDefault && (
-                            <span className="rounded-full bg-repixl-success/15 px-2 py-0.5 font-mono text-[9px] uppercase text-repixl-success">Default</span>
-                          )}
-                        </div>
-                        <p className="mt-0.5 text-xs text-repixl-muted truncate">
-                          {addr.address}{addr.barangay ? `, ${addr.barangay}` : ''}, {addr.city}{addr.province ? `, ${addr.province}` : ''}
-                        </p>
-                        <p className="font-mono text-[10px] text-repixl-muted">{addr.phone}</p>
-                      </div>
-                    </label>
-                  ))}
-                  <button
-                    type="button"
-                    onClick={() => { setSelectedAddressId(null); setPhAddr({ region: '', province: '', city: '', barangay: '', regionCode: '', provinceCode: '', cityCode: '' }); setStreetAddress(''); setPostalCode('') }}
-                    className={`flex w-full items-center gap-3 rounded-xl border px-4 py-3 text-sm transition-colors ${
-                      selectedAddressId === null
-                        ? 'border-repixl-red bg-repixl-red/5 text-repixl-text-light'
-                        : 'border-repixl-muted/20 text-repixl-muted hover:border-repixl-muted/40 hover:text-repixl-text-light'
-                    }`}
-                  >
-                    <span className="font-mono text-[10px]">+ Enter a new address</span>
-                  </button>
-                </div>
-              </section>
-            )}
-
             {/* Shipping info */}
             <section className="rounded-xl border border-repixl-muted/10 bg-repixl-charcoal/30 p-6">
               <div className="mb-5 flex items-center gap-3">
@@ -999,52 +943,6 @@ export default function CheckoutPage() {
                 <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-repixl-red/15 font-mono text-xs font-bold text-repixl-red">3</div>
                 <h2 className="font-display text-base font-semibold text-repixl-text-light">Payment Method</h2>
               </div>
-
-              {/* ── Saved card picker ── */}
-              {savedCards.length > 0 && (
-                <div className="mb-5 space-y-2">
-                  <p className="font-mono text-[10px] uppercase tracking-wider text-repixl-muted">Saved Payment Methods</p>
-                  {savedCards.map((card) => (
-                    <button
-                      key={card.id}
-                      type="button"
-                      onClick={() => { setSelectedCardId(card.id); setPaymentMethod('card') }}
-                      className={`w-full rounded-xl border px-4 py-3 text-left transition-colors ${
-                        selectedCardId === card.id
-                          ? 'border-repixl-red bg-repixl-red/10'
-                          : 'border-repixl-muted/20 hover:border-repixl-muted/40'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between gap-2">
-                        <div className="flex items-center gap-3">
-                          <div className="flex h-8 w-12 items-center justify-center rounded border border-repixl-muted/20 bg-repixl-charcoal">
-                            <span className="font-mono text-[9px] font-bold text-repixl-text-light/70">{card.brand}</span>
-                          </div>
-                          <div>
-                            <p className="font-mono text-sm text-repixl-text-light">•••• {card.last4}</p>
-                            <p className="font-mono text-[10px] text-repixl-muted">{card.cardholderName} · {card.expiry}</p>
-                          </div>
-                        </div>
-                        {card.isDefault && (
-                          <span className="flex-shrink-0 rounded-full bg-repixl-success/15 px-2 py-0.5 font-mono text-[9px] uppercase text-repixl-success">Default</span>
-                        )}
-                      </div>
-                    </button>
-                  ))}
-                  <button
-                    type="button"
-                    onClick={() => setSelectedCardId(null)}
-                    className={`w-full rounded-xl border px-4 py-3 text-left transition-colors ${
-                      selectedCardId === null
-                        ? 'border-repixl-red bg-repixl-red/10'
-                        : 'border-repixl-muted/20 hover:border-repixl-muted/40'
-                    }`}
-                  >
-                    <p className="text-sm font-medium text-repixl-text-light">+ Use a different payment method</p>
-                  </button>
-                  <div className="h-px bg-repixl-muted/10" />
-                </div>
-              )}
 
               {/* Saved card picker — shown when user has saved cards */}
               {savedCards.length > 0 && (
