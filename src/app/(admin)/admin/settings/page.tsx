@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { useAuthStore } from '@/stores/authStore'
+import { formatPrice } from '@/lib/format'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -416,7 +417,7 @@ export default function AdminSettingsPage() {
                       <div>
                         <p className="text-sm font-medium text-repixl-text-light">{opt.name}</p>
                         <p className="font-mono text-[10px] text-repixl-muted">
-                          {opt.cost.toFixed(2)}
+                          {formatPrice(opt.cost)}
                         </p>
                       </div>
                       {!readonly && (

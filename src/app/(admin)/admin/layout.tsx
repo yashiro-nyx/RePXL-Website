@@ -7,6 +7,7 @@ import { useAuthStore } from '@/stores/authStore'
 import { useOrderHistoryStore } from '@/stores/orderHistoryStore'
 import { useToastStore } from '@/stores/toastStore'
 import { Logo } from '@/components/ui/Logo'
+import { formatPrice } from '@/lib/format'
 
 const navSections = [
   {
@@ -174,7 +175,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                   {pendingOrders === 0 ? <p className="mt-3 text-center text-xs text-repixl-muted">No new notifications.</p> : (
                     <div className="mt-3 max-h-60 space-y-2 overflow-y-auto">
                       {orders.filter((o) => o.status === 'Processing').slice(0, 5).map((o) => (
-                        <div key={o.orderNumber} className="rounded-xl bg-repixl-bg p-3"><p className="text-xs text-repixl-text-light">New order <span className="font-semibold text-repixl-red">{o.orderNumber}</span></p><p className="text-[10px] text-repixl-muted">{o.fullName} · ${o.total}</p></div>
+                        <div key={o.orderNumber} className="rounded-xl bg-repixl-bg p-3"><p className="text-xs text-repixl-text-light">New order <span className="font-semibold text-repixl-red">{o.orderNumber}</span></p><p className="text-[10px] text-repixl-muted">{o.fullName} · {formatPrice(o.total)}</p></div>
                       ))}
                     </div>
                   )}

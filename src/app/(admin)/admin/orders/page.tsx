@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useOrderHistoryStore, type Order } from '@/stores/orderHistoryStore'
 import { Pagination } from '@/components/ui/Pagination'
+import { formatPrice } from '@/lib/format'
 
 const allStatuses = ['Processing', 'Shipped', 'Delivered', 'Completed', 'Cancelled'] as const
 
@@ -146,7 +147,7 @@ function OrderRow({ order, updateStatus, onArchive, onView }: {
     <tr className="transition-colors hover:bg-repixl-bg/60">
       <td className="px-5 py-3.5 font-mono text-sm font-semibold text-repixl-red">#{order.orderNumber.replace('RPX-', '')}</td>
       <td className="px-5 py-3.5 font-mono text-sm text-repixl-text-light/70">{censorName(order.fullName)}</td>
-      <td className="px-5 py-3.5 font-mono text-sm font-semibold text-repixl-text-light">${order.total.toFixed(2)}</td>
+      <td className="px-5 py-3.5 font-mono text-sm font-semibold text-repixl-text-light">{formatPrice(order.total)}</td>
       <td className="px-5 py-3.5">
         <select
           value={order.status}
@@ -245,7 +246,7 @@ function OrderDetailModal({ order, onClose, onStatusChange }: {
             {[
               { label: 'Customer', value: censorName(order.fullName) },
               { label: 'Date', value: order.date },
-              { label: 'Total', value: `$${order.total.toFixed(2)}` },
+              { label: 'Total', value: formatPrice(order.total) },
               { label: 'Courier', value: order.courierName },
               { label: 'Estimate', value: order.courierEstimate },
               { label: 'Payment', value: order.paymentMethod },
@@ -352,14 +353,14 @@ function OrderDetailModal({ order, onClose, onStatusChange }: {
                   <span className="text-sm text-repixl-text-light">{item.name}</span>
                   <div className="flex items-center gap-4">
                     <span className="font-mono text-xs text-repixl-muted">×{item.stock}</span>
-                    <span className="font-mono text-sm text-repixl-text-light">${(item.price * item.stock).toFixed(2)}</span>
+                    <span className="font-mono text-sm text-repixl-text-light">{formatPrice(item.price * item.stock)}</span>
                   </div>
                 </div>
               ))}
             </div>
             <div className="mt-3 flex justify-between border-t border-repixl-muted/10 pt-3 font-semibold">
               <span className="text-sm text-repixl-text-light">Total</span>
-              <span className="font-mono text-repixl-red">${order.total.toFixed(2)}</span>
+              <span className="font-mono text-repixl-red">{formatPrice(order.total)}</span>
             </div>
           </div>
 

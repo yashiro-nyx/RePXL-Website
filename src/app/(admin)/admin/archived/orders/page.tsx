@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useOrderHistoryStore, type Order } from '@/stores/orderHistoryStore'
+import { formatPrice } from '@/lib/format'
 
 const statusStyles: Record<string, string> = {
   Processing: 'bg-amber-500/15 text-amber-400 border-amber-500/30',
@@ -44,7 +45,7 @@ export default function ArchivedOrdersPage() {
               <tr key={order.orderNumber} className="hover:bg-repixl-bg/60">
                 <td className="px-5 py-3.5 font-mono text-sm font-semibold text-repixl-red">#{order.orderNumber.replace('RPX-', '')}</td>
                 <td className="px-5 py-3.5 font-mono text-sm text-repixl-text-light/70">{censorName(order.fullName)}</td>
-                <td className="px-5 py-3.5 font-mono text-sm font-semibold text-repixl-text-light">${order.total.toFixed(2)}</td>
+                <td className="px-5 py-3.5 font-mono text-sm font-semibold text-repixl-text-light">{formatPrice(order.total)}</td>
                 <td className="px-5 py-3.5"><span className={`inline-block rounded-full border px-2.5 py-1 text-[11px] font-semibold ${statusStyles[order.status] || 'text-repixl-muted'}`}>{order.status}</span></td>
                 <td className="px-5 py-3.5 text-xs text-repixl-muted">{order.date}</td>
                 <td className="px-5 py-3.5">

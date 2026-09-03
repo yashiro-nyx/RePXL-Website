@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
+import { formatPrice } from '@/lib/format'
 
 interface InvoiceData {
   orderNumber: string
@@ -67,8 +68,6 @@ export default function InvoicePage() {
 
   if (!invoice) return null
 
-  const fmt = (n: number) => `${invoice.currency || '$'}${n.toFixed(2)}`
-
   return (
     <>
       {/* Print button — hidden when printing */}
@@ -126,9 +125,9 @@ export default function InvoicePage() {
               <tr key={i}>
                 <td className="py-3 font-medium text-gray-900">{item.name}</td>
                 <td className="py-3 text-gray-600">{item.condition}</td>
-                <td className="py-3 text-right font-mono text-gray-700">{fmt(item.unitPrice)}</td>
+                <td className="py-3 text-right font-mono text-gray-700">{formatPrice(item.unitPrice)}</td>
                 <td className="py-3 text-right font-mono text-gray-700">{item.quantity}</td>
-                <td className="py-3 text-right font-mono font-semibold text-gray-900">{fmt(item.lineSubtotal)}</td>
+                <td className="py-3 text-right font-mono font-semibold text-gray-900">{formatPrice(item.lineSubtotal)}</td>
               </tr>
             ))}
           </tbody>
@@ -139,21 +138,21 @@ export default function InvoicePage() {
           <div className="ml-auto max-w-xs space-y-2">
             <div className="flex justify-between text-sm">
               <span className="text-gray-600">Subtotal</span>
-              <span className="font-mono text-gray-900">{fmt(invoice.subtotal)}</span>
+              <span className="font-mono text-gray-900">{formatPrice(invoice.subtotal)}</span>
             </div>
             <div className="flex justify-between text-sm">
               <span className="text-gray-600">Shipping</span>
-              <span className="font-mono text-gray-900">{fmt(invoice.shippingCost)}</span>
+              <span className="font-mono text-gray-900">{formatPrice(invoice.shippingCost)}</span>
             </div>
             {invoice.discount > 0 && (
               <div className="flex justify-between text-sm">
                 <span className="text-gray-600">Discount</span>
-                <span className="font-mono text-green-700">−{fmt(invoice.discount)}</span>
+                <span className="font-mono text-green-700">−{formatPrice(invoice.discount)}</span>
               </div>
             )}
             <div className="flex justify-between border-t border-gray-300 pt-2 text-base font-bold">
               <span className="text-gray-900">Total</span>
-              <span className="font-mono text-gray-900">{fmt(invoice.total)}</span>
+              <span className="font-mono text-gray-900">{formatPrice(invoice.total)}</span>
             </div>
           </div>
         </div>

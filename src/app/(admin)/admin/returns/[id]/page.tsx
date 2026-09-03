@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { formatPrice } from '@/lib/format'
 
 interface ReturnDetail {
   id: string
@@ -137,7 +138,7 @@ export default function ReturnDetailPage() {
               </div>
               <div>
                 <p className="text-[10px] uppercase tracking-wider text-repixl-muted/60">Order Total</p>
-                <p className="mt-0.5 font-mono text-sm text-repixl-text-light">${detail.order.total.toFixed(2)}</p>
+                <p className="mt-0.5 font-mono text-sm text-repixl-text-light">{formatPrice(detail.order.total)}</p>
               </div>
               <div>
                 <p className="text-[10px] uppercase tracking-wider text-repixl-muted/60">Payment</p>

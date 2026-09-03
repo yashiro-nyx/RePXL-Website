@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useProductStore } from '@/stores/productStore'
 import { Pagination } from '@/components/ui/Pagination'
 import type { Product, ConditionGrade, ProductStatus } from '@/types'
+import { formatPrice } from '@/lib/format'
 
 const statusColors: Record<ProductStatus, string> = {
   active: 'bg-green-500/15 text-green-400 border-green-500/30',
@@ -89,7 +90,7 @@ export default function AdminCamerasPage() {
                 <td className="px-5 py-3.5 text-repixl-muted">{p.brand}</td>
                 <td className="px-5 py-3.5"><span className={`font-mono text-sm font-bold ${p.stock <= 0 ? 'text-red-400' : p.stock <= 1 ? 'text-amber-400' : 'text-green-400'}`}>{Math.max(0, p.stock)}</span></td>
                 <td className="px-5 py-3.5 capitalize text-xs text-repixl-text-light/70">{p.condition}</td>
-                <td className="px-5 py-3.5 font-mono text-sm font-semibold text-repixl-text-light">${p.price}</td>
+                <td className="px-5 py-3.5 font-mono text-sm font-semibold text-repixl-text-light">{formatPrice(p.price)}</td>
                 <td className="px-5 py-3.5"><span className={`rounded-full border px-2.5 py-1 text-[10px] font-semibold ${statusColors[p.status]}`}>{p.status}</span></td>
                 <td className="px-5 py-3.5">
                   <div className="flex gap-2">
@@ -232,7 +233,7 @@ function CameraModal({ editingSlug, onClose }: { editingSlug: string | null; onC
             </legend>
             <div className="mt-3 grid grid-cols-3 gap-3">
               <div><label className="mb-1 block text-xs text-repixl-muted">Current Stock <span className="text-red-400">*</span></label><input type="number" value={stock} onChange={(e) => setStock(e.target.value)} className={`font-mono ${iClass}`} /></div>
-              <div><label className="mb-1 block text-xs text-repixl-muted">Selling Price ($) <span className="text-red-400">*</span></label><input type="number" value={price} onChange={(e) => setPrice(e.target.value)} className={`font-mono ${iClass}`} /></div>
+              <div><label className="mb-1 block text-xs text-repixl-muted">Selling Price (₱) <span className="text-red-400">*</span></label><input type="number" value={price} onChange={(e) => setPrice(e.target.value)} className={`font-mono ${iClass}`} /></div>
               <div><label className="mb-1 block text-xs text-repixl-muted">Status <span className="text-red-400">*</span></label><select value={status} onChange={(e) => setStatus(e.target.value as ProductStatus)} className={iClass}><option value="active">Active (Available)</option><option value="inactive">Inactive</option><option value="coming-soon">Coming Soon</option><option value="discontinued">Discontinued</option></select></div>
             </div>
           </fieldset>

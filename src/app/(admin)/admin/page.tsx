@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useProductStore } from '@/stores/productStore'
 import { useOrderHistoryStore } from '@/stores/orderHistoryStore'
 import { Skeleton } from '@/components/ui'
+import { formatPrice } from '@/lib/format'
 
 const LOW_STOCK_THRESHOLD = 1
 
@@ -112,7 +113,7 @@ export default function AdminDashboardPage() {
         <StatCard label="Total Cameras" value={totalCameras} sub={`${products.filter((p) => p.stock > 0).length} in stock`} accent />
         <StatCard label="Total Stock" value={totalStock} sub="units available" />
         <StatCard label="Total Orders" value={totalOrders} sub={`${pendingOrders} pending`} />
-        <StatCard label="Revenue" value={`$${revenue}`} sub="all time sales" />
+        <StatCard label="Revenue" value={formatPrice(revenue)} sub="all time sales" />
       </div>
 
       <div className="mt-4 grid grid-cols-2 gap-4 lg:grid-cols-4">

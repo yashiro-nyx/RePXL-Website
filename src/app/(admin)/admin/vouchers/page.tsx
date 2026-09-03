@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useVoucherStore, type Voucher } from '@/stores/voucherStore'
+import { formatPrice } from '@/lib/format'
 
 const statusStyles: Record<string, string> = { active: 'bg-green-500/15 text-green-400 border-green-500/30', expired: 'bg-repixl-muted/15 text-repixl-muted border-repixl-muted/20', disabled: 'bg-red-500/15 text-red-400 border-red-500/30' }
 
@@ -61,8 +62,8 @@ export default function AdminVouchersPage() {
             {vouchers.map((v) => (
               <tr key={v.id} className="transition-colors hover:bg-repixl-bg/60">
                 <td className="px-5 py-3.5 font-mono text-sm font-bold text-repixl-red">{v.code}</td>
-                <td className="px-5 py-3.5 font-mono text-sm text-repixl-text-light">{v.discountType === 'percentage' ? `${v.discountValue}%` : `$${v.discountValue}`}</td>
-                <td className="px-5 py-3.5 font-mono text-sm text-repixl-text-light/70">${v.minPurchase}</td>
+                <td className="px-5 py-3.5 font-mono text-sm text-repixl-text-light">{v.discountType === 'percentage' ? `${v.discountValue}%` : formatPrice(v.discountValue)}</td>
+                <td className="px-5 py-3.5 font-mono text-sm text-repixl-text-light/70">{formatPrice(v.minPurchase)}</td>
                 <td className="px-5 py-3.5 font-mono text-xs text-repixl-muted">{v.used}/{v.usageLimit === 0 ? '∞' : v.usageLimit}</td>
                 <td className="px-5 py-3.5 text-xs text-repixl-muted">{v.validUntil}</td>
                 <td className="px-5 py-3.5"><span className={`rounded-full border px-2.5 py-1 text-[10px] font-semibold ${statusStyles[v.status]}`}>{v.status}</span></td>

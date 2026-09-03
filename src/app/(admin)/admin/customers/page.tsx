@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useOrderHistoryStore } from '@/stores/orderHistoryStore'
 import { adminService, type AdminCustomer } from '@/lib/data/adminService'
 import { Pagination } from '@/components/ui/Pagination'
+import { formatPrice } from '@/lib/format'
 
 const statusStyles: Record<string, string> = {
   Processing: 'bg-amber-500/15 text-amber-400 border-amber-500/30',
@@ -118,7 +119,7 @@ export default function AdminCustomersPage() {
           },
           {
             label: 'Total Revenue',
-            value: `$${totalRevenue.toFixed(0)}`,
+            value: formatPrice(totalRevenue),
             icon: 'M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6',
             color: 'text-repixl-warning',
             bg: 'bg-repixl-warning/10',
@@ -280,7 +281,7 @@ export default function AdminCustomersPage() {
                     {customerOrders.map((o) => (
                       <tr key={o.orderNumber} className="transition-colors hover:bg-repixl-bg/40">
                         <td className="py-2.5 font-mono text-xs font-semibold text-repixl-red">#{o.orderNumber.replace('RPXL-', '').slice(0, 12)}</td>
-                        <td className="py-2.5 font-mono text-sm font-semibold text-repixl-text-light">${o.total.toFixed(2)}</td>
+                        <td className="py-2.5 font-mono text-sm font-semibold text-repixl-text-light">{formatPrice(o.total)}</td>
                         <td className="py-2.5">
                           <span className={`rounded-full border px-2 py-0.5 font-mono text-[9px] uppercase tracking-wider ${statusStyles[o.status] || 'text-repixl-muted'}`}>
                             {o.status}
