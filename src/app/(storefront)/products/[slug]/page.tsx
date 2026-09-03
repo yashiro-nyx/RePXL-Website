@@ -22,6 +22,7 @@ import { useOrderHistoryStore } from '@/stores/orderHistoryStore'
 import { useProductStore } from '@/stores/productStore'
 import { useToastStore } from '@/stores/toastStore'
 import { useScrollLock } from '@/hooks/useScrollLock'
+import { formatPrice } from '@/lib/format'
 
 // Dynamically import the webcam-dependent component to avoid SSR issues
 const CameraFilterDemo = dynamic(
@@ -237,7 +238,7 @@ export default function ProductDetailPage() {
             {/* Price + condition + rating */}
             <motion.div variants={staggerItem} className="mt-4 flex flex-wrap items-center gap-4">
               <span className="font-display text-3xl font-bold text-repixl-text-light">
-                ${product.price}
+                {formatPrice(product.price)}
               </span>
               <ConditionBadge condition={product.condition} />
               <ProductRatingSummary slug={product.slug} />

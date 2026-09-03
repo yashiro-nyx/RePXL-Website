@@ -24,6 +24,7 @@ import { CardNumberInput } from '@/components/ui/CardNumberInput'
 import { CardExpiryInput } from '@/components/ui/CardExpiryInput'
 import { termsContent, privacyContent } from '@/data/legal'
 import type { Product, CartItem } from '@/types'
+import { formatPrice } from '@/lib/format'
 
 // Lazy-load the PH address component — keeps the address dataset out of the
 // initial checkout bundle; it loads only when the form renders.
@@ -494,8 +495,8 @@ export default function CheckoutPage() {
                       <tr key={item.product.slug}>
                         <td className="py-2 text-repixl-text-light">{item.product.name}</td>
                         <td className="py-2 text-center font-mono text-repixl-text-light/70">{item.quantity}</td>
-                        <td className="py-2 text-right font-mono text-repixl-text-light/70">${item.product.price}</td>
-                        <td className="py-2 text-right font-mono text-repixl-text-light">${item.product.price * item.quantity}</td>
+                        <td className="py-2 text-right font-mono text-repixl-text-light/70">{formatPrice(item.product.price)}</td>
+                        <td className="py-2 text-right font-mono text-repixl-text-light">{formatPrice(item.product.price * item.quantity)}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -507,15 +508,15 @@ export default function CheckoutPage() {
                 <dl className="space-y-1.5">
                   <div className="flex justify-between text-sm">
                     <dt className="text-repixl-text-light/70">Subtotal</dt>
-                    <dd className="font-mono text-repixl-text-light">${confirmation.subtotal}</dd>
+                    <dd className="font-mono text-repixl-text-light">{formatPrice(confirmation.subtotal)}</dd>
                   </div>
                   <div className="flex justify-between text-sm">
                     <dt className="text-repixl-text-light/70">Shipping ({confirmation.courier.name})</dt>
-                    <dd className="font-mono text-repixl-text-light">${confirmation.courier.price}</dd>
+                    <dd className="font-mono text-repixl-text-light">{formatPrice(confirmation.courier.price)}</dd>
                   </div>
                   <div className="flex justify-between border-t border-repixl-muted/10 pt-2">
                     <dt className="font-semibold text-repixl-text-light">Total</dt>
-                    <dd className="font-display text-xl font-bold text-repixl-text-light">${confirmation.total}</dd>
+                    <dd className="font-display text-xl font-bold text-repixl-text-light">{formatPrice(confirmation.total)}</dd>
                   </div>
                 </dl>
               </div>
@@ -590,7 +591,7 @@ export default function CheckoutPage() {
                       {item.quantity > 1 && <p className="font-mono text-[10px] text-repixl-muted">×{item.quantity}</p>}
                     </div>
                     <span className="font-mono text-sm font-semibold text-repixl-text-light flex-shrink-0">
-                      ${(item.product.price * item.quantity).toFixed(2)}
+                      {formatPrice(item.product.price * item.quantity)}
                     </span>
                   </li>
                 ))}
@@ -648,15 +649,15 @@ export default function CheckoutPage() {
               <dl className="space-y-2">
                 <div className="flex justify-between text-sm">
                   <dt className="text-repixl-text-light/70">Subtotal ({cartItems.length} {cartItems.length === 1 ? 'item' : 'items'})</dt>
-                  <dd className="font-mono text-repixl-text-light">${subtotal.toFixed(2)}</dd>
+                  <dd className="font-mono text-repixl-text-light">{formatPrice(subtotal)}</dd>
                 </div>
                 <div className="flex justify-between text-sm">
                   <dt className="text-repixl-text-light/70">Shipping ({courier.name})</dt>
-                  <dd className="font-mono text-repixl-text-light">${courier.price.toFixed(2)}</dd>
+                  <dd className="font-mono text-repixl-text-light">{formatPrice(courier.price)}</dd>
                 </div>
                 <div className="flex justify-between border-t border-repixl-muted/10 pt-2">
                   <dt className="font-semibold text-repixl-text-light">Total</dt>
-                  <dd className="font-display text-xl font-bold text-repixl-text-light">${total.toFixed(2)}</dd>
+                  <dd className="font-display text-xl font-bold text-repixl-text-light">{formatPrice(total)}</dd>
                 </div>
               </dl>
             </section>
@@ -694,7 +695,7 @@ export default function CheckoutPage() {
                     </svg>
                     Processing…
                   </span>
-                ) : `Confirm & Pay $${total.toFixed(2)}`}
+                ) : `Confirm & Pay ${formatPrice(total)}`}
               </Button>
             </div>
 
@@ -842,7 +843,7 @@ export default function CheckoutPage() {
                           <p className="font-mono text-[10px] text-repixl-muted">{c.estimate}</p>
                         </div>
                       </div>
-                      <span className="font-mono text-sm font-medium text-repixl-text-light">${c.price}</span>
+                      <span className="font-mono text-sm font-medium text-repixl-text-light">{formatPrice(c.price)}</span>
                     </label>
                   ))}
                 </div>
@@ -967,14 +968,14 @@ export default function CheckoutPage() {
                       <p className="text-xs font-medium text-repixl-text-light">{item.product.name}{item.quantity > 1 ? ` ×${item.quantity}` : ''}</p>
                       <ConditionBadge condition={item.product.condition} className="mt-0.5 origin-left scale-90" />
                     </div>
-                    <span className="font-mono text-sm text-repixl-text-light">${item.product.price * item.quantity}</span>
+                    <span className="font-mono text-sm text-repixl-text-light">{formatPrice(item.product.price * item.quantity)}</span>
                   </li>
                 ))}
               </ul>
               <dl className="mt-5 space-y-2 border-t border-repixl-muted/10 pt-4">
-                <div className="flex justify-between text-sm"><dt className="text-repixl-text-light/70">Subtotal</dt><dd className="font-mono text-repixl-text-light">${subtotal}</dd></div>
-                <div className="flex justify-between text-sm"><dt className="text-repixl-text-light/70">Shipping ({courier.name})</dt><dd className="font-mono text-repixl-text-light">${courier.price}</dd></div>
-                <div className="flex justify-between border-t border-repixl-muted/10 pt-2"><dt className="text-sm font-medium text-repixl-text-light">Total</dt><dd className="font-display text-xl font-bold text-repixl-text-light">${total}</dd></div>
+                <div className="flex justify-between text-sm"><dt className="text-repixl-text-light/70">Subtotal</dt><dd className="font-mono text-repixl-text-light">{formatPrice(subtotal)}</dd></div>
+                <div className="flex justify-between text-sm"><dt className="text-repixl-text-light/70">Shipping ({courier.name})</dt><dd className="font-mono text-repixl-text-light">{formatPrice(courier.price)}</dd></div>
+                <div className="flex justify-between border-t border-repixl-muted/10 pt-2"><dt className="text-sm font-medium text-repixl-text-light">Total</dt><dd className="font-display text-xl font-bold text-repixl-text-light">{formatPrice(total)}</dd></div>
               </dl>
               <Button type="submit" variant="primary" size="lg" disabled={submitting || paymentProcessing} className="mt-6 w-full disabled:opacity-60">
                 Review Order →

@@ -8,6 +8,7 @@ import { ConditionBadge, RevealText } from '@/components/ui'
 import { useProductStore } from '@/stores/productStore'
 import { useReviewStore } from '@/stores/reviewStore'
 import { useReducedMotion } from '@/hooks/useReducedMotion'
+import { formatPrice } from '@/lib/format'
 
 export function BestSellers() {
   const reducedMotion = useReducedMotion()
@@ -88,7 +89,7 @@ export function BestSellers() {
                     <p className="font-mono text-[9px] uppercase tracking-widest text-repixl-muted">{product.brand}</p>
                     <h3 className="mt-0.5 text-sm font-medium text-repixl-text-light line-clamp-1">{product.name}</h3>
                     <div className="mt-1 flex items-center justify-between">
-                      <span className="font-display text-base font-bold text-repixl-text-light">${product.price}</span>
+                      <span className="font-display text-base font-bold text-repixl-text-light">{formatPrice(product.price)}</span>
                       {reviewCount > 0 && (
                         <span className="font-mono text-[9px] text-repixl-muted">{reviewCount} review{reviewCount !== 1 ? 's' : ''}</span>
                       )}

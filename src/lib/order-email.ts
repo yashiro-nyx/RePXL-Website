@@ -59,10 +59,10 @@ export async function sendOrderConfirmationEmail(order: OrderEmailData): Promise
     console.log('\n[RePXL Order Confirmation — DEV MODE]')
     console.log(`Order : ${order.orderNumber}`)
     console.log(`To    : ${order.userEmail}`)
-    console.log(`Total : $${order.total.toFixed(2)}`)
+    console.log(`Total : ₱${order.total.toFixed(2)}`)
     for (const item of order.items) {
       const name = item.product?.name ?? 'Product'
-      console.log(`  ${name} ×${item.quantity} @ $${item.price.toFixed(2)} = $${(item.price * item.quantity).toFixed(2)}`)
+      console.log(`  ${name} ×${item.quantity} @ ₱${item.price.toFixed(2)} = $${(item.price * item.quantity).toFixed(2)}`)
     }
     return
   }
@@ -79,25 +79,25 @@ export async function sendOrderConfirmationEmail(order: OrderEmailData): Promise
     <tr style="border-bottom:1px solid rgba(140,133,128,0.06);">
       <td style="padding:10px 0;font-family:sans-serif;font-size:13px;color:#f5f1ec;">${safe(name)}</td>
       <td style="padding:10px 0;font-family:monospace;font-size:13px;color:#8c8580;text-align:center;">${item.quantity}</td>
-      <td style="padding:10px 0;font-family:monospace;font-size:13px;color:#8c8580;text-align:right;">$${item.price.toFixed(2)}</td>
-      <td style="padding:10px 0;font-family:monospace;font-size:13px;color:#f5f1ec;text-align:right;">$${lineTotal.toFixed(2)}</td>
+      <td style="padding:10px 0;font-family:monospace;font-size:13px;color:#8c8580;text-align:right;">₱${item.price.toFixed(2)}</td>
+      <td style="padding:10px 0;font-family:monospace;font-size:13px;color:#f5f1ec;text-align:right;">₱${lineTotal.toFixed(2)}</td>
     </tr>`
   }).join('')
 
   const itemsText = order.items.map((item) => {
     const name = item.product?.name ?? 'Product'
-    return `  ${name} x${item.quantity} @ $${item.price.toFixed(2)} = $${(item.price * item.quantity).toFixed(2)}`
+    return `  ${name} x${item.quantity} @ ₱${item.price.toFixed(2)} = $${(item.price * item.quantity).toFixed(2)}`
   }).join('\n')
 
   const discountRow = order.discount > 0
     ? `<tr>
         <td style="padding:4px 0;font-family:sans-serif;font-size:13px;color:#5A6E4E;">Discount</td>
-        <td style="padding:4px 0;font-family:monospace;font-size:13px;color:#5A6E4E;text-align:right;">-$${order.discount.toFixed(2)}</td>
+        <td style="padding:4px 0;font-family:monospace;font-size:13px;color:#5A6E4E;text-align:right;">-₱${order.discount.toFixed(2)}</td>
        </tr>`
     : ''
 
   const discountText = order.discount > 0
-    ? `Discount        : -$${order.discount.toFixed(2)}\n`
+    ? `Discount        : -₱${order.discount.toFixed(2)}\n`
     : ''
 
   // ── HTML template ───────────────────────────────────────────────────────────
@@ -192,16 +192,16 @@ export async function sendOrderConfirmationEmail(order: OrderEmailData): Promise
                   <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin-bottom:24px;border-top:1px solid rgba(140,133,128,0.12);padding-top:10px;">
                     <tr>
                       <td style="padding:3px 0;font-family:sans-serif;font-size:13px;color:#8c8580;">Subtotal</td>
-                      <td style="padding:3px 0;font-family:monospace;font-size:13px;color:#f5f1ec;text-align:right;">$${order.subtotal.toFixed(2)}</td>
+                      <td style="padding:3px 0;font-family:monospace;font-size:13px;color:#f5f1ec;text-align:right;">₱${order.subtotal.toFixed(2)}</td>
                     </tr>
                     ${discountRow}
                     <tr>
                       <td style="padding:3px 0;font-family:sans-serif;font-size:13px;color:#8c8580;">Shipping (${safe(order.courierName)})</td>
-                      <td style="padding:3px 0;font-family:monospace;font-size:13px;color:#f5f1ec;text-align:right;">$${order.shippingCost.toFixed(2)}</td>
+                      <td style="padding:3px 0;font-family:monospace;font-size:13px;color:#f5f1ec;text-align:right;">₱${order.shippingCost.toFixed(2)}</td>
                     </tr>
                     <tr style="border-top:1px solid rgba(140,133,128,0.12);">
                       <td style="padding:8px 0 0;font-family:sans-serif;font-size:15px;font-weight:700;color:#f5f1ec;">Total</td>
-                      <td style="padding:8px 0 0;font-family:monospace;font-size:17px;font-weight:700;color:#f5f1ec;text-align:right;">$${order.total.toFixed(2)}</td>
+                      <td style="padding:8px 0 0;font-family:monospace;font-size:17px;font-weight:700;color:#f5f1ec;text-align:right;">₱${order.total.toFixed(2)}</td>
                     </tr>
                   </table>
 
@@ -260,15 +260,15 @@ export async function sendOrderConfirmationEmail(order: OrderEmailData): Promise
     '─────────────',
     ...order.items.map((i) => {
       const name = i.product?.name ?? 'Product'
-      return `  ${name} x${i.quantity} @ $${i.price.toFixed(2)} = $${(i.price * i.quantity).toFixed(2)}`
+      return `  ${name} x${i.quantity} @ ₱${i.price.toFixed(2)} = ₱${(i.price * i.quantity).toFixed(2)}`
     }),
     '',
     'ORDER TOTAL',
     '───────────',
-    `Subtotal        : $${order.subtotal.toFixed(2)}`,
+    `Subtotal        : ₱${order.subtotal.toFixed(2)}`,
     discountText.trimEnd(),
-    `Shipping (${order.courierName}) : $${order.shippingCost.toFixed(2)}`,
-    `Total           : $${order.total.toFixed(2)}`,
+    `Shipping (${order.courierName}) : ₱${order.shippingCost.toFixed(2)}`,
+    `Total           : ₱${order.total.toFixed(2)}`,
     '',
     'SHIPPING ADDRESS',
     '────────────────',

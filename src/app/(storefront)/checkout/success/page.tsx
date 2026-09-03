@@ -7,6 +7,7 @@ import { Container } from '@/components/layout/Container'
 import { MinimalFooter } from '@/components/layout/MinimalFooter'
 import { useCartStore } from '@/stores/cartStore'
 import { useProductStore } from '@/stores/productStore'
+import { formatPrice } from '@/lib/format'
 
 // ─── Types ──────────────────────────────────────────────────────────────────────
 
@@ -311,8 +312,8 @@ function SuccessInner() {
                         {item.product?.name ?? 'Product'}
                       </td>
                       <td className="py-2 text-center font-mono text-repixl-text-light/70">{item.quantity}</td>
-                      <td className="py-2 text-right font-mono text-repixl-text-light/70">${item.price.toFixed(2)}</td>
-                      <td className="py-2 text-right font-mono text-repixl-text-light">${(item.price * item.quantity).toFixed(2)}</td>
+                      <td className="py-2 text-right font-mono text-repixl-text-light/70">{formatPrice(item.price)}</td>
+                      <td className="py-2 text-right font-mono text-repixl-text-light">{formatPrice(item.price * item.quantity)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -324,23 +325,23 @@ function SuccessInner() {
               <dl className="space-y-1.5">
                 <div className="flex justify-between text-sm">
                   <dt className="text-repixl-text-light/70">Subtotal</dt>
-                  <dd className="font-mono text-repixl-text-light">${order.subtotal.toFixed(2)}</dd>
+                  <dd className="font-mono text-repixl-text-light">{formatPrice(order.subtotal)}</dd>
                 </div>
                 {order.discount > 0 && (
                   <div className="flex justify-between text-sm">
                     <dt className="text-repixl-success">
                       Discount{order.voucherCode ? ` (${order.voucherCode})` : ''}
                     </dt>
-                    <dd className="font-mono text-repixl-success">−${order.discount.toFixed(2)}</dd>
+                    <dd className="font-mono text-repixl-success">−{formatPrice(order.discount)}</dd>
                   </div>
                 )}
                 <div className="flex justify-between text-sm">
                   <dt className="text-repixl-text-light/70">Shipping ({order.courierName})</dt>
-                  <dd className="font-mono text-repixl-text-light">${order.shippingCost.toFixed(2)}</dd>
+                  <dd className="font-mono text-repixl-text-light">{formatPrice(order.shippingCost)}</dd>
                 </div>
                 <div className="flex justify-between border-t border-repixl-muted/10 pt-2">
                   <dt className="font-semibold text-repixl-text-light">Total</dt>
-                  <dd className="font-display text-xl font-bold text-repixl-text-light">${order.total.toFixed(2)}</dd>
+                  <dd className="font-display text-xl font-bold text-repixl-text-light">{formatPrice(order.total)}</dd>
                 </div>
               </dl>
             </div>

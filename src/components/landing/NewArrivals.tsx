@@ -6,6 +6,7 @@ import { motion } from 'framer-motion'
 import { Container } from '@/components/layout/Container'
 import { useProductStore } from '@/stores/productStore'
 import { useReducedMotion } from '@/hooks/useReducedMotion'
+import { formatPrice } from '@/lib/format'
 
 export function NewArrivals() {
   const reducedMotion = useReducedMotion()
@@ -71,7 +72,7 @@ export function NewArrivals() {
                 </div>
                 <div className="border-t border-repixl-muted/10 p-5">
                   <h3 className="font-display text-lg font-semibold text-repixl-text-light">{product.name}</h3>
-                  <p className="mt-1 font-display text-base font-bold text-repixl-text-light/80">${product.price}</p>
+                  <p className="mt-1 font-display text-base font-bold text-repixl-text-light/80">{formatPrice(product.price)}</p>
                 </div>
               </Link>
             </motion.div>

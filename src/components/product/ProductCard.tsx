@@ -11,6 +11,7 @@ import { useCompareStore } from '@/stores/compareStore'
 import { useReviewStore } from '@/stores/reviewStore'
 import { useToastStore } from '@/stores/toastStore'
 import type { Product } from '@/types'
+import { formatPrice } from '@/lib/format'
 
 interface ProductCardProps {
   product: Product
@@ -191,7 +192,7 @@ export function ProductCard({ product }: ProductCardProps) {
 
           {/* Price + stock — always at the bottom */}
           <div className="mt-3 flex items-center justify-between border-t border-repixl-muted/8 pt-3">
-            <p className="font-display text-xl font-bold text-repixl-text-light">${product.price}</p>
+            <p className="font-display text-xl font-bold text-repixl-text-light">{formatPrice(product.price)}</p>
             <div className="flex items-center gap-1.5">
               {stock <= 0 ? (
                 <span className="font-mono text-[9px] text-repixl-red/70">Out of stock</span>

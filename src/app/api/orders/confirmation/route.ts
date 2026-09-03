@@ -115,8 +115,8 @@ export async function POST(req: NextRequest) {
                     <tr style="border-bottom:1px solid rgba(140,133,128,0.06);">
                       <td style="padding:10px 0;font-family:sans-serif;font-size:13px;color:#f5f1ec;">${safe(item.name)}</td>
                       <td style="padding:10px 0;font-family:monospace;font-size:13px;color:#8c8580;text-align:center;">${item.quantity}</td>
-                      <td style="padding:10px 0;font-family:monospace;font-size:13px;color:#8c8580;text-align:right;">$${item.price}</td>
-                      <td style="padding:10px 0;font-family:monospace;font-size:13px;color:#f5f1ec;text-align:right;">$${item.price * item.quantity}</td>
+                      <td style="padding:10px 0;font-family:monospace;font-size:13px;color:#8c8580;text-align:right;">₱${item.price}</td>
+                      <td style="padding:10px 0;font-family:monospace;font-size:13px;color:#f5f1ec;text-align:right;">₱${item.price * item.quantity}</td>
                     </tr>`).join('')}
                   </table>
 
@@ -124,15 +124,15 @@ export async function POST(req: NextRequest) {
                   <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin-bottom:28px;border-top:1px solid rgba(140,133,128,0.12);padding-top:12px;">
                     <tr>
                       <td style="padding:4px 0;font-family:sans-serif;font-size:13px;color:#8c8580;">Subtotal</td>
-                      <td style="padding:4px 0;font-family:monospace;font-size:13px;color:#f5f1ec;text-align:right;">$${subtotal}</td>
+                      <td style="padding:4px 0;font-family:monospace;font-size:13px;color:#f5f1ec;text-align:right;">₱${subtotal}</td>
                     </tr>
                     <tr>
                       <td style="padding:4px 0;font-family:sans-serif;font-size:13px;color:#8c8580;">Shipping (${safe(courierName)})</td>
-                      <td style="padding:4px 0;font-family:monospace;font-size:13px;color:#f5f1ec;text-align:right;">$${shippingCost}</td>
+                      <td style="padding:4px 0;font-family:monospace;font-size:13px;color:#f5f1ec;text-align:right;">₱${shippingCost}</td>
                     </tr>
                     <tr style="border-top:1px solid rgba(140,133,128,0.12);">
                       <td style="padding:8px 0 0;font-family:sans-serif;font-size:15px;font-weight:700;color:#f5f1ec;">Total</td>
-                      <td style="padding:8px 0 0;font-family:monospace;font-size:18px;font-weight:700;color:#f5f1ec;text-align:right;">$${total}</td>
+                      <td style="padding:8px 0 0;font-family:monospace;font-size:18px;font-weight:700;color:#f5f1ec;text-align:right;">₱${total}</td>
                     </tr>
                   </table>
 
@@ -174,13 +174,13 @@ export async function POST(req: NextRequest) {
 </table>
 </body>
 </html>`,
-        text: `ORDER CONFIRMED — ${orderNumber}\n\nThank you, ${fullName}. We've received your order.\n\nOrder Number: ${orderNumber}\nDate: ${date}\nPayment: ${paymentMethod}\nStatus: Processing\n\nItems:\n${(items as OrderItem[]).map((i) => `  ${i.name} x${i.quantity} — $${i.price * i.quantity}`).join('\n')}\n\nSubtotal: $${subtotal}\nShipping (${courierName}): $${shippingCost}\nTotal: $${total}\n\nShip to:\n${fullName}\n${address}\n${barangay}\n${city}, ${province}\n${postalCode}\n\n© ${new Date().getFullYear()} RePXL`,
+        text: `ORDER CONFIRMED — ${orderNumber}\n\nThank you, ${fullName}. We've received your order.\n\nOrder Number: ${orderNumber}\nDate: ${date}\nPayment: ${paymentMethod}\nStatus: Processing\n\nItems:\n${(items as OrderItem[]).map((i) => `  ${i.name} x${i.quantity} — ₱${i.price * i.quantity}`).join('\n')}\n\nSubtotal: ₱${subtotal}\nShipping (${courierName}): ₱${shippingCost}\nTotal: ₱${total}\n\nShip to:\n${fullName}\n${address}\n${barangay}\n${city}, ${province}\n${postalCode}\n\n© ${new Date().getFullYear()} RePXL`,
       })
       console.log('[orders/confirmation] Email sent to:', email)
     } else {
       console.log('\n[RePXL Order Confirmation — DEV MODE]')
       console.log(`Order: ${orderNumber} → ${email}`)
-      console.log(`Total: $${total}\n`)
+      console.log(`Total: ₱${total}\n`)
     }
 
     return NextResponse.json({ sent: true })

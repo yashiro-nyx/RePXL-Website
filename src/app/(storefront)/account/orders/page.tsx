@@ -8,6 +8,7 @@ import { Footer } from '@/components/layout/Footer'
 import { Button, PageLoader } from '@/components/ui'
 import { useAuthStore } from '@/stores/authStore'
 import { useOrderHistoryStore } from '@/stores/orderHistoryStore'
+import { formatPrice } from '@/lib/format'
 
 const statusStyles: Record<string, string> = {
   Processing: 'bg-amber-500/15 text-amber-400 border-amber-500/30',
@@ -90,7 +91,7 @@ export default function OrderHistoryPage() {
                       <p className="mt-0.5 font-mono text-[10px] text-repixl-muted">{order.date}</p>
                     </div>
                     <div className="text-right">
-                      <p className="font-display text-lg font-bold text-repixl-text-light">${order.total.toFixed(2)}</p>
+                      <p className="font-display text-lg font-bold text-repixl-text-light">{formatPrice(order.total)}</p>
                       <p className="font-mono text-[10px] text-repixl-muted">{order.courierName}</p>
                     </div>
                   </div>

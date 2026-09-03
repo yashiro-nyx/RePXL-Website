@@ -13,6 +13,7 @@ import { useCartStore } from '@/stores/cartStore'
 import { useProductStore } from '@/stores/productStore'
 import { useVoucherStore } from '@/stores/voucherStore'
 import { useRevealAnimation } from '@/hooks/useRevealAnimation'
+import { formatPrice } from '@/lib/format'
 
 export default function CartPage() {
   const [loginModalOpen, setLoginModalOpen] = useState(false)
@@ -255,12 +256,12 @@ export default function CartPage() {
                               </p>
                             </div>
                             <span className="font-display text-lg font-semibold text-repixl-text-light">
-                              ${product.price * quantity}
+                              {formatPrice(product.price * quantity)}
                             </span>
                           </div>
                           <div className="mt-2 flex items-center gap-3">
                             <ConditionBadge condition={product.condition} />
-                            <span className="font-mono text-[10px] text-repixl-muted">${product.price} each</span>
+                            <span className="font-mono text-[10px] text-repixl-muted">{formatPrice(product.price)} each</span>
                             {product.stock > 0 && product.stock <= 3 && (
                               <span className="font-mono text-[10px] text-repixl-warning">Only {product.stock} left</span>
                             )}
@@ -308,7 +309,7 @@ export default function CartPage() {
                 <dl className="mt-5 space-y-3">
                   <div className="flex justify-between text-sm">
                     <dt className="text-repixl-text-light/70">Subtotal ({selectedQty} {selectedQty === 1 ? 'item' : 'items'})</dt>
-                    <dd className="font-mono text-repixl-text-light">${subtotal.toFixed(2)}</dd>
+                    <dd className="font-mono text-repixl-text-light">{formatPrice(subtotal)}</dd>
                   </div>
                   <div className="flex justify-between text-sm">
                     <dt className="text-repixl-text-light/70">Shipping (est.)</dt>
@@ -323,7 +324,7 @@ export default function CartPage() {
                   <div className="border-t border-repixl-muted/10 pt-3">
                     <div className="flex justify-between">
                       <dt className="text-sm font-medium text-repixl-text-light">Total</dt>
-                      <dd className="font-display text-xl font-bold text-repixl-text-light">${total.toFixed(2)}</dd>
+                      <dd className="font-display text-xl font-bold text-repixl-text-light">{formatPrice(total)}</dd>
                     </div>
                   </div>
                 </dl>
@@ -420,14 +421,14 @@ export default function CartPage() {
               {selectedItems.map(({ product, quantity }) => (
                 <li key={product.slug} className="flex items-center justify-between">
                   <span className="truncate text-xs text-repixl-text-light/80">{product.name}{quantity > 1 ? ` ×${quantity}` : ''}</span>
-                  <span className="ml-3 flex-shrink-0 font-mono text-xs text-repixl-text-light">${(product.price * quantity).toFixed(2)}</span>
+                  <span className="ml-3 flex-shrink-0 font-mono text-xs text-repixl-text-light">{formatPrice(product.price * quantity)}</span>
                 </li>
               ))}
             </ul>
             {/* Total */}
             <div className="mt-3 flex items-center justify-between border-t border-repixl-muted/10 pt-3">
               <span className="text-sm font-medium text-repixl-text-light">Total (incl. shipping)</span>
-              <span className="font-display text-lg font-bold text-repixl-text-light">${total.toFixed(2)}</span>
+              <span className="font-display text-lg font-bold text-repixl-text-light">{formatPrice(total)}</span>
             </div>
             {/* Actions */}
             <div className="mt-5 flex items-center gap-3">

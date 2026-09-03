@@ -12,6 +12,7 @@ import { useAuthStore } from '@/stores/authStore'
 import { useOrderHistoryStore, type Order } from '@/stores/orderHistoryStore'
 import { computeStepperState } from '@/lib/order-tracking'
 import { TrackingTimeline } from '@/components/tracking/TrackingTimeline'
+import { formatPrice } from '@/lib/format'
 
 // Leaflet requires the browser
 const TrackingMap = dynamic(
@@ -507,7 +508,7 @@ export default function OrderDetailPage() {
                         <p className="text-sm font-medium text-repixl-text-light">{item.name || item.slug}</p>
                         <p className="font-mono text-[10px] text-repixl-muted">×{item.stock}</p>
                       </div>
-                      <p className="font-mono text-sm text-repixl-text-light">${(item.price * item.stock).toFixed(2)}</p>
+                      <p className="font-mono text-sm text-repixl-text-light">{formatPrice(item.price * item.stock)}</p>
                     </div>
                   ))}
                 </div>
@@ -537,9 +538,9 @@ export default function OrderDetailPage() {
               <div className="rounded-2xl border border-repixl-muted/10 bg-repixl-charcoal p-5">
                 <p className="mb-4 font-mono text-[10px] uppercase tracking-widest text-repixl-muted">Summary</p>
                 <dl className="space-y-2">
-                  <div className="flex justify-between text-sm"><dt className="text-repixl-text-light/60">Subtotal</dt><dd className="font-mono text-repixl-text-light">${order.subtotal.toFixed(2)}</dd></div>
-                  <div className="flex justify-between text-sm"><dt className="text-repixl-text-light/60">Shipping</dt><dd className="font-mono text-repixl-text-light">${order.shippingCost.toFixed(2)}</dd></div>
-                  <div className="flex justify-between border-t border-repixl-muted/10 pt-2 font-semibold"><dt className="text-repixl-text-light">Total</dt><dd className="font-display text-lg text-repixl-text-light">${order.total.toFixed(2)}</dd></div>
+                  <div className="flex justify-between text-sm"><dt className="text-repixl-text-light/60">Subtotal</dt><dd className="font-mono text-repixl-text-light">{formatPrice(order.subtotal)}</dd></div>
+                  <div className="flex justify-between text-sm"><dt className="text-repixl-text-light/60">Shipping</dt><dd className="font-mono text-repixl-text-light">{formatPrice(order.shippingCost)}</dd></div>
+                  <div className="flex justify-between border-t border-repixl-muted/10 pt-2 font-semibold"><dt className="text-repixl-text-light">Total</dt><dd className="font-display text-lg text-repixl-text-light">{formatPrice(order.total)}</dd></div>
                 </dl>
               </div>
 
@@ -704,21 +705,21 @@ export default function OrderDetailPage() {
                 <tr key={i} style={{ borderBottom: '1px solid #ebebeb', pageBreakInside: 'avoid' }}>
                   <td style={{ padding: '8px 0', fontFamily: 'sans-serif' }}>{item.name || item.slug}</td>
                   <td style={{ padding: '8px 0', fontFamily: 'monospace', textAlign: 'right', color: '#555' }}>{item.stock}</td>
-                  <td style={{ padding: '8px 0', fontFamily: 'monospace', textAlign: 'right', color: '#555' }}>${item.price.toFixed(2)}</td>
-                  <td style={{ padding: '8px 0', fontFamily: 'monospace', textAlign: 'right' }}>${(item.price * item.stock).toFixed(2)}</td>
+                  <td style={{ padding: '8px 0', fontFamily: 'monospace', textAlign: 'right', color: '#555' }}>{formatPrice(item.price)}</td>
+                  <td style={{ padding: '8px 0', fontFamily: 'monospace', textAlign: 'right' }}>{formatPrice(item.price * item.stock)}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
         <div style={{ marginBottom: '24px' }}>
-          {[['Subtotal', `$${order.subtotal.toFixed(2)}`], [`Shipping (${order.courierName})`, `$${order.shippingCost.toFixed(2)}`]].map(([l, v]) => (
+          {[['Subtotal', `${formatPrice(order.subtotal)}`], [`Shipping (${order.courierName})`, `${formatPrice(order.shippingCost)}`]].map(([l, v]) => (
             <div key={l} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px', fontFamily: 'sans-serif', fontSize: '13px', color: '#555' }}>
               <span>{l}</span><span style={{ fontFamily: 'monospace' }}>{v}</span>
             </div>
           ))}
           <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: '8px', borderTop: '1px solid #d0d0d0', fontFamily: 'sans-serif', fontSize: '15px', fontWeight: 700 }}>
-            <span>Total</span><span style={{ fontFamily: 'monospace' }}>${order.total.toFixed(2)}</span>
+            <span>Total</span><span style={{ fontFamily: 'monospace' }}>{formatPrice(order.total)}</span>
           </div>
         </div>
         <div style={{ textAlign: 'center', paddingTop: '16px', borderTop: '1px solid #d0d0d0' }}>

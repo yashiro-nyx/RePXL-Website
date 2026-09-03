@@ -26,6 +26,7 @@ import { validatePHPhone } from '@/components/ui/PhoneInput'
 import { CardNumberInput } from '@/components/ui/CardNumberInput'
 import { CardExpiryInput } from '@/components/ui/CardExpiryInput'
 import { products as allProducts } from '@/data/products'
+import { formatPrice } from '@/lib/format'
 
 // Lazy-load the PH address component so the ~840KB address dataset only
 // loads when the Addresses tab is opened, not on every account page visit.
@@ -332,7 +333,7 @@ function DashboardTab({ onNavigate }: { onNavigate: (tab: Tab) => void }) {
                   <span className={`rounded-full px-2 py-0.5 font-mono text-[9px] uppercase tracking-wider ${statusColor[order.status] ?? 'bg-repixl-muted/15 text-repixl-muted'}`}>
                     {order.status}
                   </span>
-                  <span className="font-display text-sm font-semibold text-repixl-text-light">${order.total}</span>
+                  <span className="font-display text-sm font-semibold text-repixl-text-light">{formatPrice(order.total)}</span>
                 </div>
               </div>
               )
@@ -552,7 +553,7 @@ function OrdersTab() {
               <span className={`rounded-full px-2.5 py-1 font-mono text-[9px] uppercase tracking-wider ${statusColor[order.status] ?? 'bg-repixl-muted/15 text-repixl-muted'}`}>
                 {order.status}
               </span>
-              <span className="font-display text-lg font-bold text-repixl-text-light">${order.total}</span>
+              <span className="font-display text-lg font-bold text-repixl-text-light">{formatPrice(order.total)}</span>
             </div>
           </div>
           <div className="mt-3 flex items-center justify-between border-t border-repixl-muted/10 pt-3">
@@ -689,7 +690,12 @@ function AddressForm({
       errs.phone = 'Enter a valid PH mobile number (09XXXXXXXXX).'
     }
     if (!phAddr.city) errs.city = 'Required.'
-    if (!phAddr.province) errs.province = 'Required.'
+    // Province is only required when the region HAS provinces.
+    // NCR (and any other no-province region) sets provinceCode = regionCode —
+    // in that case province is correctly empty and must not be required.
+    // This matches the checkout page validation logic exactly.
+    const provinceRequired = phAddr.provinceCode !== phAddr.regionCode && !!phAddr.regionCode
+    if (provinceRequired && !phAddr.province) errs.province = 'Required.'
     if (!phAddr.barangay) errs.barangay = 'Required.'
     if (!/^\d{4,6}$/.test(postalCode.replace(/\s/g, ''))) errs.postalCode = '4–6 digits required.'
     setErrors(errs)

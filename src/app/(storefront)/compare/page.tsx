@@ -12,6 +12,7 @@ import { useProductStore } from '@/stores/productStore'
 import { useReviewStore } from '@/stores/reviewStore'
 import { useRevealAnimation } from '@/hooks/useRevealAnimation'
 import type { Product } from '@/types'
+import { formatPrice } from '@/lib/format'
 
 const MAX_COMPARE = 3
 
@@ -176,7 +177,7 @@ function CompareContent() {
                         <p className="font-mono text-[9px] uppercase tracking-wider text-repixl-muted">{product.brand}</p>
                         <Link href={`/products/${product.slug}`} className="block font-display text-sm font-semibold text-repixl-text-light transition-colors hover:text-repixl-red line-clamp-2">{product.name}</Link>
                         <div className="flex justify-center pt-0.5"><ConditionBadge condition={product.condition} /></div>
-                        <p className="font-display text-xl font-bold text-repixl-text-light">${product.price}</p>
+                        <p className="font-display text-xl font-bold text-repixl-text-light">{formatPrice(product.price)}</p>
                       </div>
                       <button
                         type="button"
@@ -321,7 +322,7 @@ function CompareContent() {
                     </div>
                     <div className="flex-1">
                       <p className="text-sm font-medium text-repixl-text-light">{product.name}</p>
-                      <p className="font-mono text-[10px] text-repixl-muted">{product.brand} · ${product.price}</p>
+                      <p className="font-mono text-[10px] text-repixl-muted">{product.brand} · {formatPrice(product.price)}</p>
                     </div>
                     <ConditionBadge condition={product.condition} />
                   </button>
