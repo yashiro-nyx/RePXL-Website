@@ -1,15 +1,21 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useProductStore } from '@/stores/productStore'
 import { Pagination } from '@/components/ui/Pagination'
 import type { Product, ConditionGrade, ProductStatus } from '@/types'
 import { formatPrice } from '@/lib/format'
 
-const statusColors: Record<ProductStatus, string> = {
+const PAGE_SIZE = 10
+
+const statusColors: Record<string, string> = {
+  ACTIVE: 'bg-green-500/15 text-green-400 border-green-500/30',
   active: 'bg-green-500/15 text-green-400 border-green-500/30',
+  INACTIVE: 'bg-repixl-muted/15 text-repixl-muted border-repixl-muted/20',
   inactive: 'bg-repixl-muted/15 text-repixl-muted border-repixl-muted/20',
+  COMING_SOON: 'bg-blue-500/15 text-blue-400 border-blue-500/30',
   'coming-soon': 'bg-blue-500/15 text-blue-400 border-blue-500/30',
+  DISCONTINUED: 'bg-red-500/15 text-red-400 border-red-500/30',
   discontinued: 'bg-red-500/15 text-red-400 border-red-500/30',
 }
 
@@ -22,58 +28,91 @@ const placeholderImages = [
   '/images/product-panasonic-fz7.svg',
 ]
 
+// The API returns DB-cased fields; map to our Product type shape
+interface ApiProduct {
+  id: string; slug: string; name: string; brand: string; series: string
+  price: number; condition: string; image: string; stock: number
+  status: string; serialNumber?: string; conditionNotes?: string
+  megapixels: number; zoom: string; storage: string; year: number
+}
+
+function toProduct(p: ApiProduct): Product {
+  return {
+    slug: p.slug, name: p.name, brand: p.brand, series: p.series,
+    price: p.price, condition: p.condition.toLowerCase() as ConditionGrade,
+    image: p.image, stock: p.stock,
+    status: p.status.toLowerCase().replace('_', '-') as ProductStatus,
+    description: '',
+    serialNumber: p.serialNumber,
+    conditionNotes: p.conditionNotes,
+    specs: { megapixels: p.megapixels, zoom: p.zoom, storage: p.storage, year: p.year },
+  }
+}
+
 export default function AdminCamerasPage() {
-  const products = useProductStore((s) => s.products)
-  const deleteProduct = useProductStore((s) => s.deleteProduct)
+  const [products, setProducts] = useState<Product[]>([])
+  const [total, setTotal] = useState(0)
+  const [totalPages, setTotalPages] = useState(1)
+  const [currentPage, setCurrentPage] = useState(1)
   const [brandFilter, setBrandFilter] = useState('')
   const [searchQuery, setSearchQuery] = useState('')
+  const [loading, setLoading] = useState(true)
+  const [allBrands, setAllBrands] = useState<string[]>([])
   const [modalOpen, setModalOpen] = useState(false)
   const [editingSlug, setEditingSlug] = useState<string | null>(null)
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
-  const [currentPage, setCurrentPage] = useState(1)
 
-  useEffect(() => {
-    // Admin needs all statuses (active + inactive + discontinued) — use list()
-    // directly rather than the storefront's listActive() hydration.
-    import('@/lib/data/productService').then(({ productService }) =>
-      productService.list().then((all) => {
-        if (all.length > 0) useProductStore.setState({ products: all })
+  const load = useCallback(async (page: number, brand: string, search: string) => {
+    setLoading(true)
+    try {
+      // Admin sees all statuses — pass ACTIVE,INACTIVE,COMING_SOON,DISCONTINUED
+      const params = new URLSearchParams({
+        page: String(page), limit: String(PAGE_SIZE),
+        status: 'ACTIVE,INACTIVE,COMING_SOON,DISCONTINUED',
       })
-    )
+      if (brand) params.set('brand', brand)
+      if (search.trim()) params.set('search', search.trim())
+      const res = await fetch(`/api/products?${params}`, { credentials: 'include' })
+      if (!res.ok) return
+      const json = await res.json()
+      const mapped = (json.data ?? []).map(toProduct)
+      setProducts(mapped)
+      setTotal(json.pagination?.total ?? 0)
+      setTotalPages(json.pagination?.totalPages ?? 1)
+      // Collect brands for the filter dropdown (only on first unfiltered load)
+      if (!brand && !search.trim() && page === 1) {
+        const unique = Array.from(new Set(mapped.map((p: Product) => p.brand))).sort() as string[]
+        if (unique.length > 0) setAllBrands(unique)
+      }
+    } finally {
+      setLoading(false)
+    }
   }, [])
 
-  const brands = Array.from(new Set(products.map((p) => p.brand))).sort()
-  const filtered = products.filter((p) => {
-    if (brandFilter && p.brand !== brandFilter) return false
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase()
-      if (!p.name.toLowerCase().includes(q) && !p.brand.toLowerCase().includes(q) && !(p.serialNumber || '').toLowerCase().includes(q)) return false
-    }
-    return true
-  })
+  useEffect(() => { void load(currentPage, brandFilter, searchQuery) }, [currentPage, brandFilter, searchQuery, load])
 
-  const ITEMS_PER_PAGE = 10
-  const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE)
-  const paginated = filtered.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE)
+  const handleBrandFilter = (b: string) => { setBrandFilter(b); setCurrentPage(1) }
+  const handleSearch = (q: string) => { setSearchQuery(q); setCurrentPage(1) }
+  const reload = () => load(currentPage, brandFilter, searchQuery)
 
   return (
     <div>
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-repixl-text-light">Cameras List</h1>
-          <p className="mt-0.5 text-sm text-repixl-muted">{products.length} total · {products.filter((p) => p.status === 'active').length} active</p>
+          <p className="mt-0.5 text-sm text-repixl-muted">{total} total cameras</p>
         </div>
         <button onClick={() => { setEditingSlug(null); setModalOpen(true) }} className="rounded-xl bg-repixl-red px-4 py-2.5 text-sm font-medium text-repixl-text-light hover:bg-red-700">+ Add Camera</button>
       </div>
 
       <div className="mt-5 flex flex-wrap gap-3">
         <div className="relative flex-1">
-          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="absolute left-3 top-1/2 -translate-y-1/2 text-repixl-muted"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
-          <input type="search" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Search by name, brand, or serial..." className="w-full rounded-xl border border-repixl-muted/20 bg-repixl-charcoal py-2 pl-10 pr-4 text-sm text-repixl-text-light/80 placeholder:text-repixl-muted shadow-sm focus:border-repixl-red/30 focus:outline-none" />
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="absolute left-3 top-1/2 -translate-y-1/2 text-repixl-muted" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+          <input type="search" value={searchQuery} onChange={(e) => handleSearch(e.target.value)} placeholder="Search by name, brand, or serial…" className="w-full rounded-xl border border-repixl-muted/20 bg-repixl-charcoal py-2 pl-10 pr-4 text-sm text-repixl-text-light/80 placeholder:text-repixl-muted shadow-sm focus:border-repixl-red/30 focus:outline-none" />
         </div>
-        <select value={brandFilter} onChange={(e) => setBrandFilter(e.target.value)} className="rounded-xl border border-repixl-muted/20 bg-repixl-charcoal px-4 py-2 text-sm text-repixl-text-light/80 shadow-sm focus:outline-none">
+        <select value={brandFilter} onChange={(e) => handleBrandFilter(e.target.value)} className="rounded-xl border border-repixl-muted/20 bg-repixl-charcoal px-4 py-2 text-sm text-repixl-text-light/80 shadow-sm focus:outline-none">
           <option value="">All Brands</option>
-          {brands.map((b) => <option key={b} value={b}>{b}</option>)}
+          {allBrands.map((b) => <option key={b} value={b}>{b}</option>)}
         </select>
       </div>
 
@@ -83,7 +122,9 @@ export default function AdminCamerasPage() {
             <tr>{['Image','Name','Brand','Stock','Condition','Price','Status','Actions'].map((h) => <th key={h} className="px-5 py-3.5 text-[10px] font-semibold uppercase tracking-wider text-repixl-muted">{h}</th>)}</tr>
           </thead>
           <tbody className="divide-y divide-repixl-muted/10">
-            {paginated.map((p) => (
+            {loading && <tr><td colSpan={8} className="px-5 py-12 text-center text-sm text-repixl-muted">Loading…</td></tr>}
+            {!loading && products.length === 0 && <tr><td colSpan={8} className="px-5 py-12 text-center text-sm text-repixl-muted">No cameras found.</td></tr>}
+            {!loading && products.map((p) => (
               <tr key={p.slug} className="transition-colors hover:bg-repixl-bg/60">
                 <td className="px-5 py-3.5"><div className="h-12 w-12 overflow-hidden rounded-xl bg-repixl-bg">{/* eslint-disable-next-line @next/next/no-img-element */}<img src={p.image} alt="" className="h-full w-full object-contain" /></div></td>
                 <td className="px-5 py-3.5 font-medium text-repixl-text-light">{p.name}</td>
@@ -91,7 +132,7 @@ export default function AdminCamerasPage() {
                 <td className="px-5 py-3.5"><span className={`font-mono text-sm font-bold ${p.stock <= 0 ? 'text-red-400' : p.stock <= 1 ? 'text-amber-400' : 'text-green-400'}`}>{Math.max(0, p.stock)}</span></td>
                 <td className="px-5 py-3.5 capitalize text-xs text-repixl-text-light/70">{p.condition}</td>
                 <td className="px-5 py-3.5 font-mono text-sm font-semibold text-repixl-text-light">{formatPrice(p.price)}</td>
-                <td className="px-5 py-3.5"><span className={`rounded-full border px-2.5 py-1 text-[10px] font-semibold ${statusColors[p.status]}`}>{p.status}</span></td>
+                <td className="px-5 py-3.5"><span className={`rounded-full border px-2.5 py-1 text-[10px] font-semibold ${statusColors[p.status] ?? ''}`}>{p.status}</span></td>
                 <td className="px-5 py-3.5">
                   <div className="flex gap-2">
                     <button onClick={() => { setEditingSlug(p.slug); setModalOpen(true) }} className="flex h-7 w-7 items-center justify-center rounded-lg bg-repixl-red/5 text-repixl-red hover:bg-repixl-red/10" aria-label={`Edit ${p.name}`}><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg></button>
@@ -103,8 +144,15 @@ export default function AdminCamerasPage() {
           </tbody>
         </table>
       </div>
-      <p className="mt-3 text-xs text-repixl-muted">Showing {paginated.length} of {filtered.length} cameras</p>
-      <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
+
+      <Pagination
+        currentPage={currentPage}
+        totalPages={totalPages}
+        totalItems={total}
+        pageSize={PAGE_SIZE}
+        onPageChange={setCurrentPage}
+        itemLabel="cameras"
+      />
 
       {confirmDelete && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
@@ -116,14 +164,25 @@ export default function AdminCamerasPage() {
             <p className="mt-1 text-xs text-repixl-muted">It will be hidden from the storefront and moved to Archived Cameras.</p>
             <p className="mt-2 font-mono text-xs text-repixl-muted">{confirmDelete}</p>
             <div className="mt-4 flex justify-center gap-3">
-              <button onClick={() => { useProductStore.getState().updateProduct(confirmDelete, { status: 'discontinued' }); setConfirmDelete(null) }} className="flex-1 rounded-xl bg-amber-500 px-4 py-2 text-sm font-medium text-white hover:bg-amber-600">Archive</button>
+              <button onClick={async () => {
+                try {
+                  await fetch(`/api/products/${confirmDelete}`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({ status: 'DISCONTINUED' }),
+                  })
+                } catch { /* swallow */ }
+                setConfirmDelete(null)
+                void reload()
+              }} className="flex-1 rounded-xl bg-amber-500 px-4 py-2 text-sm font-medium text-white hover:bg-amber-600">Archive</button>
               <button onClick={() => setConfirmDelete(null)} className="flex-1 rounded-xl border border-repixl-muted/20 px-4 py-2 text-sm text-repixl-muted hover:text-repixl-text-light">Cancel</button>
             </div>
           </div>
         </div>
       )}
 
-      {modalOpen && <CameraModal editingSlug={editingSlug} onClose={() => setModalOpen(false)} />}
+      {modalOpen && <CameraModal editingSlug={editingSlug} onClose={() => { setModalOpen(false); void reload() }} />}
     </div>
   )
 }

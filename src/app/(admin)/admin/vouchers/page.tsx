@@ -1,8 +1,11 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { Pagination } from '@/components/ui/Pagination'
 import { useVoucherStore, type Voucher } from '@/stores/voucherStore'
 import { formatPrice } from '@/lib/format'
+
+const PAGE_SIZE = 10
 
 const statusStyles: Record<string, string> = { active: 'bg-green-500/15 text-green-400 border-green-500/30', expired: 'bg-repixl-muted/15 text-repixl-muted border-repixl-muted/20', disabled: 'bg-red-500/15 text-red-400 border-red-500/30' }
 
@@ -12,6 +15,8 @@ export default function AdminVouchersPage() {
   const deleteVoucher = useVoucherStore((s) => s.deleteVoucher)
   const [modalOpen, setModalOpen] = useState(false)
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
+  const [statusFilter, setStatusFilter] = useState('')
+  const [currentPage, setCurrentPage] = useState(1)
   const [code, setCode] = useState(''); const [discountType, setDiscountType] = useState<'percentage'|'fixed'>('percentage')
   const [discountValue, setDiscountValue] = useState(''); const [minPurchase, setMinPurchase] = useState('0')
   const [maxDiscount, setMaxDiscount] = useState(''); const [usageLimit, setUsageLimit] = useState('')
@@ -49,31 +54,67 @@ export default function AdminVouchersPage() {
   return (
     <div>
       <div className="flex items-center justify-between">
-        <div><h1 className="text-2xl font-bold text-repixl-text-light">Voucher Management</h1><p className="mt-0.5 text-sm text-repixl-muted">{vouchers.length} vouchers</p></div>
+        <div>
+          <h1 className="text-2xl font-bold text-repixl-text-light">Voucher Management</h1>
+          <p className="mt-0.5 text-sm text-repixl-muted">{vouchers.length} vouchers</p>
+        </div>
         <button onClick={() => setModalOpen(true)} className="rounded-xl bg-repixl-red px-4 py-2.5 text-sm font-medium text-white hover:bg-red-700">+ Add Voucher</button>
       </div>
 
-      <div className="mt-5 overflow-x-auto rounded-2xl border border-repixl-muted/20 bg-repixl-charcoal shadow-sm">
-        <table className="w-full text-left text-sm">
-          <thead className="border-b border-repixl-muted/10 bg-repixl-bg/50">
-            <tr>{['Code','Discount','Min Purchase','Usage','Valid Until','Status','Actions'].map((h) => <th key={h} className="px-5 py-3.5 text-[10px] font-semibold uppercase tracking-wider text-repixl-muted">{h}</th>)}</tr>
-          </thead>
-          <tbody className="divide-y divide-repixl-muted/10">
-            {vouchers.map((v) => (
-              <tr key={v.id} className="transition-colors hover:bg-repixl-bg/60">
-                <td className="px-5 py-3.5 font-mono text-sm font-bold text-repixl-red">{v.code}</td>
-                <td className="px-5 py-3.5 font-mono text-sm text-repixl-text-light">{v.discountType === 'percentage' ? `${v.discountValue}%` : formatPrice(v.discountValue)}</td>
-                <td className="px-5 py-3.5 font-mono text-sm text-repixl-text-light/70">{formatPrice(v.minPurchase)}</td>
-                <td className="px-5 py-3.5 font-mono text-xs text-repixl-muted">{v.used}/{v.usageLimit === 0 ? '∞' : v.usageLimit}</td>
-                <td className="px-5 py-3.5 text-xs text-repixl-muted">{v.validUntil}</td>
-                <td className="px-5 py-3.5"><span className={`rounded-full border px-2.5 py-1 text-[10px] font-semibold ${statusStyles[v.status]}`}>{v.status}</span></td>
-                <td className="px-5 py-3.5"><button onClick={() => setConfirmDeleteId(v.id)} className="flex h-7 w-7 items-center justify-center rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg></button></td>
-              </tr>
-            ))}
-            {vouchers.length === 0 && <tr><td colSpan={7} className="px-5 py-12 text-center text-sm text-repixl-muted">No vouchers yet.</td></tr>}
-          </tbody>
-        </table>
+      {/* Status filter */}
+      <div className="mt-5">
+        <select
+          value={statusFilter}
+          onChange={(e) => { setStatusFilter(e.target.value); setCurrentPage(1) }}
+          className="rounded-xl border border-repixl-muted/20 bg-repixl-charcoal px-4 py-2 text-sm text-repixl-text-light/80 shadow-sm focus:outline-none"
+        >
+          <option value="">All Statuses</option>
+          <option value="active">Active</option>
+          <option value="expired">Expired</option>
+          <option value="disabled">Disabled</option>
+        </select>
       </div>
+
+      {(() => {
+        const filtered = statusFilter
+          ? vouchers.filter((v) => v.status === statusFilter)
+          : vouchers
+        const totalPages = Math.ceil(filtered.length / PAGE_SIZE)
+        const paginated = filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE)
+        return (
+          <>
+            <div className="mt-4 overflow-x-auto rounded-2xl border border-repixl-muted/20 bg-repixl-charcoal shadow-sm">
+              <table className="w-full text-left text-sm">
+                <thead className="border-b border-repixl-muted/10 bg-repixl-bg/50">
+                  <tr>{['Code','Discount','Min Purchase','Usage','Valid Until','Status','Actions'].map((h) => <th key={h} className="px-5 py-3.5 text-[10px] font-semibold uppercase tracking-wider text-repixl-muted">{h}</th>)}</tr>
+                </thead>
+                <tbody className="divide-y divide-repixl-muted/10">
+                  {paginated.map((v) => (
+                    <tr key={v.id} className="transition-colors hover:bg-repixl-bg/60">
+                      <td className="px-5 py-3.5 font-mono text-sm font-bold text-repixl-red">{v.code}</td>
+                      <td className="px-5 py-3.5 font-mono text-sm text-repixl-text-light">{v.discountType === 'percentage' ? `${v.discountValue}%` : formatPrice(v.discountValue)}</td>
+                      <td className="px-5 py-3.5 font-mono text-sm text-repixl-text-light/70">{formatPrice(v.minPurchase)}</td>
+                      <td className="px-5 py-3.5 font-mono text-xs text-repixl-muted">{v.used}/{v.usageLimit === 0 ? '∞' : v.usageLimit}</td>
+                      <td className="px-5 py-3.5 text-xs text-repixl-muted">{v.validUntil}</td>
+                      <td className="px-5 py-3.5"><span className={`rounded-full border px-2.5 py-1 text-[10px] font-semibold ${statusStyles[v.status]}`}>{v.status}</span></td>
+                      <td className="px-5 py-3.5"><button onClick={() => setConfirmDeleteId(v.id)} className="flex h-7 w-7 items-center justify-center rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20" aria-label={`Delete voucher ${v.code}`}><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg></button></td>
+                    </tr>
+                  ))}
+                  {filtered.length === 0 && <tr><td colSpan={7} className="px-5 py-12 text-center text-sm text-repixl-muted">No vouchers found.</td></tr>}
+                </tbody>
+              </table>
+            </div>
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              totalItems={filtered.length}
+              pageSize={PAGE_SIZE}
+              onPageChange={setCurrentPage}
+              itemLabel="vouchers"
+            />
+          </>
+        )
+      })()}
 
       {/* Delete confirmation */}
       {confirmDeleteId && (

@@ -104,7 +104,55 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
   }
 }
 
-// DELETE /api/products/[slug] — Delete a product (admin only)
+// PATCH /api/products/[slug] — Partial update (status only, admin only)
+export async function PATCH(request: NextRequest, { params }: RouteParams) {
+  try {
+    const admin = await getCurrentAdmin()
+    if (!admin) {
+      return unauthorizedResponse('Admin access required')
+    }
+
+    const existing = await prisma.product.findUnique({ where: { slug: params.slug } })
+    if (!existing) {
+      return notFoundResponse('Product not found')
+    }
+
+    const body = await request.json()
+    const allowedFields: Record<string, unknown> = {}
+    if (body.status) {
+      const validStatuses = ['ACTIVE', 'INACTIVE', 'COMING_SOON', 'DISCONTINUED']
+      if (!validStatuses.includes(body.status)) {
+        return errorResponse('Invalid status value', 422)
+      }
+      allowedFields.status = body.status
+    }
+    if (body.stock !== undefined) allowedFields.stock = Number(body.stock)
+
+    if (Object.keys(allowedFields).length === 0) {
+      return errorResponse('No patchable fields provided', 422)
+    }
+
+    const product = await prisma.product.update({
+      where: { slug: params.slug },
+      data: allowedFields,
+    })
+
+    await prisma.adminLog.create({
+      data: {
+        action: 'UPDATE_PRODUCT',
+        details: `Patched product: ${product.name} (${product.slug}) — ${JSON.stringify(allowedFields)}`,
+        adminId: admin.id,
+        adminName: `${admin.firstName} ${admin.lastName}`,
+      },
+    })
+
+    return successResponse(product)
+  } catch (error) {
+    console.error('Patch product error:', error)
+    return errorResponse('Internal server error', 500)
+  }
+}
+
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
   try {
     const admin = await getCurrentAdmin()

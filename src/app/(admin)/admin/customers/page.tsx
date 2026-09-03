@@ -1,10 +1,12 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useOrderHistoryStore } from '@/stores/orderHistoryStore'
 import { adminService, type AdminCustomer } from '@/lib/data/adminService'
 import { Pagination } from '@/components/ui/Pagination'
 import { formatPrice } from '@/lib/format'
+
+const PAGE_SIZE = 10
 
 const statusStyles: Record<string, string> = {
   Processing: 'bg-amber-500/15 text-amber-400 border-amber-500/30',
@@ -47,22 +49,46 @@ export default function AdminCustomersPage() {
   const [ordersModal, setOrdersModal] = useState<string | null>(null)
   const [confirmArchive, setConfirmArchive] = useState<string | null>(null)
   const [currentPage, setCurrentPage] = useState(1)
+  const [total, setTotal] = useState(0)
+  const [totalPages, setTotalPages] = useState(1)
   const orders = useOrderHistoryStore((s) => s.orders)
   const [customers, setCustomers] = useState<AdminCustomer[]>([])
+  const [loading, setLoading] = useState(true)
+
+  const load = useCallback(async (page: number, search: string) => {
+    setLoading(true)
+    try {
+      const params = new URLSearchParams({
+        page: String(page), limit: String(PAGE_SIZE), archived: 'false',
+      })
+      if (search.trim()) params.set('search', search.trim())
+      const res = await fetch(`/api/admin/customers?${params}`, { credentials: 'include' })
+      if (!res.ok) return
+      const json = await res.json()
+      const mapped: AdminCustomer[] = (json.data ?? []).map((u: {
+        id: string; firstName: string; lastName: string; email: string; role: string
+        _count?: { orders: number; reviews: number }
+      }) => ({
+        id: u.id,
+        name: `${u.firstName} ${u.lastName}`.trim() || u.email,
+        email: u.email,
+        role: u.role === 'ADMIN' ? 'Admin' : 'User',
+        orders: u._count?.orders,
+        reviews: u._count?.reviews,
+      }))
+      setCustomers(mapped)
+      setTotal(json.pagination?.total ?? 0)
+      setTotalPages(json.pagination?.totalPages ?? 1)
+    } finally {
+      setLoading(false)
+    }
+  }, [])
 
   useEffect(() => {
     useOrderHistoryStore.getState().hydrate()
-    adminService.listCustomers().then(setCustomers)
-  }, [])
+    void load(currentPage, searchQuery)
+  }, [currentPage, searchQuery, load])
 
-  const filtered = customers.filter(
-    (c) => !searchQuery.trim() ||
-      c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      c.email.toLowerCase().includes(searchQuery.toLowerCase())
-  )
-  const ITEMS_PER_PAGE = 10
-  const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE)
-  const paginated = filtered.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE)
   const customerOrders = ordersModal
     ? orders.filter((o) => o.fullName.toLowerCase().includes(
         customers.find((c) => c.id === ordersModal)?.name.split(' ')[0].toLowerCase() || ''
@@ -71,14 +97,11 @@ export default function AdminCustomersPage() {
 
   const handleArchive = async (id: string) => {
     await adminService.archiveCustomer(id)
-    const fresh = await adminService.listCustomers()
-    setCustomers(fresh)
     setConfirmArchive(null)
+    void load(currentPage, searchQuery)
   }
 
-  // Stats
-  const totalCustomers = customers.length
-  const customersWithOrders = new Set(orders.map((o) => o.userEmail)).size
+  // Stats (from total count only — no full list needed)
   const totalRevenue = orders.reduce((s, o) => s + o.total, 0)
 
   return (
@@ -88,7 +111,7 @@ export default function AdminCustomersPage() {
         <div>
           <p className="font-mono text-[10px] uppercase tracking-widest text-repixl-muted">— Customer management</p>
           <h1 className="mt-1 text-2xl font-bold text-repixl-text-light">Account List</h1>
-          <p className="mt-0.5 text-sm text-repixl-muted">{customers.length} registered customers</p>
+          <p className="mt-0.5 text-sm text-repixl-muted">{total} registered customers</p>
         </div>
       </div>
 
@@ -97,7 +120,7 @@ export default function AdminCustomersPage() {
         {[
           {
             label: 'Total Customers',
-            value: totalCustomers,
+            value: total,
             icon: 'M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2',
             iconExtra: <circle cx="9" cy="7" r="4" />,
             color: 'text-blue-400',
@@ -105,7 +128,7 @@ export default function AdminCustomersPage() {
           },
           {
             label: 'With Orders',
-            value: customersWithOrders,
+            value: new Set(orders.map((o) => o.userEmail)).size,
             icon: 'M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z',
             color: 'text-emerald-400',
             bg: 'bg-emerald-400/10',
@@ -146,8 +169,7 @@ export default function AdminCustomersPage() {
         <input
           type="search"
           value={searchQuery}
-          onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1) }}
-          placeholder="Search by name or email…"
+          onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1) }}          placeholder="Search by name or email…"
           className="w-full rounded-xl border border-repixl-muted/20 bg-repixl-charcoal py-2.5 pl-10 pr-4 text-sm text-repixl-text-light placeholder:text-repixl-muted/50 shadow-sm focus:border-repixl-red/30 focus:outline-none"
         />
       </div>
@@ -163,7 +185,10 @@ export default function AdminCustomersPage() {
             </tr>
           </thead>
           <tbody className="divide-y divide-repixl-muted/8">
-            {filtered.length === 0 && (
+            {loading && (
+              <tr><td colSpan={4} className="px-5 py-12 text-center text-sm text-repixl-muted">Loading…</td></tr>
+            )}
+            {!loading && customers.length === 0 && (
               <tr>
                 <td colSpan={4} className="px-5 py-14 text-center">
                   <div className="flex flex-col items-center gap-2">
@@ -175,7 +200,7 @@ export default function AdminCustomersPage() {
                 </td>
               </tr>
             )}
-            {paginated.map((c) => {
+            {!loading && customers.map((c) => {
               const initials = getInitials(c.name)
               const color = avatarColor(c.name)
               return (
@@ -224,10 +249,14 @@ export default function AdminCustomersPage() {
         </table>
       </div>
 
-      <div className="flex items-center justify-between">
-        <p className="text-xs text-repixl-muted">Showing {paginated.length} of {filtered.length} customers</p>
-        <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
-      </div>
+      <Pagination
+        currentPage={currentPage}
+        totalPages={totalPages}
+        totalItems={total}
+        pageSize={PAGE_SIZE}
+        onPageChange={setCurrentPage}
+        itemLabel="customers"
+      />
 
       {/* Archive confirmation */}
       {confirmArchive && (

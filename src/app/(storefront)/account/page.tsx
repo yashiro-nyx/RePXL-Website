@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import dynamic from 'next/dynamic'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -9,6 +9,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { Container } from '@/components/layout/Container'
 import { Footer } from '@/components/layout/Footer'
 import { Button, ConditionBadge, CornerBracket, FilmStripLoader, PasswordInput } from '@/components/ui'
+import { Pagination } from '@/components/ui/Pagination'
 import { PhoneInput } from '@/components/ui/PhoneInput'
 import { emptyPHAddress, type PHAddressValue } from '@/components/ui/PHAddressSelect'
 import { useAuthStore } from '@/stores/authStore'
@@ -505,19 +506,53 @@ function ProfileTab() {
 
 // ─── Orders Tab ──────────────────────────────────────────────────────────────
 function OrdersTab() {
-  const allOrders = useOrderHistoryStore((s) => s.orders)
-  const userEmail = useAuthStore((s) => s.userEmail)
-  const orders = allOrders.filter((o) => o.userEmail === userEmail)
+  const PAGE_SIZE = 10
+  const [orders, setOrders] = useState<{
+    orderNumber: string; status: string; total: number; createdAt: string
+    courierName: string; courierEstimate: string
+    items: { id: string; quantity: number; product: { name: string } }[]
+  }[]>([])
+  const [total, setTotal] = useState(0)
+  const [totalPages, setTotalPages] = useState(1)
+  const [currentPage, setCurrentPage] = useState(1)
+  const [loading, setLoading] = useState(true)
+
+  const load = useCallback(async (page: number) => {
+    setLoading(true)
+    try {
+      const params = new URLSearchParams({ page: String(page), limit: String(PAGE_SIZE) })
+      const res = await fetch(`/api/orders?${params}`, { credentials: 'include' })
+      if (!res.ok) return
+      const json = await res.json()
+      setOrders(json.data ?? [])
+      setTotal(json.pagination?.total ?? 0)
+      setTotalPages(json.pagination?.totalPages ?? 1)
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => { void load(currentPage) }, [currentPage, load])
 
   const statusColor: Record<string, string> = {
+    PROCESSING: 'bg-repixl-warning/15 text-repixl-warning',
     Processing: 'bg-repixl-warning/15 text-repixl-warning',
+    SHIPPED: 'bg-blue-400/15 text-blue-400',
     Shipped: 'bg-blue-400/15 text-blue-400',
+    DELIVERED: 'bg-repixl-success/15 text-repixl-success',
     Delivered: 'bg-repixl-success/15 text-repixl-success',
+    COMPLETED: 'bg-repixl-success/15 text-repixl-success',
     Completed: 'bg-repixl-success/15 text-repixl-success',
+    CANCELLED: 'bg-repixl-red/15 text-repixl-red',
     Cancelled: 'bg-repixl-red/15 text-repixl-red',
   }
 
-  if (orders.length === 0) {
+  const statusLabel: Record<string, string> = {
+    PROCESSING: 'Processing', SHIPPED: 'Shipped', DELIVERED: 'Delivered',
+    COMPLETED: 'Completed', CANCELLED: 'Cancelled',
+  }
+
+  if (!loading && total === 0) {
     return (
       <div className="rounded-xl border border-repixl-muted/10 bg-repixl-charcoal p-10 text-center">
         <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-repixl-muted/10">
@@ -535,43 +570,62 @@ function OrdersTab() {
   return (
     <div className="space-y-3">
       <div className="mb-1">
-        <span className="font-mono text-[10px] uppercase tracking-widest text-repixl-muted">— {orders.length} {orders.length === 1 ? 'order' : 'orders'}</span>
+        <span className="font-mono text-[10px] uppercase tracking-widest text-repixl-muted">
+          — {total} {total === 1 ? 'order' : 'orders'}
+        </span>
         <h2 className="mt-1 font-display text-lg font-semibold text-repixl-text-light">Order History</h2>
       </div>
-      {orders.map((order) => {
-        const firstItem = order.items[0]
-        const extraCount = order.items.length - 1
-        return (
-        <div key={order.orderNumber} className="rounded-xl border border-repixl-muted/10 bg-repixl-charcoal p-5">
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              {/* Item name — primary */}
-              <p className="text-sm font-semibold text-repixl-text-light">
-                {firstItem?.name ?? 'Order'}
-                {extraCount > 0 && <span className="text-repixl-muted"> +{extraCount} more</span>}
-              </p>
-              {/* Order number — secondary */}
-              <p className="mt-0.5 font-mono text-[10px] text-repixl-muted">#{order.orderNumber} · {order.date}</p>
-            </div>
-            <div className="flex items-center gap-3">
-              <span className={`rounded-full px-2.5 py-1 font-mono text-[9px] uppercase tracking-wider ${statusColor[order.status] ?? 'bg-repixl-muted/15 text-repixl-muted'}`}>
-                {order.status}
-              </span>
-              <span className="font-display text-lg font-bold text-repixl-text-light">{formatPrice(order.total)}</span>
-            </div>
-          </div>
-          <div className="mt-3 flex items-center justify-between border-t border-repixl-muted/10 pt-3">
-            <p className="text-xs text-repixl-muted">{order.courierName} · {order.courierEstimate}</p>
-            <Link
-              href={`/account/orders/${order.orderNumber}`}
-              className="font-mono text-[10px] uppercase tracking-wider text-repixl-muted transition-colors hover:text-repixl-text-light"
-            >
-              View Details →
-            </Link>
-          </div>
+
+      {loading && (
+        <div className="rounded-xl border border-repixl-muted/10 bg-repixl-charcoal p-8 text-center">
+          <p className="text-sm text-repixl-muted">Loading orders…</p>
         </div>
+      )}
+
+      {!loading && orders.map((order) => {
+        const firstItem = order.items?.[0]
+        const extraCount = (order.items?.length ?? 0) - 1
+        const displayStatus = statusLabel[order.status] ?? order.status
+        return (
+          <div key={order.orderNumber} className="rounded-xl border border-repixl-muted/10 bg-repixl-charcoal p-5">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-sm font-semibold text-repixl-text-light">
+                  {firstItem?.product?.name ?? 'Order'}
+                  {extraCount > 0 && <span className="text-repixl-muted"> +{extraCount} more</span>}
+                </p>
+                <p className="mt-0.5 font-mono text-[10px] text-repixl-muted">
+                  #{order.orderNumber} · {new Date(order.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}
+                </p>
+              </div>
+              <div className="flex items-center gap-3">
+                <span className={`rounded-full px-2.5 py-1 font-mono text-[9px] uppercase tracking-wider ${statusColor[order.status] ?? 'bg-repixl-muted/15 text-repixl-muted'}`}>
+                  {displayStatus}
+                </span>
+                <span className="font-display text-lg font-bold text-repixl-text-light">{formatPrice(order.total)}</span>
+              </div>
+            </div>
+            <div className="mt-3 flex items-center justify-between border-t border-repixl-muted/10 pt-3">
+              <p className="text-xs text-repixl-muted">{order.courierName} · {order.courierEstimate}</p>
+              <Link
+                href={`/account/orders/${order.orderNumber}`}
+                className="font-mono text-[10px] uppercase tracking-wider text-repixl-muted transition-colors hover:text-repixl-text-light"
+              >
+                View Details →
+              </Link>
+            </div>
+          </div>
         )
       })}
+
+      <Pagination
+        currentPage={currentPage}
+        totalPages={totalPages}
+        totalItems={total}
+        pageSize={PAGE_SIZE}
+        onPageChange={setCurrentPage}
+        itemLabel="orders"
+      />
     </div>
   )
 }
