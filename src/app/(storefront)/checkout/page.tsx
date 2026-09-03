@@ -253,32 +253,35 @@ export default function CheckoutPage() {
   const total = subtotal + courier.price
 
   const validate = (): FormErrors => {
-    const form = formRef.current
-    const get = (id: string) => (form?.querySelector(`#${id}`) as HTMLInputElement)?.value ?? ''
     const errs: FormErrors = {}
 
-    // Shipping fields
-    if (!nonEmpty(fullName)) errs.fullName = 'Full name is required.'
+    // Email is always required (needed for order confirmation)
     if (!isValidEmail(email)) errs.email = 'Enter a valid email address.'
-    if (!nonEmpty(streetAddress)) errs.address = 'Street address is required.'
 
-    // Address dropdowns — must select Region first, then City, then Barangay
-    if (!nonEmpty(phAddr.regionCode)) {
-      errs.region = 'Please select a Region.'
-    } else {
-      // Province required only when the region has provinces (NCR has none — provinceCode = regionCode)
-      if (phAddr.provinceCode !== phAddr.regionCode && !nonEmpty(phAddr.provinceCode)) {
-        errs.province = 'Please select a Province / District.'
+    if (selectedAddressId === null) {
+      // New address — validate all shipping fields
+      if (!nonEmpty(fullName)) errs.fullName = 'Full name is required.'
+      if (!nonEmpty(streetAddress)) errs.address = 'Street address is required.'
+
+      // Address dropdowns — must select Region first, then City, then Barangay
+      if (!nonEmpty(phAddr.regionCode)) {
+        errs.region = 'Please select a Region.'
+      } else {
+        // Province required only when the region has provinces (NCR has none — provinceCode = regionCode)
+        if (phAddr.provinceCode !== phAddr.regionCode && !nonEmpty(phAddr.provinceCode)) {
+          errs.province = 'Please select a Province / District.'
+        }
+        if (!nonEmpty(phAddr.cityCode)) errs.city = 'Please select a City / Municipality.'
+        if (!nonEmpty(phAddr.barangay)) errs.barangay = 'Please select a Barangay.'
       }
-      if (!nonEmpty(phAddr.cityCode)) errs.city = 'Please select a City / Municipality.'
-      if (!nonEmpty(phAddr.barangay)) errs.barangay = 'Please select a Barangay.'
+
+      if (!isValidPostalCode(postalCode)) errs.postalCode = 'Enter a valid postal code (4–6 digits).'
+      if (!validatePHPhone(phone.replace(/\D/g, ''))) errs.phone = 'Enter a valid PH mobile number (09XXXXXXXXX).'
     }
+    // When a saved address is selected, all address fields are already populated from the saved record.
 
-    if (!isValidPostalCode(postalCode)) errs.postalCode = 'Enter a valid postal code (4–6 digits).'
-    if (!validatePHPhone(phone.replace(/\D/g, ''))) errs.phone = 'Enter a valid PH mobile number (09XXXXXXXXX).'
-
-    // Card fields
-    if (paymentMethod === 'card') {
+    // Card fields — only when entering a new payment method
+    if (selectedCardId === null && paymentMethod === 'card') {
       if (!isValidCardNumber(cardNumber)) errs.cardNumber = 'Enter a valid 16-digit card number.'
       const expiryRaw = cardExpiry.replace(/\s/g, '')
       if (!isValidExpiry(expiryRaw)) errs.cardExpiry = 'Enter a valid, non-expired date (MM/YY).'
@@ -834,79 +837,115 @@ export default function CheckoutPage() {
                   <div className="h-px bg-repixl-muted/10" />
                 </div>
               )}
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <FieldWrapper id="full-name" label="Full Name" error={errors.fullName} className="sm:col-span-2">
-                  <input
-                    id="full-name"
-                    type="text"
-                    autoComplete="name"
-                    value={fullName}
-                    onChange={(e) => setFullName(e.target.value)}
-                    className={inputClass(errors.fullName)}
-                    {...nameFilter}
-                  />
-                </FieldWrapper>
-                <FieldWrapper id="email" label="Email Address" error={errors.email} className="sm:col-span-2">
-                  <input
-                    id="email"
-                    type="email"
-                    autoComplete="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className={inputClass(errors.email)}
-                  />
-                </FieldWrapper>
-                <div className="sm:col-span-2">
-                  <label htmlFor="phone" className="mb-1 block text-xs text-repixl-text-light/70">Phone Number</label>
-                  <PhoneInput
-                    id="phone"
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    error={errors.phone}
-                    autoComplete="tel"
-                  />
-                </div>
-                <FieldWrapper id="address" label="Street Address / House No." error={errors.address} className="sm:col-span-2">
-                  <input
-                    id="address"
-                    type="text"
-                    autoComplete="street-address"
-                    value={streetAddress}
-                    onChange={(e) => setStreetAddress(e.target.value)}
-                    className={inputClass(errors.address)}
-                  />
-                </FieldWrapper>
 
-                {/* Cascading PH address dropdowns */}
-                <div className="sm:col-span-2">
-                  <PHAddressSelect
-                    value={phAddr}
-                    onChange={setPhAddr}
-                    errors={{
-                      region: errors.region,
-                      province: errors.province,
-                      city: errors.city,
-                      barangay: errors.barangay,
-                    }}
-                    disabled={submitting || paymentProcessing}
-                  />
-                </div>
+              {/* ── When a saved address is selected: show compact summary + email ── */}
+              {selectedAddressId !== null ? (
+                <div className="space-y-4">
+                  {/* Compact address summary */}
+                  <div className="rounded-xl border border-repixl-muted/15 bg-repixl-charcoal/50 px-4 py-3">
+                    <p className="font-mono text-[9px] uppercase tracking-wider text-repixl-muted mb-2">Delivering to</p>
+                    <p className="text-sm font-medium text-repixl-text-light">{fullName}</p>
+                    <p className="text-sm text-repixl-text-light/70">{streetAddress}</p>
+                    {phAddr.barangay && <p className="text-sm text-repixl-text-light/70">{phAddr.barangay}</p>}
+                    <p className="text-sm text-repixl-text-light/70">{phAddr.city}{phAddr.province ? `, ${phAddr.province}` : ''}</p>
+                    <p className="text-sm text-repixl-text-light/70">{postalCode}</p>
+                    <p className="font-mono text-xs text-repixl-muted mt-1">{phone}</p>
+                    <Link
+                      href="/account"
+                      className="mt-2 inline-block font-mono text-[10px] uppercase tracking-wider text-repixl-muted hover:text-repixl-text-light underline"
+                    >
+                      Manage addresses in Account →
+                    </Link>
+                  </div>
 
-                <FieldWrapper id="postal-code" label="Postal Code" error={errors.postalCode}>
-                  <input
-                    id="postal-code"
-                    type="text"
-                    inputMode="numeric"
-                    autoComplete="postal-code"
-                    maxLength={6}
-                    value={postalCode}
-                    onChange={(e) => setPostalCode(e.target.value)}
-                    className={inputClass(errors.postalCode)}
-                    disabled={submitting || paymentProcessing}
-                    {...digitsFilter}
-                  />
-                </FieldWrapper>
-              </div>
+                  {/* Email is always needed for order confirmation */}
+                  <FieldWrapper id="email" label="Email Address (for order confirmation)" error={errors.email}>
+                    <input
+                      id="email"
+                      type="email"
+                      autoComplete="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      className={inputClass(errors.email)}
+                    />
+                  </FieldWrapper>
+                </div>
+              ) : (
+                /* ── New address: show full form ── */
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <FieldWrapper id="full-name" label="Full Name" error={errors.fullName} className="sm:col-span-2">
+                    <input
+                      id="full-name"
+                      type="text"
+                      autoComplete="name"
+                      value={fullName}
+                      onChange={(e) => setFullName(e.target.value)}
+                      className={inputClass(errors.fullName)}
+                      {...nameFilter}
+                    />
+                  </FieldWrapper>
+                  <FieldWrapper id="email" label="Email Address" error={errors.email} className="sm:col-span-2">
+                    <input
+                      id="email"
+                      type="email"
+                      autoComplete="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      className={inputClass(errors.email)}
+                    />
+                  </FieldWrapper>
+                  <div className="sm:col-span-2">
+                    <label htmlFor="phone" className="mb-1 block text-xs text-repixl-text-light/70">Phone Number</label>
+                    <PhoneInput
+                      id="phone"
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value)}
+                      error={errors.phone}
+                      autoComplete="tel"
+                    />
+                  </div>
+                  <FieldWrapper id="address" label="Street Address / House No." error={errors.address} className="sm:col-span-2">
+                    <input
+                      id="address"
+                      type="text"
+                      autoComplete="street-address"
+                      value={streetAddress}
+                      onChange={(e) => setStreetAddress(e.target.value)}
+                      className={inputClass(errors.address)}
+                    />
+                  </FieldWrapper>
+
+                  {/* Cascading PH address dropdowns */}
+                  <div className="sm:col-span-2">
+                    <PHAddressSelect
+                      value={phAddr}
+                      onChange={setPhAddr}
+                      errors={{
+                        region: errors.region,
+                        province: errors.province,
+                        city: errors.city,
+                        barangay: errors.barangay,
+                      }}
+                      disabled={submitting || paymentProcessing}
+                    />
+                  </div>
+
+                  <FieldWrapper id="postal-code" label="Postal Code" error={errors.postalCode}>
+                    <input
+                      id="postal-code"
+                      type="text"
+                      inputMode="numeric"
+                      autoComplete="postal-code"
+                      maxLength={6}
+                      value={postalCode}
+                      onChange={(e) => setPostalCode(e.target.value)}
+                      className={inputClass(errors.postalCode)}
+                      disabled={submitting || paymentProcessing}
+                      {...digitsFilter}
+                    />
+                  </FieldWrapper>
+                </div>
+              )}
             </section>
 
             {/* Delivery courier */}
