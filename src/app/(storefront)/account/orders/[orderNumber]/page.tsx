@@ -96,6 +96,9 @@ export default function OrderDetailPage() {
   const [reviewErrors, setReviewErrors] = useState<{ rating?: string; comment?: string }>({})
   const [submittingReview, setSubmittingReview] = useState(false)
   const [reviewSubmitError, setReviewSubmitError] = useState<string | null>(null)
+  // Set to true immediately after a successful confirm-receipt API response.
+  // Shows the completion success screen without requiring a page reload.
+  const [feedbackSuccess, setFeedbackSuccess] = useState(false)
 
   useEffect(() => {
     hydrate().then(() => {
@@ -213,9 +216,12 @@ export default function OrderDetailPage() {
       })
       const data = await res.json().catch(() => ({}))
       if (res.ok) {
+        // Close the modal and update local state — no page reload needed.
         setConfirmModalOpen(false)
         await updateStatus(order.orderNumber, 'Completed')
         setOrder((prev) => prev ? { ...prev, status: 'Completed' } : prev)
+        // Show the dedicated success/completion screen immediately.
+        setFeedbackSuccess(true)
       } else {
         setReviewSubmitError(data.error ?? 'Submission failed. Please try again.')
       }
@@ -238,6 +244,58 @@ export default function OrderDetailPage() {
           <Link href="/account/orders" className="mt-6 inline-block"><Button variant="primary" size="md">View Orders</Button></Link>
         </div>
       </div>
+    )
+  }
+
+  // ── Completion success screen — shown immediately after feedback is submitted ──
+  // Replaces the full order detail page without a reload.
+  if (feedbackSuccess) {
+    return (
+      <>
+        <div className="burn-subtle min-h-screen pb-20 pt-24">
+          <Container>
+            <div className="mx-auto flex max-w-lg flex-col items-center py-20 text-center">
+              {/* Success icon */}
+              <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-repixl-success/15">
+                <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-repixl-success" aria-hidden="true">
+                  <path d="M20 6 9 17l-5-5" />
+                </svg>
+              </div>
+
+              {/* Heading */}
+              <h1 className="font-display text-display-md text-repixl-text-light">Thank You</h1>
+              <p className="mt-3 text-base text-repixl-text-light/70">
+                Thank you for confirming your order and sharing your feedback.
+              </p>
+
+              {/* Order number */}
+              <div className="mt-5 rounded-xl border border-repixl-success/20 bg-repixl-success/5 px-6 py-3">
+                <p className="font-mono text-[10px] uppercase tracking-widest text-repixl-muted">Order</p>
+                <p className="mt-0.5 font-mono text-sm font-semibold text-repixl-text-light">{order.orderNumber}</p>
+                <p className="mt-1 font-mono text-[10px] uppercase tracking-wider text-repixl-success">Completed</p>
+              </div>
+
+              <p className="mt-4 text-sm text-repixl-muted">
+                Your review has been submitted and your order is now complete.
+              </p>
+
+              {/* Actions */}
+              <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
+                <Link href="/products">
+                  <Button variant="primary" size="lg">Continue Shopping</Button>
+                </Link>
+                <Link
+                  href="/account/orders"
+                  className="rounded-xl border border-repixl-muted/20 px-5 py-2.5 text-sm text-repixl-text-light/70 transition-colors hover:border-repixl-muted/40 hover:text-repixl-text-light"
+                >
+                  View Orders
+                </Link>
+              </div>
+            </div>
+          </Container>
+        </div>
+        <Footer />
+      </>
     )
   }
 
