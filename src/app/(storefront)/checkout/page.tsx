@@ -25,6 +25,7 @@ import { CardExpiryInput } from '@/components/ui/CardExpiryInput'
 import { termsContent, privacyContent } from '@/data/legal'
 import type { Product, CartItem } from '@/types'
 import { formatPrice } from '@/lib/format'
+import { usePaymentStore } from '@/stores/paymentStore'
 
 // Lazy-load the PH address component — keeps the address dataset out of the
 // initial checkout bundle; it loads only when the form renders.
@@ -128,6 +129,7 @@ export default function CheckoutPage() {
   const allProducts = useProductStore((s) => s.products)
   const addresses = useAddressStore((s) => s.addresses)
   const defaultAddress = addresses.find((a) => a.isDefault)
+  const savedCards = usePaymentStore((s) => s.cards)
 
   // Respect the subset selected on the cart page (stored in sessionStorage).
   // If no selection key is present, all cart items are checked out (direct nav).
@@ -152,6 +154,10 @@ export default function CheckoutPage() {
   const [streetAddress, setStreetAddress] = useState('')
   const [postalCode, setPostalCode] = useState('')
   const [phAddr, setPhAddr] = useState<PHAddressValue>(emptyPHAddress)
+  // Track which saved address is selected (for the picker UI)
+  const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null)
+  // Track which saved card is selected (null = enter new card)
+  const [selectedCardId, setSelectedCardId] = useState<string | null>(null)
 
   // ── Card field state (auto-formatted, controlled) ──
   const [cardNumber, setCardNumber] = useState('') // raw digits only
@@ -179,7 +185,8 @@ export default function CheckoutPage() {
       await hydrateAuth()
       await useCartStore.getState().hydrate()
       useProductStore.getState().hydrate()
-      useAddressStore.getState().hydrate()
+      await useAddressStore.getState().hydrate()
+      usePaymentStore.getState().hydrate()
       useOrderHistoryStore.getState().hydrate()
       setHydrated(true)
     }
@@ -197,10 +204,47 @@ export default function CheckoutPage() {
       if (defaultAddress.address) setStreetAddress(defaultAddress.address)
       if (defaultAddress.postalCode) setPostalCode(defaultAddress.postalCode)
       if (defaultAddress.phone) setPhone(defaultAddress.phone)
-      // province/city/barangay are now dropdown-driven; free-text fallback for display
+      // If the saved address has PSGC codes, populate the cascading dropdowns.
+      // NCR has province='' and provinceCode=regionCode — both are handled correctly.
+      if (defaultAddress.regionCode) {
+        setPhAddr({
+          region: defaultAddress.city ? '' : '', // display name resolved by PHAddressSelect
+          province: defaultAddress.province ?? '',
+          city: defaultAddress.city,
+          barangay: defaultAddress.barangay,
+          regionCode: defaultAddress.regionCode,
+          provinceCode: defaultAddress.provinceCode ?? defaultAddress.regionCode ?? '',
+          cityCode: defaultAddress.cityCode ?? '',
+        })
+      }
+      setSelectedAddressId(defaultAddress.id)
     }
+    // Pre-select default saved card if one exists
+    const defaultCard = usePaymentStore.getState().cards.find((c) => c.isDefault)
+    if (defaultCard) setSelectedCardId(defaultCard.id)
     setPrefilled(true)
   }, [hydrated, prefilled, userName, userEmail, userPhone, defaultAddress])
+
+  // Helper: apply a saved address to all controlled checkout fields
+  const applyAddress = (addr: typeof defaultAddress) => {
+    if (!addr) return
+    setFullName(addr.fullName)
+    setStreetAddress(addr.address)
+    setPostalCode(addr.postalCode)
+    setPhone(addr.phone)
+    if (addr.regionCode) {
+      setPhAddr({
+        region: '',
+        province: addr.province ?? '',
+        city: addr.city,
+        barangay: addr.barangay,
+        regionCode: addr.regionCode,
+        provinceCode: addr.provinceCode ?? addr.regionCode ?? '',
+        cityCode: addr.cityCode ?? '',
+      })
+    }
+    setSelectedAddressId(addr.id)
+  }
 
   const courier = couriers.find((c) => c.id === selectedCourier)!
   const subtotal = cartItems.reduce((sum, item) => sum + item.product.price * item.quantity, 0)
@@ -741,12 +785,111 @@ export default function CheckoutPage() {
             </div>
           )}
           <div className="space-y-8 lg:col-span-2">
+            {/* Saved Address Picker — shown when user has saved addresses */}
+            {addresses.length > 0 && (
+              <section className="rounded-xl border border-repixl-muted/10 bg-repixl-charcoal/30 p-5">
+                <div className="mb-3 flex items-center gap-3">
+                  <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-repixl-red/15 font-mono text-xs font-bold text-repixl-red">✓</div>
+                  <h2 className="font-display text-base font-semibold text-repixl-text-light">Saved Addresses</h2>
+                </div>
+                <div className="space-y-2">
+                  {addresses.map((addr) => (
+                    <label
+                      key={addr.id}
+                      className={`flex cursor-pointer items-start gap-3 rounded-xl border px-4 py-3 transition-colors ${
+                        selectedAddressId === addr.id
+                          ? 'border-repixl-red bg-repixl-red/5'
+                          : 'border-repixl-muted/20 hover:border-repixl-muted/40'
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="saved-address"
+                        className="sr-only"
+                        checked={selectedAddressId === addr.id}
+                        onChange={() => applyAddress(addr)}
+                      />
+                      <div className={`mt-0.5 flex h-4 w-4 flex-shrink-0 items-center justify-center rounded-full border ${
+                        selectedAddressId === addr.id ? 'border-repixl-red' : 'border-repixl-muted/40'
+                      }`}>
+                        {selectedAddressId === addr.id && <span className="h-2 w-2 rounded-full bg-repixl-red" />}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <p className="text-sm font-medium text-repixl-text-light">{addr.fullName}</p>
+                          {addr.isDefault && (
+                            <span className="rounded-full bg-repixl-success/15 px-2 py-0.5 font-mono text-[9px] uppercase text-repixl-success">Default</span>
+                          )}
+                        </div>
+                        <p className="mt-0.5 text-xs text-repixl-muted truncate">
+                          {addr.address}{addr.barangay ? `, ${addr.barangay}` : ''}, {addr.city}{addr.province ? `, ${addr.province}` : ''}
+                        </p>
+                        <p className="font-mono text-[10px] text-repixl-muted">{addr.phone}</p>
+                      </div>
+                    </label>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() => { setSelectedAddressId(null); setPhAddr({ region: '', province: '', city: '', barangay: '', regionCode: '', provinceCode: '', cityCode: '' }); setStreetAddress(''); setPostalCode('') }}
+                    className={`flex w-full items-center gap-3 rounded-xl border px-4 py-3 text-sm transition-colors ${
+                      selectedAddressId === null
+                        ? 'border-repixl-red bg-repixl-red/5 text-repixl-text-light'
+                        : 'border-repixl-muted/20 text-repixl-muted hover:border-repixl-muted/40 hover:text-repixl-text-light'
+                    }`}
+                  >
+                    <span className="font-mono text-[10px]">+ Enter a new address</span>
+                  </button>
+                </div>
+              </section>
+            )}
+
             {/* Shipping info */}
             <section className="rounded-xl border border-repixl-muted/10 bg-repixl-charcoal/30 p-6">
               <div className="mb-5 flex items-center gap-3">
                 <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-repixl-red/15 font-mono text-xs font-bold text-repixl-red">1</div>
                 <h2 className="font-display text-base font-semibold text-repixl-text-light">Shipping Information</h2>
               </div>
+
+              {/* ── Saved address picker ── */}
+              {addresses.length > 0 && (
+                <div className="mb-5 space-y-2">
+                  <p className="font-mono text-[10px] uppercase tracking-wider text-repixl-muted">Saved Addresses</p>
+                  {addresses.map((addr) => (
+                    <button
+                      key={addr.id}
+                      type="button"
+                      onClick={() => applyAddress(addr)}
+                      className={`w-full rounded-xl border px-4 py-3 text-left transition-colors ${
+                        selectedAddressId === addr.id
+                          ? 'border-repixl-red bg-repixl-red/10'
+                          : 'border-repixl-muted/20 hover:border-repixl-muted/40'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <div>
+                          <p className="text-sm font-medium text-repixl-text-light">{addr.fullName}</p>
+                          <p className="font-mono text-[10px] text-repixl-muted">{addr.address}, {addr.city}{addr.barangay ? `, ${addr.barangay}` : ''}</p>
+                        </div>
+                        {addr.isDefault && (
+                          <span className="flex-shrink-0 rounded-full bg-repixl-success/15 px-2 py-0.5 font-mono text-[9px] uppercase text-repixl-success">Default</span>
+                        )}
+                      </div>
+                    </button>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() => { setSelectedAddressId(null); setFullName(userName); setStreetAddress(''); setPostalCode(''); setPhone(userPhone); setPhAddr(emptyPHAddress) }}
+                    className={`w-full rounded-xl border px-4 py-3 text-left transition-colors ${
+                      selectedAddressId === null
+                        ? 'border-repixl-red bg-repixl-red/10'
+                        : 'border-repixl-muted/20 hover:border-repixl-muted/40'
+                    }`}
+                  >
+                    <p className="text-sm font-medium text-repixl-text-light">+ Enter a new address</p>
+                  </button>
+                  <div className="h-px bg-repixl-muted/10" />
+                </div>
+              )}
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <FieldWrapper id="full-name" label="Full Name" error={errors.fullName} className="sm:col-span-2">
                   <input
@@ -856,6 +999,106 @@ export default function CheckoutPage() {
                 <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-repixl-red/15 font-mono text-xs font-bold text-repixl-red">3</div>
                 <h2 className="font-display text-base font-semibold text-repixl-text-light">Payment Method</h2>
               </div>
+
+              {/* ── Saved card picker ── */}
+              {savedCards.length > 0 && (
+                <div className="mb-5 space-y-2">
+                  <p className="font-mono text-[10px] uppercase tracking-wider text-repixl-muted">Saved Payment Methods</p>
+                  {savedCards.map((card) => (
+                    <button
+                      key={card.id}
+                      type="button"
+                      onClick={() => { setSelectedCardId(card.id); setPaymentMethod('card') }}
+                      className={`w-full rounded-xl border px-4 py-3 text-left transition-colors ${
+                        selectedCardId === card.id
+                          ? 'border-repixl-red bg-repixl-red/10'
+                          : 'border-repixl-muted/20 hover:border-repixl-muted/40'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-3">
+                          <div className="flex h-8 w-12 items-center justify-center rounded border border-repixl-muted/20 bg-repixl-charcoal">
+                            <span className="font-mono text-[9px] font-bold text-repixl-text-light/70">{card.brand}</span>
+                          </div>
+                          <div>
+                            <p className="font-mono text-sm text-repixl-text-light">•••• {card.last4}</p>
+                            <p className="font-mono text-[10px] text-repixl-muted">{card.cardholderName} · {card.expiry}</p>
+                          </div>
+                        </div>
+                        {card.isDefault && (
+                          <span className="flex-shrink-0 rounded-full bg-repixl-success/15 px-2 py-0.5 font-mono text-[9px] uppercase text-repixl-success">Default</span>
+                        )}
+                      </div>
+                    </button>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() => setSelectedCardId(null)}
+                    className={`w-full rounded-xl border px-4 py-3 text-left transition-colors ${
+                      selectedCardId === null
+                        ? 'border-repixl-red bg-repixl-red/10'
+                        : 'border-repixl-muted/20 hover:border-repixl-muted/40'
+                    }`}
+                  >
+                    <p className="text-sm font-medium text-repixl-text-light">+ Use a different payment method</p>
+                  </button>
+                  <div className="h-px bg-repixl-muted/10" />
+                </div>
+              )}
+
+              {/* Saved card picker — shown when user has saved cards */}
+              {savedCards.length > 0 && (
+                <div className="mb-5 space-y-2">
+                  {savedCards.map((card) => (
+                    <label
+                      key={card.id}
+                      className={`flex cursor-pointer items-center gap-3 rounded-xl border px-4 py-3 transition-colors ${
+                        selectedCardId === card.id
+                          ? 'border-repixl-red bg-repixl-red/5'
+                          : 'border-repixl-muted/20 hover:border-repixl-muted/40'
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="saved-card"
+                        className="sr-only"
+                        checked={selectedCardId === card.id}
+                        onChange={() => { setSelectedCardId(card.id); setPaymentMethod('card') }}
+                      />
+                      <div className={`flex h-4 w-4 flex-shrink-0 items-center justify-center rounded-full border ${
+                        selectedCardId === card.id ? 'border-repixl-red' : 'border-repixl-muted/40'
+                      }`}>
+                        {selectedCardId === card.id && <span className="h-2 w-2 rounded-full bg-repixl-red" />}
+                      </div>
+                      <div className="flex h-9 w-14 items-center justify-center rounded-lg border border-repixl-muted/20 bg-repixl-charcoal">
+                        <span className="font-mono text-[9px] font-bold text-repixl-text-light/70">{card.brand}</span>
+                      </div>
+                      <div className="flex-1">
+                        <p className="font-mono text-sm text-repixl-text-light">•••• {card.last4}</p>
+                        <p className="font-mono text-[10px] text-repixl-muted">{card.cardholderName} · {card.expiry}</p>
+                      </div>
+                      {card.isDefault && (
+                        <span className="rounded-full bg-repixl-success/15 px-2 py-0.5 font-mono text-[9px] uppercase text-repixl-success">Default</span>
+                      )}
+                    </label>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() => setSelectedCardId(null)}
+                    className={`flex w-full items-center gap-3 rounded-xl border px-4 py-3 text-sm transition-colors ${
+                      selectedCardId === null
+                        ? 'border-repixl-red bg-repixl-red/5 text-repixl-text-light'
+                        : 'border-repixl-muted/20 text-repixl-muted hover:border-repixl-muted/40 hover:text-repixl-text-light'
+                    }`}
+                  >
+                    <span className="font-mono text-[10px]">+ Use a different payment method</span>
+                  </button>
+                </div>
+              )}
+
+              {/* Payment method type selector — shown when entering new card */}
+              {selectedCardId === null && (
+                <>
               <fieldset>
                 <legend className="sr-only">Select payment method</legend>
                 <div className="flex flex-wrap gap-3">
@@ -943,7 +1186,10 @@ export default function CheckoutPage() {
                 <div className="mt-5 rounded-xl border border-repixl-muted/10 bg-repixl-charcoal p-4">
                   <p className="text-sm text-repixl-text-light/70">PayPal is processed as a card payment via PayMongo.</p>
                 </div>
-              )}            </section>
+              )}
+              </>
+              )}
+            </section>
           </div>
 
           {/* Order summary sidebar */}

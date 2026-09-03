@@ -109,6 +109,10 @@ export const addressSchema = z.object({
   postalCode: z.string().min(1, 'Postal code is required').max(20),
   phone: z.string().min(1, 'Phone is required').max(20),
   isDefault: z.boolean().optional().default(false),
+  // PSGC codes for cascading dropdown re-population
+  regionCode: z.string().max(20).optional().default(''),
+  provinceCode: z.string().max(20).optional().default(''),
+  cityCode: z.string().max(20).optional().default(''),
 })
 
 // ─── Voucher Validations ────────────────────────────────────────────────────────

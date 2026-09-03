@@ -712,6 +712,10 @@ function AddressForm({
         postalCode: postalCode.trim(),
         phone: phone.trim(),
         isDefault,
+        // Persist PSGC codes so checkout can re-populate the cascading dropdowns
+        regionCode: phAddr.regionCode,
+        provinceCode: phAddr.provinceCode,
+        cityCode: phAddr.cityCode,
       })
     } finally {
       setSaving(false)

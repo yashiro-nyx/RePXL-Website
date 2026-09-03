@@ -14,6 +14,10 @@ export interface Address {
   postalCode: string
   phone: string
   isDefault: boolean
+  // PSGC codes for cascading dropdown re-population
+  regionCode?: string
+  provinceCode?: string
+  cityCode?: string
 }
 
 interface AddressState {

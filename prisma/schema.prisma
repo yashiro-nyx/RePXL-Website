@@ -239,6 +239,11 @@ model Address {
   postalCode String  @map("postal_code")
   phone      String
   isDefault  Boolean @default(false) @map("is_default")
+  // PSGC codes — stored so cascading dropdowns can be re-populated
+  // without requiring error-prone name-to-code reverse lookups.
+  regionCode   String @default("") @map("region_code")
+  provinceCode String @default("") @map("province_code")
+  cityCode     String @default("") @map("city_code")
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")

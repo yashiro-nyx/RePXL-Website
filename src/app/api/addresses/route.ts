@@ -66,6 +66,9 @@ export async function POST(request: NextRequest) {
         postalCode: data.postalCode,
         phone: data.phone,
         isDefault: shouldBeDefault,
+        regionCode: data.regionCode ?? '',
+        provinceCode: data.provinceCode ?? '',
+        cityCode: data.cityCode ?? '',
       },
     })
 

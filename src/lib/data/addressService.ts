@@ -16,6 +16,10 @@ interface ApiAddress {
   postalCode: string
   phone: string
   isDefault: boolean
+  // PSGC codes for cascading dropdown re-population
+  regionCode?: string
+  provinceCode?: string
+  cityCode?: string
 }
 
 function localKey(email: string | null) {
@@ -50,6 +54,9 @@ function toClient(a: ApiAddress): Address {
     postalCode: a.postalCode,
     phone: a.phone,
     isDefault: a.isDefault,
+    regionCode: a.regionCode ?? '',
+    provinceCode: a.provinceCode ?? '',
+    cityCode: a.cityCode ?? '',
   }
 }
 
