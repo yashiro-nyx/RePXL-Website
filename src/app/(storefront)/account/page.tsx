@@ -23,6 +23,8 @@ import { useProductStore } from '@/stores/productStore'
 import { useRevealAnimation } from '@/hooks/useRevealAnimation'
 import { useFilteredInput, nameChars, digitsOnly } from '@/hooks/useFilteredInput'
 import { validatePHPhone } from '@/components/ui/PhoneInput'
+import { CardNumberInput } from '@/components/ui/CardNumberInput'
+import { CardExpiryInput } from '@/components/ui/CardExpiryInput'
 import { products as allProducts } from '@/data/products'
 
 // Lazy-load the PH address component so the ~840KB address dataset only
@@ -785,35 +787,128 @@ function PaymentsTab() {
 }
 
 function CardForm({ onSave, onCancel }: { onSave: (d: Omit<SavedCard, 'id'>) => void; onCancel: () => void }) {
+  // cardNumber holds RAW digits only (no spaces) — matches CardNumberInput contract
   const [cardNumber, setCardNumber] = useState('')
+  // expiry holds the formatted display string e.g. "12/28" — matches CardExpiryInput contract
   const [expiry, setExpiry] = useState('')
+  const [cvc, setCvc] = useState('')
   const [name, setName] = useState('')
   const [isDefault, setIsDefault] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
+  const nameFilter = useFilteredInput(nameChars)
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     const errs: Record<string, string> = {}
-    const digits = cardNumber.replace(/\s/g, '')
-    if (!/^\d{16}$/.test(digits)) errs.cardNumber = '16 digits required.'
-    const m = expiry.trim().match(/^(\d{2})\s*\/\s*(\d{2})$/)
-    if (!m) errs.expiry = 'MM/YY format.'
-    else { const mo = parseInt(m[1]); const yr = parseInt(m[2]) + 2000; if (mo < 1 || mo > 12 || new Date(yr, mo) <= new Date()) errs.expiry = 'Invalid or expired.' }
-    if (!name.trim()) errs.name = 'Required.'
+
+    // Validate card number (raw digits from CardNumberInput)
+    if (!/^\d{16}$/.test(cardNumber)) errs.cardNumber = '16 digits required.'
+
+    // Validate expiry (formatted MM/YY from CardExpiryInput)
+    const m = expiry.trim().match(/^(\d{2})\/(\d{2})$/)
+    if (!m) {
+      errs.expiry = 'MM/YY format required.'
+    } else {
+      const mo = parseInt(m[1], 10)
+      const yr = parseInt(m[2], 10) + 2000
+      if (mo < 1 || mo > 12 || new Date(yr, mo) <= new Date()) {
+        errs.expiry = 'Invalid or expired date.'
+      }
+    }
+
+    // Validate CVC — 3 or 4 digits
+    if (!/^\d{3,4}$/.test(cvc.trim())) errs.cvc = '3 or 4-digit CVC required.'
+
+    if (!name.trim()) errs.name = 'Cardholder name is required.'
+
     setErrors(errs)
     if (Object.keys(errs).length > 0) return
-    onSave({ last4: digits.slice(-4), brand: detectBrand(digits[0]), expiry: expiry.trim(), cardholderName: name.trim(), isDefault })
+
+    // Only store safe metadata — never the full card number or CVC
+    onSave({
+      last4: cardNumber.slice(-4),
+      brand: detectBrand(cardNumber[0]),
+      expiry: expiry.trim(),
+      cardholderName: name.trim(),
+      isDefault,
+    })
   }
 
   return (
     <form onSubmit={handleSubmit} noValidate className="mt-5 space-y-3 rounded-lg border border-repixl-muted/10 bg-repixl-bg p-4">
-      <div><label htmlFor="c-num" className="mb-1 block text-xs text-repixl-text-light/70">Card Number</label><input id="c-num" type="text" inputMode="numeric" value={cardNumber} onChange={(e) => setCardNumber(e.target.value)} placeholder="1234 5678 9012 3456" className={`font-mono ${inputClass(errors.cardNumber)}`} />{errors.cardNumber && <p className="mt-1 text-xs text-red-400">{errors.cardNumber}</p>}</div>
-      <div className="grid grid-cols-2 gap-3">
-        <div><label htmlFor="c-exp" className="mb-1 block text-xs text-repixl-text-light/70">Expiry</label><input id="c-exp" type="text" value={expiry} onChange={(e) => setExpiry(e.target.value)} placeholder="MM / YY" className={`font-mono ${inputClass(errors.expiry)}`} />{errors.expiry && <p className="mt-1 text-xs text-red-400">{errors.expiry}</p>}</div>
-        <div><label htmlFor="c-name" className="mb-1 block text-xs text-repixl-text-light/70">Name on Card</label><input id="c-name" type="text" value={name} onChange={(e) => setName(e.target.value)} className={inputClass(errors.name)} />{errors.name && <p className="mt-1 text-xs text-red-400">{errors.name}</p>}</div>
+      {/* Card number — uses CardNumberInput for formatting + digit-only restriction */}
+      <div>
+        <label htmlFor="c-num" className="mb-1 block text-xs text-repixl-text-light/70">Card Number</label>
+        <CardNumberInput
+          id="c-num"
+          value={cardNumber}
+          onChange={setCardNumber}
+          error={errors.cardNumber}
+          className={`font-mono ${inputClass(errors.cardNumber)}`}
+          autoComplete="cc-number"
+        />
       </div>
-      <label className="flex items-center gap-2"><input type="checkbox" checked={isDefault} onChange={(e) => setIsDefault(e.target.checked)} className="h-3.5 w-3.5 rounded border-repixl-muted/30 bg-repixl-charcoal text-repixl-red" /><span className="text-xs text-repixl-text-light/70">Set as default</span></label>
-      <div className="flex gap-3 pt-2"><Button type="submit" variant="primary" size="sm">Save Card</Button><button type="button" onClick={onCancel} className="text-xs text-repixl-muted hover:text-repixl-text-light">Cancel</button></div>
+
+      <div className="grid grid-cols-2 gap-3">
+        {/* Expiry — uses CardExpiryInput for MM/YY formatting */}
+        <div>
+          <label htmlFor="c-exp" className="mb-1 block text-xs text-repixl-text-light/70">Expiry (MM/YY)</label>
+          <CardExpiryInput
+            id="c-exp"
+            value={expiry}
+            onChange={setExpiry}
+            error={errors.expiry}
+            className={`font-mono ${inputClass(errors.expiry)}`}
+            autoComplete="cc-exp"
+          />
+        </div>
+
+        {/* CVC — digits-only, max 4, never stored */}
+        <div>
+          <label htmlFor="c-cvc" className="mb-1 block text-xs text-repixl-text-light/70">CVC</label>
+          <input
+            id="c-cvc"
+            type="text"
+            inputMode="numeric"
+            autoComplete="cc-csc"
+            placeholder="123"
+            maxLength={4}
+            value={cvc}
+            onChange={(e) => setCvc(e.target.value.replace(/\D/g, '').slice(0, 4))}
+            className={`font-mono ${inputClass(errors.cvc)}`}
+          />
+          {errors.cvc && <p className="mt-1 text-xs text-red-400">{errors.cvc}</p>}
+        </div>
+      </div>
+
+      {/* Cardholder name */}
+      <div>
+        <label htmlFor="c-name" className="mb-1 block text-xs text-repixl-text-light/70">Name on Card</label>
+        <input
+          id="c-name"
+          type="text"
+          autoComplete="cc-name"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          className={inputClass(errors.name)}
+          {...nameFilter}
+        />
+        {errors.name && <p className="mt-1 text-xs text-red-400">{errors.name}</p>}
+      </div>
+
+      <label className="flex items-center gap-2">
+        <input type="checkbox" checked={isDefault} onChange={(e) => setIsDefault(e.target.checked)} className="h-3.5 w-3.5 rounded border-repixl-muted/30 bg-repixl-charcoal text-repixl-red" />
+        <span className="text-xs text-repixl-text-light/70">Set as default payment method</span>
+      </label>
+
+      <p className="font-mono text-[9px] uppercase tracking-wider text-repixl-muted/50">
+        Card details are not stored — only the last 4 digits and expiry are saved for display.
+      </p>
+
+      <div className="flex gap-3 pt-2">
+        <Button type="submit" variant="primary" size="sm">Save Card</Button>
+        <button type="button" onClick={onCancel} className="text-xs text-repixl-muted hover:text-repixl-text-light">Cancel</button>
+      </div>
     </form>
   )
 }
@@ -900,6 +995,17 @@ function SecurityTab() {
   const [error, setError] = useState('')
   const changePassword = useAuthStore((s) => s.changePassword)
 
+  // Detect whether the account has a RePXL password by calling /api/auth/me.
+  // hasPassword=false means it's a Google-only account (password field is '').
+  const [hasPassword, setHasPassword] = useState<boolean | null>(null)
+
+  useEffect(() => {
+    fetch('/api/auth/me', { credentials: 'include', cache: 'no-store' })
+      .then((r) => r.json())
+      .then((j) => { if (typeof j?.data?.hasPassword === 'boolean') setHasPassword(j.data.hasPassword) })
+      .catch(() => setHasPassword(true)) // conservative default: show change-password form
+  }, [])
+
   const passwordRequirements = [
     { label: 'At least 8 characters', test: (p: string) => p.length >= 8 },
     { label: 'One uppercase letter', test: (p: string) => /[A-Z]/.test(p) },
@@ -909,7 +1015,7 @@ function SecurityTab() {
   ]
   const allMet = passwordRequirements.every((r) => r.test(newPassword))
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
     if (!currentPassword.trim()) { setError('Enter your current password.'); return }
@@ -922,21 +1028,75 @@ function SecurityTab() {
     setTimeout(() => setSaved(false), 3000)
   }
 
+  const handleSetPassword = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setError('')
+    if (!allMet) { setError('Password does not meet requirements.'); return }
+    if (newPassword !== confirmPassword) { setError('Passwords do not match.'); return }
+    try {
+      const res = await fetch('/api/auth/set-password', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ newPassword, confirmPassword }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (res.ok) {
+        setSaved(true)
+        setNewPassword(''); setConfirmPassword('')
+        setHasPassword(true) // account now has a password
+        setTimeout(() => setSaved(false), 3000)
+      } else {
+        setError(data.error ?? 'Failed to set password. Please try again.')
+      }
+    } catch {
+      setError('Network error. Please try again.')
+    }
+  }
+
   return (
     <div className="space-y-4">
       <div>
         <span className="font-mono text-[10px] uppercase tracking-widest text-repixl-muted">— Account security</span>
-        <h2 className="mt-1 font-display text-lg font-semibold text-repixl-text-light">Change Password</h2>
+        <h2 className="mt-1 font-display text-lg font-semibold text-repixl-text-light">
+          {hasPassword === false ? 'Set a RePXL Password' : 'Change Password'}
+        </h2>
       </div>
 
-      <div className="rounded-xl border border-repixl-muted/10 bg-repixl-charcoal p-6">
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label htmlFor="sec-current" className="mb-1.5 block text-xs text-repixl-text-light/70">Current Password</label>
-            <PasswordInput id="sec-current" autoComplete="current-password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} />
+      {/* Google-only account notice */}
+      {hasPassword === false && (
+        <div className="rounded-xl border border-blue-500/20 bg-blue-500/5 p-4">
+          <div className="flex items-start gap-3">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="mt-0.5 flex-shrink-0 text-blue-400" aria-hidden="true">
+              <circle cx="12" cy="12" r="10" /><path d="M12 16v-4" /><path d="M12 8h.01" />
+            </svg>
+            <div>
+              <p className="text-sm font-medium text-repixl-text-light">Your account uses Google Sign-In</p>
+              <p className="mt-1 text-xs text-repixl-text-light/60">
+                Your RePXL account is authenticated through Google. Your Google password is managed by Google and is not stored or accessed by RePXL.
+              </p>
+              <p className="mt-2 text-xs text-repixl-text-light/60">
+                You can optionally set a separate RePXL password below. This password is completely independent from your Google account and will allow you to sign in with your email and this password in addition to Google.
+              </p>
+            </div>
           </div>
+        </div>
+      )}
+
+      <div className="rounded-xl border border-repixl-muted/10 bg-repixl-charcoal p-6">
+        <form onSubmit={hasPassword === false ? handleSetPassword : handleChangePassword} className="space-y-4">
+          {/* Only show "Current Password" for accounts that already have one */}
+          {hasPassword !== false && (
+            <div>
+              <label htmlFor="sec-current" className="mb-1.5 block text-xs text-repixl-text-light/70">Current Password</label>
+              <PasswordInput id="sec-current" autoComplete="current-password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} />
+            </div>
+          )}
+
           <div>
-            <label htmlFor="sec-new" className="mb-1.5 block text-xs text-repixl-text-light/70">New Password</label>
+            <label htmlFor="sec-new" className="mb-1.5 block text-xs text-repixl-text-light/70">
+              {hasPassword === false ? 'New RePXL Password' : 'New Password'}
+            </label>
             <PasswordInput id="sec-new" autoComplete="new-password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} />
             <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1.5">
               {passwordRequirements.map((req) => {
@@ -950,14 +1110,30 @@ function SecurityTab() {
               })}
             </div>
           </div>
+
           <div>
-            <label htmlFor="sec-confirm" className="mb-1.5 block text-xs text-repixl-text-light/70">Confirm New Password</label>
+            <label htmlFor="sec-confirm" className="mb-1.5 block text-xs text-repixl-text-light/70">Confirm Password</label>
             <PasswordInput id="sec-confirm" autoComplete="new-password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} />
           </div>
+
           {error && <p className="text-xs text-red-400" role="alert">{error}</p>}
+
           <div className="flex items-center gap-3 pt-1">
-            <Button type="submit" variant="primary" size="md" disabled={!allMet} className={!allMet ? 'opacity-50 cursor-not-allowed' : ''}>Update Password</Button>
-            {saved && <span className="flex items-center gap-1.5 text-sm text-repixl-success" role="status"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5" /></svg>Updated</span>}
+            <Button
+              type="submit"
+              variant="primary"
+              size="md"
+              disabled={hasPassword === null || !allMet}
+              className={!allMet ? 'opacity-50 cursor-not-allowed' : ''}
+            >
+              {hasPassword === false ? 'Set RePXL Password' : 'Update Password'}
+            </Button>
+            {saved && (
+              <span className="flex items-center gap-1.5 text-sm text-repixl-success" role="status">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5" /></svg>
+                {hasPassword === false ? 'Password set' : 'Updated'}
+              </span>
+            )}
           </div>
         </form>
       </div>

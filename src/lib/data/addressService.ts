@@ -111,7 +111,7 @@ export const addressService = {
   async setDefault(email: string | null, id: string): Promise<void> {
     await withFallback<void>(
       async () => {
-        await apiClient.patch(`/api/addresses/${id}/default`)
+        await apiClient.put(`/api/addresses/${id}/default`)
       },
       () => {
         writeLocal(

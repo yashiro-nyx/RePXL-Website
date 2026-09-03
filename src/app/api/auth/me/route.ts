@@ -29,6 +29,7 @@ export async function GET() {
         role: true,
         isSuperAdmin: true,
         createdAt: true,
+        password: true, // included only to derive hasPassword — never returned to client
       },
     })
 
@@ -36,7 +37,11 @@ export async function GET() {
       return unauthorizedResponse()
     }
 
-    return successResponse(fullUser)
+    // Expose a safe boolean so the Security tab can detect OAuth-only accounts.
+    // The raw password hash is intentionally stripped before the response.
+    const { password: _pw, ...safeUser } = fullUser
+
+    return successResponse({ ...safeUser, hasPassword: !!_pw && _pw.length > 0 })
   } catch (error) {
     console.error('Get profile error:', error)
     return errorResponse('Internal server error', 500)
