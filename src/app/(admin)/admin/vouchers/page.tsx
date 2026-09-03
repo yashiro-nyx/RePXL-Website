@@ -104,12 +104,12 @@ export default function AdminVouchersPage() {
             <form onSubmit={handleAdd} className="space-y-4 p-6">
               <div><label className="mb-1 block text-xs font-medium text-repixl-muted">Voucher Code <span className="text-red-400">*</span></label><input value={code} onChange={(e) => setCode(e.target.value)} placeholder="E.G., SUMMER2026" className={`font-mono uppercase ${iClass}`} /></div>
               <div className="grid grid-cols-2 gap-4">
-                <div><label className="mb-1 block text-xs font-medium text-repixl-muted">Discount Type <span className="text-red-400">*</span></label><select value={discountType} onChange={(e) => setDiscountType(e.target.value as 'percentage'|'fixed')} className={iClass}><option value="percentage">Percentage (%)</option><option value="fixed">Fixed ($)</option></select></div>
+                <div><label className="mb-1 block text-xs font-medium text-repixl-muted">Discount Type <span className="text-red-400">*</span></label><select value={discountType} onChange={(e) => setDiscountType(e.target.value as 'percentage'|'fixed')} className={iClass}><option value="percentage">Percentage (%)</option><option value="fixed">Fixed (₱)</option></select></div>
                 <div><label className="mb-1 block text-xs font-medium text-repixl-muted">Discount Value <span className="text-red-400">*</span></label><input type="number" value={discountValue} onChange={(e) => setDiscountValue(e.target.value)} placeholder="0.00" className={`font-mono ${iClass}`} /></div>
               </div>
               <div className="grid grid-cols-2 gap-4">
-                <div><label className="mb-1 block text-xs font-medium text-repixl-muted">Min Purchase ($)</label><input type="number" value={minPurchase} onChange={(e) => setMinPurchase(e.target.value)} className={`font-mono ${iClass}`} /></div>
-                <div><label className="mb-1 block text-xs font-medium text-repixl-muted">Max Discount ($)</label><input type="number" value={maxDiscount} onChange={(e) => setMaxDiscount(e.target.value)} placeholder="No limit" className={`font-mono ${iClass}`} /></div>
+                <div><label className="mb-1 block text-xs font-medium text-repixl-muted">Min Purchase (₱)</label><input type="number" value={minPurchase} onChange={(e) => setMinPurchase(e.target.value)} className={`font-mono ${iClass}`} /></div>
+                <div><label className="mb-1 block text-xs font-medium text-repixl-muted">Max Discount (₱)</label><input type="number" value={maxDiscount} onChange={(e) => setMaxDiscount(e.target.value)} placeholder="No limit" className={`font-mono ${iClass}`} /></div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div><label className="mb-1 block text-xs font-medium text-repixl-muted">Total Usage Limit</label><input type="number" value={usageLimit} onChange={(e) => setUsageLimit(e.target.value)} placeholder="Unlimited" className={`font-mono ${iClass}`} /></div>
