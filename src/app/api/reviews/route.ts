@@ -41,7 +41,7 @@ export async function GET(request: NextRequest) {
         where,
         include: {
           product: { select: { slug: true, name: true, image: true } },
-          user: { select: { firstName: true, lastName: true } },
+          user: { select: { firstName: true, lastName: true, email: true } },
         },
         orderBy: { createdAt: 'desc' },
         skip: pagination.skip,

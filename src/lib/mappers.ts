@@ -123,7 +123,7 @@ export interface ApiReview {
   verifiedPurchase: boolean
   createdAt: string
   product?: { slug: string; name?: string; image?: string }
-  user?: { firstName: string; lastName: string }
+  user?: { firstName: string; lastName: string; email?: string }
 }
 
 export function apiToClientReview(r: ApiReview, fallbackSlug = ''): Review {
@@ -131,7 +131,9 @@ export function apiToClientReview(r: ApiReview, fallbackSlug = ''): Review {
     id: r.id,
     productSlug: r.product?.slug ?? fallbackSlug,
     reviewerName: r.reviewerName,
-    reviewerEmail: '', // not exposed by the API for privacy; not needed for display
+    // Populate reviewerEmail from the user relation so ReviewsTab's
+    // filter (r.reviewerEmail === userEmail) works for API-sourced reviews.
+    reviewerEmail: r.user?.email ?? '',
     rating: r.rating,
     comment: r.comment,
     date: r.createdAt,
