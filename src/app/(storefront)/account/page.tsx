@@ -580,11 +580,21 @@ function AddressesTab() {
   const setDefault = useAddressStore((s) => s.setDefault)
   const [formOpen, setFormOpen] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
+  const [saveError, setSaveError] = useState<string | null>(null)
 
-  const handleSave = (data: Omit<Address, 'id'>) => {
-    if (editingId) updateAddress(editingId, data)
-    else addAddress(data)
-    setFormOpen(false); setEditingId(null)
+  const handleSave = async (data: Omit<Address, 'id'>) => {
+    setSaveError(null)
+    try {
+      if (editingId) {
+        await updateAddress(editingId, data)
+      } else {
+        await addAddress(data)
+      }
+      setFormOpen(false)
+      setEditingId(null)
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : 'Failed to save address. Please try again.')
+    }
   }
 
   const editingAddress = editingId ? addresses.find((a) => a.id === editingId) : undefined
@@ -626,18 +636,36 @@ function AddressesTab() {
           ))}
         </ul>
       )}
-      {formOpen && <AddressForm initial={editingAddress} onSave={handleSave} onCancel={() => { setFormOpen(false); setEditingId(null) }} />}
+      {formOpen && (
+        <AddressForm
+          initial={editingAddress}
+          onSave={handleSave}
+          onCancel={() => { setFormOpen(false); setEditingId(null) }}
+          serverError={saveError}
+        />
+      )}
     </div>
   )
 }
 
-function AddressForm({ initial, onSave, onCancel }: { initial?: Address; onSave: (d: Omit<Address, 'id'>) => void; onCancel: () => void }) {
+function AddressForm({
+  initial,
+  onSave,
+  onCancel,
+  serverError,
+}: {
+  initial?: Address
+  onSave: (d: Omit<Address, 'id'>) => Promise<void>
+  onCancel: () => void
+  serverError?: string | null
+}) {
   const [fullName, setFullName] = useState(initial?.fullName ?? '')
   const [streetAddress, setStreetAddress] = useState(initial?.address ?? '')
   const [postalCode, setPostalCode] = useState(initial?.postalCode ?? '')
   const [phone, setPhone] = useState(initial?.phone ?? '')
   const [isDefault, setIsDefault] = useState(initial?.isDefault ?? false)
   const [errors, setErrors] = useState<Record<string, string>>({})
+  const [saving, setSaving] = useState(false)
   const nameFilter = useFilteredInput(nameChars)
   const postalFilter = useFilteredInput(digitsOnly)
 
@@ -649,34 +677,43 @@ function AddressForm({ initial, onSave, onCancel }: { initial?: Address; onSave:
     regionCode: '', provinceCode: '', cityCode: '',
   })
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     const errs: Record<string, string> = {}
     if (!fullName.trim()) errs.fullName = 'Required.'
     if (!streetAddress.trim()) errs.address = 'Required.'
+    // Phone is required by the server schema — enforce on client too
+    if (!phone.trim()) {
+      errs.phone = 'Phone number is required.'
+    } else if (!validatePHPhone(phone.replace(/\D/g, ''))) {
+      errs.phone = 'Enter a valid PH mobile number (09XXXXXXXXX).'
+    }
     if (!phAddr.city) errs.city = 'Required.'
     if (!phAddr.province) errs.province = 'Required.'
     if (!phAddr.barangay) errs.barangay = 'Required.'
     if (!/^\d{4,6}$/.test(postalCode.replace(/\s/g, ''))) errs.postalCode = '4–6 digits required.'
-    if (phone.trim() && !validatePHPhone(phone.replace(/\D/g, ''))) {
-      errs.phone = 'Enter a valid PH mobile number (09XXXXXXXXX).'
-    }
     setErrors(errs)
     if (Object.keys(errs).length > 0) return
-    onSave({
-      fullName: fullName.trim(),
-      address: streetAddress.trim(),
-      barangay: phAddr.barangay,
-      city: phAddr.city,
-      province: phAddr.province,
-      postalCode: postalCode.trim(),
-      phone: phone.trim(),
-      isDefault,
-    })
+
+    setSaving(true)
+    try {
+      await onSave({
+        fullName: fullName.trim(),
+        address: streetAddress.trim(),
+        barangay: phAddr.barangay,
+        city: phAddr.city,
+        province: phAddr.province,
+        postalCode: postalCode.trim(),
+        phone: phone.trim(),
+        isDefault,
+      })
+    } finally {
+      setSaving(false)
+    }
   }
 
   return (
-    <form onSubmit={handleSubmit} noValidate className="mt-5 space-y-3 rounded-lg border border-repixl-muted/10 bg-repixl-bg p-4">
+    <form onSubmit={(e) => void handleSubmit(e)} noValidate className="mt-5 space-y-3 rounded-lg border border-repixl-muted/10 bg-repixl-bg p-4">
       <div>
         <label htmlFor="a-name" className="mb-1 block text-xs text-repixl-text-light/70">Full Name</label>
         <input id="a-name" type="text" value={fullName} onChange={(e) => setFullName(e.target.value)} className={inputClass(errors.fullName)} {...nameFilter} />
@@ -727,9 +764,19 @@ function AddressForm({ initial, onSave, onCancel }: { initial?: Address; onSave:
         <input type="checkbox" checked={isDefault} onChange={(e) => setIsDefault(e.target.checked)} className="h-3.5 w-3.5 rounded border-repixl-muted/30 bg-repixl-charcoal text-repixl-red" />
         <span className="text-xs text-repixl-text-light/70">Set as default</span>
       </label>
+
+      {/* Server-side error (e.g. validation rejection, network error) */}
+      {serverError && (
+        <p className="rounded-lg border border-red-500/20 bg-red-500/10 px-3 py-2 text-xs text-red-400" role="alert">
+          {serverError}
+        </p>
+      )}
+
       <div className="flex gap-3 pt-2">
-        <Button type="submit" variant="primary" size="sm">{initial ? 'Update' : 'Save'}</Button>
-        <button type="button" onClick={onCancel} className="text-xs text-repixl-muted hover:text-repixl-text-light">Cancel</button>
+        <Button type="submit" variant="primary" size="sm" disabled={saving}>
+          {saving ? 'Saving…' : initial ? 'Update Address' : 'Save Address'}
+        </Button>
+        <button type="button" onClick={onCancel} disabled={saving} className="text-xs text-repixl-muted hover:text-repixl-text-light disabled:opacity-50">Cancel</button>
       </div>
     </form>
   )
