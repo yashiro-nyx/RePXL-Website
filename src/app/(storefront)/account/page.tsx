@@ -562,7 +562,7 @@ function OrdersTab() {
         </div>
         <p className="font-display text-lg font-semibold text-repixl-text-light">No orders yet</p>
         <p className="mt-1 text-sm text-repixl-muted">Your order history will appear here.</p>
-        <Link href="/products" className="mt-5 inline-block"><Button variant="primary" size="sm">Browse Cameras</Button></Link>
+        <Link href="/products" className="mt-5 inline-block"><Button variant="primary" size="md">Browse Cameras</Button></Link>
       </div>
     )
   }
@@ -665,7 +665,7 @@ function AddressesTab() {
           <span className="font-mono text-[10px] uppercase tracking-widest text-repixl-muted">— Delivery</span>
           <h2 className="mt-1 font-display text-lg font-semibold text-repixl-text-light">Saved Addresses</h2>
         </div>
-        {!formOpen && <Button variant="secondary" size="sm" onClick={() => { setEditingId(null); setFormOpen(true) }}>+ Add Address</Button>}
+        {!formOpen && <Button variant="secondary" size="md" onClick={() => { setEditingId(null); setFormOpen(true) }}>+ Add Address</Button>}
       </div>
       {addresses.length === 0 && !formOpen && (
         <div className="flex flex-col items-center py-8 text-center">
@@ -686,9 +686,31 @@ function AddressesTab() {
                   {addr.phone && <p className="font-mono text-[10px] text-repixl-muted">{addr.phone}</p>}
                 </div>
                 <div className="flex shrink-0 gap-2">
-                  {!addr.isDefault && <button type="button" onClick={() => setDefault(addr.id)} className="font-mono text-[9px] uppercase tracking-wider text-repixl-muted hover:text-repixl-text-light">Default</button>}
-                  <button type="button" onClick={() => { setEditingId(addr.id); setFormOpen(true) }} className="font-mono text-[9px] uppercase tracking-wider text-repixl-muted hover:text-repixl-text-light">Edit</button>
-                  <button type="button" onClick={() => removeAddress(addr.id)} className="font-mono text-[9px] uppercase tracking-wider text-repixl-muted hover:text-repixl-red">Delete</button>
+                  {!addr.isDefault && (
+                    <button
+                      type="button"
+                      onClick={() => setDefault(addr.id)}
+                      className="rounded-lg border border-repixl-muted/20 px-3 py-1.5 font-mono text-[10px] uppercase tracking-wider text-repixl-muted transition-colors hover:border-repixl-muted/40 hover:text-repixl-text-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-repixl-red/40"
+                    >
+                      Set Default
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => { setEditingId(addr.id); setFormOpen(true) }}
+                    className="rounded-lg border border-repixl-muted/20 px-3 py-1.5 font-mono text-[10px] uppercase tracking-wider text-repixl-muted transition-colors hover:border-repixl-muted/40 hover:text-repixl-text-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-repixl-red/40"
+                    aria-label={`Edit address for ${addr.fullName}`}
+                  >
+                    Edit
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => removeAddress(addr.id)}
+                    className="rounded-lg border border-red-500/20 px-3 py-1.5 font-mono text-[10px] uppercase tracking-wider text-red-400/70 transition-colors hover:border-red-500/40 hover:bg-red-500/5 hover:text-red-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500/40"
+                    aria-label={`Delete address for ${addr.fullName}`}
+                  >
+                    Delete
+                  </button>
                 </div>
               </div>
             </li>
@@ -841,10 +863,12 @@ function AddressForm({
       )}
 
       <div className="flex gap-3 pt-2">
-        <Button type="submit" variant="primary" size="sm" disabled={saving}>
+        <Button type="submit" variant="primary" size="md" disabled={saving} loading={saving}>
           {saving ? 'Saving…' : initial ? 'Update Address' : 'Save Address'}
         </Button>
-        <button type="button" onClick={onCancel} disabled={saving} className="text-xs text-repixl-muted hover:text-repixl-text-light disabled:opacity-50">Cancel</button>
+        <Button type="button" variant="ghost" size="md" onClick={onCancel} disabled={saving}>
+          Cancel
+        </Button>
       </div>
     </form>
   )
@@ -865,7 +889,7 @@ function PaymentsTab() {
           <span className="font-mono text-[10px] uppercase tracking-widest text-repixl-muted">— Payment</span>
           <h2 className="mt-1 font-display text-lg font-semibold text-repixl-text-light">Payment Methods</h2>
         </div>
-        {!formOpen && <Button variant="secondary" size="sm" onClick={() => setFormOpen(true)}>+ Add Card</Button>}
+        {!formOpen && <Button variant="secondary" size="md" onClick={() => setFormOpen(true)}>+ Add Card</Button>}
       </div>
       {cards.length === 0 && !formOpen && (
         <div className="flex flex-col items-center py-8 text-center">
@@ -888,9 +912,24 @@ function PaymentsTab() {
                   <p className="text-xs text-repixl-muted">{card.cardholderName} · {card.expiry}</p>
                 </div>
               </div>
-              <div className="flex gap-3">
-                {!card.isDefault && <button type="button" onClick={() => setDefault(card.id)} className="rounded-full border border-repixl-muted/20 px-2 py-0.5 font-mono text-[9px] uppercase tracking-wider text-repixl-muted hover:border-repixl-muted/40 hover:text-repixl-text-light">Set as Default</button>}
-                <button type="button" onClick={() => removeCard(card.id)} aria-label={`Remove card ending in ${card.last4}`} className="font-mono text-[9px] uppercase tracking-wider text-repixl-muted hover:text-repixl-red">Remove</button>
+              <div className="flex gap-2">
+                {!card.isDefault && (
+                  <button
+                    type="button"
+                    onClick={() => setDefault(card.id)}
+                    className="rounded-lg border border-repixl-muted/20 px-3 py-1.5 font-mono text-[10px] uppercase tracking-wider text-repixl-muted transition-colors hover:border-repixl-muted/40 hover:text-repixl-text-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-repixl-red/40"
+                  >
+                    Set Default
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => removeCard(card.id)}
+                  aria-label={`Remove card ending in ${card.last4}`}
+                  className="rounded-lg border border-red-500/20 px-3 py-1.5 font-mono text-[10px] uppercase tracking-wider text-red-400/70 transition-colors hover:border-red-500/40 hover:bg-red-500/5 hover:text-red-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500/40"
+                >
+                  Remove
+                </button>
               </div>
             </li>
           ))}
@@ -1021,8 +1060,8 @@ function CardForm({ onSave, onCancel }: { onSave: (d: Omit<SavedCard, 'id'>) => 
       </p>
 
       <div className="flex gap-3 pt-2">
-        <Button type="submit" variant="primary" size="sm">Save Card</Button>
-        <button type="button" onClick={onCancel} className="text-xs text-repixl-muted hover:text-repixl-text-light">Cancel</button>
+        <Button type="submit" variant="primary" size="md">Save Card</Button>
+        <Button type="button" variant="ghost" size="md" onClick={onCancel}>Cancel</Button>
       </div>
     </form>
   )
@@ -1068,7 +1107,7 @@ function ReviewsTab() {
       {filteredReviews.length === 0 ? (
         <div className="rounded-xl border border-repixl-muted/10 bg-repixl-charcoal p-10 text-center">
           <p className="text-sm text-repixl-text-light/60">No reviews yet.</p>
-          <Link href="/products" className="mt-3 inline-block"><Button variant="secondary" size="sm">Browse Cameras</Button></Link>
+          <Link href="/products" className="mt-3 inline-block"><Button variant="secondary" size="md">Browse Cameras</Button></Link>
         </div>
       ) : (
         <div className="space-y-3">
@@ -1087,7 +1126,14 @@ function ReviewsTab() {
                   </div>
                   <div className="flex shrink-0 items-center gap-2">
                     <span className="font-mono text-[10px] text-repixl-muted">{review.date}</span>
-                    <button type="button" onClick={() => deleteReview(review.id)} className="font-mono text-[9px] uppercase tracking-wider text-repixl-muted hover:text-repixl-red">Delete</button>
+                    <button
+                      type="button"
+                      onClick={() => deleteReview(review.id)}
+                      aria-label={`Delete review for ${product?.name ?? review.productSlug}`}
+                      className="rounded-lg border border-red-500/20 px-3 py-1.5 font-mono text-[10px] uppercase tracking-wider text-red-400/70 transition-colors hover:border-red-500/40 hover:bg-red-500/5 hover:text-red-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500/40"
+                    >
+                      Delete
+                    </button>
                   </div>
                 </div>
                 <p className="mt-2 text-sm text-repixl-text-light/70">{review.comment}</p>

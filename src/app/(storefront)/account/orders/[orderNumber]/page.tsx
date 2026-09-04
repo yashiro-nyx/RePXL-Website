@@ -7,7 +7,7 @@ import { useParams, useRouter } from 'next/navigation'
 import { createPortal } from 'react-dom'
 import { Container } from '@/components/layout/Container'
 import { Footer } from '@/components/layout/Footer'
-import { Button, PageLoader } from '@/components/ui'
+import { Button, BackButton, PageLoader } from '@/components/ui'
 import { useAuthStore } from '@/stores/authStore'
 import { useOrderHistoryStore, type Order } from '@/stores/orderHistoryStore'
 import { computeStepperState } from '@/lib/order-tracking'
@@ -329,6 +329,9 @@ export default function OrderDetailPage() {
     <>
       <div className="burn-subtle min-h-screen pb-20 pt-24">
         <Container>
+          {/* Back button */}
+          <BackButton href="/account/orders" label="Back to Orders" className="mb-6" />
+
           {/* Breadcrumb + actions bar */}
           <div className="mb-8 flex flex-wrap items-center justify-between gap-3">
             <nav className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-widest text-repixl-muted">
@@ -345,7 +348,8 @@ export default function OrderDetailPage() {
               <button
                 type="button"
                 onClick={() => window.print()}
-                className="no-print flex items-center gap-1.5 rounded-lg border border-repixl-muted/20 px-3 py-1.5 font-mono text-[10px] uppercase tracking-wider text-repixl-muted transition-colors hover:border-repixl-muted/40 hover:text-repixl-text-light"
+                aria-label="Print receipt"
+                className="no-print flex items-center gap-2 rounded-lg border border-repixl-muted/25 bg-repixl-charcoal/60 px-4 py-2.5 font-mono text-xs uppercase tracking-wider text-repixl-muted transition-all hover:border-repixl-muted/50 hover:bg-repixl-charcoal hover:text-repixl-text-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-repixl-red/50"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                   <polyline points="6 9 6 2 18 2 18 9" /><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" /><rect width="12" height="8" x="6" y="14" />

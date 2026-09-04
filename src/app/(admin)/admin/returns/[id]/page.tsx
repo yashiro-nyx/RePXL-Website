@@ -1,8 +1,9 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useParams, useRouter } from 'next/navigation'
+import { useParams } from 'next/navigation'
 import Link from 'next/link'
+import { BackButton } from '@/components/ui'
 import { formatPrice } from '@/lib/format'
 
 interface ReturnDetail {
@@ -30,7 +31,6 @@ const statusStyles: Record<string, string> = {
 
 export default function ReturnDetailPage() {
   const { id } = useParams<{ id: string }>()
-  const router = useRouter()
   const [detail, setDetail] = useState<ReturnDetail | null>(null)
   const [loading, setLoading] = useState(true)
   const [actionMsg, setActionMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
@@ -90,7 +90,7 @@ export default function ReturnDetailPage() {
     return (
       <div className="py-12 text-center">
         <p className="text-sm text-repixl-muted">Return request not found.</p>
-        <Link href="/admin/returns" className="mt-3 inline-block text-sm text-repixl-red hover:underline">← Back to Returns</Link>
+        <BackButton href="/admin/returns" label="Back to Returns" />
       </div>
     )
   }
@@ -106,7 +106,7 @@ export default function ReturnDetailPage() {
       {/* Back + header */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
-          <Link href="/admin/returns" className="text-sm text-repixl-muted hover:text-repixl-text-light">← Returns</Link>
+          <BackButton href="/admin/returns" label="Back to Returns" />
           <h1 className="font-display text-xl font-bold text-repixl-text-light">Return #{detail.id.slice(-8).toUpperCase()}</h1>
           <span className={`rounded-full border px-2.5 py-1 font-mono text-[10px] uppercase tracking-wider ${statusStyles[status] ?? ''}`}>
             {status.replace('_', ' ')}
