@@ -45,6 +45,9 @@ export async function GET(request: NextRequest) {
 
     if (!isAdmin && user) {
       where.userId = user.id
+      // For customers: hide permanently FAILED orders (abandoned payments).
+      // PENDING orders remain visible during the checkout finalization window.
+      where.paymentStatus = { not: 'FAILED' }
     }
 
     if (statusFilter) {

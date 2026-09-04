@@ -1113,7 +1113,9 @@ function ReviewsTab() {
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null)
 
   useEffect(() => {
-    fetch('/api/reviews?limit=100', { credentials: 'include' })
+    // ?mine=true — server enforces WHERE userId = session.user.id
+    // Never fetches another user's reviews
+    fetch('/api/reviews?mine=true&limit=100', { credentials: 'include' })
       .then((r) => r.json())
       .then((json) => {
         setDbReviews(json.data ?? [])

@@ -63,6 +63,10 @@ export const orderService = {
         archived: readLocal(LS_ARCHIVED),
       }),
       {
+        // Mirror API result to localStorage as a warm cache for offline use.
+        // This is written AFTER the API call completes, so it always reflects
+        // the latest server state. On the next mount, if the API fails, the
+        // mirror provides the last-known good state rather than stale data.
         mirror: ({ orders, archived }) => {
           writeLocal(LS_ORDERS, orders)
           writeLocal(LS_ARCHIVED, archived)

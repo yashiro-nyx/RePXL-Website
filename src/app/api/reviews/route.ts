@@ -10,7 +10,6 @@ import {
 } from '@/lib/api'
 import { getCurrentUser } from '@/lib/auth-helpers'
 import { createReviewSchema } from '@/lib/validations'
-
 // This route reads cookies / session state and must run per-request.
 export const dynamic = 'force-dynamic'
 
@@ -23,17 +22,25 @@ export async function GET(request: NextRequest) {
     const productId = searchParams.get('productId')
     const productSlug = searchParams.get('productSlug')
     const userId = searchParams.get('userId')
+    // ?mine=true — return only the authenticated user's reviews (Account → Reviews)
+    const mine = searchParams.get('mine') === 'true'
 
     const where: any = {}
+
+    if (mine) {
+      // Server-side ownership: authenticated user only — never trust client userId
+      const currentUser = await getCurrentUser()
+      if (!currentUser) return unauthorizedResponse()
+      where.userId = currentUser.id
+    } else if (userId) {
+      // Public userId filter — still safe, reviews are public
+      where.userId = userId
+    }
 
     if (productId) {
       where.productId = productId
     } else if (productSlug) {
       where.product = { slug: productSlug }
-    }
-
-    if (userId) {
-      where.userId = userId
     }
 
     const [reviews, total] = await Promise.all([
