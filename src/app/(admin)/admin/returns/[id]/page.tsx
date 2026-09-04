@@ -2,8 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
-import Link from 'next/link'
-import { BackButton } from '@/components/ui'
+import { BackButton, ImageLightbox } from '@/components/ui'
 import { formatPrice } from '@/lib/format'
 
 interface ReturnDetail {
@@ -19,6 +18,12 @@ interface ReturnDetail {
     paymentStatus: string
     items: { name: string; condition: string; quantity: number }[]
   }
+}
+
+interface EvidenceImage {
+  id: string
+  sortOrder: number
+  signedUrl: string
 }
 
 const statusStyles: Record<string, string> = {
@@ -37,11 +42,21 @@ export default function ReturnDetailPage() {
   const [rejectOpen, setRejectOpen] = useState(false)
   const [rejectReason, setRejectReason] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const [evidenceImages, setEvidenceImages] = useState<EvidenceImage[]>([])
+  const [evidenceLightboxIndex, setEvidenceLightboxIndex] = useState<number | null>(null)
 
   const load = async () => {
     const res = await fetch(`/api/admin/returns/${id}`, { credentials: 'include' })
     const body = await res.json()
-    if (res.ok) setDetail(body.data)
+    if (res.ok) {
+      setDetail(body.data)
+      // Fetch signed URLs for evidence images after loading the return detail
+      const imgRes = await fetch(`/api/upload/return-image/signed?returnRequestId=${id}`, { credentials: 'include' })
+      if (imgRes.ok) {
+        const imgBody = await imgRes.json()
+        setEvidenceImages(imgBody.data?.images ?? [])
+      }
+    }
     setLoading(false)
   }
 
@@ -102,6 +117,7 @@ export default function ReturnDetailPage() {
   const canRefund = status === 'APPROVED' && detail.order.paymentStatus === 'PAID'
 
   return (
+    <>
     <div className="space-y-6">
       {/* Back + header */}
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -172,6 +188,36 @@ export default function ReturnDetailPage() {
             <p className="mb-2 font-mono text-[10px] uppercase tracking-widest text-repixl-muted">Customer Reason</p>
             <p className="text-sm leading-relaxed text-repixl-text-light/80">{detail.reason}</p>
           </div>
+
+          {/* Customer Evidence Images */}
+          {evidenceImages.length > 0 && (
+            <div className="rounded-2xl border border-repixl-muted/20 bg-repixl-charcoal p-5">
+              <p className="mb-3 font-mono text-[10px] uppercase tracking-widest text-repixl-muted">
+                Customer Evidence ({evidenceImages.length} photo{evidenceImages.length !== 1 ? 's' : ''})
+              </p>
+              <div className="grid grid-cols-3 gap-2 sm:grid-cols-5">
+                {evidenceImages.map((img, i) => (
+                  <button
+                    key={img.id}
+                    type="button"
+                    onClick={() => setEvidenceLightboxIndex(i)}
+                    aria-label={`View evidence photo ${i + 1}`}
+                    className="aspect-square overflow-hidden rounded-lg border border-repixl-muted/20 bg-repixl-bg transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-repixl-red/50"
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={img.signedUrl}
+                      alt={`Evidence ${i + 1}`}
+                      className="h-full w-full object-cover"
+                    />
+                  </button>
+                ))}
+              </div>
+              <p className="mt-2 font-mono text-[9px] text-repixl-muted/50">
+                Images use 90-second signed access. Reload page if images expire.
+              </p>
+            </div>
+          )}
 
           {/* Rejection reason (if rejected) */}
           {status === 'REJECTED' && detail.rejectionReason && (
@@ -246,5 +292,14 @@ export default function ReturnDetailPage() {
         </div>
       </div>
     </div>
+
+    {/* Evidence lightbox */}
+    <ImageLightbox
+      images={evidenceImages.map((img, i) => ({ src: img.signedUrl, alt: `Evidence ${i + 1}` }))}
+      activeIndex={evidenceLightboxIndex}
+      onClose={() => setEvidenceLightboxIndex(null)}
+      onNavigate={setEvidenceLightboxIndex}
+    />
+    </>
   )
 }

@@ -219,11 +219,27 @@ model Review {
   createdAt        DateTime @default(now()) @map("created_at")
   updatedAt        DateTime @updatedAt @map("updated_at")
 
-  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
-  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product Product       @relation(fields: [productId], references: [id], onDelete: Cascade)
+  user    User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  images  ReviewImage[]
 
   @@unique([userId, productId])
   @@map("reviews")
+}
+
+model ReviewImage {
+  id           String   @id @default(cuid())
+  reviewId     String   @map("review_id")
+  publicId     String   @map("public_id")   // Cloudinary public_id for deletion
+  secureUrl    String   @map("secure_url")   // Cloudinary HTTPS delivery URL
+  resourceType String   @default("image") @map("resource_type")
+  deliveryType String   @default("upload") @map("delivery_type")
+  sortOrder    Int      @default(0) @map("sort_order")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  review Review @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+
+  @@map("review_images")
 }
 
 // ─── ADDRESSES ──────────────────────────────────────────────────────────────────
@@ -376,9 +392,10 @@ model ReturnRequest {
   createdAt       DateTime     @default(now()) @map("created_at")
   updatedAt       DateTime     @updatedAt @map("updated_at")
 
-  order Order               @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  user  User                @relation(fields: [userId], references: [id], onDelete: Cascade)
-  items ReturnRequestItem[]
+  order  Order               @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  user   User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items  ReturnRequestItem[]
+  images ReturnRequestImage[]
 
   @@index([orderId])
   @@index([status])
@@ -394,6 +411,22 @@ model ReturnRequestItem {
   returnRequest ReturnRequest @relation(fields: [returnRequestId], references: [id], onDelete: Cascade)
 
   @@map("return_request_items")
+}
+
+// Protected Cloudinary delivery — signed URLs generated server-side for
+// authorized access only (owner or admin). Never expose public/unauthenticated URLs.
+model ReturnRequestImage {
+  id              String   @id @default(cuid())
+  returnRequestId String   @map("return_request_id")
+  publicId        String   @map("public_id")    // Cloudinary public_id (for signed URL generation + deletion)
+  resourceType    String   @default("image") @map("resource_type")
+  deliveryType    String   @default("authenticated") @map("delivery_type")
+  sortOrder       Int      @default(0) @map("sort_order")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  returnRequest ReturnRequest @relation(fields: [returnRequestId], references: [id], onDelete: Cascade)
+
+  @@map("return_request_images")
 }
 
 // ─── CMS ────────────────────────────────────────────────────────────────────────

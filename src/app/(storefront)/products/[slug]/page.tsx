@@ -8,7 +8,7 @@ import { createPortal } from 'react-dom'
 import { motion } from 'framer-motion'
 import { Container } from '@/components/layout/Container'
 import { Footer } from '@/components/layout/Footer'
-import { Accordion, BackButton, Button, ConditionBadge, CornerBracket, LoginRequiredModal } from '@/components/ui'
+import { Accordion, BackButton, Button, ConditionBadge, CornerBracket, LoginRequiredModal, ReviewImageThumbnails } from '@/components/ui'
 import { useRevealAnimation } from '@/hooks/useRevealAnimation'
 import { CompareToast } from '@/components/ui/CompareToast'
 import { ProductCard } from '@/components/product/ProductCard'
@@ -555,45 +555,71 @@ function ProductRatingSummary({ slug }: { slug: string }) {
 }
 
 function ProductReviews({ slug }: { slug: string }) {
-  const allReviews = useReviewStore((s) => s.reviews)
-  const reviews = allReviews.filter((r) => r.productSlug === slug)
-  const isLoggedIn = useAuthStore((s) => s.isLoggedIn)
-  const userEmail = useAuthStore((s) => s.userEmail)
-  const existingReview = allReviews.find((r) => r.reviewerEmail === userEmail && r.productSlug === slug)
-  const [showForm, setShowForm] = useState(false)
-  const [loginModalOpen, setLoginModalOpen] = useState(false)
+  const [reviews, setReviews] = useState<{
+    id: string
+    reviewerName: string
+    rating: number
+    comment: string
+    createdAt: string
+    verifiedPurchase: boolean
+    images: { id: string; secureUrl: string }[]
+    user?: { firstName: string; lastName: string; email: string }
+  }[]>([])
+  const [averageRating, setAverageRating] = useState(0)
+  const [totalReviews, setTotalReviews] = useState(0)
+  const [loading, setLoading] = useState(true)
 
-  const handleWriteReview = () => {
-    if (!isLoggedIn) { setLoginModalOpen(true); return }
-    setShowForm(true)
-  }
+  useEffect(() => {
+    fetch(`/api/reviews?productSlug=${encodeURIComponent(slug)}&limit=50`)
+      .then((r) => r.json())
+      .then((json) => {
+        setReviews(json.data ?? [])
+        setAverageRating(json.averageRating ?? 0)
+        setTotalReviews(json.totalReviews ?? 0)
+        setLoading(false)
+      })
+      .catch(() => setLoading(false))
+  }, [slug])
 
   return (
     <section className="mt-16 border-t border-repixl-muted/10 pt-12">
       <div className="flex items-center justify-between">
         <h2 className="font-display text-display-sm text-repixl-text-light">Reviews</h2>
-        {!showForm && (
-          <Button variant="secondary" size="sm" onClick={handleWriteReview}>
-            {existingReview ? 'Edit Your Review' : 'Write a Review'}
-          </Button>
+        {totalReviews > 0 && (
+          <div className="flex items-center gap-2">
+            <div className="flex gap-0.5">
+              {Array.from({ length: 5 }, (_, i) => (
+                <svg key={i} xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill={i < Math.round(averageRating) ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="1.5" className={i < Math.round(averageRating) ? 'text-repixl-warning' : 'text-repixl-muted/40'} aria-hidden="true">
+                  <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                </svg>
+              ))}
+            </div>
+            <span className="font-mono text-[10px] text-repixl-muted">{averageRating.toFixed(1)} ({totalReviews})</span>
+          </div>
         )}
       </div>
 
-      {showForm && (
-        <ReviewForm slug={slug} existing={existingReview} onClose={() => setShowForm(false)} />
+      {loading && (
+        <p className="mt-6 text-sm text-repixl-muted">Loading reviews…</p>
       )}
 
-      {reviews.length === 0 && !showForm && (
+      {!loading && reviews.length === 0 && (
         <p className="mt-6 text-sm text-repixl-muted">No reviews yet. Be the first to share your experience.</p>
       )}
 
-      {reviews.length > 0 && (
+      {!loading && reviews.length > 0 && (
         <div className="mt-6 space-y-4">
           {reviews.map((review) => (
             <div key={review.id} className="rounded-lg border border-repixl-muted/10 bg-repixl-charcoal p-4">
               <div className="flex items-start justify-between">
                 <div>
-                  <StarDisplay rating={review.rating} size={12} />
+                  <div className="flex gap-0.5">
+                    {Array.from({ length: 5 }, (_, i) => (
+                      <svg key={i} xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill={i < review.rating ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="1.5" className={i < review.rating ? 'text-repixl-warning' : 'text-repixl-muted/40'} aria-hidden="true">
+                        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                      </svg>
+                    ))}
+                  </div>
                   <div className="mt-1 flex items-center gap-2">
                     <span className="text-sm font-medium text-repixl-text-light">{review.reviewerName}</span>
                     {review.verifiedPurchase && (
@@ -601,15 +627,21 @@ function ProductReviews({ slug }: { slug: string }) {
                     )}
                   </div>
                 </div>
-                <span className="font-mono text-[10px] text-repixl-muted">{review.date}</span>
+                <span className="font-mono text-[10px] text-repixl-muted">
+                  {new Date(review.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                </span>
               </div>
               <p className="mt-2 text-sm leading-relaxed text-repixl-text-light/70">{review.comment}</p>
+              {/* Review photos */}
+              {review.images && review.images.length > 0 && (
+                <ReviewImageThumbnails
+                  images={review.images.map((img, i) => ({ src: img.secureUrl, alt: `Review photo ${i + 1}` }))}
+                />
+              )}
             </div>
           ))}
         </div>
       )}
-
-      <LoginRequiredModal isOpen={loginModalOpen} onClose={() => setLoginModalOpen(false)} />
     </section>
   )
 }

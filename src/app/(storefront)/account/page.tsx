@@ -8,7 +8,7 @@ import { signOut } from 'next-auth/react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Container } from '@/components/layout/Container'
 import { Footer } from '@/components/layout/Footer'
-import { Button, ConditionBadge, CornerBracket, FilmStripLoader, PasswordInput } from '@/components/ui'
+import { Button, ConditionBadge, CornerBracket, FilmStripLoader, PasswordInput, ImageLightbox } from '@/components/ui'
 import { Pagination } from '@/components/ui/Pagination'
 import { PhoneInput } from '@/components/ui/PhoneInput'
 import { emptyPHAddress, type PHAddressValue } from '@/components/ui/PHAddressSelect'
@@ -1098,16 +1098,44 @@ function CardForm({ onSave, onCancel }: { onSave: (d: Omit<SavedCard, 'id'>) => 
 // ─── Reviews Tab ─────────────────────────────────────────────────────────────
 function ReviewsTab() {
   const { userEmail } = useAuthStore()
-  const allReviews = useReviewStore((s) => s.reviews)
-  const reviews = allReviews.filter((r) => r.reviewerEmail === userEmail)
-  const deleteReview = useReviewStore((s) => s.deleteReview)
+  const [dbReviews, setDbReviews] = useState<{
+    id: string
+    rating: number
+    comment: string
+    createdAt: string
+    verifiedPurchase: boolean
+    product: { slug: string; name: string; image: string }
+    images: { id: string; secureUrl: string }[]
+  }[]>([])
+  const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
+  const [lightboxReviewId, setLightboxReviewId] = useState<string | null>(null)
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null)
 
-  const avgRating = reviews.length > 0 ? (reviews.reduce((s, r) => s + r.rating, 0) / reviews.length).toFixed(1) : '0'
-  const filteredReviews = searchQuery.trim() ? reviews.filter((r) => {
-    const product = allProducts.find((p) => p.slug === r.productSlug)
-    return product?.name.toLowerCase().includes(searchQuery.toLowerCase())
-  }) : reviews
+  useEffect(() => {
+    fetch('/api/reviews?limit=100', { credentials: 'include' })
+      .then((r) => r.json())
+      .then((json) => {
+        setDbReviews(json.data ?? [])
+        setLoading(false)
+      })
+      .catch(() => setLoading(false))
+  }, [])
+
+  const filtered = searchQuery.trim()
+    ? dbReviews.filter((r) => r.product?.name?.toLowerCase().includes(searchQuery.toLowerCase()))
+    : dbReviews
+
+  const avg = dbReviews.length > 0
+    ? (dbReviews.reduce((s, r) => s + r.rating, 0) / dbReviews.length).toFixed(1)
+    : '0'
+
+  const lightboxImages = lightboxReviewId
+    ? (dbReviews.find((r) => r.id === lightboxReviewId)?.images ?? []).map((img, i) => ({
+        src: img.secureUrl,
+        alt: `Review photo ${i + 1}`,
+      }))
+    : []
 
   return (
     <div className="space-y-4">
@@ -1119,9 +1147,9 @@ function ReviewsTab() {
       {/* Stats row */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
         {[
-          { label: 'Total Reviews', value: reviews.length },
-          { label: 'Avg Rating Given', value: avgRating },
-          { label: 'Latest', value: reviews.length > 0 ? reviews[0].date : '—' },
+          { label: 'Total Reviews', value: dbReviews.length },
+          { label: 'Avg Rating Given', value: avg },
+          { label: 'Latest', value: dbReviews.length > 0 ? new Date(dbReviews[0].createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—' },
         ].map((s) => (
           <div key={s.label} className="rounded-xl border border-repixl-muted/10 bg-repixl-charcoal p-4 text-center">
             <p className="font-display text-xl font-bold text-repixl-text-light">{s.value}</p>
@@ -1130,47 +1158,85 @@ function ReviewsTab() {
         ))}
       </div>
 
-      <input type="search" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Search reviews by camera name…" className="w-full rounded-xl border border-repixl-muted/20 bg-repixl-charcoal px-4 py-3 text-sm text-repixl-text-light placeholder:text-repixl-muted/40 focus:border-repixl-muted/40 focus:outline-none" />
+      <input
+        type="search"
+        value={searchQuery}
+        onChange={(e) => setSearchQuery(e.target.value)}
+        placeholder="Search reviews by camera name…"
+        className="w-full rounded-xl border border-repixl-muted/20 bg-repixl-charcoal px-4 py-3 text-sm text-repixl-text-light placeholder:text-repixl-muted/40 focus:border-repixl-muted/40 focus:outline-none"
+      />
 
-      {filteredReviews.length === 0 ? (
+      {loading && (
+        <div className="rounded-xl border border-repixl-muted/10 bg-repixl-charcoal p-8 text-center">
+          <p className="text-sm text-repixl-muted">Loading reviews…</p>
+        </div>
+      )}
+
+      {!loading && filtered.length === 0 && (
         <div className="rounded-xl border border-repixl-muted/10 bg-repixl-charcoal p-10 text-center">
           <p className="text-sm text-repixl-text-light/60">No reviews yet.</p>
           <Link href="/products" className="mt-3 inline-block"><Button variant="secondary" size="md">Browse Cameras</Button></Link>
         </div>
-      ) : (
+      )}
+
+      {!loading && filtered.length > 0 && (
         <div className="space-y-3">
-          {filteredReviews.map((review) => {
-            const product = allProducts.find((p) => p.slug === review.productSlug)
-            return (
-              <div key={review.id} className="rounded-xl border border-repixl-muted/10 bg-repixl-charcoal p-4">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <Link href={`/products/${review.productSlug}`} className="text-sm font-medium text-repixl-text-light hover:underline">{product?.name || review.productSlug}</Link>
-                    <div className="mt-1 flex gap-0.5">
-                      {Array.from({ length: 5 }, (_, i) => (
-                        <svg key={i} xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill={i < review.rating ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="1.5" className={i < review.rating ? 'text-repixl-warning' : 'text-repixl-muted/40'} aria-hidden="true"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" /></svg>
-                      ))}
-                    </div>
-                  </div>
-                  <div className="flex shrink-0 items-center gap-2">
-                    <span className="font-mono text-[10px] text-repixl-muted">{review.date}</span>
-                    <button
-                      type="button"
-                      onClick={() => deleteReview(review.id)}
-                      aria-label={`Delete review for ${product?.name ?? review.productSlug}`}
-                      className="rounded-lg border border-red-500/20 px-3 py-1.5 font-mono text-[10px] uppercase tracking-wider text-red-400/70 transition-colors hover:border-red-500/40 hover:bg-red-500/5 hover:text-red-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500/40"
-                    >
-                      Delete
-                    </button>
+          {filtered.map((review) => (
+            <div key={review.id} className="rounded-xl border border-repixl-muted/10 bg-repixl-charcoal p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <Link href={`/products/${review.product?.slug}`} className="text-sm font-medium text-repixl-text-light hover:underline">
+                    {review.product?.name ?? review.product?.slug}
+                  </Link>
+                  <div className="mt-1 flex gap-0.5">
+                    {Array.from({ length: 5 }, (_, i) => (
+                      <svg key={i} xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill={i < review.rating ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="1.5" className={i < review.rating ? 'text-repixl-warning' : 'text-repixl-muted/40'} aria-hidden="true">
+                        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                      </svg>
+                    ))}
                   </div>
                 </div>
-                <p className="mt-2 text-sm text-repixl-text-light/70">{review.comment}</p>
-                {review.verifiedPurchase && <span className="mt-2 inline-block rounded-full bg-repixl-success/15 px-2 py-0.5 font-mono text-[8px] uppercase tracking-wider text-repixl-success">Verified Purchase</span>}
+                <span className="font-mono text-[10px] text-repixl-muted shrink-0">
+                  {new Date(review.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                </span>
               </div>
-            )
-          })}
+              <p className="mt-2 text-sm text-repixl-text-light/70">{review.comment}</p>
+
+              {/* Review images */}
+              {review.images && review.images.length > 0 && (
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {review.images.map((img, i) => (
+                    <button
+                      key={img.id}
+                      type="button"
+                      onClick={() => { setLightboxReviewId(review.id); setLightboxIndex(i) }}
+                      aria-label={`View review photo ${i + 1}`}
+                      className="h-16 w-16 overflow-hidden rounded-lg border border-repixl-muted/20 bg-repixl-bg transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-repixl-red/50"
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={img.secureUrl} alt={`Photo ${i + 1}`} className="h-full w-full object-cover" />
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {review.verifiedPurchase && (
+                <span className="mt-2 inline-block rounded-full bg-repixl-success/15 px-2 py-0.5 font-mono text-[8px] uppercase tracking-wider text-repixl-success">
+                  Verified Purchase
+                </span>
+              )}
+            </div>
+          ))}
         </div>
       )}
+
+      {/* Review image lightbox */}
+      <ImageLightbox
+        images={lightboxImages}
+        activeIndex={lightboxIndex}
+        onClose={() => { setLightboxReviewId(null); setLightboxIndex(null) }}
+        onNavigate={setLightboxIndex}
+      />
     </div>
   )
 }

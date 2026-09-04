@@ -8,6 +8,13 @@ import {
   parsePagination,
   paginatedResponse,
 } from '@/lib/api'
+import { deleteFromCloudinary, MAX_IMAGES } from '@/lib/cloudinary'
+import {
+  ALL_REASONS,
+  REASON_LABELS,
+  type ReturnReason,
+  requiresEvidence,
+} from '@/lib/returnReasons'
 import { z } from 'zod'
 
 /**
@@ -22,7 +29,16 @@ export const dynamic = 'force-dynamic'
 
 const submitReturnSchema = z.object({
   orderNumber: z.string(),
-  reason: z.string().min(10).max(1000),
+  reason: z.enum(ALL_REASONS, {
+    errorMap: () => ({ message: 'Please select a valid return reason.' }),
+  }),
+  details: z.string().min(10, 'Details must be at least 10 characters').max(1000).optional().default(''),
+  // publicIds of images already uploaded to Cloudinary
+  imagePublicIds: z
+    .array(z.string().min(1).max(300))
+    .max(MAX_IMAGES, `Maximum ${MAX_IMAGES} images allowed`)
+    .optional()
+    .default([]),
 })
 
 // GET /api/returns — List customer's return requests (paginated)
@@ -68,6 +84,21 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const input = submitReturnSchema.parse(body)
 
+    // Server-side enforcement: evidence required for damage-type reasons
+    if (requiresEvidence(input.reason) && input.imagePublicIds.length === 0) {
+      return errorResponse(
+        `Photo evidence is required for "${REASON_LABELS[input.reason as ReturnReason]}". Please upload at least one image.`,
+        422
+      )
+    }
+
+    // Validate all imagePublicIds are from the returns folder
+    for (const pid of input.imagePublicIds) {
+      if (!pid.startsWith('repixl/returns/')) {
+        return errorResponse('Invalid image reference.', 422)
+      }
+    }
+
     // Verify order exists and belongs to customer
     const order = await prisma.order.findUnique({
       where: { orderNumber: input.orderNumber },
@@ -89,24 +120,51 @@ export async function POST(request: NextRequest) {
     })
 
     if (existingReturn) {
+      // Clean up orphan uploads since we won't create a new request
+      for (const pid of input.imagePublicIds) {
+        await deleteFromCloudinary(pid, 'authenticated')
+      }
       return errorResponse('An active return request already exists for this order', 400)
     }
 
-    // Create return request
-    const returnRequest = await prisma.returnRequest.create({
-      data: {
-        userId: user.id,
-        orderId: order.id,
-        reason: input.reason,
-        status: 'REQUESTED',
-      },
+    // Build a human-readable reason string from the structured reason + optional details
+    const reasonLabel = REASON_LABELS[input.reason as ReturnReason] ?? input.reason
+    const fullReason = input.details
+      ? `${reasonLabel}: ${input.details}`
+      : reasonLabel
+
+    // Create return request + images in a transaction
+    const returnRequest = await prisma.$transaction(async (tx) => {
+      const rr = await tx.returnRequest.create({
+        data: {
+          userId: user.id,
+          orderId: order.id,
+          reason: fullReason,
+          status: 'REQUESTED',
+        },
+      })
+
+      // Create image records (authenticated / protected delivery)
+      for (let i = 0; i < input.imagePublicIds.length; i++) {
+        await tx.returnRequestImage.create({
+          data: {
+            returnRequestId: rr.id,
+            publicId: input.imagePublicIds[i],
+            resourceType: 'image',
+            deliveryType: 'authenticated',
+            sortOrder: i,
+          },
+        })
+      }
+
+      return rr
     })
 
     // Record customer action in AdminLog
     await prisma.adminLog.create({
       data: {
         action: 'CUSTOMER_RETURN_SUBMITTED',
-        details: `Customer ${user.id} submitted return for order ${input.orderNumber}`,
+        details: `Customer ${user.id} submitted return for order ${input.orderNumber} (${input.imagePublicIds.length} images)`,
         adminId: 'system',
         adminName: 'System',
       },

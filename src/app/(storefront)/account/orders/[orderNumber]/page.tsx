@@ -7,7 +7,7 @@ import { useParams, useRouter } from 'next/navigation'
 import { createPortal } from 'react-dom'
 import { Container } from '@/components/layout/Container'
 import { Footer } from '@/components/layout/Footer'
-import { Button, BackButton, PageLoader } from '@/components/ui'
+import { Button, BackButton, PageLoader, ImageUploader, type UploadedImage } from '@/components/ui'
 import { useAuthStore } from '@/stores/authStore'
 import { useOrderHistoryStore, type Order } from '@/stores/orderHistoryStore'
 import { computeStepperState } from '@/lib/order-tracking'
@@ -94,6 +94,7 @@ export default function OrderDetailPage() {
   const [reviewStep, setReviewStep] = useState(false) // false = confirm dialog, true = feedback form
   const [rating, setRating] = useState(0)
   const [comment, setComment] = useState('')
+  const [reviewImages, setReviewImages] = useState<UploadedImage[]>([])
   const [reviewErrors, setReviewErrors] = useState<{ rating?: string; comment?: string }>({})
   const [submittingReview, setSubmittingReview] = useState(false)
   const [reviewSubmitError, setReviewSubmitError] = useState<string | null>(null)
@@ -213,7 +214,11 @@ export default function OrderDetailPage() {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ rating, comment: trimmed }),
+        body: JSON.stringify({
+          rating,
+          comment: trimmed,
+          imagePublicIds: reviewImages.filter((img) => img.uploaded).map((img) => img.publicId),
+        }),
       })
       const data = await res.json().catch(() => ({}))
       if (res.ok) {
@@ -658,6 +663,20 @@ export default function OrderDetailPage() {
                     {reviewErrors.comment ? <p className="text-xs text-red-400">{reviewErrors.comment}</p> : <span />}
                     <p className="font-mono text-[9px] text-repixl-muted">{comment.length}/2000</p>
                   </div>
+                </div>
+
+                {/* Optional photos */}
+                <div className="mb-5">
+                  <ImageUploader
+                    images={reviewImages}
+                    onChange={setReviewImages}
+                    uploadEndpoint="/api/upload/review-image"
+                    deleteEndpoint="/api/upload/review-image"
+                    maxImages={5}
+                    disabled={submittingReview}
+                    label="Add Photos (Optional)"
+                    hint="Upload up to 5 photos. JPG, PNG, or WebP. Maximum 5 MB each."
+                  />
                 </div>
 
                 {reviewSubmitError && (

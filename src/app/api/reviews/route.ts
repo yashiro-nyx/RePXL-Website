@@ -42,6 +42,7 @@ export async function GET(request: NextRequest) {
         include: {
           product: { select: { slug: true, name: true, image: true } },
           user: { select: { firstName: true, lastName: true, email: true } },
+          images: { orderBy: { sortOrder: 'asc' }, select: { id: true, secureUrl: true, sortOrder: true } },
         },
         orderBy: { createdAt: 'desc' },
         skip: pagination.skip,
