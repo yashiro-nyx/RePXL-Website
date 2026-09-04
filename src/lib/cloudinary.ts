@@ -84,19 +84,34 @@ export async function deleteFromCloudinary(publicId: string, type: 'upload' | 'a
 }
 
 /**
- * Generate a short-lived signed URL for a protected (authenticated) Cloudinary asset.
- * Only call this after verifying the requester owns or is admin of the resource.
+ * Generate a truly time-limited private download URL for a protected
+ * (authenticated) Cloudinary asset.
+ *
+ * Uses cloudinary.utils.private_download_url which routes through
+ * https://api.cloudinary.com/v1_1/{cloud}/image/download — Cloudinary's
+ * API server validates the HMAC signature AND the expires_at timestamp
+ * server-side and rejects the request after expiration.
+ *
+ * IMPORTANT: cloudinary.url() with sign_url+expires_at does NOT actually
+ * expire — the expires_at is ignored by that function and the generated
+ * CDN URL remains permanently valid. private_download_url is the correct
+ * approach for genuinely time-limited access.
+ *
+ * Free plan compatible — uses standard request signing, no paid feature.
  *
  * @param publicId - Cloudinary public_id of the protected image
- * @param expiresInSeconds - URL validity window (default 60 seconds)
+ * @param expiresInSeconds - How long the URL stays valid (default 90s)
  */
-export function generateSignedUrl(publicId: string, expiresInSeconds = 60): string {
-  return cloudinary.url(publicId, {
+export function generateSignedUrl(publicId: string, expiresInSeconds = 90): string {
+  const expiresAt = Math.floor(Date.now() / 1000) + expiresInSeconds
+
+  // Determine extension from publicId — default to jpg if not present
+  const ext = publicId.includes('.') ? publicId.split('.').pop()! : 'jpg'
+  const pid = publicId.includes('.') ? publicId.substring(0, publicId.lastIndexOf('.')) : publicId
+
+  return cloudinary.utils.private_download_url(pid, ext, {
     resource_type: 'image',
-    type: 'authenticated',
-    sign_url: true,
-    expires_at: Math.floor(Date.now() / 1000) + expiresInSeconds,
-    secure: true,
+    expires_at: expiresAt,
   })
 }
 
