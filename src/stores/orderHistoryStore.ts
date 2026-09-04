@@ -32,19 +32,28 @@ export interface Order {
 interface OrderHistoryState {
   orders: Order[]
   archivedOrders: Order[]
+  /** Whether a hydrate() call is currently in-flight */
+  loading: boolean
+  /** Last hydration error, if any — cleared on successful hydrate */
+  error: string | null
   addOrder: (order: Order) => Promise<Order>
   updateStatus: (orderNumber: string, status: Order['status']) => Promise<void>
   archiveOrder: (orderNumber: string) => Promise<void>
   restoreOrder: (orderNumber: string) => Promise<void>
+  /**
+   * Load orders from PostgreSQL. Throws on failure so callers can render an
+   * error/retry state. Never silently substitutes stale cached data.
+   */
   hydrate: () => Promise<void>
 }
 
 export const useOrderHistoryStore = create<OrderHistoryState>((set, get) => ({
   orders: [],
   archivedOrders: [],
+  loading: false,
+  error: null,
 
   addOrder: async (order) => {
-    // Persist via the transactional API (falls back to the client-built order).
     const created = await orderService.create(
       {
         fullName: order.fullName,
@@ -65,12 +74,17 @@ export const useOrderHistoryStore = create<OrderHistoryState>((set, get) => ({
   },
 
   updateStatus: async (orderNumber, status) => {
+    // Optimistic UI: update in-memory immediately, then persist to server
     set({
       orders: get().orders.map((o) =>
         o.orderNumber === orderNumber ? { ...o, status } : o
       ),
     })
-    await orderService.updateStatus(orderNumber, status)
+    // Fire-and-forget to server — if it fails the in-memory state is already updated
+    // and will be corrected on the next hydrate()
+    orderService.updateStatus(orderNumber, status).catch((err) => {
+      console.error('[orderStore] updateStatus failed:', err)
+    })
   },
 
   archiveOrder: async (orderNumber) => {
@@ -96,11 +110,15 @@ export const useOrderHistoryStore = create<OrderHistoryState>((set, get) => ({
   },
 
   hydrate: async () => {
+    set({ loading: true, error: null })
     try {
       const { orders, archived } = await orderService.list()
-      set({ orders, archivedOrders: archived })
-    } catch {
-      // ignore — keep current
+      set({ orders, archivedOrders: archived, loading: false, error: null })
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Failed to load orders'
+      set({ loading: false, error: msg })
+      // Re-throw so page-level components can decide how to handle it
+      throw err
     }
   },
 }))

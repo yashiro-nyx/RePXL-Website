@@ -17,37 +17,43 @@ interface ArchivedCustomerState {
   hydrate: () => void
 }
 
+/**
+ * Legacy in-memory store for archived customers.
+ * The actual archive/restore state is authoritative in PostgreSQL via
+ * the /api/admin/customers API (isArchived field). This store is kept
+ * for backward compatibility with any remaining UI references but no
+ * longer writes to localStorage or acts as the source of truth.
+ * Admin → Customers and Admin → Archived Customers both read from the API.
+ */
 export const useArchivedCustomerStore = create<ArchivedCustomerState>((set, get) => ({
   archivedCustomers: [],
 
   archiveCustomer: (customer) => {
+    // In-memory only — real archival is done via /api/admin/customers/[id]/archive
     const archived: ArchivedCustomer = {
       ...customer,
       archivedAt: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }),
     }
-    const updated = [archived, ...get().archivedCustomers]
-    localStorage.setItem('repixl-archived-customers', JSON.stringify(updated))
-    set({ archivedCustomers: updated })
+    set({ archivedCustomers: [archived, ...get().archivedCustomers] })
+    // No longer writes to localStorage — API is authoritative
   },
 
   restoreCustomer: (id) => {
     const { archivedCustomers } = get()
     const customer = archivedCustomers.find((c) => c.id === id)
     if (!customer) return undefined
-    const updated = archivedCustomers.filter((c) => c.id !== id)
-    localStorage.setItem('repixl-archived-customers', JSON.stringify(updated))
-    set({ archivedCustomers: updated })
+    set({ archivedCustomers: archivedCustomers.filter((c) => c.id !== id) })
+    // No longer writes to localStorage — API is authoritative
     return customer
   },
 
   hydrate: () => {
+    // No longer reads from localStorage. The admin pages read directly from
+    // /api/admin/customers?archived=true. This method is a no-op kept for
+    // any remaining callers.
     try {
-      const stored = localStorage.getItem('repixl-archived-customers')
-      if (stored) {
-        set({ archivedCustomers: JSON.parse(stored) })
-      }
-    } catch {
-      // ignore
-    }
+      // Clear any stale localStorage data from the old implementation
+      localStorage.removeItem('repixl-archived-customers')
+    } catch { /* ignore */ }
   },
 }))

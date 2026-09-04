@@ -243,28 +243,34 @@ function DashboardTab({ onNavigate }: { onNavigate: (tab: Tab) => void }) {
   const [orderCount, setOrderCount] = useState<number | null>(null)
   const [activeOrderCount, setActiveOrderCount] = useState<number | null>(null)
 
+  // Recent orders: fetch last 3 directly from API — same source as Orders tab
+  const [recentOrders, setRecentOrders] = useState<{
+    orderNumber: string; status: string; total: number; createdAt: string
+    items: { id: string; quantity: number; product: { name: string } | null }[]
+  }[]>([])
+
   useEffect(() => {
-    // Lightweight count-only fetch — just need the pagination.total
-    const fetchCounts = async () => {
+    // Fetch counts + recent orders in one batch
+    const fetchDashboard = async () => {
       try {
-        const [allRes, activeRes] = await Promise.all([
+        const [allRes, activeRes, shippedRes, recentRes] = await Promise.all([
           fetch('/api/orders?limit=1&archived=false', { credentials: 'include' }),
-          fetch('/api/orders?limit=1&archived=false&status=PROCESSING', { credentials: 'include' })
-            .then(async (r) => {
-              const json = await r.json()
-              const shippedRes = await fetch('/api/orders?limit=1&archived=false&status=SHIPPED', { credentials: 'include' })
-              const shippedJson = await shippedRes.json()
-              return (json.pagination?.total ?? 0) + (shippedJson.pagination?.total ?? 0)
-            }),
+          fetch('/api/orders?limit=1&archived=false&status=PROCESSING', { credentials: 'include' }),
+          fetch('/api/orders?limit=1&archived=false&status=SHIPPED', { credentials: 'include' }),
+          fetch('/api/orders?limit=3&archived=false', { credentials: 'include' }),
         ])
         const allJson = await allRes.json()
+        const activeJson = await activeRes.json()
+        const shippedJson = await shippedRes.json()
+        const recentJson = await recentRes.json()
         setOrderCount(allJson.pagination?.total ?? 0)
-        setActiveOrderCount(typeof activeRes === 'number' ? activeRes : 0)
+        setActiveOrderCount((activeJson.pagination?.total ?? 0) + (shippedJson.pagination?.total ?? 0))
+        setRecentOrders(recentJson.data ?? [])
       } catch {
         // Non-critical — leave null so we show a dash rather than a stale number
       }
     }
-    void fetchCounts()
+    void fetchDashboard()
   }, [])
 
   const wishlistSlugs = useWishlistStore((s) => s.slugs)
@@ -278,16 +284,17 @@ function DashboardTab({ onNavigate }: { onNavigate: (tab: Tab) => void }) {
     { label: 'Cart Items', value: cartItems.reduce((s, i) => s + i.quantity, 0), icon: 'M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12', color: 'text-repixl-success', bg: 'bg-repixl-success/10', tab: null, href: '/cart' },
   ]
 
-  // Recent orders still come from the store (already hydrated by AccountPage)
-  const allOrders = useOrderHistoryStore((s) => s.orders)
-  const recentOrders = allOrders.slice(0, 3)
-
   const statusColor: Record<string, string> = {
     Processing: 'bg-repixl-warning/15 text-repixl-warning',
+    PROCESSING: 'bg-repixl-warning/15 text-repixl-warning',
     Shipped: 'bg-blue-400/15 text-blue-400',
+    SHIPPED: 'bg-blue-400/15 text-blue-400',
     Delivered: 'bg-repixl-success/15 text-repixl-success',
+    DELIVERED: 'bg-repixl-success/15 text-repixl-success',
     Completed: 'bg-repixl-success/15 text-repixl-success',
+    COMPLETED: 'bg-repixl-success/15 text-repixl-success',
     Cancelled: 'bg-repixl-red/15 text-repixl-red',
+    CANCELLED: 'bg-repixl-red/15 text-repixl-red',
   }
 
   const quickActions = [
@@ -353,18 +360,19 @@ function DashboardTab({ onNavigate }: { onNavigate: (tab: Tab) => void }) {
             {recentOrders.map((order) => {
               const first = order.items[0]
               const extra = order.items.length - 1
+              const displayStatus = { PROCESSING: 'Processing', SHIPPED: 'Shipped', DELIVERED: 'Delivered', COMPLETED: 'Completed', CANCELLED: 'Cancelled' }[order.status] ?? order.status
               return (
               <div key={order.orderNumber} className="flex items-center justify-between rounded-lg border border-repixl-muted/8 bg-repixl-bg/50 px-4 py-3">
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-xs font-medium text-repixl-text-light">
-                    {first?.name ?? 'Order'}
+                    {first?.product?.name ?? 'Order'}
                     {extra > 0 && <span className="text-repixl-muted"> +{extra}</span>}
                   </p>
-                  <p className="font-mono text-[10px] text-repixl-muted">#{order.orderNumber} · {order.date}</p>
+                  <p className="font-mono text-[10px] text-repixl-muted">#{order.orderNumber} · {new Date(order.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</p>
                 </div>
                 <div className="ml-3 flex items-center gap-3">
-                  <span className={`rounded-full px-2 py-0.5 font-mono text-[9px] uppercase tracking-wider ${statusColor[order.status] ?? 'bg-repixl-muted/15 text-repixl-muted'}`}>
-                    {order.status}
+                  <span className={`rounded-full px-2 py-0.5 font-mono text-[9px] uppercase tracking-wider ${statusColor[displayStatus] ?? 'bg-repixl-muted/15 text-repixl-muted'}`}>
+                    {displayStatus}
                   </span>
                   <span className="font-display text-sm font-semibold text-repixl-text-light">{formatPrice(order.total)}</span>
                 </div>
@@ -536,7 +544,7 @@ function ProfileTab() {
 function OrdersTab() {
   const PAGE_SIZE = 10
   const [orders, setOrders] = useState<{
-    orderNumber: string; status: string; total: number; createdAt: string
+    orderNumber: string; status: string; paymentStatus?: string; total: number; createdAt: string
     courierName: string; courierEstimate: string
     items: { id: string; quantity: number; product: { name: string } }[]
   }[]>([])
@@ -544,17 +552,27 @@ function OrdersTab() {
   const [totalPages, setTotalPages] = useState(1)
   const [currentPage, setCurrentPage] = useState(1)
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState<string | null>(null)
 
   const load = useCallback(async (page: number) => {
     setLoading(true)
+    setLoadError(null)
     try {
       const params = new URLSearchParams({ page: String(page), limit: String(PAGE_SIZE) })
       const res = await fetch(`/api/orders?${params}`, { credentials: 'include' })
-      if (!res.ok) return
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}))
+        throw new Error(body.error ?? `Server returned ${res.status}`)
+      }
       const json = await res.json()
       setOrders(json.data ?? [])
       setTotal(json.pagination?.total ?? 0)
       setTotalPages(json.pagination?.totalPages ?? 1)
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Unable to load orders'
+      setLoadError(msg)
+      // Do NOT clear currently-displayed orders on refresh failure so the
+      // user doesn't lose their view
     } finally {
       setLoading(false)
     }
@@ -580,8 +598,7 @@ function OrdersTab() {
     COMPLETED: 'Completed', CANCELLED: 'Cancelled',
   }
 
-  if (!loading && total === 0) {
-    return (
+  if (!loading && total === 0) {    return (
       <div className="rounded-xl border border-repixl-muted/10 bg-repixl-charcoal p-10 text-center">
         <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-repixl-muted/10">
           <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-repixl-muted/50" aria-hidden="true">
@@ -604,6 +621,20 @@ function OrdersTab() {
         <h2 className="mt-1 font-display text-lg font-semibold text-repixl-text-light">Order History</h2>
       </div>
 
+      {/* API error — keep existing orders visible while showing retry option */}
+      {loadError && (
+        <div className="flex items-center justify-between rounded-xl border border-amber-500/20 bg-amber-500/5 px-4 py-3">
+          <p className="text-sm text-amber-400">Unable to refresh orders. {loadError}</p>
+          <button
+            type="button"
+            onClick={() => void load(currentPage)}
+            className="ml-3 shrink-0 rounded-lg border border-amber-500/30 px-3 py-1.5 font-mono text-[10px] uppercase tracking-wider text-amber-400 transition-colors hover:bg-amber-500/10"
+          >
+            Retry
+          </button>
+        </div>
+      )}
+
       {loading && (
         <div className="rounded-xl border border-repixl-muted/10 bg-repixl-charcoal p-8 text-center">
           <p className="text-sm text-repixl-muted">Loading orders…</p>
@@ -614,6 +645,7 @@ function OrdersTab() {
         const firstItem = order.items?.[0]
         const extraCount = (order.items?.length ?? 0) - 1
         const displayStatus = statusLabel[order.status] ?? order.status
+        const isPendingPayment = order.paymentStatus === 'PENDING'
         return (
           <div key={order.orderNumber} className="rounded-xl border border-repixl-muted/10 bg-repixl-charcoal p-5">
             <div className="flex items-start justify-between gap-4">
@@ -625,6 +657,12 @@ function OrdersTab() {
                 <p className="mt-0.5 font-mono text-[10px] text-repixl-muted">
                   #{order.orderNumber} · {new Date(order.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}
                 </p>
+                {/* Show payment pending label so customer knows checkout is still processing */}
+                {isPendingPayment && (
+                  <span className="mt-1 inline-block rounded-full bg-amber-500/10 px-2 py-0.5 font-mono text-[9px] uppercase tracking-wider text-amber-400">
+                    Payment Pending
+                  </span>
+                )}
               </div>
               <div className="flex items-center gap-3">
                 <span className={`rounded-full px-2.5 py-1 font-mono text-[9px] uppercase tracking-wider ${statusColor[order.status] ?? 'bg-repixl-muted/15 text-repixl-muted'}`}>

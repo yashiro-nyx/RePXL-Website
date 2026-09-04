@@ -1,36 +1,14 @@
 'use client'
 
 // ─── API-first with localStorage fallback ───────────────────────────────────────
-// Every data service tries the Postgres-backed API first. If the API/database is
-// unreachable (network error, 5xx, or the app is running without a DB), we
-// transparently fall back to the localStorage implementation so the UI keeps
-// working. Authentication/validation errors are NOT treated as "DB down" — they
-// are legitimate API responses and must propagate.
+// Used by non-critical stores (addresses, products, cart, etc.) that can
+// degrade gracefully when the API is temporarily unreachable.
+//
+// NOTE: Orders no longer use this utility — order history is always fetched
+// directly from the API with no localStorage fallback so stale data never
+// replaces authoritative PostgreSQL records.
 
 import { ApiClientError } from '@/lib/api-client'
-
-type ApiMode = 'unknown' | 'online' | 'offline'
-
-let apiMode: ApiMode = 'unknown'
-let lastCheck = 0
-// Once we detect the API is offline, avoid re-hitting it for this long. After the
-// window elapses the next call will probe the API again and can flip back online.
-const OFFLINE_RETRY_MS = 30 * 1000
-
-export function getApiMode(): ApiMode {
-  return apiMode
-}
-
-/** Force a mode (used by a manual health check / on successful call). */
-function markOnline() {
-  apiMode = 'online'
-  lastCheck = Date.now()
-}
-
-function markOffline() {
-  apiMode = 'offline'
-  lastCheck = Date.now()
-}
 
 /**
  * Decide whether an error means "the database/API is unavailable" (→ fall back)
@@ -49,6 +27,9 @@ export function isInfrastructureError(err: unknown): boolean {
  * Run an API-backed function, falling back to a local implementation when the
  * API/DB is unavailable.
  *
+ * The 30-second cooldown has been removed. Every call always attempts the API
+ * first so a single transient failure never blocks subsequent valid requests.
+ *
  * @param apiFn   The API call (throws ApiClientError on non-2xx).
  * @param localFn The localStorage implementation.
  * @param opts.mirror Optional: on API success, also run this to keep localStorage
@@ -59,14 +40,8 @@ export async function withFallback<T>(
   localFn: () => T | Promise<T>,
   opts: { mirror?: (result: T) => void } = {}
 ): Promise<T> {
-  // Skip the API entirely during the offline cooldown window.
-  if (apiMode === 'offline' && Date.now() - lastCheck < OFFLINE_RETRY_MS) {
-    return localFn()
-  }
-
   try {
     const result = await apiFn()
-    markOnline()
     try {
       opts.mirror?.(result)
     } catch {
@@ -75,7 +50,6 @@ export async function withFallback<T>(
     return result
   } catch (err) {
     if (isInfrastructureError(err)) {
-      markOffline()
       if (typeof console !== 'undefined') {
         console.warn('[RePXL] API unavailable — using localStorage fallback.', err)
       }
@@ -85,4 +59,3 @@ export async function withFallback<T>(
     throw err
   }
 }
-
