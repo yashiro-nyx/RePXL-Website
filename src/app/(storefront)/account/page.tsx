@@ -238,14 +238,49 @@ export default function AccountPage() {
 // ─── Dashboard Tab ───────────────────────────────────────────────────────────
 function DashboardTab({ onNavigate }: { onNavigate: (tab: Tab) => void }) {
   const { firstName, lastName, userEmail } = useAuthStore()
-  const allOrders = useOrderHistoryStore((s) => s.orders)
-  const orders = allOrders.filter((o) => o.userEmail === userEmail)
+  // Fetch the real order count from the DB instead of reading a potentially
+  // stale localStorage snapshot. The API enforces userId = session user.
+  const [orderCount, setOrderCount] = useState<number | null>(null)
+  const [activeOrderCount, setActiveOrderCount] = useState<number | null>(null)
+
+  useEffect(() => {
+    // Lightweight count-only fetch — just need the pagination.total
+    const fetchCounts = async () => {
+      try {
+        const [allRes, activeRes] = await Promise.all([
+          fetch('/api/orders?limit=1&archived=false', { credentials: 'include' }),
+          fetch('/api/orders?limit=1&archived=false&status=PROCESSING', { credentials: 'include' })
+            .then(async (r) => {
+              const json = await r.json()
+              const shippedRes = await fetch('/api/orders?limit=1&archived=false&status=SHIPPED', { credentials: 'include' })
+              const shippedJson = await shippedRes.json()
+              return (json.pagination?.total ?? 0) + (shippedJson.pagination?.total ?? 0)
+            }),
+        ])
+        const allJson = await allRes.json()
+        setOrderCount(allJson.pagination?.total ?? 0)
+        setActiveOrderCount(typeof activeRes === 'number' ? activeRes : 0)
+      } catch {
+        // Non-critical — leave null so we show a dash rather than a stale number
+      }
+    }
+    void fetchCounts()
+  }, [])
+
   const wishlistSlugs = useWishlistStore((s) => s.slugs)
   const cartItems = useCartStore((s) => s.items)
-  const allProductsStore = useProductStore((s) => s.products)
 
-  const activeOrders = orders.filter((o) => o.status === 'Processing' || o.status === 'Shipped')
-  const recentOrders = orders.slice(0, 3)
+  // Use the DB-sourced counts; fall back to null display if not yet loaded
+  const stats: { label: string; value: number | string; icon: string; color: string; bg: string; tab: Tab | null; href?: string; extra?: string }[] = [
+    { label: 'Total Orders', value: orderCount ?? '—', icon: 'M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z', color: 'text-blue-400', bg: 'bg-blue-400/10', tab: 'orders' as Tab },
+    { label: 'Active Orders', value: activeOrderCount ?? '—', icon: 'M13 2L3 14h9l-1 8 10-12h-9l1-8z', color: 'text-repixl-warning', bg: 'bg-repixl-warning/10', tab: 'orders' as Tab },
+    { label: 'Wishlist', value: wishlistSlugs.length, icon: 'M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z', color: 'text-repixl-red', bg: 'bg-repixl-red/10', tab: null, href: '/wishlist' },
+    { label: 'Cart Items', value: cartItems.reduce((s, i) => s + i.quantity, 0), icon: 'M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12', color: 'text-repixl-success', bg: 'bg-repixl-success/10', tab: null, href: '/cart' },
+  ]
+
+  // Recent orders still come from the store (already hydrated by AccountPage)
+  const allOrders = useOrderHistoryStore((s) => s.orders)
+  const recentOrders = allOrders.slice(0, 3)
 
   const statusColor: Record<string, string> = {
     Processing: 'bg-repixl-warning/15 text-repixl-warning',
@@ -254,13 +289,6 @@ function DashboardTab({ onNavigate }: { onNavigate: (tab: Tab) => void }) {
     Completed: 'bg-repixl-success/15 text-repixl-success',
     Cancelled: 'bg-repixl-red/15 text-repixl-red',
   }
-
-  const stats: { label: string; value: number; icon: string; color: string; bg: string; tab: Tab | null; href?: string; extra?: string }[] = [
-    { label: 'Total Orders', value: orders.length, icon: 'M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z', color: 'text-blue-400', bg: 'bg-blue-400/10', tab: 'orders' as Tab },
-    { label: 'Active Orders', value: activeOrders.length, icon: 'M13 2L3 14h9l-1 8 10-12h-9l1-8z', color: 'text-repixl-warning', bg: 'bg-repixl-warning/10', tab: 'orders' as Tab },
-    { label: 'Wishlist', value: wishlistSlugs.length, icon: 'M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z', color: 'text-repixl-red', bg: 'bg-repixl-red/10', tab: null, href: '/wishlist' },
-    { label: 'Cart Items', value: cartItems.reduce((s, i) => s + i.quantity, 0), icon: 'M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12', color: 'text-repixl-success', bg: 'bg-repixl-success/10', tab: null, href: '/cart' },
-  ]
 
   const quickActions = [
     { label: 'Browse Cameras', icon: 'M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z', href: '/products', extra: 'circle-3' },
