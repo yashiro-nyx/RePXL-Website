@@ -1,3 +1,4 @@
+import { deductInventory, InsufficientStockError } from '@/lib/purchase-finalization'
 import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import {
@@ -126,6 +127,7 @@ export async function POST(request: NextRequest) {
 
     // Apply voucher if provided
     let discount = 0
+    let appliedVoucherId: string | undefined
     if (data.voucherCode) {
       const voucher = await prisma.voucher.findUnique({
         where: { code: data.voucherCode.toUpperCase().trim() },
@@ -142,11 +144,7 @@ export async function POST(request: NextRequest) {
             discount = voucher.discountValue
           }
 
-          // Increment voucher usage
-          await prisma.voucher.update({
-            where: { id: voucher.id },
-            data: { used: { increment: 1 } },
-          })
+          appliedVoucherId = voucher.id
         }
       }
     }
@@ -188,20 +186,8 @@ export async function POST(request: NextRequest) {
         },
       })
 
-      // Decrement stock for each product — floor at 0 to prevent negative stock.
-      for (const item of cartItems) {
-        const updated = await tx.product.updateMany({
-          where: { id: item.productId, stock: { gte: item.quantity } },
-          data: { stock: { decrement: item.quantity } },
-        })
-        if (updated.count === 0) {
-          // Stock was already lower than ordered qty — floor at 0.
-          await tx.product.updateMany({
-            where: { id: item.productId, stock: { gt: 0 } },
-            data: { stock: 0 },
-          })
-        }
-      }
+      await deductInventory(tx, cartItems)
+      if (appliedVoucherId) await tx.voucher.update({where: {id: appliedVoucherId}, data: {used: {increment: 1}}})
 
       // Clear the cart
       await tx.cartItem.deleteMany({ where: { userId: user.id } })
@@ -211,6 +197,7 @@ export async function POST(request: NextRequest) {
 
     return successResponse(order, 201)
   } catch (error) {
+    if (error instanceof InsufficientStockError) return errorResponse(error.message, 409)
     console.error('Create order error:', error)
     return errorResponse('Internal server error', 500)
   }

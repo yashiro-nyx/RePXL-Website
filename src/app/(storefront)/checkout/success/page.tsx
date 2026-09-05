@@ -81,6 +81,10 @@ function SuccessInner() {
           cache: 'no-store',
         })
 
+        if (verifyRes.status === 409) {
+          if (!cancelled) setFetchStatus('error')
+          return
+        }
         if (!verifyRes.ok) {
           // 401 = user not authenticated; 404 = order not found for this user
           // 422 = no payment intent (fallback order); 502 = PayMongo unreachable
@@ -116,9 +120,16 @@ function SuccessInner() {
           if (res.ok) {
             const json = await res.json()
             if (json.success && json.data) {
-              setOrder(json.data)
-              setFetchStatus('found')
-              return
+              const gatewayOrder = json.data.paymentIntentId || json.data.paymentSessionId
+              if (!gatewayOrder || json.data.paymentStatus === 'PAID') {
+                setOrder(json.data)
+                setFetchStatus('found')
+                return
+              }
+              if (json.data.status === 'CANCELLED' || json.data.paymentStatus === 'FAILED' || json.data.paymentStatus === 'REFUNDED') {
+                setFetchStatus('error')
+                return
+              }
             }
           }
 
@@ -169,7 +180,7 @@ function SuccessInner() {
   }
 
   // ── Pending / not yet finalized ────────────────────────────────────────────────
-  if (fetchStatus === 'pending' || !order) {
+  if (fetchStatus === 'pending' || fetchStatus === 'error' || !order) {
     return (
       <div className="burn-subtle min-h-screen pb-16 pt-24">
         <Container>
@@ -179,16 +190,16 @@ function SuccessInner() {
                 <path d="M20 6 9 17l-5-5" />
               </svg>
             </div>
-            <h1 className="font-display text-display-md text-repixl-text-light">Payment Received</h1>
+            <h1 className="font-display text-display-md text-repixl-text-light">{fetchStatus === 'error' ? 'Order Not Confirmed' : 'Confirmation Pending'}</h1>
             <p className="mt-3 text-sm text-repixl-muted">
               {orderNumber ? (
-                <>Your order <span className="font-mono text-repixl-text-light">{orderNumber}</span> is being finalized.</>
+                <>Your order <span className="font-mono text-repixl-text-light">{orderNumber}</span> has not yet been confirmed.</>
               ) : (
-                'Your payment was processed successfully.'
+                'We could not confirm your order.'
               )}
             </p>
             <p className="mt-2 text-xs text-repixl-muted">
-              Your order will appear in your account shortly. Check your email for a confirmation.
+              Check your order status before retrying. If you were charged, contact support with your order number.
             </p>
             <div className="no-print mt-8 flex flex-wrap justify-center gap-3">
               <Link

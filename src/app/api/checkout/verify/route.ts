@@ -9,9 +9,9 @@ import { getCurrentUser } from '@/lib/auth-helpers'
 import {
   isPaymongoConfigured,
   retrievePaymentIntent,
+  retrieveCheckoutSession,
 } from '@/lib/paymongo'
-import { emitNotification } from '@/lib/notifications'
-import { sendOrderConfirmationEmail } from '@/lib/order-email'
+import { finalizePaidOrder, InsufficientStockError } from '@/lib/purchase-finalization'
 
 export const dynamic = 'force-dynamic'
 
@@ -30,7 +30,7 @@ export const dynamic = 'force-dynamic'
  * 6. Return success.
  *
  * The webhook also calls finalizePaidOrder — both paths are idempotent via
- * the paymentStatus = PAID guard inside the transaction.
+ * an atomic PENDING → PAID update inside the shared transaction.
  *
  * Body: { orderNumber: string }
  */
@@ -81,19 +81,10 @@ export async function POST(request: NextRequest) {
     return errorResponse('Order not found', 404)
   }
 
-  // Already finalized — but cart may still need clearing (e.g. backfill ran without clearing).
-  // Fall through to finalizeOrder which handles the already-PAID case by skipping
-  // status/stock/voucher but still clearing any remaining cart rows.
   if (order.paymentStatus === 'PAID') {
-    console.log(`[CHECKOUT verify] Order already PAID: ${orderNumber} — checking cart`)
-    try {
-      await finalizeOrder(order)
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err)
-      console.error(`[CHECKOUT verify] Cart clear failed for already-PAID order ${orderNumber}:`, msg)
-    }
     return successResponse({ orderNumber, status: order.status, paymentStatus: 'PAID', alreadyFinalized: true })
   }
+  if (order.paymentStatus !== 'PENDING' || order.status !== 'PROCESSING') return errorResponse('Order cannot be finalized', 409)
 
   // Retrieve the PaymentIntent from PayMongo to verify actual payment status
   const intentId = order.paymentIntentId ?? order.paymentSessionId
@@ -104,8 +95,12 @@ export async function POST(request: NextRequest) {
 
   let piStatus: string
   try {
-    const intent = await retrievePaymentIntent(intentId)
-    piStatus = intent.attributes.status
+    if (order.paymentIntentId) {
+      piStatus = (await retrievePaymentIntent(order.paymentIntentId)).attributes.status
+    } else {
+      const session = await retrieveCheckoutSession(intentId)
+      piStatus = session.attributes.payment_intent?.attributes?.status ?? 'pending'
+    }
     console.log(`[CHECKOUT verify] PaymentIntent ${intentId} status: ${piStatus}`)
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
@@ -128,12 +123,14 @@ export async function POST(request: NextRequest) {
   console.log(`[CHECKOUT verify] Payment succeeded — finalizing order ${orderNumber}`)
 
   try {
-    await finalizeOrder(order)
+    await finalizePaidOrder(orderNumber)
+    const current = await prisma.order.findUniqueOrThrow({where: {orderNumber}})
+    if (current.paymentStatus !== 'PAID') return errorResponse('Order cannot be finalized', 409)
     console.log(`[CHECKOUT verify] Order finalized: ${orderNumber}`)
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
     console.error(`[CHECKOUT verify] Finalization failed for ${orderNumber}:`, msg)
-    return errorResponse(`Order finalization failed: ${msg}`, 500)
+    return errorResponse(err instanceof InsufficientStockError ? err.message : 'Order finalization failed. Please retry.', err instanceof InsufficientStockError ? 409 : 500)
   }
 
   return successResponse({
@@ -143,147 +140,4 @@ export async function POST(request: NextRequest) {
     alreadyFinalized: false,
     message: 'Payment verified and order finalized.',
   })
-}
-
-// ─── Shared finalization logic ──────────────────────────────────────────────────
-// Identical to finalizePaidOrder in the webhook — both are idempotent via the
-// paymentStatus = PAID guard. Extracted here so this route and the webhook
-// share the same business logic without an internal HTTP round-trip.
-
-interface OrderWithItemsAndUser {
-  id: string
-  orderNumber: string
-  userId: string
-  voucherCode: string | null
-  paymentStatus: string
-  paymentMethod: string
-  subtotal: number
-  shippingCost: number
-  discount: number
-  total: number
-  courierName: string
-  fullName: string
-  address: string
-  barangay: string
-  city: string
-  province: string
-  postalCode: string
-  createdAt: Date
-  items: Array<{
-    productId: string
-    quantity: number
-    price: number
-    product: { name: string } | null
-  }>
-  user: { id: string; email: string; firstName: string; lastName: string } | null
-}
-
-async function finalizeOrder(order: OrderWithItemsAndUser): Promise<void> {
-  // Re-check inside a transaction so concurrent calls (webhook + verify) are safe
-  await prisma.$transaction(async (tx) => {
-    const fresh = await tx.order.findUnique({
-      where: { id: order.id },
-      include: { items: true },
-    })
-    if (!fresh) {
-      console.log(`[CHECKOUT verify] Transaction: order ${order.orderNumber} not found, skipping`)
-      return
-    }
-
-    const alreadyPaid = fresh.paymentStatus === 'PAID'
-
-    if (!alreadyPaid) {
-      console.log(`[CHECKOUT verify] Transaction: updating order ${order.orderNumber} to PAID`)
-
-      await tx.order.update({
-        where: { id: order.id },
-        data: { paymentStatus: 'PAID', status: 'PROCESSING' },
-      })
-
-      // Decrement stock for each purchased item
-      for (const item of fresh.items) {
-        const updated = await tx.product.updateMany({
-          where: { id: item.productId, stock: { gte: item.quantity } },
-          data: { stock: { decrement: item.quantity } },
-        })
-        if (updated.count === 0) {
-          await tx.product.updateMany({
-            where: { id: item.productId, stock: { gt: 0 } },
-            data: { stock: 0 },
-          })
-        }
-      }
-      console.log(`[CHECKOUT verify] Transaction: stock decremented for ${fresh.items.length} item(s)`)
-
-      // Increment voucher usage if one was applied
-      if (fresh.voucherCode) {
-        await tx.voucher
-          .updateMany({
-            where: { code: fresh.voucherCode },
-            data: { used: { increment: 1 } },
-          })
-          .catch(() => undefined)
-      }
-    } else {
-      console.log(`[CHECKOUT verify] Transaction: order ${order.orderNumber} already PAID — skipping status/stock/voucher, checking cart`)
-    }
-
-    // Always attempt cart clearing — even if already PAID.
-    // The cart clear is NOT idempotent-guarded (deleting a non-existent row is safe),
-    // so this corrects cases where the backfill ran but the cart was never cleared.
-    for (const item of fresh.items) {
-      const cartRow = await tx.cartItem.findFirst({
-        where: { userId: fresh.userId, productId: item.productId },
-      })
-      if (!cartRow) continue
-
-      if (cartRow.quantity <= item.quantity) {
-        // Entire cart quantity was purchased — remove the row
-        await tx.cartItem.delete({ where: { id: cartRow.id } })
-      } else {
-        // Only part of the cart quantity was purchased — decrement
-        await tx.cartItem.update({
-          where: { id: cartRow.id },
-          data: { quantity: { decrement: item.quantity } },
-        })
-      }
-    }
-    console.log(`[CHECKOUT verify] Transaction: cleared cart items for ${fresh.items.length} purchased product(s)`)
-  })
-
-  // Non-blocking: emit notification + send email (failures don't affect order state)
-  const userEmail = order.user?.email
-  if (userEmail) {
-    emitNotification({
-      userId: order.userId,
-      event: 'ORDER_CONFIRMATION',
-      subject: `Order Confirmed — ${order.orderNumber}`,
-      body: `Your order ${order.orderNumber} has been confirmed. Total: $${order.total.toFixed(2)}`,
-      channel: 'BOTH',
-      recipientEmail: userEmail,
-    }).catch((err) => {
-      console.error(`[CHECKOUT verify] Notification failed (non-fatal):`, err)
-    })
-
-    sendOrderConfirmationEmail({
-      orderNumber: order.orderNumber,
-      createdAt: order.createdAt,
-      fullName: order.fullName,
-      address: order.address,
-      barangay: order.barangay,
-      city: order.city,
-      province: order.province,
-      postalCode: order.postalCode,
-      paymentMethod: order.paymentMethod,
-      courierName: order.courierName,
-      subtotal: order.subtotal,
-      shippingCost: order.shippingCost,
-      discount: order.discount,
-      total: order.total,
-      items: order.items,
-      userEmail,
-    }).catch((err) => {
-      console.error(`[CHECKOUT verify] Confirmation email failed (non-fatal):`, err)
-    })
-  }
 }

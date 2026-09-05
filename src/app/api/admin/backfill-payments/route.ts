@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { successResponse, errorResponse, unauthorizedResponse } from '@/lib/api'
 import { getCurrentAdmin } from '@/lib/auth-helpers'
 import { isPaymongoConfigured, retrievePaymentIntent } from '@/lib/paymongo'
-import { emitNotification } from '@/lib/notifications'
+import { finalizePaidOrder } from '@/lib/purchase-finalization'
 
 export const dynamic = 'force-dynamic'
 
@@ -16,7 +16,7 @@ export const dynamic = 'force-dynamic'
  * This fixes all existing PENDING orders created before the verify endpoint
  * was added to the success page.
  *
- * Safe to call multiple times — idempotent via paymentStatus = PAID guard.
+ * Safe to call multiple times — idempotent via the shared atomic payment transition.
  */
 export async function POST(request: NextRequest) {
   const admin = await getCurrentAdmin()
@@ -56,75 +56,16 @@ export async function POST(request: NextRequest) {
       const piStatus = intent.attributes.status
 
       if (piStatus === 'succeeded') {
-        // Finalize
-        await prisma.$transaction(async (tx) => {
-          const fresh = await tx.order.findUnique({ where: { id: order.id }, include: { items: true } })
-          if (!fresh || fresh.paymentStatus === 'PAID') return
-
-          await tx.order.update({
-            where: { id: order.id },
-            data: { paymentStatus: 'PAID', status: 'PROCESSING' },
-          })
-
-          for (const item of fresh.items) {
-            const updated = await tx.product.updateMany({
-              where: { id: item.productId, stock: { gte: item.quantity } },
-              data: { stock: { decrement: item.quantity } },
-            })
-            if (updated.count === 0) {
-              await tx.product.updateMany({
-                where: { id: item.productId, stock: { gt: 0 } },
-                data: { stock: 0 },
-              })
-            }
-          }
-
-          if (fresh.voucherCode) {
-            await tx.voucher.updateMany({
-              where: { code: fresh.voucherCode },
-              data: { used: { increment: 1 } },
-            }).catch(() => undefined)
-          }
-
-          // Clear ONLY the purchased products from the buyer's cart
-          for (const item of fresh.items) {
-            const cartRow = await tx.cartItem.findFirst({
-              where: { userId: fresh.userId, productId: item.productId },
-            })
-            if (!cartRow) continue
-            if (cartRow.quantity <= item.quantity) {
-              await tx.cartItem.delete({ where: { id: cartRow.id } })
-            } else {
-              await tx.cartItem.update({
-                where: { id: cartRow.id },
-                data: { quantity: { decrement: item.quantity } },
-              })
-            }
-          }
-        })
-
-        // Non-blocking notification
-        if (order.user?.email) {
-          emitNotification({
-            userId: order.userId,
-            event: 'ORDER_CONFIRMATION',
-            subject: `Order Confirmed — ${order.orderNumber}`,
-            body: `Your order ${order.orderNumber} has been confirmed and is being processed.`,
-            channel: 'BOTH',
-            recipientEmail: order.user.email,
-          }).catch(() => undefined)
-        }
-
-        console.log(`[backfill] Finalized order ${order.orderNumber}`)
-        results.push({ orderNumber: order.orderNumber, piStatus, action: 'finalized' })
-      } else if (piStatus === 'failed' || piStatus === 'awaiting_payment_method') {
+        const finalized = await finalizePaidOrder(order.orderNumber)
+        results.push({orderNumber: order.orderNumber, piStatus, action: finalized ? 'finalized' : 'skipped'})
+      } else if (piStatus === 'failed') {
         // Mark as failed/cancelled
-        await prisma.order.update({
-          where: { id: order.id },
+        const changed = await prisma.order.updateMany({
+          where: { id: order.id, paymentStatus: 'PENDING' },
           data: { paymentStatus: 'FAILED', status: 'CANCELLED' },
         })
         console.log(`[backfill] Marked order ${order.orderNumber} as FAILED (PI status: ${piStatus})`)
-        results.push({ orderNumber: order.orderNumber, piStatus, action: 'marked_failed' })
+        results.push({ orderNumber: order.orderNumber, piStatus, action: changed.count ? 'marked_failed' : 'skipped' })
       } else {
         results.push({ orderNumber: order.orderNumber, piStatus, action: 'skipped' })
       }
