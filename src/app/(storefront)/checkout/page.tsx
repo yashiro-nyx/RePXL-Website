@@ -107,14 +107,6 @@ const paymentLabels: Record<PaymentMethod, string> = {
   paypal: 'PayPal',
 }
 
-// Generate a human-readable order number: RPXL-YYYYMMDD-XXXXX
-function generateOrderNumber(): string {
-  const now = new Date()
-  const date = now.toISOString().slice(0, 10).replace(/-/g, '')
-  const suffix = Math.random().toString(36).toUpperCase().slice(2, 7)
-  return `RPXL-${date}-${suffix}`
-}
-
 export default function CheckoutPage() {
   const isLoggedIn = useAuthStore((s) => s.isLoggedIn)
   const userName = `${useAuthStore((s) => s.firstName)} ${useAuthStore((s) => s.lastName)}`.trim()
@@ -189,7 +181,7 @@ export default function CheckoutPage() {
       usePaymentStore.getState().reset()
       await useAddressStore.getState().hydrate()
       usePaymentStore.getState().hydrate()
-      useOrderHistoryStore.getState().hydrate()
+      void useOrderHistoryStore.getState().hydrate().catch(() => {})
       setHydrated(true)
     }
     void init()
@@ -348,9 +340,6 @@ export default function CheckoutPage() {
     setSubmitting(true)
     setPaymentError(null)
 
-    const now = new Date()
-    const dateStr = now.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
-    const orderNum = generateOrderNumber()
 
     // ── Embedded PIPM flow ──
     if (isPaymongoEnabled()) {
@@ -404,51 +393,33 @@ export default function CheckoutPage() {
         })
         return
       } catch (err) {
-        console.warn('PayMongo PIPM unavailable, using direct order flow.', err)
+        setPaymentError('Payment could not be started. Check your orders before retrying if the connection was interrupted.')
         setSubmitting(false)
+        return
       }
     }
 
-    // ── Fallback: direct-order flow ──
+    // Direct checkout is used only when the gateway is explicitly disabled.
     const orderData = {
-      orderNumber: orderNum, date: dateStr,
-      items: cartItems.map((i) => i.product),
-      subtotal, shippingCost: courier.price, total: subtotal + courier.price,
+      shippingCost: courier.price,
       courierName: courier.name, courierEstimate: courier.estimate,
       paymentMethod: paymentLabels[paymentMethod],
       fullName, address: streetAddress, barangay: phAddr.barangay,
       city: phAddr.city, province: phAddr.province, postalCode,
-      status: 'Processing' as const, userEmail: useAuthStore.getState().userEmail,
     }
-    addOrder(orderData)
-    clearCart()
-
-    let emailSent = false
     try {
-      const res = await fetch('/api/orders/confirmation', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          orderNumber: orderNum, date: dateStr, email, fullName, phone,
-          address: streetAddress, barangay: phAddr.barangay, city: phAddr.city,
-          province: phAddr.province, postalCode,
-          paymentMethod: paymentLabels[paymentMethod], courierName: courier.name,
-          items: cartItems.map((i) => ({ name: i.product.name, quantity: i.quantity, price: i.product.price })),
-          subtotal, shippingCost: courier.price, total: subtotal + courier.price,
-        }),
-      })
-      emailSent = res.ok
-    } catch { emailSent = false }
-
-    setSubmitting(false)
-    setConfirmation({
-      orderNumber: orderNum, fullName, email, phone,
-      address: streetAddress, barangay: phAddr.barangay, city: phAddr.city,
-      province: phAddr.province, postalCode, paymentMethod, courier, date: dateStr,
-      subtotal, total: subtotal + courier.price, items: cartItems, emailSent,
-    })
-    window.scrollTo({ top: 0 })
+      const created = await addOrder(orderData)
+      // The order API already clears purchased cart items. Refresh for display;
+      // a refresh failure must not cause an already-confirmed order to be retried.
+      await useCartStore.getState().hydrate()
+      router.push(`/checkout/success?order=${encodeURIComponent(created.orderNumber)}`)
+    } catch {
+      setPaymentError('We could not confirm your order. Check your order history before trying again.')
+    } finally {
+      setSubmitting(false)
+    }
   }
+
 
 
   useEffect(() => {

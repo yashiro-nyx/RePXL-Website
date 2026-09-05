@@ -1,9 +1,8 @@
 'use client'
-
 import { create } from 'zustand'
 import { useAuthStore } from './authStore'
 import { wishlistService } from '@/lib/data/wishlistService'
-
+import { useToastStore } from './toastStore'
 interface WishlistState {
   slugs: string[]
   addToWishlist: (slug: string) => Promise<void>
@@ -11,33 +10,41 @@ interface WishlistState {
   isInWishlist: (slug: string) => boolean
   hydrate: () => Promise<void>
 }
-
-function currentEmail(): string | null {
-  return useAuthStore.getState().userEmail || null
-}
-
-export const useWishlistStore = create<WishlistState>((set, get) => ({
-  slugs: [],
-
-  addToWishlist: async (slug) => {
-    if (get().slugs.includes(slug)) return
-    set({ slugs: [...get().slugs, slug] })
-    await wishlistService.add(currentEmail(), slug)
-  },
-
-  removeFromWishlist: async (slug) => {
-    set({ slugs: get().slugs.filter((s) => s !== slug) })
-    await wishlistService.remove(currentEmail(), slug)
-  },
-
-  isInWishlist: (slug) => get().slugs.includes(slug),
-
-  hydrate: async () => {
-    try {
-      const slugs = await wishlistService.list(currentEmail())
-      set({ slugs })
-    } catch {
-      // Leave existing wishlist items intact on error — do not clear the list.
-    }
-  },
-}))
+const email = () => useAuthStore.getState().userEmail || null
+export const useWishlistStore = create<WishlistState>((set, get) => {
+  const mutate = async (action: (owner: string | null) => Promise<void>) => {
+    const owner = email()
+    await action(owner)
+    const slugs = await wishlistService.list(owner)
+    if (owner === email()) set({ slugs })
+  }
+  return {
+    slugs: [],
+    addToWishlist: (slug) =>
+      mutate((owner) => wishlistService.add(owner, slug)),
+    removeFromWishlist: (slug) =>
+      mutate((owner) => wishlistService.remove(owner, slug)),
+    isInWishlist: (slug) => get().slugs.includes(slug),
+    hydrate: async () => {
+      const owner = email()
+      try {
+        const slugs = await wishlistService.list(owner)
+        if (owner === email()) set({ slugs })
+      } catch {
+        if (owner === email()) {
+          set({ slugs: [] })
+          useToastStore
+            .getState()
+            .addToast(
+              'Unable to load your wishlist. Please try again.',
+              'error'
+            )
+        }
+      }
+    },
+  }
+})
+useAuthStore.subscribe((state, previous) => {
+  if (state.userEmail !== previous.userEmail)
+    useWishlistStore.setState({ slugs: [] })
+})

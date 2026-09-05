@@ -1,5 +1,6 @@
 'use client'
 
+import { reportActionFailure } from '@/lib/action-error'
 import { useState, useCallback, useEffect } from 'react'
 import Link from 'next/link'
 import { ConditionBadge, LoginRequiredModal } from '@/components/ui'
@@ -64,37 +65,51 @@ export function ProductCard({ product }: ProductCardProps) {
   // Clamp stock to avoid negative display
   const stock = Math.max(0, product.stock)
 
-  const handleCartClick = (e: React.MouseEvent) => {
-    e.preventDefault()
-    if (!isLoggedIn) { setLoginModalOpen(true); return }
-    if (stock <= 0) return
-    if (cartQty < stock) {
-      addToCart(product.slug)
-      addToast(
-        `${product.name} added to cart`,
-        'success',
-        { label: 'View Cart', href: '/cart' },
-        5000,
-        product.image
-      )
+  const handleCartClick = async (e: React.MouseEvent) => {
+    try {
+      e.preventDefault()
+      if (!isLoggedIn) {
+        setLoginModalOpen(true)
+        return
+      }
+      if (stock <= 0) return
+      if (cartQty < stock) {
+        await addToCart(product.slug)
+        addToast(
+          `${product.name} added to cart`,
+          'success',
+          { label: 'View Cart', href: '/cart' },
+          5000,
+          product.image
+        )
+      }
+    } catch {
+      reportActionFailure()
     }
   }
 
-  const handleWishlistClick = (e: React.MouseEvent) => {
-    e.preventDefault()
-    if (!isLoggedIn) { setLoginModalOpen(true); return }
-    if (inWishlist) {
-      removeFromWishlist(product.slug)
-      addToast(`Removed from wishlist`, 'info')
-    } else {
-      addToWishlist(product.slug)
-      addToast(
-        `${product.name} saved to wishlist`,
-        'success',
-        { label: 'View Wishlist', href: '/wishlist' },
-        5000,
-        product.image
-      )
+  const handleWishlistClick = async (e: React.MouseEvent) => {
+    try {
+      e.preventDefault()
+      if (!isLoggedIn) {
+        setLoginModalOpen(true)
+        return
+      }
+      if (inWishlist) {
+        await removeFromWishlist(product.slug)
+        addToast(`Removed from wishlist`, 'info')
+      } else {
+        await addToWishlist(product.slug)
+        addToast(
+          `${product.name} saved to wishlist`,
+          'success',
+          { label: 'View Wishlist', href: '/wishlist' },
+          5000,
+          product.image
+        )
+      }
+    } catch {
+      reportActionFailure()
     }
   }
 

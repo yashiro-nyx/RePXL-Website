@@ -1,5 +1,6 @@
 'use client'
 
+import { reportActionFailure } from '@/lib/action-error'
 import { create } from 'zustand'
 import { voucherService } from '@/lib/data/voucherService'
 
@@ -23,20 +24,14 @@ interface VoucherState {
   vouchers: Voucher[]
   addVoucher: (v: Omit<Voucher, 'id' | 'used'>) => Promise<void>
   deleteVoucher: (id: string) => Promise<void>
-  useVoucher: (code: string) => void
-  validateCode: (code: string, cartTotal: number) => Promise<{ valid: boolean; discount: number; error?: string }>
+  validateCode: (
+    code: string,
+    cartTotal: number
+  ) => Promise<{ valid: boolean; discount: number; error?: string }>
   hydrate: () => Promise<void>
 }
 
-const seedVouchers: Voucher[] = [
-  { id: '1', code: 'WELCOME10', discountType: 'percentage', discountValue: 10, minPurchase: 50, maxDiscount: 20, usageLimit: 100, perUserLimit: 1, used: 23, validFrom: '2026-01-01', validUntil: '2026-12-31', status: 'active', description: 'Welcome discount for new customers' },
-  { id: '2', code: 'SUMMER15', discountType: 'percentage', discountValue: 15, minPurchase: 100, maxDiscount: 30, usageLimit: 50, perUserLimit: 1, used: 12, validFrom: '2026-06-01', validUntil: '2026-08-31', status: 'active', description: 'Summer sale promotion' },
-  { id: '3', code: 'FLAT5', discountType: 'fixed', discountValue: 5, minPurchase: 30, maxDiscount: 5, usageLimit: 200, perUserLimit: 3, used: 87, validFrom: '2026-01-01', validUntil: '2026-06-30', status: 'expired', description: 'Flat $5 off any order over $30' },
-]
-
-function persist(vouchers: Voucher[]) {
-  localStorage.setItem('repixl-vouchers', JSON.stringify(vouchers))
-}
+const seedVouchers: Voucher[] = []
 
 export const useVoucherStore = create<VoucherState>((set, get) => ({
   vouchers: seedVouchers,
@@ -47,23 +42,19 @@ export const useVoucherStore = create<VoucherState>((set, get) => ({
   },
 
   deleteVoucher: async (id) => {
-    set({ vouchers: get().vouchers.filter((v) => v.id !== id) })
     await voucherService.remove(seedVouchers, id)
+    set({ vouchers: get().vouchers.filter((v) => v.id !== id) })
   },
 
-  useVoucher: (code) => {
-    const updated = get().vouchers.map((v) => v.code === code ? { ...v, used: v.used + 1 } : v)
-    persist(updated); set({ vouchers: updated })
-  },
-
-  validateCode: (code, cartTotal) => voucherService.validate(get().vouchers, code, cartTotal),
+  validateCode: (code, cartTotal) =>
+    voucherService.validate(get().vouchers, code, cartTotal),
 
   hydrate: async () => {
     try {
-      const vouchers = await voucherService.list(seedVouchers)
-      if (vouchers.length > 0) set({ vouchers })
+      set({ vouchers: await voucherService.list([]) })
     } catch {
-      // keep seed
+      set({ vouchers: [] })
+      reportActionFailure()
     }
   },
 }))

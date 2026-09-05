@@ -1,5 +1,6 @@
 'use client'
 
+import { reportActionFailure } from '@/lib/action-error'
 import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
@@ -271,11 +272,24 @@ export default function ProductDetailPage() {
                 size="lg"
                 disabled={product.stock === 0 || cartQty >= product.stock}
                 className={product.stock === 0 || cartQty >= product.stock ? 'opacity-50 cursor-not-allowed' : ''}
-                onClick={() => {
-                  if (!isLoggedIn) { setLoginModalOpen(true); return }
-                  if (product && product.stock > 0 && cartQty < product.stock) {
-                    addToCart(product.slug, selectedQty)
-                    addToast(`Added ${selectedQty} to cart: ${product.name}`, 'success', { label: 'View Cart', href: '/cart' }, 5000, product.image)
+                onClick={async () => {
+                  try {
+                    if (!isLoggedIn) {
+                      setLoginModalOpen(true)
+                      return
+                    }
+                    if (product && product.stock > 0 && cartQty < product.stock) {
+                      await addToCart(product.slug, selectedQty)
+                      addToast(
+                        `Added ${selectedQty} to cart: ${product.name}`,
+                        'success',
+                        { label: 'View Cart', href: '/cart' },
+                        5000,
+                        product.image
+                      )
+                    }
+                  } catch {
+                    reportActionFailure()
                   }
                 }}
               >
@@ -284,11 +298,29 @@ export default function ProductDetailPage() {
               <Button
                 variant="secondary"
                 size="lg"
-                onClick={() => {
-                  if (!isLoggedIn) { setLoginModalOpen(true); return }
-                  if (product) {
-                    if (inWishlist) { removeFromWishlist(product.slug); addToast('Removed from wishlist', 'info') }
-                    else { addToWishlist(product.slug); addToast(`${product.name} saved to wishlist`, 'success', { label: 'View Wishlist', href: '/wishlist' }, 5000, product.image) }
+                onClick={async () => {
+                  try {
+                    if (!isLoggedIn) {
+                      setLoginModalOpen(true)
+                      return
+                    }
+                    if (product) {
+                      if (inWishlist) {
+                        await removeFromWishlist(product.slug)
+                        addToast('Removed from wishlist', 'info')
+                      } else {
+                        await addToWishlist(product.slug)
+                        addToast(
+                          `${product.name} saved to wishlist`,
+                          'success',
+                          { label: 'View Wishlist', href: '/wishlist' },
+                          5000,
+                          product.image
+                        )
+                      }
+                    }
+                  } catch {
+                    reportActionFailure()
                   }
                 }}
               >
@@ -657,28 +689,42 @@ function ReviewForm({ slug, existing, onClose }: { slug: string; existing?: Revi
 
   const isVerified = orders.some((o) => o.items.some((i) => i.slug === slug))
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (rating === 0) { setError('Please select a star rating.'); return }
-    if (!comment.trim()) { setError('Please write a comment.'); return }
-    setError('')
+  const handleSubmit = async (e: React.FormEvent) => {
+    try {
+      e.preventDefault()
+      if (rating === 0) {
+        setError('Please select a star rating.')
+        return
+      }
+      if (!comment.trim()) {
+        setError('Please write a comment.')
+        return
+      }
+      setError('')
 
-    const now = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
-
-    if (existing) {
-      updateReview(existing.id, { rating, comment: comment.trim() })
-    } else {
-      addReview({
-        productSlug: slug,
-        reviewerName: `${firstName} ${lastName}`.trim(),
-        reviewerEmail: userEmail,
-        rating,
-        comment: comment.trim(),
-        date: now,
-        verifiedPurchase: isVerified,
+      const now = new Date().toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
       })
+
+      if (existing) {
+        await updateReview(existing.id, { rating, comment: comment.trim() })
+      } else {
+        await addReview({
+          productSlug: slug,
+          reviewerName: `${firstName} ${lastName}`.trim(),
+          reviewerEmail: userEmail,
+          rating,
+          comment: comment.trim(),
+          date: now,
+          verifiedPurchase: isVerified,
+        })
+      }
+      onClose()
+    } catch {
+      reportActionFailure()
     }
-    onClose()
   }
 
   return (

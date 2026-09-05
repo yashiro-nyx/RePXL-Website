@@ -1,5 +1,9 @@
 'use client'
 
+import { scopedAccountUpdate } from '@/lib/account-scope'
+
+import { useAuthStore } from './authStore'
+import { reportActionFailure } from '@/lib/action-error'
 import { create } from 'zustand'
 import { reviewService } from '@/lib/data/reviewService'
 
@@ -17,7 +21,10 @@ export interface Review {
 interface ReviewState {
   reviews: Review[]
   addReview: (review: Omit<Review, 'id'>) => Promise<void>
-  updateReview: (id: string, data: Partial<Pick<Review, 'rating' | 'comment'>>) => Promise<void>
+  updateReview: (
+    id: string,
+    data: Partial<Pick<Review, 'rating' | 'comment'>>
+  ) => Promise<void>
   deleteReview: (id: string) => Promise<void>
   getProductReviews: (slug: string) => Review[]
   getUserReviews: (email: string) => Review[]
@@ -27,65 +34,67 @@ interface ReviewState {
   hydrate: () => Promise<void>
 }
 
-function persist(reviews: Review[]) {
-  try {
-    localStorage.setItem('repixl-reviews', JSON.stringify(reviews))
-  } catch { /* ignore */ }
-}
-
 export const useReviewStore = create<ReviewState>((set, get) => ({
   // Empty initial state — no seed/fake reviews. Real data loads via hydrate()
   // or the API-backed components (Account Reviews, Product Details).
   reviews: [],
 
   addReview: async (review) => {
-    // Optimistic insert with a temp id; reconcile with the service result.
-    const tempId = `review-${Date.now().toString(36)}`
-    const optimistic: Review = { ...review, id: tempId }
-    set({ reviews: [optimistic, ...get().reviews] })
-    persist(get().reviews)
+    const commit = scopedAccountUpdate<Partial<ReviewState>>(set)
     const created = await reviewService.add(review)
-    // Preserve the reviewerEmail locally (API doesn't return it) so the
-    // "your review" lookups keep working this session.
-    const merged: Review = { ...created, reviewerEmail: review.reviewerEmail || created.reviewerEmail }
-    set({ reviews: get().reviews.map((r) => (r.id === tempId ? merged : r)) })
-    persist(get().reviews)
+    commit({
+      reviews: [
+        {
+          ...created,
+          reviewerEmail: review.reviewerEmail || created.reviewerEmail,
+        },
+        ...get().reviews,
+      ],
+    })
   },
 
   updateReview: async (id, data) => {
-    set({ reviews: get().reviews.map((r) => (r.id === id ? { ...r, ...data } : r)) })
-    persist(get().reviews)
+    const commit = scopedAccountUpdate<Partial<ReviewState>>(set)
     await reviewService.update(id, data)
+    commit({
+      reviews: get().reviews.map((r) => (r.id === id ? { ...r, ...data } : r)),
+    })
   },
 
   deleteReview: async (id) => {
-    set({ reviews: get().reviews.filter((r) => r.id !== id) })
-    persist(get().reviews)
+    const commit = scopedAccountUpdate<Partial<ReviewState>>(set)
     await reviewService.remove(id)
+    commit({ reviews: get().reviews.filter((r) => r.id !== id) })
   },
 
-  getProductReviews: (slug) => get().reviews.filter((r) => r.productSlug === slug),
-  getUserReviews: (email) => get().reviews.filter((r) => r.reviewerEmail === email),
-  getUserReviewForProduct: (email, slug) => get().reviews.find((r) => r.reviewerEmail === email && r.productSlug === slug),
+  getProductReviews: (slug) =>
+    get().reviews.filter((r) => r.productSlug === slug),
+  getUserReviews: (email) =>
+    get().reviews.filter((r) => r.reviewerEmail === email),
+  getUserReviewForProduct: (email, slug) =>
+    get().reviews.find(
+      (r) => r.reviewerEmail === email && r.productSlug === slug
+    ),
   getAverageRating: (slug) => {
     const pr = get().reviews.filter((r) => r.productSlug === slug)
     if (pr.length === 0) return 0
     return pr.reduce((sum, r) => sum + r.rating, 0) / pr.length
   },
-  getReviewCount: (slug) => get().reviews.filter((r) => r.productSlug === slug).length,
+  getReviewCount: (slug) =>
+    get().reviews.filter((r) => r.productSlug === slug).length,
 
   hydrate: async () => {
-    // Hydrate from localStorage cache only — the API-backed components
-    // (Account → Reviews, Product Detail → Reviews) fetch directly from
-    // /api/reviews and do not depend on this store for authoritative data.
+    const commit = scopedAccountUpdate<Partial<ReviewState>>(set)
     try {
-      const stored = localStorage.getItem('repixl-reviews')
-      if (stored) {
-        const parsed: Review[] = JSON.parse(stored)
-        // Only restore user-written reviews (never restore seed/fake ones)
-        const real = parsed.filter((r) => !r.id.startsWith('seed-'))
-        if (real.length > 0) set({ reviews: real })
-      }
-    } catch { /* ignore */ }
+      commit({ reviews: await reviewService.listAll([]) })
+    } catch {
+      commit({ reviews: [] })
+      reportActionFailure()
+    }
   },
 }))
+
+useAuthStore.subscribe((state, previous) => {
+  if (state.userEmail !== previous.userEmail || state.role !== previous.role)
+    useReviewStore.setState({ reviews: [] })
+})

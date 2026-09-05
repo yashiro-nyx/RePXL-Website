@@ -1,5 +1,6 @@
 'use client'
 
+import { reportActionFailure } from '@/lib/action-error'
 import { useEffect, useState, useCallback } from 'react'
 import { adminService } from '@/lib/data/adminService'
 import { Pagination } from '@/components/ui/Pagination'
@@ -51,9 +52,13 @@ export default function ArchivedCustomersPage() {
   useEffect(() => { void load(currentPage) }, [currentPage, load])
 
   const handleRestore = async (id: string) => {
-    await adminService.restoreCustomer(id)
-    setConfirmRestore(null)
-    void load(currentPage)
+    try {
+      await adminService.restoreCustomer(id)
+      setConfirmRestore(null)
+      void load(currentPage)
+    } catch {
+      reportActionFailure()
+    }
   }
 
   return (

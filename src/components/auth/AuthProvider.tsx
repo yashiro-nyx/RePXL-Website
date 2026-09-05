@@ -1,7 +1,8 @@
 'use client'
 
-import { Suspense } from 'react'
+import { Suspense, useEffect } from 'react'
 import { SessionProvider } from 'next-auth/react'
+import { clearLegacyAccountStorage } from '@/lib/browser-storage'
 import { useOAuthSync } from '@/hooks/useOAuthSync'
 
 /**
@@ -10,6 +11,7 @@ import { useOAuthSync } from '@/hooks/useOAuthSync'
  * which requires a Suspense boundary in Next.js App Router.
  */
 function OAuthSyncBridge({ children }: { children: React.ReactNode }) {
+  useEffect(() => { clearLegacyAccountStorage() }, [])
   useOAuthSync()
   return <>{children}</>
 }

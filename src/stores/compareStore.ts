@@ -1,7 +1,6 @@
 'use client'
 
 import { create } from 'zustand'
-import { useAuthStore } from './authStore'
 
 const MAX_COMPARE = 3
 
@@ -13,10 +12,7 @@ interface CompareState {
   hydrate: () => void
 }
 
-function getKey() {
-  const email = useAuthStore.getState().userEmail
-  return email ? `repixl-compare-${email}` : 'repixl-compare-guest'
-}
+function getKey() { return 'repixl-compare-guest' }
 
 function persist(slugs: string[]) {
   localStorage.setItem(getKey(), JSON.stringify(slugs))

@@ -36,10 +36,10 @@ export async function POST(request: NextRequest) {
     if (!parsed.success) return validationError(parsed.error)
 
     const { email } = parsed.data
-    const normalizedEmail = email.toLowerCase().trim()
+    const normalizedEmail = nextAuthSession.user.email.toLowerCase().trim()
 
     // Ensure the session email matches the claimed email (prevent spoofing)
-    if (nextAuthSession.user.email.toLowerCase() !== normalizedEmail) {
+    if (email.toLowerCase().trim() !== normalizedEmail) {
       return errorResponse('Email mismatch', 403)
     }
 

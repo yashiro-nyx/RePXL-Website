@@ -1,5 +1,6 @@
 'use client'
 
+import { reportActionFailure } from '@/lib/action-error'
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter, usePathname } from 'next/navigation'
@@ -64,18 +65,21 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const pathname = usePathname()
 
   useEffect(() => {
-    hydrateAdmin()
-    useOrderHistoryStore.getState().hydrate()
-    setHydrated(true)
+    void hydrateAdmin().finally(() => setHydrated(true))
+    void useOrderHistoryStore.getState().hydrate().catch(() => {})
   }, [hydrateAdmin])
 
   // Periodic session validity check (every 60 seconds)
   useEffect(() => {
     if (!hydrated || pathname === '/admin/login') return
-    const interval = setInterval(() => {
-      if (!isAdminSessionValid()) {
-        logoutAdmin()
-        router.push('/admin/login')
+    const interval = setInterval(async () => {
+      try {
+        if (!(await isAdminSessionValid())) {
+          await logoutAdmin().catch(() => {})
+          router.push('/admin/login')
+        }
+      } catch {
+        reportActionFailure()
       }
     }, 60000)
     return () => clearInterval(interval)
@@ -97,7 +101,15 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const pendingOrders = orders.filter((o) => o.status === 'Processing').length
   const initials = `${firstName?.[0] || ''}${lastName?.[0] || ''}`.toUpperCase() || 'A'
 
-  const handleLogout = () => { logoutAdmin(); useToastStore.getState().addToast('You\'ve been logged out.', 'info'); router.push('/admin/login') }
+  const handleLogout = async () => {
+    try {
+      await logoutAdmin()
+      useToastStore.getState().addToast("You've been logged out.", 'info')
+      router.push('/admin/login')
+    } catch {
+      reportActionFailure()
+    }
+  }
 
   return (
     <div className="flex min-h-screen overflow-x-hidden text-repixl-text-light" style={{ backgroundColor: '#050303', backgroundImage: 'linear-gradient(90deg, rgba(200,20,10,0.9) 0%, rgba(160,30,10,0.5) 8%, rgba(80,15,10,0.2) 15%, transparent 22%), linear-gradient(270deg, rgba(180,30,10,0.4) 0%, transparent 10%)', backgroundBlendMode: 'screen', backgroundAttachment: 'fixed' }}>

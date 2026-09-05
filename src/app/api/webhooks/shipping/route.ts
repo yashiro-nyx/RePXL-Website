@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { verifyShippingAuthorization } from '@/lib/shipping-auth'
 
 // POST /api/webhooks/shipping
 // Receives shipping carrier status updates and persists them to the orders table.
@@ -19,6 +20,14 @@ const STATUS_MAP: Record<string, { status: string; progress: number }> = {
 }
 
 export async function POST(request: NextRequest) {
+  const authorization = verifyShippingAuthorization(request.headers.get('authorization'))
+  if (authorization !== 'valid') {
+    return NextResponse.json(
+      { success: false, error: authorization === 'unconfigured' ? 'Shipping webhook unavailable' : 'Unauthorized' },
+      { status: authorization === 'unconfigured' ? 503 : 401 }
+    )
+  }
+
   let body: ShippingPayload
   try {
     body = await request.json()
@@ -26,9 +35,15 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: false, error: 'Invalid JSON' }, { status: 400 })
   }
 
+  if (!body || typeof body !== 'object') {
+    return NextResponse.json({ success: false, error: 'Invalid payload' }, { status: 400 })
+  }
+
   const { tracking_number, status_code, status_description } = body
 
-  if (!tracking_number || !status_code || !STATUS_MAP[status_code]) {
+  if (typeof tracking_number !== 'string' || !tracking_number.trim() ||
+      typeof status_code !== 'string' || !Object.hasOwn(STATUS_MAP, status_code) ||
+      (status_description !== undefined && typeof status_description !== 'string')) {
     return NextResponse.json(
       { success: false, error: 'Missing or invalid fields. Required: tracking_number, status_code (IT|OD|DE).' },
       { status: 400 }

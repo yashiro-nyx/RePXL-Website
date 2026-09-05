@@ -1,5 +1,6 @@
 'use client'
 
+import { reportActionFailure } from '@/lib/action-error'
 import { useState, useEffect, useCallback } from 'react'
 import dynamic from 'next/dynamic'
 import Link from 'next/link'
@@ -15,7 +16,7 @@ import { emptyPHAddress, type PHAddressValue } from '@/components/ui/PHAddressSe
 import { useAuthStore } from '@/stores/authStore'
 import { useToastStore } from '@/stores/toastStore'
 import { useAddressStore, type Address } from '@/stores/addressStore'
-import { usePaymentStore, detectBrand, type SavedCard } from '@/stores/paymentStore'
+import { usePaymentStore } from '@/stores/paymentStore'
 import { useOrderHistoryStore, type Order } from '@/stores/orderHistoryStore'
 import { useReviewStore, type Review } from '@/stores/reviewStore'
 import { useWishlistStore } from '@/stores/wishlistStore'
@@ -63,7 +64,7 @@ export default function AccountPage() {
       usePaymentStore.getState().reset()
       await useAddressStore.getState().hydrate()
       usePaymentStore.getState().hydrate()
-      useOrderHistoryStore.getState().hydrate()
+      void useOrderHistoryStore.getState().hydrate().catch(() => {})
       useReviewStore.getState().hydrate()
       useWishlistStore.getState().hydrate()
       useCartStore.getState().hydrate()
@@ -85,13 +86,21 @@ export default function AccountPage() {
 
   const initials = `${firstName?.[0] || ''}${lastName?.[0] || ''}`.toUpperCase() || '?'
 
-  const handleLogout = () => {
-    logout()
-    signOut({ redirect: false }).catch(() => { /* non-critical */ })
-    useAddressStore.getState().reset()
-    usePaymentStore.getState().reset()
-    useToastStore.getState().addToast('You\'ve been logged out. See you next time!', 'info')
-    router.push('/')
+  const handleLogout = async () => {
+    try {
+      await logout()
+      signOut({ redirect: false }).catch(() => {
+        /* non-critical */
+      })
+      useAddressStore.getState().reset()
+      usePaymentStore.getState().reset()
+      useToastStore
+        .getState()
+        .addToast("You've been logged out. See you next time!", 'info')
+      router.push('/')
+    } catch {
+      reportActionFailure()
+    }
   }
 
   return (
@@ -445,25 +454,17 @@ function ProfileTab() {
   const [last, setLast] = useState('')
   const [email, setEmail] = useState('')
   const [phone, setPhone] = useState('')
-  const [birthDate, setBirthDate] = useState('')
-  const [origBirthDate, setOrigBirthDate] = useState('')
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [saved, setSaved] = useState(false)
   const nameFilter = useFilteredInput(nameChars)
 
   useEffect(() => {
     setFirst(firstName); setLast(lastName); setEmail(userEmail); setPhone(userPhone)
-    if (userEmail) {
-      try {
-        const stored = localStorage.getItem(`repixl-birthdate-${userEmail}`) ?? ''
-        setBirthDate(stored); setOrigBirthDate(stored)
-      } catch { setBirthDate(''); setOrigBirthDate('') }
-    }
   }, [firstName, lastName, userEmail, userPhone])
 
-  const hasChanges = first !== firstName || last !== lastName || email !== userEmail || phone !== userPhone || birthDate !== origBirthDate
+  const hasChanges = first !== firstName || last !== lastName || email !== userEmail || phone !== userPhone
 
-  const handleSave = (e: React.FormEvent) => {
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault()
     const errs: Record<string, string> = {}
     if (!first.trim()) errs.first = 'First name is required.'
@@ -474,14 +475,12 @@ function ProfileTab() {
     }
     setErrors(errs)
     if (Object.keys(errs).length > 0) return
-    updateProfile(first.trim(), last.trim(), email.trim(), phone.trim())
-    if (email.trim()) {
-      try {
-        if (birthDate) localStorage.setItem(`repixl-birthdate-${email.trim()}`, birthDate)
-        else localStorage.removeItem(`repixl-birthdate-${email.trim()}`)
-      } catch { /* ignore */ }
+    try {
+      await updateProfile(first.trim(), last.trim(), email.trim(), phone.trim())
+    } catch {
+      useToastStore.getState().addToast('Profile was not saved. Please try again.', 'error')
+      return
     }
-    setOrigBirthDate(birthDate)
     setSaved(true)
     setTimeout(() => setSaved(false), 3000)
   }
@@ -520,10 +519,7 @@ function ProfileTab() {
             autoComplete="tel"
           />
         </div>
-        <div>
-          <label htmlFor="p-birth" className="mb-1.5 block text-xs text-repixl-text-light/70">Birth Date</label>
-          <input id="p-birth" type="date" value={birthDate} onChange={(e) => setBirthDate(e.target.value)} className={`${inputClass()} [color-scheme:dark]`} />
-        </div>
+
         <div className="flex items-center gap-3 pt-1">
           <Button type="submit" variant="primary" size="md" disabled={!hasChanges} className={!hasChanges ? 'opacity-50 cursor-not-allowed' : ''}>
             Save Changes
@@ -708,17 +704,25 @@ function AddressesTab() {
   const [saveError, setSaveError] = useState<string | null>(null)
 
   const handleSave = async (data: Omit<Address, 'id'>) => {
-    setSaveError(null)
     try {
-      if (editingId) {
-        await updateAddress(editingId, data)
-      } else {
-        await addAddress(data)
+      setSaveError(null)
+      try {
+        if (editingId) {
+          await updateAddress(editingId, data)
+        } else {
+          await addAddress(data)
+        }
+        setFormOpen(false)
+        setEditingId(null)
+      } catch (err) {
+        setSaveError(
+          err instanceof Error
+            ? err.message
+            : 'Failed to save address. Please try again.'
+        )
       }
-      setFormOpen(false)
-      setEditingId(null)
-    } catch (err) {
-      setSaveError(err instanceof Error ? err.message : 'Failed to save address. Please try again.')
+    } catch {
+      reportActionFailure()
     }
   }
 
@@ -755,7 +759,13 @@ function AddressesTab() {
                   {!addr.isDefault && (
                     <button
                       type="button"
-                      onClick={() => setDefault(addr.id)}
+                      onClick={async () => {
+                        try {
+                          await await setDefault(addr.id)
+                        } catch {
+                          reportActionFailure()
+                        }
+                      }}
                       className="rounded-lg border border-repixl-muted/20 px-3 py-1.5 font-mono text-[10px] uppercase tracking-wider text-repixl-muted transition-colors hover:border-repixl-muted/40 hover:text-repixl-text-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-repixl-red/40"
                     >
                       Set Default
@@ -771,7 +781,13 @@ function AddressesTab() {
                   </button>
                   <button
                     type="button"
-                    onClick={() => removeAddress(addr.id)}
+                    onClick={async () => {
+                      try {
+                        await await removeAddress(addr.id)
+                      } catch {
+                        reportActionFailure()
+                      }
+                    }}
                     className="rounded-lg border border-red-500/20 px-3 py-1.5 font-mono text-[10px] uppercase tracking-wider text-red-400/70 transition-colors hover:border-red-500/40 hover:bg-red-500/5 hover:text-red-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500/40"
                     aria-label={`Delete address for ${addr.fullName}`}
                   >
@@ -942,194 +958,11 @@ function AddressForm({
 
 // ─── Payments Tab ────────────────────────────────────────────────────────────
 function PaymentsTab() {
-  const cards = usePaymentStore((s) => s.cards)
-  const addCard = usePaymentStore((s) => s.addCard)
-  const removeCard = usePaymentStore((s) => s.removeCard)
-  const setDefault = usePaymentStore((s) => s.setDefault)
-  const [formOpen, setFormOpen] = useState(false)
-
   return (
     <div className="rounded-xl border border-repixl-muted/10 bg-repixl-charcoal p-6">
-      <div className="mb-5 flex items-center justify-between">
-        <div>
-          <span className="font-mono text-[10px] uppercase tracking-widest text-repixl-muted">— Payment</span>
-          <h2 className="mt-1 font-display text-lg font-semibold text-repixl-text-light">Payment Methods</h2>
-        </div>
-        {!formOpen && <Button variant="secondary" size="md" onClick={() => setFormOpen(true)}>+ Add Card</Button>}
-      </div>
-      {cards.length === 0 && !formOpen && (
-        <div className="flex flex-col items-center py-8 text-center">
-          <p className="text-sm text-repixl-muted">No saved payment methods yet.</p>
-        </div>
-      )}
-      {cards.length > 0 && !formOpen && (
-        <ul className="space-y-3">
-          {cards.map((card) => (
-            <li key={card.id} className="flex items-center justify-between rounded-lg border border-repixl-muted/10 bg-repixl-bg p-4">
-              <div className="flex items-center gap-3">
-                <div className="flex h-9 w-14 items-center justify-center rounded-lg border border-repixl-muted/20 bg-repixl-charcoal">
-                  <span className="font-mono text-[9px] font-bold text-repixl-text-light/70">{card.brand}</span>
-                </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <p className="font-mono text-sm text-repixl-text-light">•••• {card.last4}</p>
-                    {card.isDefault && <span className="rounded-full bg-repixl-success/15 px-2 py-0.5 font-mono text-[9px] uppercase text-repixl-success">Default</span>}
-                  </div>
-                  <p className="text-xs text-repixl-muted">{card.cardholderName} · {card.expiry}</p>
-                </div>
-              </div>
-              <div className="flex gap-2">
-                {!card.isDefault && (
-                  <button
-                    type="button"
-                    onClick={() => setDefault(card.id)}
-                    className="rounded-lg border border-repixl-muted/20 px-3 py-1.5 font-mono text-[10px] uppercase tracking-wider text-repixl-muted transition-colors hover:border-repixl-muted/40 hover:text-repixl-text-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-repixl-red/40"
-                  >
-                    Set Default
-                  </button>
-                )}
-                <button
-                  type="button"
-                  onClick={() => removeCard(card.id)}
-                  aria-label={`Remove card ending in ${card.last4}`}
-                  className="rounded-lg border border-red-500/20 px-3 py-1.5 font-mono text-[10px] uppercase tracking-wider text-red-400/70 transition-colors hover:border-red-500/40 hover:bg-red-500/5 hover:text-red-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500/40"
-                >
-                  Remove
-                </button>
-              </div>
-            </li>
-          ))}
-        </ul>
-      )}
-      {formOpen && <CardForm onSave={(d) => { addCard(d); setFormOpen(false) }} onCancel={() => setFormOpen(false)} />}
+      <h2 className="font-display text-lg font-semibold text-repixl-text-light">Payment Methods</h2>
+      <p className="mt-3 text-sm text-repixl-muted">Saved payment methods are unavailable. Enter your payment details securely at checkout.</p>
     </div>
-  )
-}
-
-function CardForm({ onSave, onCancel }: { onSave: (d: Omit<SavedCard, 'id'>) => void; onCancel: () => void }) {
-  // cardNumber holds RAW digits only (no spaces) — matches CardNumberInput contract
-  const [cardNumber, setCardNumber] = useState('')
-  // expiry holds the formatted display string e.g. "12/28" — matches CardExpiryInput contract
-  const [expiry, setExpiry] = useState('')
-  const [cvc, setCvc] = useState('')
-  const [name, setName] = useState('')
-  const [isDefault, setIsDefault] = useState(false)
-  const [errors, setErrors] = useState<Record<string, string>>({})
-  const nameFilter = useFilteredInput(nameChars)
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    const errs: Record<string, string> = {}
-
-    // Validate card number (raw digits from CardNumberInput)
-    if (!/^\d{16}$/.test(cardNumber)) errs.cardNumber = '16 digits required.'
-
-    // Validate expiry (formatted MM/YY from CardExpiryInput)
-    const m = expiry.trim().match(/^(\d{2})\/(\d{2})$/)
-    if (!m) {
-      errs.expiry = 'MM/YY format required.'
-    } else {
-      const mo = parseInt(m[1], 10)
-      const yr = parseInt(m[2], 10) + 2000
-      if (mo < 1 || mo > 12 || new Date(yr, mo) <= new Date()) {
-        errs.expiry = 'Invalid or expired date.'
-      }
-    }
-
-    // Validate CVC — 3 or 4 digits
-    if (!/^\d{3,4}$/.test(cvc.trim())) errs.cvc = '3 or 4-digit CVC required.'
-
-    if (!name.trim()) errs.name = 'Cardholder name is required.'
-
-    setErrors(errs)
-    if (Object.keys(errs).length > 0) return
-
-    // Only store safe metadata — never the full card number or CVC
-    onSave({
-      last4: cardNumber.slice(-4),
-      brand: detectBrand(cardNumber[0]),
-      expiry: expiry.trim(),
-      cardholderName: name.trim(),
-      isDefault,
-    })
-  }
-
-  return (
-    <form onSubmit={handleSubmit} noValidate className="mt-5 space-y-3 rounded-lg border border-repixl-muted/10 bg-repixl-bg p-4">
-      {/* Card number — uses CardNumberInput for formatting + digit-only restriction */}
-      <div>
-        <label htmlFor="c-num" className="mb-1 block text-xs text-repixl-text-light/70">Card Number</label>
-        <CardNumberInput
-          id="c-num"
-          value={cardNumber}
-          onChange={setCardNumber}
-          error={errors.cardNumber}
-          className={`font-mono ${inputClass(errors.cardNumber)}`}
-          autoComplete="cc-number"
-        />
-      </div>
-
-      <div className="grid grid-cols-2 gap-3">
-        {/* Expiry — uses CardExpiryInput for MM/YY formatting */}
-        <div>
-          <label htmlFor="c-exp" className="mb-1 block text-xs text-repixl-text-light/70">Expiry (MM/YY)</label>
-          <CardExpiryInput
-            id="c-exp"
-            value={expiry}
-            onChange={setExpiry}
-            error={errors.expiry}
-            className={`font-mono ${inputClass(errors.expiry)}`}
-            autoComplete="cc-exp"
-          />
-        </div>
-
-        {/* CVC — digits-only, max 4, never stored */}
-        <div>
-          <label htmlFor="c-cvc" className="mb-1 block text-xs text-repixl-text-light/70">CVC</label>
-          <input
-            id="c-cvc"
-            type="text"
-            inputMode="numeric"
-            autoComplete="cc-csc"
-            placeholder="123"
-            maxLength={4}
-            value={cvc}
-            onChange={(e) => setCvc(e.target.value.replace(/\D/g, '').slice(0, 4))}
-            className={`font-mono ${inputClass(errors.cvc)}`}
-          />
-          {errors.cvc && <p className="mt-1 text-xs text-red-400">{errors.cvc}</p>}
-        </div>
-      </div>
-
-      {/* Cardholder name */}
-      <div>
-        <label htmlFor="c-name" className="mb-1 block text-xs text-repixl-text-light/70">Name on Card</label>
-        <input
-          id="c-name"
-          type="text"
-          autoComplete="cc-name"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          className={inputClass(errors.name)}
-          {...nameFilter}
-        />
-        {errors.name && <p className="mt-1 text-xs text-red-400">{errors.name}</p>}
-      </div>
-
-      <label className="flex items-center gap-2">
-        <input type="checkbox" checked={isDefault} onChange={(e) => setIsDefault(e.target.checked)} className="h-3.5 w-3.5 rounded border-repixl-muted/30 bg-repixl-charcoal text-repixl-red" />
-        <span className="text-xs text-repixl-text-light/70">Set as default payment method</span>
-      </label>
-
-      <p className="font-mono text-[9px] uppercase tracking-wider text-repixl-muted/50">
-        Card details are not stored — only the last 4 digits and expiry are saved for display.
-      </p>
-
-      <div className="flex gap-3 pt-2">
-        <Button type="submit" variant="primary" size="md">Save Card</Button>
-        <Button type="button" variant="ghost" size="md" onClick={onCancel}>Cancel</Button>
-      </div>
-    </form>
   )
 }
 

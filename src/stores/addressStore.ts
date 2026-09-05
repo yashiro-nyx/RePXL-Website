@@ -1,5 +1,8 @@
 'use client'
 
+import { reportActionFailure } from '@/lib/action-error'
+import { scopedAccountUpdate } from '@/lib/account-scope'
+
 import { create } from 'zustand'
 import { useAuthStore } from './authStore'
 import { addressService } from '@/lib/data/addressService'
@@ -35,63 +38,31 @@ function currentEmail(): string | null {
   return useAuthStore.getState().userEmail || null
 }
 
-export const useAddressStore = create<AddressState>((set, get) => ({
-  addresses: [],
-
-  reset: () => set({ addresses: [] }),
-
-  addAddress: async (addr) => {
-    const addresses = get().addresses
-    const isDefault = addresses.length === 0 ? true : addr.isDefault
-    const payload = { ...addr, isDefault }
-    const created = await addressService.add(currentEmail(), payload)
-    const cleared = isDefault ? addresses.map((a) => ({ ...a, isDefault: false })) : addresses
-    set({ addresses: [...cleared, created] })
-  },
-
-  updateAddress: async (id, addr) => {
-    set({
-      addresses: get().addresses.map((a) =>
-        a.id === id
-          ? { ...addr, id, isDefault: addr.isDefault ? true : a.isDefault }
-          : addr.isDefault
-            ? { ...a, isDefault: false }
-            : a
-      ),
-    })
-    await addressService.update(currentEmail(), id, addr)
-  },
-
-  removeAddress: async (id) => {
-    let updated = get().addresses.filter((a) => a.id !== id)
-    if (updated.length > 0 && !updated.some((a) => a.isDefault)) {
-      updated = updated.map((a, i) => ({ ...a, isDefault: i === 0 }))
-    }
-    set({ addresses: updated })
-    await addressService.remove(currentEmail(), id)
-  },
-
-  setDefault: async (id) => {
-    set({ addresses: get().addresses.map((a) => ({ ...a, isDefault: a.id === id })) })
-    await addressService.setDefault(currentEmail(), id)
-  },
-
-  getDefault: () => get().addresses.find((a) => a.isDefault),
-
-  hydrate: async () => {
+export const useAddressStore = create<AddressState>((set, get) => {
+  const mutate = async (action: (email: string | null) => Promise<unknown>) => {
+    const commit = scopedAccountUpdate<Partial<AddressState>>(set)
     const email = currentEmail()
-    // Do not hydrate if auth has not resolved yet — prevents cross-user data bleed
-    // through the guest localStorage key. The calling component must ensure auth
-    // has resolved (userEmail is populated) before calling hydrate().
-    if (!email) {
-      set({ addresses: [] })
-      return
-    }
-    try {
-      const addresses = await addressService.list(email)
-      set({ addresses })
-    } catch {
-      set({ addresses: [] })
-    }
-  },
-}))
+    await action(email)
+    // Default selection and normalized fields are decided by the server.
+    commit({ addresses: await addressService.list(email) })
+  }
+  return {
+    addresses: [],
+    reset: () => set({ addresses: [] }),
+    addAddress: (address) => mutate((email) => addressService.add(email, address)),
+    updateAddress: (id, address) => mutate((email) => addressService.update(email, id, address)),
+    removeAddress: (id) => mutate((email) => addressService.remove(email, id)),
+    setDefault: (id) => mutate((email) => addressService.setDefault(email, id)),
+    getDefault: () => get().addresses.find((address) => address.isDefault),
+    hydrate: async () => {
+      const commit = scopedAccountUpdate<Partial<AddressState>>(set)
+      const email = currentEmail()
+      if (!email) { commit({ addresses: [] }); return }
+      try { commit({ addresses: await addressService.list(email) }) }
+      catch { commit({ addresses: [] }); reportActionFailure() }
+    },
+  }
+})
+useAuthStore.subscribe((state, previous) => {
+  if (state.userEmail !== previous.userEmail || state.role !== previous.role) useAddressStore.setState({ addresses: [] })
+})

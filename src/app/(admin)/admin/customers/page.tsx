@@ -1,5 +1,6 @@
 'use client'
 
+import { reportActionFailure } from '@/lib/action-error'
 import { useState, useEffect, useCallback } from 'react'
 import { useOrderHistoryStore } from '@/stores/orderHistoryStore'
 import { adminService, type AdminCustomer } from '@/lib/data/adminService'
@@ -96,9 +97,13 @@ export default function AdminCustomersPage() {
     : []
 
   const handleArchive = async (id: string) => {
-    await adminService.archiveCustomer(id)
-    setConfirmArchive(null)
-    void load(currentPage, searchQuery)
+    try {
+      await adminService.archiveCustomer(id)
+      setConfirmArchive(null)
+      void load(currentPage, searchQuery)
+    } catch {
+      reportActionFailure()
+    }
   }
 
   // Stats (from total count only — no full list needed)

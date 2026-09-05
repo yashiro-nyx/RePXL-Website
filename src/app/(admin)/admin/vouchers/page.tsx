@@ -1,5 +1,6 @@
 'use client'
 
+import { reportActionFailure } from '@/lib/action-error'
 import { useState, useEffect } from 'react'
 import { Pagination } from '@/components/ui/Pagination'
 import { useVoucherStore, type Voucher } from '@/stores/voucherStore'
@@ -29,26 +30,42 @@ export default function AdminVouchersPage() {
   const iClass = 'w-full rounded-xl border border-repixl-muted/20 bg-repixl-bg px-4 py-2.5 text-sm text-repixl-text-light placeholder:text-repixl-muted focus:border-repixl-red/30 focus:bg-repixl-charcoal focus:outline-none'
 
   const handleAdd = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!code.trim() || !discountValue) { setError('Code and discount value are required.'); return }
-    if (!validFrom || !validUntil) { setError('Valid dates are required.'); return }
-    setError('')
-    await addVoucher({
-      code: code.toUpperCase().trim(),
-      discountType,
-      discountValue: Number(discountValue),
-      minPurchase: Number(minPurchase) || 0,
-      maxDiscount: Number(maxDiscount) || 0,
-      usageLimit: Number(usageLimit) || 0,
-      perUserLimit: Number(perUserLimit) || 1,
-      validFrom,
-      validUntil,
-      status: 'active',
-      description: description.trim(),
-    })
-    setModalOpen(false)
-    setCode(''); setDiscountValue(''); setMinPurchase('0'); setMaxDiscount('')
-    setUsageLimit(''); setValidFrom(''); setValidUntil(''); setDescription('')
+    try {
+      e.preventDefault()
+      if (!code.trim() || !discountValue) {
+        setError('Code and discount value are required.')
+        return
+      }
+      if (!validFrom || !validUntil) {
+        setError('Valid dates are required.')
+        return
+      }
+      setError('')
+      await addVoucher({
+        code: code.toUpperCase().trim(),
+        discountType,
+        discountValue: Number(discountValue),
+        minPurchase: Number(minPurchase) || 0,
+        maxDiscount: Number(maxDiscount) || 0,
+        usageLimit: Number(usageLimit) || 0,
+        perUserLimit: Number(perUserLimit) || 1,
+        validFrom,
+        validUntil,
+        status: 'active',
+        description: description.trim(),
+      })
+      setModalOpen(false)
+      setCode('')
+      setDiscountValue('')
+      setMinPurchase('0')
+      setMaxDiscount('')
+      setUsageLimit('')
+      setValidFrom('')
+      setValidUntil('')
+      setDescription('')
+    } catch {
+      reportActionFailure()
+    }
   }
 
   return (
@@ -127,7 +144,14 @@ export default function AdminVouchersPage() {
             <p className="mt-1 text-xs text-repixl-muted">This action cannot be undone.</p>
             <p className="mt-2 font-mono text-xs text-repixl-red">{vouchers.find((v) => v.id === confirmDeleteId)?.code}</p>
             <div className="mt-4 flex justify-center gap-3">
-              <button onClick={() => { void deleteVoucher(confirmDeleteId); setConfirmDeleteId(null) }} className="flex-1 rounded-xl bg-red-500 px-4 py-2 text-sm font-medium text-white hover:bg-red-600">Delete</button>
+              <button onClick={async () => {
+                try {
+                  await deleteVoucher(confirmDeleteId)
+                  setConfirmDeleteId(null)
+                } catch {
+                  reportActionFailure()
+                }
+              }} className="flex-1 rounded-xl bg-red-500 px-4 py-2 text-sm font-medium text-white hover:bg-red-600">Delete</button>
               <button onClick={() => setConfirmDeleteId(null)} className="flex-1 rounded-xl border border-repixl-muted/20 px-4 py-2 text-sm text-repixl-muted hover:text-repixl-text-light">Cancel</button>
             </div>
           </div>

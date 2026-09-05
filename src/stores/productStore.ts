@@ -1,8 +1,8 @@
 'use client'
 
+import { reportActionFailure } from '@/lib/action-error'
 import { create } from 'zustand'
 import type { Product } from '@/types'
-import { products as seedProducts } from '@/data/products'
 import { productService } from '@/lib/data/productService'
 
 interface ProductState {
@@ -15,24 +15,15 @@ interface ProductState {
 }
 
 export const useProductStore = create<ProductState>((set, get) => ({
-  // Seed synchronously so first paint has content; hydrate() replaces it with
-  // API (or localStorage) data.
-  products: seedProducts,
+  products: [],
   loading: false,
 
   addProduct: async (product) => {
-    // Optimistic in-memory update, then reconcile with the service result.
-    set({ products: [...get().products, product] })
     const created = await productService.create(product)
-    set({
-      products: get().products.map((p) => (p.slug === created.slug ? created : p)),
-    })
+    set({ products: [...get().products, created] })
   },
 
   updateProduct: async (slug, updates) => {
-    set({
-      products: get().products.map((p) => (p.slug === slug ? { ...p, ...updates } : p)),
-    })
     const updated = await productService.update(slug, updates)
     set({
       products: get().products.map((p) => (p.slug === slug ? updated : p)),
@@ -40,18 +31,19 @@ export const useProductStore = create<ProductState>((set, get) => ({
   },
 
   deleteProduct: async (slug) => {
-    set({ products: get().products.filter((p) => p.slug !== slug) })
     await productService.remove(slug)
+    set({ products: get().products.filter((p) => p.slug !== slug) })
   },
 
   hydrate: async () => {
     set({ loading: true })
     try {
-      // Use listActive() so the storefront always gets live DB stock for ACTIVE
-      // products only. The seed initialises the store synchronously on first
-      // paint; this call replaces it with real data (including current stock).
+      // The catalogue is always fetched from the server.
       const products = await productService.listActive()
-      if (products.length > 0) set({ products })
+      set({ products })
+    } catch {
+      set({ products: [] })
+      reportActionFailure()
     } finally {
       set({ loading: false })
     }

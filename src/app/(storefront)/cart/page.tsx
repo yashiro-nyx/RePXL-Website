@@ -1,5 +1,6 @@
 'use client'
 
+import { reportActionFailure } from '@/lib/action-error'
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -36,7 +37,6 @@ export default function CartPage() {
   const clearCart = useCartStore((s) => s.clearCart)
   const allProducts = useProductStore((s) => s.products)
   const validateCode = useVoucherStore((s) => s.validateCode)
-  const useVoucher = useVoucherStore((s) => s.useVoucher)
   const router = useRouter()
 
   useEffect(() => {
@@ -44,7 +44,6 @@ export default function CartPage() {
       await useAuthStore.getState().hydrate()
       await useCartStore.getState().hydrate()
       useProductStore.getState().hydrate()
-      useVoucherStore.getState().hydrate()
     }
     void init()
   }, [])
@@ -118,11 +117,17 @@ export default function CartPage() {
     e.preventDefault()
     setPromoError('')
     if (!promoCode.trim()) return
-    const result = await validateCode(promoCode, fullSubtotal)
-    if (!result.valid) { setPromoError(result.error || 'Invalid code.'); return }
-    setPromoDiscount(result.discount)
-    setPromoApplied(true)
-    useVoucher(promoCode.toUpperCase().trim())
+    try {
+      const result = await validateCode(promoCode, fullSubtotal)
+      if (!result.valid) { setPromoError(result.error || 'Invalid code.'); return }
+      setPromoDiscount(result.discount)
+      setPromoApplied(true)
+    } catch {
+      setPromoDiscount(0)
+      setPromoApplied(false)
+      setPromoError('Unable to validate this code. Please try again.')
+    }
+
   }
 
   // ── Empty state ──
@@ -270,15 +275,33 @@ export default function CartPage() {
                         <div className="mt-3 flex items-center gap-4">
                           {/* Quantity */}
                           <div className="flex items-center rounded border border-repixl-muted/20">
-                            <button type="button" onClick={() => updateQuantity(product.slug, quantity - 1)} disabled={quantity <= 1}
+                            <button type="button" onClick={async () => {
+                              try {
+                                await await updateQuantity(product.slug, quantity - 1)
+                              } catch {
+                                reportActionFailure()
+                              }
+                            }} disabled={quantity <= 1}
                               aria-label="Decrease quantity"
                               className="flex h-8 w-8 items-center justify-center text-sm text-repixl-text-light/70 transition-colors hover:text-repixl-text-light disabled:cursor-not-allowed disabled:text-repixl-muted/30">−</button>
                             <span className="flex h-8 w-9 items-center justify-center border-x border-repixl-muted/20 font-mono text-xs text-repixl-text-light">{quantity}</span>
-                            <button type="button" onClick={() => updateQuantity(product.slug, quantity + 1)} disabled={quantity >= product.stock}
+                            <button type="button" onClick={async () => {
+                              try {
+                                await await updateQuantity(product.slug, quantity + 1)
+                              } catch {
+                                reportActionFailure()
+                              }
+                            }} disabled={quantity >= product.stock}
                               aria-label="Increase quantity"
                               className="flex h-8 w-8 items-center justify-center text-sm text-repixl-text-light/70 transition-colors hover:text-repixl-text-light disabled:cursor-not-allowed disabled:text-repixl-muted/30">+</button>
                           </div>
-                          <button type="button" onClick={() => removeFromCart(product.slug)}
+                          <button type="button" onClick={async () => {
+                            try {
+                              await await removeFromCart(product.slug)
+                            } catch {
+                              reportActionFailure()
+                            }
+                          }}
                             className="font-mono text-[10px] uppercase tracking-wider text-repixl-muted transition-colors hover:text-repixl-red">
                             Remove
                           </button>
@@ -386,7 +409,14 @@ export default function CartPage() {
                 className="flex-1 rounded-xl border border-repixl-muted/20 px-4 py-2.5 text-sm text-repixl-text-light/70 transition-colors hover:bg-repixl-bg hover:text-repixl-text-light">
                 Cancel
               </button>
-              <button type="button" onClick={() => { void clearCart(); setClearModalOpen(false) }}
+              <button type="button" onClick={async () => {
+                try {
+                  await clearCart()
+                  setClearModalOpen(false)
+                } catch {
+                  reportActionFailure()
+                }
+              }}
                 className="flex-1 rounded-xl bg-repixl-red px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-red-700">
                 Clear Cart
               </button>

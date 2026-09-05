@@ -1,5 +1,6 @@
 'use client'
 
+import { reportActionFailure } from '@/lib/action-error'
 import { useState, useRef, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -95,16 +96,22 @@ export function Navbar() {
    * 2. Calls NextAuth signOut to clear the 30-day Google JWT cookie so the
    *    OAuth sync hook doesn't restore the session on the next page load.
    */
-  const handleConfirmLogout = () => {
-    setLogoutModalOpen(false)
-    setProfileOpen(false)
-    setMobileMenuOpen(false)
-    logout()
-    // Clear the NextAuth JWT cookie — must happen client-side.
-    // redirect:false keeps us on the current page; we navigate manually.
-    signOut({ redirect: false }).catch(() => { /* non-critical */ })
-    addToast("You've been logged out. See you next time!", 'info')
-    router.push('/')
+  const handleConfirmLogout = async () => {
+    try {
+      setLogoutModalOpen(false)
+      setProfileOpen(false)
+      setMobileMenuOpen(false)
+      await logout()
+      // Clear the NextAuth JWT cookie — must happen client-side.
+      // redirect:false keeps us on the current page; we navigate manually.
+      signOut({ redirect: false }).catch(() => {
+        /* non-critical */
+      })
+      addToast("You've been logged out. See you next time!", 'info')
+      router.push('/')
+    } catch {
+      reportActionFailure()
+    }
   }
 
   return (

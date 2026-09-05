@@ -1,92 +1,105 @@
-// GET /api/track/stream?tracking=<orderNumber>
-// Server-Sent Events endpoint that streams real-time tracking updates.
-// Polls the DB every 3 seconds using the Node.js runtime (Edge doesn't support setInterval).
-
+// GET /api/track/stream?tracking=<orderNumber or trackingNumber>
+// Only the order owner or an authenticated admin may stream delivery updates.
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
 import { prisma } from '@/lib/prisma'
+import { getCurrentAdmin, getCurrentUser } from '@/lib/auth-helpers'
 import { NextRequest } from 'next/server'
 
 export async function GET(request: NextRequest) {
-  const { searchParams } = new URL(request.url)
-  const trackingNumber = searchParams.get('tracking')
+  const admin = await getCurrentAdmin()
+  const user = admin ?? await getCurrentUser()
+  if (!user) return new Response('Unauthorized', { status: 401 })
 
-  if (!trackingNumber) {
-    return new Response('Missing ?tracking= parameter', { status: 400 })
-  }
+  const trackingNumber = request.nextUrl.searchParams.get('tracking')?.trim()
+  if (!trackingNumber) return new Response('Missing ?tracking= parameter', { status: 400 })
+
+  // Scope the lookup itself to the owner, so unknown and other users' orders
+  // produce the same response. Admin access requires the separate admin cookie.
+  const ownership = admin ? {} : { userId: user.id }
+  const select = {
+    id: true,
+    deliveryStatus: true,
+    trackingProgress: true,
+    trackingDescription: true,
+    updatedAt: true,
+  } as const
+  const initial = await prisma.order.findFirst({
+    where: {
+      ...ownership,
+      OR: [{ orderNumber: trackingNumber }, { trackingNumber }],
+    },
+    select,
+    orderBy: { updatedAt: 'desc' },
+  })
+  if (!initial) return new Response('Order not found', { status: 404 })
 
   const encoder = new TextEncoder()
-
-  const stream = new ReadableStream({
-    async start(controller) {
-      let lastUpdatedAt: string | null = null
+  let stop = () => {}
+  const stream = new ReadableStream<Uint8Array>({
+    start(controller) {
       let closed = false
+      let timer: ReturnType<typeof setTimeout> | undefined
+      let lastUpdatedAt = initial.updatedAt.toISOString()
 
-      const send = (data: Record<string, unknown>) => {
+      const cleanup = () => {
+        closed = true
+        clearTimeout(timer)
+        request.signal.removeEventListener('abort', close)
+      }
+      const close = () => {
         if (closed) return
-        try {
-          controller.enqueue(encoder.encode(`data: ${JSON.stringify(data)}\n\n`))
-        } catch {
-          // Controller already closed
-        }
+        cleanup()
+        controller.close()
+      }
+      stop = cleanup
+
+      const send = (order: typeof initial) => {
+        if (closed) return
+        controller.enqueue(encoder.encode(`data: ${JSON.stringify({
+          status: order.deliveryStatus,
+          progress: order.trackingProgress,
+          description: order.trackingDescription,
+        })}\n\n`))
       }
 
       const poll = async () => {
         if (closed) return
         try {
-          // Query by order_number (primary) or tracking_number (set after first admin update)
+          // Recheck expiration, archival and admin role during long-lived streams.
+          const current = admin ? await getCurrentAdmin() : await getCurrentUser()
+          if (!current || current.id !== user.id) return close()
+          if (closed) return
           const order = await prisma.order.findFirst({
-            where: {
-              OR: [
-                { orderNumber: trackingNumber },
-                { trackingNumber: trackingNumber.trim() !== '' ? trackingNumber : '__never__' },
-              ],
-            },
-            select: {
-              deliveryStatus: true,
-              trackingProgress: true,
-              trackingDescription: true,
-              updatedAt: true,
-            },
-            orderBy: { updatedAt: 'desc' },
+            where: { id: initial.id, ...ownership },
+            select,
           })
-
-          if (!order) return
-
-          const rowTs = order.updatedAt.toISOString()
-          if (lastUpdatedAt === null || rowTs !== lastUpdatedAt) {
-            lastUpdatedAt = rowTs
-            send({
-              status: order.deliveryStatus,
-              progress: order.trackingProgress,
-              description: order.trackingDescription,
-            })
+          if (closed) return
+          if (!order) return close()
+          const updatedAt = order.updatedAt.toISOString()
+          if (updatedAt !== lastUpdatedAt) {
+            lastUpdatedAt = updatedAt
+            send(order)
           }
-        } catch (err) {
-          console.error('[SSE stream] poll error:', err)
+          timer = setTimeout(() => { void poll() }, 3000)
+        } catch {
+          close()
         }
       }
 
-      // Initial poll immediately
-      await poll()
-
-      // Poll every 3 seconds
-      const intervalId = setInterval(() => { void poll() }, 3000)
-
-      // Stop polling when client disconnects
-      request.signal.addEventListener('abort', () => {
-        closed = true
-        clearInterval(intervalId)
-        try { controller.close() } catch { /* already closed */ }
-      })
+      request.signal.addEventListener('abort', close, { once: true })
+      if (request.signal.aborted) return close()
+      send(initial)
+      timer = setTimeout(() => { void poll() }, 3000)
     },
+    cancel() { stop() },
   })
 
   return new Response(stream, {
     headers: {
       'Content-Type': 'text/event-stream',
-      'Cache-Control': 'no-cache, no-transform',
+      'Cache-Control': 'private, no-store, no-transform',
       'Connection': 'keep-alive',
       'X-Accel-Buffering': 'no',
     },

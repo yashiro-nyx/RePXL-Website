@@ -1,5 +1,6 @@
 'use client'
 
+import { reportActionFailure } from '@/lib/action-error'
 import { useState, useMemo, useEffect } from 'react'
 import Link from 'next/link'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -184,10 +185,23 @@ function CenterCard({ product }: { product: any }) {
   const isLoggedIn = useAuthStore((s) => s.isLoggedIn)
   const addToast = useToastStore((s) => s.addToast)
 
-  const handleAddToCart = () => {
-    if (!isLoggedIn) { addToast('Please log in to add items to cart', 'info'); return }
-    addToCart(product.slug, 1)
-    addToast(`${product.name} added to cart`, 'success', { label: 'View Cart', href: '/cart' }, 5000, product.image)
+  const handleAddToCart = async () => {
+    try {
+      if (!isLoggedIn) {
+        addToast('Please log in to add items to cart', 'info')
+        return
+      }
+      await addToCart(product.slug, 1)
+      addToast(
+        `${product.name} added to cart`,
+        'success',
+        { label: 'View Cart', href: '/cart' },
+        5000,
+        product.image
+      )
+    } catch {
+      reportActionFailure()
+    }
   }
 
   return (

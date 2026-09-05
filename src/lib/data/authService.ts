@@ -1,10 +1,7 @@
 'use client'
 
-// Auth data service: API-first (cookie sessions + Postgres users) with a
-// localStorage user table as fallback when the API/DB is unavailable.
-
 import { apiClient, ApiClientError } from '@/lib/api-client'
-import { isInfrastructureError } from './fallback'
+import { clearLegacyAccountStorage } from '@/lib/browser-storage'
 
 export interface ApiUser {
   id: string
@@ -38,301 +35,106 @@ function toAuthUser(u: ApiUser): AuthUser {
   }
 }
 
-// ─── localStorage user table (fallback) ─────────────────────────────────────────
+export type AuthResult =
+  | { ok: true; user: AuthUser }
+  | { ok: false; error: string; notFound?: boolean; alreadyExists?: boolean }
 
-interface LocalUserRecord {
-  firstName: string
-  lastName: string
-  email: string
-  phone: string
-  password: string
-  role: 'customer' | 'admin'
-  isSuperAdmin: boolean
-}
-
-function getLocalUsers(): LocalUserRecord[] {
+async function authenticate(url: string, body: unknown): Promise<AuthResult> {
+  clearLegacyAccountStorage()
   try {
-    const stored = localStorage.getItem('repixl-users')
-    return stored ? JSON.parse(stored) : []
-  } catch {
-    return []
+    return {
+      ok: true,
+      user: toAuthUser(await apiClient.post<ApiUser>(url, body)),
+    }
+  } catch (err) {
+    return {
+      ok: false,
+      error:
+        err instanceof ApiClientError && err.status < 500
+          ? err.message
+          : 'Unable to contact the server. Please try again.',
+      notFound: err instanceof ApiClientError && err.status === 404,
+      alreadyExists: err instanceof ApiClientError && err.status === 409,
+    }
   }
 }
 
-function saveLocalUsers(users: LocalUserRecord[]) {
-  localStorage.setItem('repixl-users', JSON.stringify(users))
-}
-
-export type AuthResult =
-  | { ok: true; user: AuthUser }
-  | { ok: false; error: string }
-
 export const authService = {
-  /** Customer OR admin login. The API decides the role from the record. */
-  async login(email: string, password: string): Promise<AuthResult> {
-    try {
-      const u = await apiClient.post<ApiUser>('/api/auth/login', { email, password })
-      return { ok: true, user: toAuthUser(u) }
-    } catch (err) {
-      if (!isInfrastructureError(err)) {
-        // Legitimate API rejection (bad credentials / archived).
-        const msg = err instanceof ApiClientError ? err.message : 'Invalid credentials.'
-        return { ok: false, error: msg }
-      }
-      // API/DB down → localStorage fallback.
-      const users = getLocalUsers()
-      const rec = users.find(
-        (u) => u.email === email && u.password === password && u.role === 'customer'
-      )
-      if (!rec) return { ok: false, error: 'Invalid email or password.' }
-      return { ok: true, user: recToAuthUser(rec) }
-    }
-  },
-
+  login: (email: string, password: string) =>
+    authenticate('/api/auth/login', { email, password }),
   async loginAdmin(email: string, password: string): Promise<AuthResult> {
-    try {
-      const u = await apiClient.post<ApiUser>('/api/auth/login', { email, password })
-      if (u.role !== 'ADMIN') return { ok: false, error: 'Not an admin account.' }
-      return { ok: true, user: toAuthUser(u) }
-    } catch (err) {
-      if (!isInfrastructureError(err)) {
-        return { ok: false, error: 'Invalid admin credentials.' }
-      }
-      const users = getLocalUsers()
-      const rec = users.find(
-        (u) => u.email === email && u.password === password && u.role === 'admin'
-      )
-      if (!rec) return { ok: false, error: 'Invalid admin credentials.' }
-      return { ok: true, user: recToAuthUser(rec) }
-    }
+    const result = await authenticate('/api/auth/login', { email, password })
+    if (result.ok && result.user.role !== 'admin')
+      return { ok: false, error: 'Admin access required.' }
+    return result
   },
-
-  async register(
+  register: (
     firstName: string,
     lastName: string,
     email: string,
     password: string
-  ): Promise<AuthResult> {
-    try {
-      const u = await apiClient.post<ApiUser>('/api/auth/register', {
-        firstName,
-        lastName,
-        email,
-        password,
-      })
-      return { ok: true, user: toAuthUser(u) }
-    } catch (err) {
-      if (!isInfrastructureError(err)) {
-        const msg =
-          err instanceof ApiClientError ? err.message : 'Registration failed.'
-        return { ok: false, error: msg }
-      }
-      // Fallback: write to localStorage user table.
-      const users = getLocalUsers()
-      if (users.some((u) => u.email === email)) {
-        return { ok: false, error: 'An account with this email already exists.' }
-      }
-      if (email.endsWith('@repixl-admin.com')) {
-        return { ok: false, error: 'This email cannot be registered.' }
-      }
-      const rec: LocalUserRecord = {
-        firstName,
-        lastName,
-        email,
-        phone: '',
-        password,
-        role: 'customer',
-        isSuperAdmin: false,
-      }
-      saveLocalUsers([...users, rec])
-      return { ok: true, user: recToAuthUser(rec) }
-    }
-  },
-
-  /**
-   * LOGIN page — Google OAuth.
-   * Only succeeds if the email already exists in the database.
-   * Returns { ok: false, notFound: true } when the email is not registered,
-   * so the caller can show "Account not found — please register first."
-   */
-  async oauthLoginOnly(
-    email: string,
-    firstName: string,
-    lastName: string
-  ): Promise<AuthResult & { notFound?: boolean }> {
-    try {
-      const u = await apiClient.post<ApiUser>('/api/auth/oauth/login', {
-        email,
-        firstName,
-        lastName,
-      })
-      return { ok: true, user: toAuthUser(u) }
-    } catch (err) {
-      if (err instanceof ApiClientError) {
-        if (err.status === 404) {
-          return { ok: false, error: err.message, notFound: true }
-        }
-        return { ok: false, error: err.message }
-      }
-      // Infrastructure error — try localStorage fallback (login-only: must exist)
-      const users = getLocalUsers()
-      const lower = email.toLowerCase()
-      const existing = users.find((u) => u.email.toLowerCase() === lower && u.role === 'customer')
-      if (!existing) {
-        return { ok: false, error: 'Account not found. Please register first.', notFound: true }
-      }
-      return { ok: true, user: recToAuthUser(existing) }
-    }
-  },
-
-  /**
-   * REGISTER page — Google OAuth.
-   * Creates a new account for the Google email.
-   * Returns { ok: false, alreadyExists: true } when the email is already registered,
-   * so the caller can show "Account already exists — please log in instead."
-   */
-  async oauthRegisterOnly(
-    email: string,
-    firstName: string,
-    lastName: string
-  ): Promise<AuthResult & { alreadyExists?: boolean }> {
-    try {
-      const u = await apiClient.post<ApiUser>('/api/auth/oauth/register', {
-        email,
-        firstName,
-        lastName,
-      })
-      return { ok: true, user: toAuthUser(u) }
-    } catch (err) {
-      if (err instanceof ApiClientError) {
-        if (err.status === 409) {
-          return { ok: false, error: err.message, alreadyExists: true }
-        }
-        return { ok: false, error: err.message }
-      }
-      // Infrastructure error — localStorage fallback (register-only: must not exist)
-      const users = getLocalUsers()
-      const lower = email.toLowerCase()
-      const existing = users.find((u) => u.email.toLowerCase() === lower)
-      if (existing) {
-        return {
-          ok: false,
-          error: 'An account with this Google email already exists. Please log in instead.',
-          alreadyExists: true,
-        }
-      }
-      const rec: LocalUserRecord = {
-        firstName, lastName, email: lower, phone: '', password: '', role: 'customer', isSuperAdmin: false,
-      }
-      saveLocalUsers([...users, rec])
-      return { ok: true, user: recToAuthUser(rec) }
-    }
-  },
-
-  /**
-   * @deprecated Use oauthLoginOnly or oauthRegisterOnly instead.
-   * Kept for backward-compatibility with the global useOAuthSync hook which
-   * only runs for already-authenticated users refreshing the page.
-   */
-  async oauthLogin(email: string, firstName: string, lastName: string): Promise<AuthResult> {
-    try {
-      const u = await apiClient.post<ApiUser>('/api/auth/oauth', {
-        email,
-        firstName,
-        lastName,
-      })
-      return { ok: true, user: toAuthUser(u) }
-    } catch (err) {
-      if (!isInfrastructureError(err)) {
-        const msg = err instanceof ApiClientError ? err.message : 'OAuth login failed.'
-        return { ok: false, error: msg }
-      }
-      const users = getLocalUsers()
-      const lower = email.toLowerCase()
-      const existing = users.find((u) => u.email.toLowerCase() === lower)
-      const user: AuthUser = existing
-        ? recToAuthUser(existing)
-        : { email: lower, firstName, lastName, phone: '', role: 'customer', isSuperAdmin: false }
-      if (!existing) {
-        const rec: LocalUserRecord = {
-          firstName, lastName, email: lower, phone: '', password: '', role: 'customer', isSuperAdmin: false,
-        }
-        saveLocalUsers([...users, rec])
-      }
-      return { ok: true, user }
-    }
-  },
-
+  ) =>
+    authenticate('/api/auth/register', {
+      firstName,
+      lastName,
+      email,
+      password,
+    }),
+  oauthLoginOnly: (email: string, firstName: string, lastName: string) =>
+    authenticate('/api/auth/oauth/login', { email, firstName, lastName }),
+  oauthRegisterOnly: (email: string, firstName: string, lastName: string) =>
+    authenticate('/api/auth/oauth/register', { email, firstName, lastName }),
+  oauthLogin: (email: string, firstName: string, lastName: string) =>
+    authenticate('/api/auth/oauth', { email, firstName, lastName }),
   async logout(): Promise<void> {
-    try {
-      await apiClient.post('/api/auth/logout')
-    } catch {
-      /* ignore — clearing local session is what matters */
-    }
+    await apiClient.post('/api/auth/logout')
   },
-
   async me(): Promise<AuthUser | null> {
+    clearLegacyAccountStorage()
     try {
-      const u = await apiClient.get<ApiUser>('/api/auth/me')
-      return toAuthUser(u)
-    } catch {
-      return null
-    }
-  },
-
-  async updateProfile(
-    data: { firstName: string; lastName: string; email: string; phone: string },
-    previousEmail?: string
-  ): Promise<void> {
-    try {
-      await apiClient.put('/api/auth/me', data)
+      return toAuthUser(await apiClient.get<ApiUser>('/api/auth/me'))
     } catch (err) {
-      if (!isInfrastructureError(err)) throw err
-      // Fallback: update local user table, matched on the prior email.
-      const matchEmail = previousEmail ?? data.email
-      const users = getLocalUsers()
-      saveLocalUsers(
-        users.map((u) => (u.email === matchEmail ? { ...u, ...data } : u))
-      )
+      if (err instanceof ApiClientError && err.status === 401) return null
+      throw err
     }
   },
-
+  async updateProfile(data: {
+    firstName: string
+    lastName: string
+    email: string
+    phone: string
+  }): Promise<AuthUser> {
+    return toAuthUser(await apiClient.put<ApiUser>('/api/auth/me', data))
+  },
   async changePassword(
     email: string,
     oldPassword: string,
     newPassword: string
   ): Promise<AuthResult> {
     try {
-      await apiClient.post('/api/auth/change-password', { oldPassword, newPassword })
+      await apiClient.post('/api/auth/change-password', {
+        oldPassword,
+        newPassword,
+      })
       return {
         ok: true,
-        user: { email, firstName: '', lastName: '', phone: '', role: 'customer', isSuperAdmin: false },
+        user: {
+          email,
+          firstName: '',
+          lastName: '',
+          phone: '',
+          role: 'customer',
+          isSuperAdmin: false,
+        },
       }
     } catch (err) {
-      if (!isInfrastructureError(err)) {
-        return { ok: false, error: 'Current password is incorrect.' }
+      return {
+        ok: false,
+        error:
+          err instanceof ApiClientError
+            ? err.message
+            : 'Unable to change password. Please try again.',
       }
-      // Fallback: verify + update in the local user table.
-      const users = getLocalUsers()
-      const rec = users.find((u) => u.email === email)
-      if (!rec || rec.password !== oldPassword) {
-        return { ok: false, error: 'Current password is incorrect.' }
-      }
-      saveLocalUsers(
-        users.map((u) => (u.email === email ? { ...u, password: newPassword } : u))
-      )
-      return { ok: true, user: recToAuthUser(rec) }
     }
   },
-}
-
-function recToAuthUser(rec: LocalUserRecord): AuthUser {
-  return {
-    email: rec.email,
-    firstName: rec.firstName,
-    lastName: rec.lastName,
-    phone: rec.phone,
-    role: rec.role,
-    isSuperAdmin: rec.isSuperAdmin,
-  }
 }

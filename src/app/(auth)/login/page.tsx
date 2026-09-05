@@ -73,18 +73,7 @@ function LoginContent() {
           role: result.user.role,
           isSuperAdmin: result.user.isSuperAdmin,
         })
-        localStorage.setItem('repixl-customer-session', JSON.stringify({
-          email: result.user.email, role: result.user.role, loginAt: Date.now(),
-          firstName: result.user.firstName, lastName: result.user.lastName,
-          phone: result.user.phone, isSuperAdmin: result.user.isSuperAdmin,
-        }))
-        const users: Array<Record<string, unknown>> = (() => {
-          try { return JSON.parse(localStorage.getItem('repixl-users') ?? '[]') } catch { return [] }
-        })()
-        const idx = users.findIndex((u) => (u.email as string) === result.user.email)
-        const rec = { ...result.user, password: '' }
-        if (idx >= 0) users[idx] = rec; else users.push(rec)
-        localStorage.setItem('repixl-users', JSON.stringify(users))
+
         addToast('Welcome back!')
         router.replace('/account')
       } else if ('notFound' in result && result.notFound) {

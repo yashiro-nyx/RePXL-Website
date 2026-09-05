@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { getCurrentAdmin } from '@/lib/auth-helpers'
+import { shippingAuthorizationHeader } from '@/lib/shipping-auth'
 
 // POST /api/admin/simulate-webhook
 // Internal utility: dispatches a mock shipping carrier update to our own webhook.
@@ -29,6 +31,14 @@ function siteUrl(): string {
 }
 
 export async function POST(request: NextRequest) {
+  if (!(await getCurrentAdmin())) {
+    return NextResponse.json({ success: false, error: 'Admin access required' }, { status: 401 })
+  }
+  const authorization = shippingAuthorizationHeader()
+  if (!authorization) {
+    return NextResponse.json({ success: false, error: 'Shipping webhook unavailable' }, { status: 503 })
+  }
+
   let body: { trackingNumber?: string; step?: string }
   try {
     body = await request.json()
@@ -36,9 +46,14 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: false, error: 'Invalid JSON' }, { status: 400 })
   }
 
+  if (!body || typeof body !== 'object') {
+    return NextResponse.json({ success: false, error: 'Invalid payload' }, { status: 400 })
+  }
+
   const { trackingNumber, step } = body
 
-  if (!trackingNumber || !step || !STEP_MAP[step]) {
+  if (typeof trackingNumber !== 'string' || !trackingNumber.trim() ||
+      typeof step !== 'string' || !Object.hasOwn(STEP_MAP, step)) {
     return NextResponse.json(
       {
         success: false,
@@ -53,7 +68,8 @@ export async function POST(request: NextRequest) {
   try {
     const res = await fetch(`${siteUrl()}/api/webhooks/shipping`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', Authorization: authorization },
+      redirect: 'error',
       body: JSON.stringify({ tracking_number: trackingNumber, status_code, status_description }),
     })
 
@@ -69,7 +85,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: true, step, status_code, detail: data })
   } catch (err) {
     return NextResponse.json(
-      { success: false, error: err instanceof Error ? err.message : 'Internal error' },
+      { success: false, error: 'Webhook call failed' },
       { status: 500 }
     )
   }

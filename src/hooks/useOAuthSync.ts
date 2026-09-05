@@ -89,8 +89,8 @@ export function useOAuthSync() {
     const firstName = nameParts[0] ?? ''
     const lastName = nameParts.slice(1).join(' ')
 
-    // Use the generic upsert endpoint for refresh — the user already exists
-    // (they logged in or registered via Google earlier), so this is safe.
+    // Refresh through the compatibility endpoint, which verifies the NextAuth
+    // session server-side and only signs in an existing, active customer.
     loginWithOAuth(googleEmail, firstName, lastName)
       .catch(() => {
         syncedEmailRef.current = null

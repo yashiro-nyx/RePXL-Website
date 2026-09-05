@@ -1,5 +1,6 @@
 'use client'
 
+import { reportActionFailure } from '@/lib/action-error'
 import { useState, useEffect, useCallback } from 'react'
 import { useProductStore } from '@/stores/productStore'
 import { Pagination } from '@/components/ui/Pagination'
@@ -210,20 +211,46 @@ function CameraModal({ editingSlug, onClose }: { editingSlug: string | null; onC
   const [image, setImage] = useState(existing?.image ?? placeholderImages[0])
   const [error, setError] = useState('')
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!name.trim() || !price.trim()) { setError('Name and price are required.'); return }
-    setError('')
-    const slug = editingSlug || name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
-    const productData: Product = {
-      slug, name: name.trim(), brand, series: series.trim(), price: Number(price), condition, image,
-      stock: Number(stock), description: description.trim(), status,
-      serialNumber: serialNumber.trim() || undefined, conditionNotes: conditionNotes.trim() || undefined,
-      specs: { megapixels: Number(megapixels) || 0, zoom: zoom.trim(), storage: storage.trim(), year: Number(year) || 2000 },
+  const handleSubmit = async (e: React.FormEvent) => {
+    try {
+      e.preventDefault()
+      if (!name.trim() || !price.trim()) {
+        setError('Name and price are required.')
+        return
+      }
+      setError('')
+      const slug =
+        editingSlug ||
+        name
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, '-')
+          .replace(/(^-|-$)/g, '')
+      const productData: Product = {
+        slug,
+        name: name.trim(),
+        brand,
+        series: series.trim(),
+        price: Number(price),
+        condition,
+        image,
+        stock: Number(stock),
+        description: description.trim(),
+        status,
+        serialNumber: serialNumber.trim() || undefined,
+        conditionNotes: conditionNotes.trim() || undefined,
+        specs: {
+          megapixels: Number(megapixels) || 0,
+          zoom: zoom.trim(),
+          storage: storage.trim(),
+          year: Number(year) || 2000,
+        },
+      }
+      if (editingSlug) await updateProduct(editingSlug, productData)
+      else await addProduct(productData)
+      onClose()
+    } catch {
+      reportActionFailure()
     }
-    if (editingSlug) updateProduct(editingSlug, productData)
-    else addProduct(productData)
-    onClose()
   }
 
   return (
