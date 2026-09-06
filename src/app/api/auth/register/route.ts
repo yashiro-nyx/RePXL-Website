@@ -1,3 +1,4 @@
+import { isRetiredAuthEmail, withAvailableEmail } from '@/lib/retired-auth-email'
 import { NextRequest } from 'next/server'
 import bcrypt from 'bcryptjs'
 import { prisma } from '@/lib/prisma'
@@ -19,6 +20,8 @@ export async function POST(request: NextRequest) {
 
     const { firstName, lastName, email, password } = parsed.data
 
+    if (await isRetiredAuthEmail(email)) return errorResponse('Email is unavailable for registration.', 409)
+
     // Check if user already exists
     const existing = await prisma.user.findUnique({ where: { email } })
     if (existing) {
@@ -29,7 +32,7 @@ export async function POST(request: NextRequest) {
     const hashedPassword = await bcrypt.hash(password, 12)
 
     // Create user
-    const user = await prisma.user.create({
+    const user = await withAvailableEmail(email, tx => tx.user.create({
       data: {
         firstName,
         lastName,
@@ -46,7 +49,7 @@ export async function POST(request: NextRequest) {
         isSuperAdmin: true,
         createdAt: true,
       },
-    })
+    }))
 
     // Set session cookie
     setSessionCookie(user.id)

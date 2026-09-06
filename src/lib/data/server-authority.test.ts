@@ -141,8 +141,6 @@ const operations: [string, () => Promise<unknown>][] = [
       authService.updateProfile({
         firstName: 'New',
         lastName: 'Name',
-        email,
-        phone: '',
       }),
   ],
 ]

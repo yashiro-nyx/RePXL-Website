@@ -21,6 +21,7 @@ export type NotificationEvent =
   | 'RETURN_STATUS_CHANGE'
   | 'REFUND_COMPLETED'
   | 'PROMOTION'
+  | 'REPIXL_UPDATE'
 
 /** All notification events, in schema order. */
 export const NOTIFICATION_EVENTS: readonly NotificationEvent[] = [
@@ -30,7 +31,26 @@ export const NOTIFICATION_EVENTS: readonly NotificationEvent[] = [
   'RETURN_STATUS_CHANGE',
   'REFUND_COMPLETED',
   'PROMOTION',
+  'REPIXL_UPDATE',
 ] as const
+
+/**
+ * Notification category groupings used by the UI.
+ * ORDER_UPDATES covers all order lifecycle + return/refund events.
+ * PROMOTIONS covers marketing/discount events.
+ * REPIXL_UPDATES covers platform announcements.
+ */
+export type NotificationCategory = 'ORDER_UPDATES' | 'PROMOTIONS' | 'REPIXL_UPDATES'
+
+export const EVENT_CATEGORY_MAP: Record<NotificationEvent, NotificationCategory> = {
+  ORDER_CONFIRMATION:  'ORDER_UPDATES',
+  ORDER_STATUS_CHANGE: 'ORDER_UPDATES',
+  RETURN_RECEIVED:     'ORDER_UPDATES',
+  RETURN_STATUS_CHANGE:'ORDER_UPDATES',
+  REFUND_COMPLETED:    'ORDER_UPDATES',
+  PROMOTION:           'PROMOTIONS',
+  REPIXL_UPDATE:       'REPIXL_UPDATES',
+}
 
 /**
  * Placeholder tokens allowed per event. Tokens are referenced in template
@@ -39,12 +59,13 @@ export const NOTIFICATION_EVENTS: readonly NotificationEvent[] = [
  * as unknown (Req 8.5).
  */
 export const ALLOWED_TOKENS: Record<NotificationEvent, string[]> = {
-  ORDER_CONFIRMATION: ['orderNumber', 'customerName', 'orderTotal', 'orderDate'],
-  ORDER_STATUS_CHANGE: ['orderNumber', 'customerName', 'status'],
-  RETURN_RECEIVED: ['orderNumber', 'customerName', 'returnId'],
+  ORDER_CONFIRMATION:   ['orderNumber', 'customerName', 'orderTotal', 'orderDate'],
+  ORDER_STATUS_CHANGE:  ['orderNumber', 'customerName', 'status'],
+  RETURN_RECEIVED:      ['orderNumber', 'customerName', 'returnId'],
   RETURN_STATUS_CHANGE: ['orderNumber', 'customerName', 'returnId', 'status'],
-  REFUND_COMPLETED: ['orderNumber', 'customerName', 'refundAmount'],
-  PROMOTION: ['customerName', 'promoTitle', 'promoCode'],
+  REFUND_COMPLETED:     ['orderNumber', 'customerName', 'refundAmount'],
+  PROMOTION:            ['customerName', 'promoTitle', 'promoCode'],
+  REPIXL_UPDATE:        ['customerName', 'updateTitle', 'updateBody'],
 }
 
 /**

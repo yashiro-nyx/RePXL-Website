@@ -75,7 +75,9 @@ function RegisterPage() {
           firstName: result.user.firstName,
           lastName: result.user.lastName,
           userEmail: result.user.email,
-          userPhone: result.user.phone,
+          maskedPhone: result.user.maskedPhone,
+          maskedDob: result.user.maskedDob,
+          hasPassword: result.user.hasPassword,
           role: result.user.role,
           isSuperAdmin: result.user.isSuperAdmin,
         })

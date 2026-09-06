@@ -22,8 +22,20 @@ export const changePasswordSchema = z.object({
 export const updateProfileSchema = z.object({
   firstName: z.string().min(1, 'First name is required').max(50),
   lastName: z.string().min(1, 'Last name is required').max(50),
-  email: z.string().email('Invalid email address'),
-  phone: z.string().max(20).optional(),
+  // username: 3–30 chars, lowercase letters/digits/underscores/hyphens only
+  username: z.string()
+    .min(3, 'Username must be at least 3 characters')
+    .max(30, 'Username must be at most 30 characters')
+    .regex(/^[a-z0-9_-]+$/, 'Username may only contain lowercase letters, numbers, _ and -')
+    .optional()
+    .nullable(),
+  gender: z.enum(['MALE', 'FEMALE', 'NON_BINARY', 'PREFER_NOT_TO_SAY']).optional().nullable(),
+  avatarUrl: z.string().url('Invalid avatar URL').max(500).optional().nullable(),
+  // phone, dateOfBirth, and email are sensitive fields that require verified
+  // OTP challenges through /api/account/phone/change and /api/account/dob/change.
+  // They are intentionally absent from this schema so any attempt to set them
+  // through the ordinary profile endpoint is silently stripped by Zod's strip
+  // mode and never reaches the Prisma update.
 })
 
 // ─── Product Validations ────────────────────────────────────────────────────────

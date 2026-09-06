@@ -8,9 +8,15 @@ export interface ApiUser {
   email: string
   firstName: string
   lastName: string
-  phone?: string
+  maskedPhone?: string
+  maskedDob?: string
+  hasPassword?: boolean
   role: 'CUSTOMER' | 'ADMIN'
   isSuperAdmin: boolean
+  username?: string | null
+  gender?: string | null
+  avatarUrl?: string | null
+  createdAt?: string
 }
 
 export interface AuthUser {
@@ -18,9 +24,15 @@ export interface AuthUser {
   email: string
   firstName: string
   lastName: string
-  phone: string
+  maskedPhone: string
+  maskedDob: string
+  hasPassword: boolean
   role: 'customer' | 'admin'
   isSuperAdmin: boolean
+  username?: string | null
+  gender?: string | null
+  avatarUrl?: string | null
+  createdAt?: string
 }
 
 function toAuthUser(u: ApiUser): AuthUser {
@@ -29,23 +41,28 @@ function toAuthUser(u: ApiUser): AuthUser {
     email: u.email,
     firstName: u.firstName,
     lastName: u.lastName,
-    phone: u.phone ?? '',
+    maskedPhone: u.maskedPhone ?? '—',
+    maskedDob: u.maskedDob ?? '—',
+    hasPassword: u.hasPassword === true,
     role: u.role === 'ADMIN' ? 'admin' : 'customer',
     isSuperAdmin: u.isSuperAdmin,
+    username: u.username ?? null,
+    gender: u.gender ?? null,
+    avatarUrl: u.avatarUrl ?? null,
+    createdAt: u.createdAt,
   }
 }
 
 export type AuthResult =
   | { ok: true; user: AuthUser }
-  | { ok: false; error: string; notFound?: boolean; alreadyExists?: boolean }
+  | { ok: false; error: string; notFound?: boolean; alreadyExists?: boolean; mfaRequired?: boolean }
 
 async function authenticate(url: string, body: unknown): Promise<AuthResult> {
   clearLegacyAccountStorage()
   try {
-    return {
-      ok: true,
-      user: toAuthUser(await apiClient.post<ApiUser>(url, body)),
-    }
+    const data = await apiClient.post<ApiUser | {mfaRequired: true}>(url, body)
+    if ('mfaRequired' in data) return {ok: false, error: 'Second factor required.', mfaRequired: true}
+    return {ok: true, user: toAuthUser(data)}
   } catch (err) {
     return {
       ok: false,
@@ -101,8 +118,9 @@ export const authService = {
   async updateProfile(data: {
     firstName: string
     lastName: string
-    email: string
-    phone: string
+    username?: string | null
+    gender?: string | null
+    avatarUrl?: string | null
   }): Promise<AuthUser> {
     return toAuthUser(await apiClient.put<ApiUser>('/api/auth/me', data))
   },
@@ -122,7 +140,9 @@ export const authService = {
           email,
           firstName: '',
           lastName: '',
-          phone: '',
+          maskedPhone: '—',
+          maskedDob: '—',
+          hasPassword: true,
           role: 'customer',
           isSuperAdmin: false,
         },

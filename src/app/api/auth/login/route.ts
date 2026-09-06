@@ -1,3 +1,4 @@
+import { customerLoginResponse } from '@/lib/mfa/http'
 import { NextRequest } from 'next/server'
 import bcrypt from 'bcryptjs'
 import { prisma } from '@/lib/prisma'
@@ -35,6 +36,8 @@ export async function POST(request: NextRequest) {
       return errorResponse('Invalid email or password', 401)
     }
 
+    if (user.role === 'CUSTOMER') return await customerLoginResponse(user.id, Date.now(), user.email)
+
     // Set appropriate session cookie.
     // Admin gets the admin HTTP-only cookie (read by getCurrentAdmin).
     // All users also get the customer cookie so /api/auth/me works for hydration.
@@ -52,7 +55,7 @@ export async function POST(request: NextRequest) {
       isSuperAdmin: user.isSuperAdmin,
     })
   } catch (error) {
-    console.error('Login error:', error)
+    console.error('Login failed')
     return errorResponse('Internal server error', 500)
   }
 }

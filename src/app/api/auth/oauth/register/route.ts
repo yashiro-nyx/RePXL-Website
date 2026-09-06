@@ -1,3 +1,4 @@
+import { isRetiredAuthEmail, withAvailableEmail } from '@/lib/retired-auth-email'
 import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { successResponse, errorResponse, validationError } from '@/lib/api'
@@ -46,6 +47,8 @@ export async function POST(request: NextRequest) {
       return errorResponse('This email cannot be used for registration.', 403)
     }
 
+    if (await isRetiredAuthEmail(normalizedEmail)) return errorResponse('This Google identity is no longer available for sign-in. Use your current RePIXL email and password.', 403)
+
     // REGISTER-ONLY: check for duplicate, do NOT update existing
     const existing = await prisma.user.findUnique({ where: { email: normalizedEmail } })
     if (existing) {
@@ -53,7 +56,7 @@ export async function POST(request: NextRequest) {
       return errorResponse('An account with this Google email already exists. Please log in instead.', 409)
     }
 
-    const user = await prisma.user.create({
+    const user = await withAvailableEmail(normalizedEmail, tx => tx.user.create({
       data: {
         email: normalizedEmail,
         firstName,
@@ -61,16 +64,17 @@ export async function POST(request: NextRequest) {
         password: '', // OAuth accounts have no password
         role: 'CUSTOMER',
       },
-    })
+    }))
 
-    setSessionCookie(user.id)
+    const primaryAt = (nextAuthSession as unknown as { primaryAuthenticatedAt?: number }).primaryAuthenticatedAt ?? 0
+    setSessionCookie(user.id, { primaryAt })
 
     return successResponse({
       id: user.id,
       email: user.email,
       firstName: user.firstName,
       lastName: user.lastName,
-      phone: user.phone,
+
       role: user.role,
       isSuperAdmin: user.isSuperAdmin,
     })

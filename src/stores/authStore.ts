@@ -12,9 +12,15 @@ interface AuthState {
   firstName: string
   lastName: string
   userEmail: string
-  userPhone: string
+  maskedPhone: string
+  maskedDob: string
+  hasPassword: boolean
   role: 'customer' | 'admin'
   isSuperAdmin: boolean
+  username: string | null
+  gender: string | null
+  avatarUrl: string | null
+  createdAt: string | null
   login: (email: string, password: string) => Promise<boolean>
   loginAdmin: (email: string, password: string) => Promise<boolean>
   loginWithOAuth: (
@@ -33,8 +39,9 @@ interface AuthState {
   updateProfile: (
     firstName: string,
     lastName: string,
-    email: string,
-    phone: string
+    username?: string | null,
+    gender?: string | null,
+    avatarUrl?: string | null
   ) => Promise<void>
   changePassword: (oldPassword: string, newPassword: string) => Promise<boolean>
   hydrate: () => Promise<void>
@@ -47,9 +54,15 @@ const LOGGED_OUT = {
   firstName: '',
   lastName: '',
   userEmail: '',
-  userPhone: '',
+  maskedPhone: '—',
+  maskedDob: '—',
+  hasPassword: false,
   role: 'customer' as const,
   isSuperAdmin: false,
+  username: null as string | null,
+  gender: null as string | null,
+  avatarUrl: null as string | null,
+  createdAt: null as string | null,
 }
 // Prevent an older hydration response from overwriting a newer login/logout.
 let authRevision = 0
@@ -59,9 +72,15 @@ function userState(user: AuthUser) {
     firstName: user.firstName,
     lastName: user.lastName,
     userEmail: user.email,
-    userPhone: user.phone,
+    maskedPhone: user.maskedPhone,
+    maskedDob: user.maskedDob,
+    hasPassword: user.hasPassword,
     role: user.role,
     isSuperAdmin: user.isSuperAdmin,
+    username: user.username ?? null,
+    gender: user.gender ?? null,
+    avatarUrl: user.avatarUrl ?? null,
+    createdAt: user.createdAt ?? null,
   }
 }
 
@@ -90,6 +109,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     if (revision !== authRevision) return false
     if (!result.ok || result.user.role !== 'customer') {
       set(LOGGED_OUT)
+      if (!result.ok && result.mfaRequired && typeof window !== 'undefined') window.location.assign('/login/mfa')
       return false
     }
     setLogoutPreference(false)
@@ -114,6 +134,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     if (revision !== authRevision) return
     if (!result.ok) {
       set(LOGGED_OUT)
+      if (result.mfaRequired && typeof window !== 'undefined') { window.location.assign('/login/mfa'); return }
       throw new Error(result.error)
     }
     setLogoutPreference(false)
@@ -129,13 +150,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   logoutAdmin: async () => {
     await get().logout()
   },
-  updateProfile: async (firstName, lastName, email, phone) => {
+  updateProfile: async (firstName, lastName, username, gender, avatarUrl) => {
     const revision = authRevision
     const user = await authService.updateProfile({
       firstName,
       lastName,
-      email,
-      phone,
+      username,
+      gender,
+      avatarUrl,
     })
     if (revision === authRevision) set(userState(user))
   },

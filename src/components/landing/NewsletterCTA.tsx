@@ -55,7 +55,7 @@ export function NewsletterCTA() {
 
       setStatus('success')
       setEmail('')
-      addToast('Thanks for subscribing! Welcome to the collector community.')
+      addToast('Check your inbox! We sent you a confirmation link to complete your subscription.')
     } catch {
       setErrorMsg('Something went wrong. Please try again.')
       setStatus('error')
@@ -85,9 +85,9 @@ export function NewsletterCTA() {
             <div className="mt-8 rounded-lg border border-repixl-success/30 bg-repixl-success/10 px-5 py-4">
               <div className="flex items-center justify-center gap-2">
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-repixl-success"><path d="M20 6 9 17l-5-5" /></svg>
-                <p className="text-sm font-medium text-repixl-success">You&apos;re subscribed!</p>
+                <p className="text-sm font-medium text-repixl-success">Check your inbox!</p>
               </div>
-              <p className="mt-1 text-xs text-repixl-muted">We&apos;ll keep you posted on new arrivals and restocks.</p>
+              <p className="mt-1 text-xs text-repixl-muted">We&apos;ve sent a confirmation link to your email. Click it to complete your subscription.</p>
             </div>
           ) : (
             <form onSubmit={handleSubmit} noValidate className="mt-8 flex flex-col gap-3 sm:flex-row">
@@ -124,7 +124,7 @@ export function NewsletterCTA() {
           )}
 
           <p className="mt-4 font-mono text-[10px] text-repixl-muted">
-            Unsubscribe anytime. We respect your inbox.
+            We&apos;ll send a confirmation email. Unsubscribe anytime.
           </p>
         </motion.div>
       </Container>

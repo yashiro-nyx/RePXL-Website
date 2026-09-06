@@ -3,11 +3,10 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Container } from '@/components/layout/Container'
-import { Footer } from '@/components/layout/Footer'
 import { Button, PageLoader } from '@/components/ui'
 import { useAuthStore } from '@/stores/authStore'
 import { useOrderHistoryStore } from '@/stores/orderHistoryStore'
+import { purchaseFilters, matchesPurchaseFilter, type PurchaseFilter } from '@/lib/account-navigation'
 import { formatPrice } from '@/lib/format'
 
 const statusStyles: Record<string, string> = {
@@ -23,12 +22,11 @@ export default function OrderHistoryPage() {
   const { isLoggedIn, userEmail, hydrate } = useAuthStore()
   const allOrders = useOrderHistoryStore((s) => s.orders)
   const [hydrated, setHydrated] = useState(false)
+  const [filter, setFilter] = useState<PurchaseFilter>('All')
+  const [loadError, setLoadError] = useState(false)
 
   useEffect(() => {
-    hydrate().then(() => {
-      useOrderHistoryStore.getState().hydrate()
-      setHydrated(true)
-    })
+    hydrate().then(() => useOrderHistoryStore.getState().hydrate()).catch(() => setLoadError(true)).finally(() => setHydrated(true))
   }, [hydrate])
 
   useEffect(() => {
@@ -37,24 +35,24 @@ export default function OrderHistoryPage() {
 
   if (!hydrated || !isLoggedIn) return <PageLoader label="Loading orders…" />
 
+  if (loadError) return <p role="alert" className="text-red-400">Unable to load purchases. Please refresh to retry.</p>
+
   const orders = [...allOrders]
-    .filter((o) => o.userEmail === userEmail)
+    .filter((o) => o.userEmail === userEmail && matchesPurchaseFilter(o, filter))
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
 
   return (
     <>
-      <div className="burn-subtle min-h-screen pb-20 pt-24">
-        <Container>
+      <div className="min-w-0">
+        <>
           <div className="mb-8 border-b border-repixl-muted/10 pb-6">
-            <div className="flex items-center gap-3">
-              <Link href="/account" className="font-mono text-[10px] uppercase tracking-wider text-repixl-muted transition-colors hover:text-repixl-text-light">
-                ← Account
-              </Link>
-            </div>
-            <h1 className="mt-3 font-display text-display-md text-repixl-text-light">Order History</h1>
+            <h1 className="mt-3 font-display text-display-md text-repixl-text-light">My Purchases</h1>
             <p className="mt-1 text-sm text-repixl-muted">{orders.length} {orders.length === 1 ? 'order' : 'orders'}</p>
           </div>
 
+          <div className="mb-6 flex gap-2 overflow-x-auto pb-2" aria-label="Filter purchases">
+            {purchaseFilters.map(value => <button key={value} type="button" aria-pressed={filter === value} onClick={() => setFilter(value)} className={`shrink-0 rounded-lg border px-4 py-2 text-sm ${filter === value ? 'border-repixl-red bg-repixl-red/10 text-repixl-red' : 'border-repixl-muted/20 text-repixl-muted hover:text-repixl-text-light'}`}>{value}</button>)}
+          </div>
           {orders.length === 0 ? (
             <div className="flex flex-col items-center rounded-2xl border border-dashed border-repixl-muted/20 py-24 text-center">
               <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-repixl-charcoal/50">
@@ -62,8 +60,8 @@ export default function OrderHistoryPage() {
                   <path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z" />
                 </svg>
               </div>
-              <p className="font-display text-display-sm text-repixl-text-light/60">No orders yet</p>
-              <p className="mt-1 text-sm text-repixl-muted">Your order history will appear here after your first purchase.</p>
+              <p className="font-display text-display-sm text-repixl-text-light/60">{filter === 'All' ? 'No purchases yet' : `No ${filter.toLowerCase()} purchases`}</p>
+              <p className="mt-1 text-sm text-repixl-muted">Your purchases appear here with their current order status.</p>
               <Link href="/products" className="mt-6"><Button variant="primary" size="md">Browse Cameras</Button></Link>
             </div>
           ) : (
@@ -101,7 +99,7 @@ export default function OrderHistoryPage() {
                       href={`/account/orders/${order.orderNumber}`}
                       className="font-mono text-[10px] uppercase tracking-wider text-repixl-muted transition-colors hover:text-repixl-text-light"
                     >
-                      Track Order →
+                      View Details / Track →
                     </Link>
                   </div>
                 </div>
@@ -109,9 +107,9 @@ export default function OrderHistoryPage() {
               })}
             </div>
           )}
-        </Container>
+        </>
       </div>
-      <Footer />
+
     </>
   )
 }

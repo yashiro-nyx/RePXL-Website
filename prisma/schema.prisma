@@ -28,6 +28,18 @@ model User {
   createdAt    DateTime  @default(now()) @map("created_at")
   updatedAt    DateTime  @updatedAt @map("updated_at")
 
+  // Extended profile fields (all nullable so existing users are unaffected)
+  username    String?   @unique
+  gender      Gender?
+  dateOfBirth DateTime? @map("date_of_birth")
+  avatarUrl   String?   @map("avatar_url")
+
+  customerMfa           CustomerMfa?
+  mfaChallenges         CustomerMfaChallenge[]
+  notificationPreference UserNotificationPreference?
+  recentAuth            RecentAuthRecord?
+  sensitiveChangeChallenges SensitiveChangeChallenge[]
+
   // Relations
   cartItems      CartItem[]
   orders         Order[]
@@ -38,6 +50,13 @@ model User {
   returnRequests ReturnRequest[]
 
   @@map("users")
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  NON_BINARY
+  PREFER_NOT_TO_SAY
 }
 
 enum Role {
@@ -331,14 +350,46 @@ model AdminLog {
   @@map("admin_logs")
 }
 
+// ─── RECENT RE-AUTH ──────────────────────────────────────────────────────────────
+// Short-lived per-user record tracking when a customer last re-verified their
+// identity before accessing sensitive Security pages.
+// Stored server-side so the client can never forge or extend the window.
+
+model RecentAuthRecord {
+  userId      String   @id @map("user_id")
+  verifiedAt  DateTime @map("verified_at")
+  expiresAt   DateTime @map("expires_at")
+  // Attempt limiting: max 5 wrong-password attempts per 10-minute window
+  attempts    Int      @default(0)
+  windowStart DateTime @default(now()) @map("window_start")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("recent_auth_records")
+}
+
 // ─── NEWSLETTER ─────────────────────────────────────────────────────────────────
 
+enum SubscriberStatus {
+  PENDING
+  CONFIRMED
+  UNSUBSCRIBED
+}
+
 model NewsletterSubscriber {
-  id           String   @id @default(cuid())
-  email        String   @unique
-  isSubscribed Boolean  @default(true) @map("is_subscribed")
-  createdAt    DateTime @default(now()) @map("created_at")
-  updatedAt    DateTime @updatedAt @map("updated_at")
+  id                      String           @id @default(cuid())
+  email                   String           @unique
+  status                  SubscriberStatus @default(PENDING)
+  // Legacy field kept for backward-compat — mirrors (status == CONFIRMED)
+  isSubscribed            Boolean          @default(false) @map("is_subscribed")
+  // Confirmation token — only the SHA-256 hash is stored, never the raw token
+  confirmationTokenHash   String?          @unique @map("confirmation_token_hash")
+  confirmationExpiresAt   DateTime?        @map("confirmation_expires_at")
+  confirmedAt             DateTime?        @map("confirmed_at")
+  // Unsubscribe token hash — set when a confirmation email is sent, for unsubscribe links
+  unsubscribeTokenHash    String?          @unique @map("unsubscribe_token_hash")
+  createdAt               DateTime         @default(now()) @map("created_at")
+  updatedAt               DateTime         @updatedAt @map("updated_at")
 
   @@map("newsletter_subscribers")
 }
@@ -371,6 +422,7 @@ enum NotificationEvent {
   RETURN_STATUS_CHANGE
   REFUND_COMPLETED
   PROMOTION
+  REPIXL_UPDATE
 }
 
 enum NotificationChannel {
@@ -481,7 +533,30 @@ model PlatformSetting {
   @@map("platform_settings")
 }
 
-// ─── NOTIFICATIONS ──────────────────────────────────────────────────────────────
+// ─── NOTIFICATION PREFERENCES ───────────────────────────────────────────────────
+// One-to-one with User. All channels default true (opt-in), except security which
+// is always mandatory and cannot be toggled.
+
+model UserNotificationPreference {
+  userId String @id @map("user_id")
+
+  // Email preferences
+  emailOrderUpdates  Boolean @default(true)  @map("email_order_updates")
+  emailPromotions    Boolean @default(true)  @map("email_promotions")
+  emailRepixlUpdates Boolean @default(true)  @map("email_repixl_updates")
+  // emailSecurityAlerts is intentionally omitted — security emails are mandatory
+
+  // In-app preferences
+  inAppOrderUpdates  Boolean @default(true)  @map("in_app_order_updates")
+  inAppPromotions    Boolean @default(true)  @map("in_app_promotions")
+  inAppRepixlUpdates Boolean @default(true)  @map("in_app_repixl_updates")
+
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_notification_preferences")
+}
 
 model NotificationTemplate {
   event     NotificationEvent   @unique
@@ -507,4 +582,73 @@ model Notification {
 
   @@index([userId, isRead])
   @@map("notifications")
+}
+
+// Customer-only MFA. Secrets are AES-GCM ciphertext; recovery codes are hashes.
+model CustomerMfa {
+  userId String @id @map("user_id")
+  secret String?
+  enabledAt DateTime? @map("enabled_at")
+  pendingExpiresAt DateTime? @map("pending_expires_at")
+  lastStep Int @default(-1) @map("last_step")
+  recoveryHashes String[] @default([]) @map("recovery_hashes")
+  recoveryAcknowledged Boolean @default(false) @map("recovery_acknowledged")
+  version Int @default(0)
+  attempts Int @default(0)
+  windowStartedAt DateTime @default(now()) @map("window_started_at")
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@map("customer_mfa")
+}
+
+model CustomerMfaChallenge {
+  tokenHash String @id @map("token_hash")
+  userId String @map("user_id")
+  version Int
+  primaryAt DateTime @map("primary_at")
+  expiresAt DateTime @map("expires_at")
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("customer_mfa_challenges")
+}
+
+// ─── SENSITIVE PROFILE CHANGE CHALLENGES ────────────────────────────────────────
+// Short-lived OTP challenges for verifying phone/DOB/email changes.
+// Only the SHA-256 hash of the 6-digit code is stored — never plaintext.
+
+enum SensitiveChangeType {
+  CHANGE_EMAIL_VERIFY_OLD   // step 1: verify ownership of current email
+  CHANGE_EMAIL_VERIFY_NEW   // step 2: verify ownership of new email
+  CHANGE_PHONE              // verify current email before changing phone
+  CHANGE_DOB                // verify current email before changing DOB
+}
+
+model SensitiveChangeChallenge {
+  id          String              @id @default(cuid())
+  userId      String              @map("user_id")
+  changeType  SensitiveChangeType @map("change_type")
+  // SHA-256 hash of the 6-digit OTP — never the raw code
+  codeHash    String              @map("code_hash")
+  // For CHANGE_EMAIL_VERIFY_NEW — the candidate new email (not yet applied)
+  pendingEmail String?            @map("pending_email")
+  // Attempt limiting: max 5 wrong codes before lockout
+  attempts    Int                 @default(0)
+  expiresAt   DateTime            @map("expires_at")
+  // Resend cooldown: don't allow another send within 60 seconds
+  lastSentAt  DateTime            @default(now()) @map("last_sent_at")
+  usedAt      DateTime?           @map("used_at")
+  createdAt   DateTime            @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, changeType])
+  @@index([expiresAt])
+  @@map("sensitive_change_challenges")
+}
+
+// Prevent retired email-only Google identities from creating a second account.
+model RetiredAuthEmail {
+  emailHash String @id @map("email_hash")
+  createdAt DateTime @default(now()) @map("created_at")
+  @@map("retired_auth_emails")
 }

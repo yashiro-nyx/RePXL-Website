@@ -1,7 +1,7 @@
 'use client'
 
 import { reportActionFailure } from '@/lib/action-error'
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { signOut } from 'next-auth/react'
@@ -9,6 +9,7 @@ import { LoginRequiredModal } from '@/components/ui'
 import { LogoutConfirmModal } from '@/components/ui/LogoutConfirmModal'
 import { Logo } from '@/components/ui/Logo'
 import { ThemeToggle } from '@/components/ui/ThemeToggle'
+import { NavBellDropdown } from '@/components/layout/NavBellDropdown'
 import { useAuthStore } from '@/stores/authStore'
 import { useCartStore } from '@/stores/cartStore'
 import { useWishlistStore } from '@/stores/wishlistStore'
@@ -22,6 +23,7 @@ export function Navbar() {
   const [logoutModalOpen, setLogoutModalOpen] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [authHydrated, setAuthHydrated] = useState(false)
+  const [navUnreadCount, setNavUnreadCount] = useState(0)
   const inputRef = useRef<HTMLInputElement>(null)
   const profileRef = useRef<HTMLDivElement>(null)
   const router = useRouter()
@@ -32,8 +34,7 @@ export function Navbar() {
   const cartCount = useCartStore((s) => s.items.reduce((sum, i) => sum + i.quantity, 0))
   const wishlistCount = useWishlistStore((s) => s.slugs.length)
 
-  // Await auth hydration before revealing auth-dependent UI — prevents the
-  // logged-out flash on page refresh while the session is still being read.
+  // Await auth hydration before revealing auth-dependent UI
   useEffect(() => {
     const init = async () => {
       await hydrate()
@@ -50,11 +51,31 @@ export function Navbar() {
       useCartStore.getState().hydrate()
       useWishlistStore.getState().hydrate()
     } else {
-      // Clear in-memory state on logout
       useCartStore.setState({ items: [] })
       useWishlistStore.setState({ slugs: [] })
+      setNavUnreadCount(0)
     }
   }, [isLoggedIn])
+
+  // Fetch unread notification count (efficient — COUNT only)
+  const fetchUnreadCount = useCallback(async () => {
+    if (!isLoggedIn) return
+    try {
+      const res = await fetch('/api/notifications/unread-count', { credentials: 'include' })
+      if (res.ok) {
+        const { data } = await res.json()
+        setNavUnreadCount(data?.count ?? 0)
+      }
+    } catch { /* ignore */ }
+  }, [isLoggedIn])
+
+  useEffect(() => {
+    if (authHydrated && isLoggedIn) {
+      fetchUnreadCount()
+      const interval = setInterval(fetchUnreadCount, 60_000)
+      return () => clearInterval(interval)
+    }
+  }, [authHydrated, isLoggedIn, fetchUnreadCount])
 
   // Close profile dropdown on outside click
   useEffect(() => {
@@ -177,6 +198,16 @@ export function Navbar() {
               )}
             </button>
 
+            {/* Notifications bell — dropdown, authenticated only */}
+            <NavBellDropdown
+              unreadCount={navUnreadCount}
+              isLoggedIn={isLoggedIn}
+              authHydrated={authHydrated}
+              onUnreadCountChange={(delta) =>
+                setNavUnreadCount((c) => Math.max(0, c + delta))
+              }
+            />
+
             {/* Cart */}
             <button
               type="button"
@@ -237,6 +268,26 @@ export function Navbar() {
                       </Link>
                     </li>
                     <li>
+                      <Link href="/account/orders" onClick={() => setProfileOpen(false)} className="block rounded px-2 py-1.5 text-sm text-repixl-text-light/80 hover:bg-repixl-charcoal hover:text-repixl-text-light">
+                        My Purchases
+                      </Link>
+                    </li>
+                    <li>
+                      <Link href="/account/notifications" onClick={() => setProfileOpen(false)} className="flex items-center justify-between rounded px-2 py-1.5 text-sm text-repixl-text-light/80 hover:bg-repixl-charcoal hover:text-repixl-text-light">
+                        Notifications
+                        {navUnreadCount > 0 && (
+                          <span className="flex h-4 min-w-[16px] items-center justify-center rounded-full bg-repixl-red px-1 font-mono text-[8px] font-bold text-white">
+                            {navUnreadCount > 99 ? '99+' : navUnreadCount}
+                          </span>
+                        )}
+                      </Link>
+                    </li>
+                    <li>
+                      <Link href="/account/vouchers" onClick={() => setProfileOpen(false)} className="block rounded px-2 py-1.5 text-sm text-repixl-text-light/80 hover:bg-repixl-charcoal hover:text-repixl-text-light">
+                        My Vouchers
+                      </Link>
+                    </li>
+                    <li className="border-t border-repixl-muted/10 pt-1">
                       <button
                         type="button"
                         onClick={() => { setProfileOpen(false); setLogoutModalOpen(true) }}
@@ -271,8 +322,18 @@ export function Navbar() {
               <li><Link href="/about" onClick={() => setMobileMenuOpen(false)} className="block text-sm text-repixl-text-light/80 transition-colors hover:text-repixl-text-light">About</Link></li>
             </ul>
             {isLoggedIn && (
-              <div className="mt-4 border-t border-repixl-muted/10 pt-4">
+              <div className="mt-4 border-t border-repixl-muted/10 pt-4 space-y-2">
                 <Link href="/account" onClick={() => setMobileMenuOpen(false)} className="block text-sm text-repixl-text-light/80 hover:text-repixl-text-light">My Account</Link>
+                <Link href="/account/orders" onClick={() => setMobileMenuOpen(false)} className="block text-sm text-repixl-text-light/80 hover:text-repixl-text-light">My Purchases</Link>
+                <Link href="/account/notifications" onClick={() => setMobileMenuOpen(false)} className="flex items-center justify-between text-sm text-repixl-text-light/80 hover:text-repixl-text-light">
+                  Notifications
+                  {navUnreadCount > 0 && (
+                    <span className="flex h-4 min-w-[16px] items-center justify-center rounded-full bg-repixl-red px-1 font-mono text-[8px] font-bold text-white">
+                      {navUnreadCount > 99 ? '99+' : navUnreadCount}
+                    </span>
+                  )}
+                </Link>
+                <Link href="/account/vouchers" onClick={() => setMobileMenuOpen(false)} className="block text-sm text-repixl-text-light/80 hover:text-repixl-text-light">My Vouchers</Link>
                 <button type="button" onClick={() => { setMobileMenuOpen(false); setLogoutModalOpen(true) }} className="mt-2 block text-sm text-repixl-red">Log Out</button>
               </div>
             )}

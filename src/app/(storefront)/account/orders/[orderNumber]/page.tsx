@@ -5,8 +5,6 @@ import dynamic from 'next/dynamic'
 import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
 import { createPortal } from 'react-dom'
-import { Container } from '@/components/layout/Container'
-import { Footer } from '@/components/layout/Footer'
 import { Button, BackButton, PageLoader, ImageUploader, type UploadedImage } from '@/components/ui'
 import { useAuthStore } from '@/stores/authStore'
 import { useOrderHistoryStore, type Order } from '@/stores/orderHistoryStore'
@@ -243,7 +241,7 @@ export default function OrderDetailPage() {
 
   if (notFound) {
     return (
-      <div className="burn-subtle flex min-h-screen items-center justify-center px-4">
+      <div className="burn-subtle flex min-h-[16rem] items-center justify-center px-4">
         <div className="text-center">
           <p className="font-display text-display-md text-repixl-text-light">Order not found</p>
           <p className="mt-2 text-sm text-repixl-muted">This order doesn't exist or you don't have access to it.</p>
@@ -258,8 +256,8 @@ export default function OrderDetailPage() {
   if (feedbackSuccess) {
     return (
       <>
-        <div className="burn-subtle min-h-screen pb-20 pt-24">
-          <Container>
+        <div className="min-w-0">
+          <>
             <div className="mx-auto flex max-w-lg flex-col items-center py-20 text-center">
               {/* Success icon */}
               <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-repixl-success/15">
@@ -298,9 +296,9 @@ export default function OrderDetailPage() {
                 </Link>
               </div>
             </div>
-          </Container>
+          </>
         </div>
-        <Footer />
+
       </>
     )
   }
@@ -332,8 +330,8 @@ export default function OrderDetailPage() {
 
   return (
     <>
-      <div className="burn-subtle min-h-screen pb-20 pt-24">
-        <Container>
+      <div className="min-w-0">
+        <>
           {/* Back button */}
           <BackButton href="/account/orders" label="Back to Orders" className="mb-6" />
 
@@ -568,9 +566,9 @@ export default function OrderDetailPage() {
               </div>
             </aside>
           </div>
-        </Container>
+        </>
       </div>
-      <Footer />
+
 
       {/* ── Cancel Order Modal ── */}
       {cancelModalOpen && createPortal(

@@ -1,7 +1,8 @@
+import { isRetiredAuthEmail } from '@/lib/retired-auth-email'
 import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { successResponse, errorResponse, validationError } from '@/lib/api'
-import { setSessionCookie } from '@/lib/auth-helpers'
+import { customerLoginResponse } from '@/lib/mfa/http'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/next-auth-options'
 import { z } from 'zod'
@@ -43,6 +44,8 @@ export async function POST(request: NextRequest) {
       return errorResponse('Email mismatch', 403)
     }
 
+    if (await isRetiredAuthEmail(normalizedEmail)) return errorResponse('This Google identity is no longer available for sign-in. Use your current RePIXL email and password.', 403)
+
     // LOGIN-ONLY: look up the existing user — do NOT create
     const user = await prisma.user.findUnique({ where: { email: normalizedEmail } })
 
@@ -59,19 +62,11 @@ export async function POST(request: NextRequest) {
       return errorResponse('Admin accounts cannot use Google login.', 403)
     }
 
-    setSessionCookie(user.id)
+    const primaryAt = (nextAuthSession as unknown as { primaryAuthenticatedAt?: number }).primaryAuthenticatedAt ?? 0
+    return await customerLoginResponse(user.id, primaryAt, normalizedEmail)
 
-    return successResponse({
-      id: user.id,
-      email: user.email,
-      firstName: user.firstName,
-      lastName: user.lastName,
-      phone: user.phone,
-      role: user.role,
-      isSuperAdmin: user.isSuperAdmin,
-    })
   } catch (error) {
-    console.error('OAuth login error:', error)
+    console.error('OAuth login failed')
     return errorResponse('Internal server error', 500)
   }
 }

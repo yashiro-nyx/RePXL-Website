@@ -61,7 +61,7 @@ export function useOAuthSync() {
     if (oauthParam === 'login' || oauthParam === 'register') return
 
     // Also skip on auth pages entirely — they manage their own flow.
-    if (pathname === '/login' || pathname === '/register') return
+    if (pathname === '/login' || pathname.startsWith('/login/') || pathname === '/register') return
     // ── End skip ──────────────────────────────────────────────────────────────
 
     const googleEmail = session.user.email.toLowerCase()
@@ -77,7 +77,7 @@ export function useOAuthSync() {
 
     // Store already knows this user (e.g. they logged in via email/password,
     // not Google). Don't overwrite.
-    if (isLoggedIn && userEmail.toLowerCase() !== googleEmail) return
+    if (isLoggedIn) return
 
     // Another call is in-flight.
     if (pendingRef.current) return

@@ -3,8 +3,6 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
-import { Container } from '@/components/layout/Container'
-import { Footer } from '@/components/layout/Footer'
 import { Button, PageLoader, ImageUploader, type UploadedImage } from '@/components/ui'
 import { useAuthStore } from '@/stores/authStore'
 import { useOrderHistoryStore } from '@/stores/orderHistoryStore'
@@ -91,7 +89,7 @@ export default function ReturnRequestPage() {
 
   if (!order) {
     return (
-      <div className="burn-subtle flex min-h-screen items-center justify-center">
+      <div className="burn-subtle flex min-h-[16rem] items-center justify-center">
         <div className="text-center">
           <p className="text-sm text-repixl-muted">Order not found.</p>
           <Link href="/account/orders" className="mt-3 inline-block text-sm text-repixl-red hover:underline">← Orders</Link>
@@ -103,7 +101,7 @@ export default function ReturnRequestPage() {
   if (success) {
     return (
       <>
-        <div className="burn-subtle flex min-h-screen flex-col items-center justify-center gap-6 px-4">
+        <div className="burn-subtle flex min-h-[16rem] flex-col items-center justify-center gap-6 px-4">
           <div className="flex h-16 w-16 items-center justify-center rounded-full bg-repixl-success/20">
             <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-repixl-success" aria-hidden="true"><path d="M20 6 9 17l-5-5" /></svg>
           </div>
@@ -113,15 +111,15 @@ export default function ReturnRequestPage() {
           </div>
           <Link href={`/account/orders/${orderNumber}`}><Button variant="secondary" size="md">Back to Order</Button></Link>
         </div>
-        <Footer />
+
       </>
     )
   }
 
   return (
     <>
-      <div className="burn-subtle min-h-screen pb-20 pt-24">
-        <Container>
+      <div className="min-w-0">
+        <>
           <div className="mb-8">
             <nav className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-widest text-repixl-muted">
               <Link href="/account/orders" className="hover:text-repixl-text-light">Orders</Link>
@@ -265,9 +263,9 @@ export default function ReturnRequestPage() {
               </form>
             </div>
           )}
-        </Container>
+        </>
       </div>
-      <Footer />
+
     </>
   )
 }

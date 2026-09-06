@@ -70,7 +70,7 @@ function SectionCard({ title, children }: { title: string; children: React.React
 
 export default function AdminSettingsPage() {
   // ── Auth store (profile / password) ──────────────────────────────────────
-  const { firstName, lastName, userEmail, userPhone, hydrate, updateProfile, changePassword } =
+  const { firstName, lastName, userEmail, maskedPhone, hydrate, updateProfile, changePassword } =
     useAuthStore()
   const [currentPw, setCurrentPw] = useState('')
   const [newPw, setNewPw] = useState('')
@@ -91,8 +91,8 @@ export default function AdminSettingsPage() {
   useEffect(() => {
     setFName(firstName)
     setLName(lastName)
-    setPhone(userPhone)
-  }, [firstName, lastName, userPhone])
+    setPhone(maskedPhone)
+  }, [firstName, lastName, maskedPhone])
 
   // ── Platform settings state ───────────────────────────────────────────────
   const [settings, setSettings] = useState<PlatformSettings | null>(null)
@@ -314,7 +314,7 @@ export default function AdminSettingsPage() {
     setProfileMsg('')
     if (!fName.trim() || !lName.trim()) { setProfileMsg('Name fields are required.'); return }
     setProfileLoading(true)
-    await updateProfile(fName.trim(), lName.trim(), userEmail, phone.trim())
+    await updateProfile(fName.trim(), lName.trim())
     setProfileLoading(false)
     setProfileMsg('Profile updated.')
     setTimeout(() => setProfileMsg(''), 3000)
@@ -588,7 +588,7 @@ export default function AdminSettingsPage() {
               </div>
               <div>
                 <label className="mb-1 block text-xs font-medium text-repixl-muted">Phone Number</label>
-                <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} className={iClass} />
+                <p className={iClass}>{phone || '—'}</p>
               </div>
               {profileMsg && (
                 <p className={`text-xs ${profileMsg === 'Profile updated.' ? 'text-repixl-success' : 'text-red-400'}`}>{profileMsg}</p>

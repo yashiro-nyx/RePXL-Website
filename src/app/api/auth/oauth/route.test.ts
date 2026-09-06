@@ -10,14 +10,24 @@ const mocks = vi.hoisted(() => ({
   compare: vi.fn(),
 }))
 
+vi.mock('@/lib/retired-auth-email', () => ({isRetiredAuthEmail: async () => false, withAvailableEmail: async (_email: string, work: (tx: unknown) => unknown) => work({user: {create: mocks.create}})}))
+
 vi.mock('next-auth', () => ({ getServerSession: mocks.session }))
 vi.mock('@/lib/prisma', () => ({
-  prisma: { user: { findUnique: mocks.findUnique, create: mocks.create } },
+  prisma: {
+    user: { findUnique: mocks.findUnique, create: mocks.create },
+    $transaction: (run: (tx: unknown) => unknown) => run({
+      $queryRaw: async () => [],
+      user: {findUnique: mocks.findUnique},
+      customerMfa: {upsert: async () => ({version: 0, enabledAt: null})},
+    }),
+  },
 }))
 vi.mock('@/lib/auth-helpers', () => ({
   setSessionCookie: mocks.customerCookie,
   setAdminSessionCookie: mocks.adminCookie,
 }))
+vi.mock('next/headers', () => ({cookies: () => ({set: () => undefined})}))
 vi.mock('bcryptjs', () => ({ default: { compare: mocks.compare } }))
 
 import { POST as legacy } from './route'
@@ -75,7 +85,7 @@ describe.each([['legacy refresh', legacy], ['Google login', googleLogin]] as con
     expect(response.status).toBe(200)
     expect(mocks.findUnique).toHaveBeenCalledWith({ where: { email: customer.email } })
     expect(mocks.customerCookie).toHaveBeenCalledTimes(1)
-    expect(mocks.customerCookie).toHaveBeenCalledWith(customer.id)
+    expect(mocks.customerCookie.mock.calls[0][0]).toBe(customer.id)
     expect(mocks.adminCookie).not.toHaveBeenCalled()
     expect(mocks.create).not.toHaveBeenCalled()
     expect((await response.json()).data).not.toHaveProperty('password')
@@ -105,7 +115,7 @@ it('preserves verified Google registration through the registration endpoint', a
   expect(mocks.create).toHaveBeenCalledWith({ data: {
     email: customer.email, firstName: 'Camera', lastName: 'Collector', password: '', role: 'CUSTOMER',
   } })
-  expect(mocks.customerCookie).toHaveBeenCalledWith(customer.id)
+  expect(mocks.customerCookie.mock.calls[0][0]).toBe(customer.id)
   expect(mocks.adminCookie).not.toHaveBeenCalled()
 })
 
@@ -115,7 +125,7 @@ describe('password login remains independent of Google sessions', () => {
     mocks.findUnique.mockResolvedValue({ ...customer, role })
     expect((await passwordLogin(request())).status).toBe(200)
     expect(mocks.compare).toHaveBeenCalledWith('valid-password', customer.password)
-    expect(mocks.customerCookie).toHaveBeenCalledWith(customer.id)
+    expect(mocks.customerCookie.mock.calls[0][0]).toBe(customer.id)
     expect(mocks.adminCookie).toHaveBeenCalledTimes(role === 'ADMIN' ? 1 : 0)
     expect(mocks.session).not.toHaveBeenCalled()
   })

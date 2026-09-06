@@ -2,7 +2,7 @@ import { NextRequest } from 'next/server'
 import bcrypt from 'bcryptjs'
 import { prisma } from '@/lib/prisma'
 import { successResponse, errorResponse, unauthorizedResponse, validationError } from '@/lib/api'
-import { getCurrentUser } from '@/lib/auth-helpers'
+import { getCurrentUser, requireRecentAuth } from '@/lib/auth-helpers'
 import { changePasswordSchema } from '@/lib/validations'
 
 // This route reads cookies / session state and must run per-request.
@@ -11,8 +11,15 @@ export const dynamic = 'force-dynamic'
 export async function POST(request: NextRequest) {
   try {
     const user = await getCurrentUser()
-    if (!user) {
-      return unauthorizedResponse()
+    if (!user) return unauthorizedResponse()
+
+    // Require recent re-authentication before allowing password changes
+    const recentAuthResult = await requireRecentAuth(user.id)
+    if (recentAuthResult) {
+      return new Response(recentAuthResult.body, {
+        status: recentAuthResult.status,
+        headers: { 'Content-Type': 'application/json' },
+      })
     }
 
     const body = await request.json()
@@ -26,9 +33,7 @@ export async function POST(request: NextRequest) {
 
     // Get full user with password
     const fullUser = await prisma.user.findUnique({ where: { id: user.id } })
-    if (!fullUser) {
-      return unauthorizedResponse()
-    }
+    if (!fullUser) return unauthorizedResponse()
 
     // Verify current password
     const valid = await bcrypt.compare(oldPassword, fullUser.password)

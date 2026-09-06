@@ -33,6 +33,7 @@ export const authOptions: NextAuthOptions = {
     async jwt({ token, account, profile }) {
       if (account) {
         token.provider = account.provider
+        token.primaryAuthenticatedAt = Date.now()
       }
       if (profile) {
         token.name = (profile as { name?: string }).name ?? token.name
@@ -46,6 +47,7 @@ export const authOptions: NextAuthOptions = {
         ;(session.user as { id?: string; provider?: string }).provider =
           (token.provider as string) ?? ''
       }
+      ;(session as unknown as { primaryAuthenticatedAt: number }).primaryAuthenticatedAt = typeof token.primaryAuthenticatedAt === 'number' ? token.primaryAuthenticatedAt : 0
       return session
     },
   },

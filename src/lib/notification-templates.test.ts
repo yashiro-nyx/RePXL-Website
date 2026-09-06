@@ -50,7 +50,7 @@ describe('Property 27: Notification template validation', () => {
       expect(fields.has('subject')).toBe(!subjectOk)
       expect(fields.has('body')).toBe(!bodyOk)
     },
-    { numRuns: NUM_RUNS }
+    NUM_RUNS
   )
 
   it('accepts exact boundary lengths (1, 200, 10000)', () => {
@@ -113,7 +113,7 @@ describe('Property 28: Defined placeholder tokens are fully resolved', () => {
       expect(findUnknownTokens(body, event)).toEqual([])
       expect(/\{\{\s*[A-Za-z0-9_]+\s*\}\}/.test(resolved)).toBe(false)
     },
-    { numRuns: NUM_RUNS }
+    NUM_RUNS
   )
 })
 
@@ -152,7 +152,7 @@ describe('Property 29: Unknown placeholder tokens are detected', () => {
       const shouldReject = unknown.length > 0
       expect(shouldReject).toBe(expected.length > 0)
     },
-    { numRuns: NUM_RUNS }
+    NUM_RUNS
   )
 
   it('returns empty for a body using only allowed tokens', () => {

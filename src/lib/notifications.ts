@@ -13,7 +13,7 @@
  */
 
 import { getSettings } from './settings'
-import { resolvePlaceholders, type NotificationEvent } from './notification-templates'
+import { resolvePlaceholders, type NotificationEvent, EVENT_CATEGORY_MAP } from './notification-templates'
 import { sendNotificationEmail } from './mailer'
 import { prisma } from './prisma'
 
@@ -184,6 +184,18 @@ export function isInAppRetained(_emailSucceeded: boolean): boolean {
 // Database operations (Task 11.1)
 // ---------------------------------------------------------------------------
 
+/**
+ * MANDATORY events that can never be suppressed by user preferences.
+ * These include security alerts and operational payment/receipt communications.
+ */
+export const MANDATORY_EVENTS: readonly NotificationEvent[] = [
+  'ORDER_CONFIRMATION',  // receipt — operationally required
+] as const
+
+export function isMandatoryEvent(event: NotificationEvent): boolean {
+  return (MANDATORY_EVENTS as readonly string[]).includes(event)
+}
+
 interface EmitNotificationOptions {
   userId: string
   event: NotificationEvent
@@ -199,14 +211,20 @@ interface EmitNotificationOptions {
  * synchronously, attempt email delivery best-effort, suppress disabled
  * templates and promo opt-outs, and record an AdminLog entry if email
  * delivery fails after all retries.
+ *
+ * Consults UserNotificationPreference for per-category suppression.
+ * Mandatory events (ORDER_CONFIRMATION, security alerts) are never suppressed.
  */
 export async function emitNotification(
   options: EmitNotificationOptions
 ): Promise<{ notificationId: string; emailDelivered?: boolean }> {
   const { userId, event, subject, body, channel, recipientEmail } = options
 
-  // Fetch the user and template to check opt-outs and enabled state
-  const user = await prisma.user.findUnique({ where: { id: userId } })
+  // Fetch the user, preferences, and template
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    include: { notificationPreference: true },
+  })
   if (!user) {
     throw new Error(`User ${userId} not found`)
   }
@@ -220,21 +238,85 @@ export async function emitNotification(
     return { notificationId: '', emailDelivered: false }
   }
 
-  // Suppress if promo opt-out and event is promotional
-  if (!shouldSendNotification(event, user.promoOptOut)) {
-    return { notificationId: '', emailDelivered: false }
+  // Determine per-category suppression (unless this is a mandatory event)
+  const mandatory = isMandatoryEvent(event)
+  if (!mandatory) {
+    const category = EVENT_CATEGORY_MAP[event]
+    const prefs = user.notificationPreference
+
+    // Check in-app suppression
+    const suppressInApp = prefs
+      ? (category === 'ORDER_UPDATES'  && !prefs.inAppOrderUpdates)  ||
+        (category === 'PROMOTIONS'     && !prefs.inAppPromotions)     ||
+        (category === 'REPIXL_UPDATES' && !prefs.inAppRepixlUpdates)
+      : false // default: send if no pref record
+
+    // Check email suppression
+    const suppressEmail = prefs
+      ? (category === 'ORDER_UPDATES'  && !prefs.emailOrderUpdates)  ||
+        (category === 'PROMOTIONS'     && !prefs.emailPromotions)     ||
+        (category === 'REPIXL_UPDATES' && !prefs.emailRepixlUpdates)
+      : false // default: send if no pref record
+
+    // Legacy promo opt-out compatibility
+    const legacyPromoSuppressed = !shouldSendNotification(event, user.promoOptOut)
+
+    const effectiveSuppressInApp  = suppressInApp  || legacyPromoSuppressed
+    const effectiveSuppressEmail  = suppressEmail  || legacyPromoSuppressed
+
+    // If both channels are suppressed, bail out entirely
+    const effectiveChannel =
+      channel === 'IN_APP' ? (effectiveSuppressInApp  ? 'SUPPRESSED' : 'IN_APP')  :
+      channel === 'EMAIL'  ? (effectiveSuppressEmail   ? 'SUPPRESSED' : 'EMAIL')   :
+      // BOTH
+      effectiveSuppressInApp && effectiveSuppressEmail  ? 'SUPPRESSED' :
+      effectiveSuppressInApp                            ? 'EMAIL'      :
+      effectiveSuppressEmail                            ? 'IN_APP'     :
+      'BOTH'
+
+    if (effectiveChannel === 'SUPPRESSED') {
+      return { notificationId: '', emailDelivered: false }
+    }
+
+    // Re-scope channel if one side was suppressed
+    const resolvedChannel = effectiveChannel as 'IN_APP' | 'EMAIL' | 'BOTH'
+    return _doEmit({ userId, event, subject, body, channel: resolvedChannel, recipientEmail, user })
   }
 
-  // Create in-app notification (source of truth)
-  const notification = await prisma.notification.create({
-    data: {
-      userId,
-      event,
-      message: truncateForDisplay(body),
-      channel: channel as any,
-      isRead: false,
-    },
-  })
+  return _doEmit({ userId, event, subject, body, channel, recipientEmail, user })
+}
+
+async function _doEmit({
+  userId,
+  event,
+  body,
+  channel,
+  recipientEmail,
+  user,
+  subject,
+}: {
+  userId: string
+  event: NotificationEvent
+  subject: string
+  body: string
+  channel: 'IN_APP' | 'EMAIL' | 'BOTH'
+  recipientEmail?: string
+  user: { id: string }
+}): Promise<{ notificationId: string; emailDelivered?: boolean }> {
+  // Create in-app notification (source of truth) if channel includes it
+  let notificationId = ''
+  if (channel === 'IN_APP' || channel === 'BOTH') {
+    const notification = await prisma.notification.create({
+      data: {
+        userId,
+        event,
+        message: truncateForDisplay(body),
+        channel: channel as 'IN_APP' | 'BOTH',
+        isRead: false,
+      },
+    })
+    notificationId = notification.id
+  }
 
   let emailDelivered = false
 
@@ -244,7 +326,6 @@ export async function emitNotification(
       await sendNotificationEmail(recipientEmail, subject, body)
       emailDelivered = true
     } catch (emailError) {
-      // Email failed after all retries; log the failure with system admin identity
       const systemAdmin = await prisma.user.findFirst({
         where: { role: 'ADMIN', isSuperAdmin: true },
         select: { id: true, firstName: true, lastName: true },
@@ -254,7 +335,7 @@ export async function emitNotification(
         await prisma.adminLog.create({
           data: {
             action: 'NOTIFICATION_EMAIL_FAILED',
-            details: `Failed to send notification ${notification.id} to ${recipientEmail} for event ${event}: ${emailError instanceof Error ? emailError.message : String(emailError)}`,
+            details: `Failed to send notification ${notificationId} to ${recipientEmail} for event ${event}: ${emailError instanceof Error ? emailError.message : String(emailError)}`,
             adminId: systemAdmin.id,
             adminName: `${systemAdmin.firstName} ${systemAdmin.lastName}`,
           },
@@ -264,7 +345,7 @@ export async function emitNotification(
     }
   }
 
-  return { notificationId: notification.id, emailDelivered }
+  return { notificationId, emailDelivered }
 }
 
 /**

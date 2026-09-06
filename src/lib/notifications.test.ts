@@ -44,7 +44,7 @@ describe('Property 30: Disabled templates suppress notifications', () => {
     ({ isEnabled }) => {
       expect(shouldSuppressForDisabledTemplate(isEnabled)).toBe(!isEnabled)
     },
-    { numRuns: NUM_RUNS }
+    NUM_RUNS
   )
 
   it('disabled → suppressed, enabled → not suppressed', () => {
@@ -72,7 +72,7 @@ describe('Property 31: Displayed notification message is bounded', () => {
         expect(shown).toBe(message.slice(0, MAX_DISPLAY_MESSAGE_LENGTH))
       }
     },
-    { numRuns: NUM_RUNS }
+    NUM_RUNS
   )
 
   fcTest.prop({
@@ -83,7 +83,7 @@ describe('Property 31: Displayed notification message is bounded', () => {
     ({ message, max }) => {
       expect(truncateForDisplay(message, max).length).toBeLessThanOrEqual(max)
     },
-    { numRuns: NUM_RUNS }
+    NUM_RUNS
   )
 })
 
@@ -104,7 +104,7 @@ describe('Property 32: Unread count display rule', () => {
         expect(shown).toBe(String(count))
       }
     },
-    { numRuns: NUM_RUNS }
+    NUM_RUNS
   )
 
   it('handles exact boundaries and non-normal inputs', () => {
@@ -145,7 +145,7 @@ describe('Property 33: Marking a notification read decrements the unread count b
       // Original list is not mutated.
       expect(unreadCount(list)).toBe(before)
     },
-    { numRuns: NUM_RUNS }
+    NUM_RUNS
   )
 
   it('is a no-op when the target is already read or absent', () => {
@@ -178,7 +178,7 @@ describe('Property 34: Mark-all-read clears unread and is idempotent', () => {
       // Original list is not mutated.
       expect(unreadCount(list)).toBe(flags.filter((r) => !r).length)
     },
-    { numRuns: NUM_RUNS }
+    NUM_RUNS
   )
 })
 
@@ -194,7 +194,7 @@ describe('Property 35: In-app notification is retained regardless of email outco
     ({ emailSucceeded }) => {
       expect(isInAppRetained(emailSucceeded)).toBe(true)
     },
-    { numRuns: NUM_RUNS }
+    NUM_RUNS
   )
 })
 
@@ -215,7 +215,7 @@ describe('Property 36: Promotional opt-out excludes only promotions', () => {
         expect(send).toBe(true)
       }
     },
-    { numRuns: NUM_RUNS }
+    NUM_RUNS
   )
 
   it('only PROMOTION is promotional; opt-out never blocks order events', () => {

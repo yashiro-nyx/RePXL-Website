@@ -44,8 +44,10 @@ function sign(payload: string): string {
  * Create a signed session token: base64url(payload).base64url(hmac(payload)).
  * The HMAC prevents forging a token for an arbitrary userId.
  */
-function createToken(userId: string): string {
-  const payload = Buffer.from(JSON.stringify({ userId, iat: Date.now() })).toString('base64url')
+interface CustomerSessionProof { mfaVersion?: number; mfaVerified?: boolean; primaryAt?: number }
+
+function createToken(userId: string, proof: CustomerSessionProof = {}): string {
+  const payload = Buffer.from(JSON.stringify({ userId, iat: Date.now(), ...proof })).toString('base64url')
   return `${payload}.${sign(payload)}`
 }
 
@@ -53,7 +55,7 @@ function createToken(userId: string): string {
  * Decode and verify a signed session token. Returns null if the signature is
  * missing/invalid or the payload cannot be parsed.
  */
-function decodeToken(token: string): { userId: string; iat: number } | null {
+function decodeToken(token: string): ({ userId: string; iat: number } & CustomerSessionProof) | null {
   const parts = token.split('.')
   if (parts.length !== 2) return null
 
@@ -80,8 +82,8 @@ function decodeToken(token: string): { userId: string; iat: number } | null {
 /**
  * Set session cookie for customer
  */
-export function setSessionCookie(userId: string) {
-  const token = createToken(userId)
+export function setSessionCookie(userId: string, proof: CustomerSessionProof = {}) {
+  const token = createToken(userId, { primaryAt: Date.now(), ...proof })
   cookies().set(SESSION_COOKIE, token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
@@ -144,10 +146,15 @@ export async function getCurrentUser(): Promise<SessionUser | null> {
       role: true,
       isSuperAdmin: true,
       isArchived: true,
+      customerMfa: { select: { enabledAt: true, version: true } },
     },
   })
 
   if (!user || user.isArchived) return null
+  if (user.role === 'CUSTOMER') {
+    if ((decoded.mfaVersion ?? 0) !== (user.customerMfa?.version ?? 0)) return null
+    if (user.customerMfa?.enabledAt && decoded.mfaVerified !== true) return null
+  }
 
   return {
     id: user.id,
@@ -212,3 +219,186 @@ export async function requireUser(): Promise<SessionUser | null> {
 export async function requireAdmin(): Promise<SessionUser | null> {
   return getCurrentAdmin()
 }
+
+/** Signed time of the primary factor, never extended by hydration or MFA setup. */
+export function customerPrimaryAuthTime(): number {
+  const token = cookies().get(SESSION_COOKIE)?.value
+  const decoded = token ? decodeToken(token) : null
+  return decoded?.primaryAt ?? 0
+}
+
+export function customerMfaSessionVersion(): number {
+  const token = cookies().get(SESSION_COOKIE)?.value
+  return (token ? decodeToken(token)?.mfaVersion : undefined) ?? 0
+}
+
+// ─── Recent Re-Authentication ───────────────────────────────────────────────────
+// Customers must re-verify identity before accessing sensitive Security pages.
+// Window: 12 minutes. State is canonical in the DB; cookie carries only a signed
+// userId claim so it cannot be forged or replayed across logouts.
+
+export const RECENT_AUTH_COOKIE = 'repixl-recent-auth'
+export const RECENT_AUTH_WINDOW_MS = 12 * 60 * 1000   // 12 minutes
+// Attempt budget: 5 wrong passwords per 10-minute window before lockout
+const RECENT_AUTH_MAX_ATTEMPTS = 5
+const RECENT_AUTH_ATTEMPT_WINDOW_MS = 10 * 60 * 1000
+
+/**
+ * Issue a short-lived recent-auth cookie and persist the canonical record in the DB.
+ * The cookie payload is `{userId}.{hmac}` — cannot be forged without NEXTAUTH_SECRET.
+ * Called after the customer successfully re-verifies their identity.
+ */
+export async function setRecentAuthCookie(userId: string): Promise<void> {
+  const now = new Date()
+  const expiresAt = new Date(now.getTime() + RECENT_AUTH_WINDOW_MS)
+
+  // Upsert DB record — canonical source of truth
+  await prisma.recentAuthRecord.upsert({
+    where:  { userId },
+    create: { userId, verifiedAt: now, expiresAt, attempts: 0, windowStart: now },
+    update: { verifiedAt: now, expiresAt, attempts: 0, windowStart: now },
+  })
+
+  // Issue signed cookie
+  const token = createRecentAuthToken(userId)
+  cookies().set(RECENT_AUTH_COOKIE, token, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'strict',
+    maxAge: Math.floor(RECENT_AUTH_WINDOW_MS / 1000),
+    path: '/',
+  })
+}
+
+/**
+ * Clear the recent-auth cookie (called on logout).
+ */
+export function clearRecentAuthCookie(): void {
+  cookies().set(RECENT_AUTH_COOKIE, '', {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'strict',
+    maxAge: 0,
+    path: '/',
+  })
+}
+
+/**
+ * Check whether the current customer session has a valid, unexpired recent-auth.
+ * Verifies: cookie signature, userId matches session user, DB record not expired.
+ * Returns `true` only when ALL checks pass.
+ *
+ * Does NOT throw — returns false for any failure so callers can redirect to the gate.
+ */
+export async function checkRecentAuth(userId: string): Promise<boolean> {
+  try {
+    const cookieStore = cookies()
+    const raw = cookieStore.get(RECENT_AUTH_COOKIE)?.value
+    if (!raw) return false
+
+    const cookieUserId = verifyRecentAuthToken(raw)
+    if (!cookieUserId || cookieUserId !== userId) return false
+
+    // DB is the canonical source — cookie alone is insufficient
+    const record = await prisma.recentAuthRecord.findUnique({ where: { userId } })
+    if (!record) return false
+    if (record.expiresAt.getTime() <= Date.now()) return false
+
+    return true
+  } catch {
+    return false
+  }
+}
+
+/**
+ * Enforce recent auth — convenience wrapper that returns a 401 response object
+ * when the check fails, or null when the caller may proceed.
+ * The response shape matches RePIXL's `unauthorizedResponse()` so API routes
+ * can use it with a simple null-check.
+ */
+export async function requireRecentAuth(userId: string): Promise<{ status: 401; body: string } | null> {
+  const ok = await checkRecentAuth(userId)
+  if (!ok) return { status: 401, body: JSON.stringify({ success: false, error: 'Recent authentication required.', code: 'RECENT_AUTH_REQUIRED' }) }
+  return null
+}
+
+/**
+ * Record a failed password attempt against the recent-auth rate-limit bucket.
+ * Returns `{ locked: true }` if the budget is exhausted, `{ locked: false }` otherwise.
+ */
+export async function recordRecentAuthFailure(userId: string): Promise<{ locked: boolean }> {
+  const now = new Date()
+  try {
+    const record = await prisma.recentAuthRecord.upsert({
+      where:  { userId },
+      create: {
+        userId,
+        verifiedAt: new Date(0), // sentinel — not actually verified
+        expiresAt:  new Date(0),
+        attempts:   1,
+        windowStart: now,
+      },
+      update: {},
+    })
+
+    const windowExpired = now.getTime() - record.windowStart.getTime() >= RECENT_AUTH_ATTEMPT_WINDOW_MS
+    if (windowExpired) {
+      await prisma.recentAuthRecord.update({
+        where: { userId },
+        data:  { attempts: 1, windowStart: now },
+      })
+      return { locked: false }
+    }
+
+    const newAttempts = record.attempts + 1
+    await prisma.recentAuthRecord.update({
+      where: { userId },
+      data:  { attempts: newAttempts },
+    })
+    return { locked: newAttempts > RECENT_AUTH_MAX_ATTEMPTS }
+  } catch {
+    return { locked: false }
+  }
+}
+
+/**
+ * Check if the recent-auth attempt bucket is currently locked for a user.
+ */
+export async function isRecentAuthLocked(userId: string): Promise<boolean> {
+  try {
+    const record = await prisma.recentAuthRecord.findUnique({ where: { userId } })
+    if (!record) return false
+    const windowExpired = Date.now() - record.windowStart.getTime() >= RECENT_AUTH_ATTEMPT_WINDOW_MS
+    if (windowExpired) return false
+    return record.attempts >= RECENT_AUTH_MAX_ATTEMPTS
+  } catch {
+    return false
+  }
+}
+
+// ── Token helpers ─────────────────────────────────────────────────────────────
+
+function createRecentAuthToken(userId: string): string {
+  const payload = Buffer.from(JSON.stringify({ userId, iat: Date.now() })).toString('base64url')
+  const sig = createHmac('sha256', getSecret()).update(payload).digest('base64url')
+  return `${payload}.${sig}`
+}
+
+function verifyRecentAuthToken(token: string): string | null {
+  const parts = token.split('.')
+  if (parts.length !== 2) return null
+  const [payload, sig] = parts
+  const expected = createHmac('sha256', getSecret()).update(payload).digest('base64url')
+  const sigBuf = Buffer.from(sig)
+  const expBuf = Buffer.from(expected)
+  if (sigBuf.length !== expBuf.length || !timingSafeEqual(sigBuf, expBuf)) return null
+  try {
+    const parsed = JSON.parse(Buffer.from(payload, 'base64url').toString('utf-8'))
+    if (typeof parsed?.userId !== 'string') return null
+    return parsed.userId as string
+  } catch {
+    return null
+  }
+}
+
+// getSecret() is defined earlier in this file; the recent-auth token helpers above use it.

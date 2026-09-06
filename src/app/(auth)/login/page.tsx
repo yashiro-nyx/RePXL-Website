@@ -69,13 +69,17 @@ function LoginContent() {
           firstName: result.user.firstName,
           lastName: result.user.lastName,
           userEmail: result.user.email,
-          userPhone: result.user.phone,
+          maskedPhone: result.user.maskedPhone,
+          maskedDob: result.user.maskedDob,
+          hasPassword: result.user.hasPassword,
           role: result.user.role,
           isSuperAdmin: result.user.isSuperAdmin,
         })
 
         addToast('Welcome back!')
         router.replace('/account')
+      } else if (result.mfaRequired) {
+        router.replace('/login/mfa')
       } else if ('notFound' in result && result.notFound) {
         setOauthNotFound(true)
       } else {

@@ -111,7 +111,6 @@ export default function CheckoutPage() {
   const isLoggedIn = useAuthStore((s) => s.isLoggedIn)
   const userName = `${useAuthStore((s) => s.firstName)} ${useAuthStore((s) => s.lastName)}`.trim()
   const userEmail = useAuthStore((s) => s.userEmail)
-  const userPhone = useAuthStore((s) => s.userPhone)
   const hydrateAuth = useAuthStore((s) => s.hydrate)
   const router = useRouter()
 
@@ -192,7 +191,6 @@ export default function CheckoutPage() {
     if (!hydrated || prefilled) return
     if (userName) setFullName(userName)
     if (userEmail) setEmail(userEmail)
-    if (userPhone) setPhone(userPhone)
     if (defaultAddress) {
       if (defaultAddress.fullName) setFullName(defaultAddress.fullName)
       if (defaultAddress.address) setStreetAddress(defaultAddress.address)
@@ -217,7 +215,7 @@ export default function CheckoutPage() {
     const defaultCard = usePaymentStore.getState().cards.find((c) => c.isDefault)
     if (defaultCard) setSelectedCardId(defaultCard.id)
     setPrefilled(true)
-  }, [hydrated, prefilled, userName, userEmail, userPhone, defaultAddress])
+  }, [hydrated, prefilled, userName, userEmail, defaultAddress])
 
   // Helper: apply a saved address to all controlled checkout fields
   const applyAddress = (addr: typeof defaultAddress) => {
@@ -796,7 +794,7 @@ export default function CheckoutPage() {
                   ))}
                   <button
                     type="button"
-                    onClick={() => { setSelectedAddressId(null); setFullName(userName); setStreetAddress(''); setPostalCode(''); setPhone(userPhone); setPhAddr(emptyPHAddress) }}
+                    onClick={() => { setSelectedAddressId(null); setFullName(userName); setStreetAddress(''); setPostalCode(''); setPhone(''); setPhAddr(emptyPHAddress) }}
                     className={`w-full rounded-xl border px-4 py-3 text-left transition-colors ${
                       selectedAddressId === null
                         ? 'border-repixl-red bg-repixl-red/10'
