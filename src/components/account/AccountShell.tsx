@@ -55,7 +55,7 @@ const ICON_MAP: Record<string, React.FC> = {
 export default function AccountShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const router = useRouter()
-  const { isLoggedIn, firstName, lastName, userEmail, avatarUrl, hydrate, logout } = useAuthStore()
+  const { isLoggedIn, authStatus, authError, firstName, lastName, userEmail, avatarUrl, hydrate, logout } = useAuthStore()
   const [ready, setReady] = useState(false)
   const [loggingOut, setLoggingOut] = useState(false)
   const [unreadCount, setUnreadCount] = useState(0)
@@ -69,8 +69,8 @@ export default function AccountShell({ children }: { children: React.ReactNode }
   }, [hydrate])
 
   useEffect(() => {
-    if (ready && !isLoggedIn) router.replace('/login')
-  }, [ready, isLoggedIn, router])
+    if (ready && authStatus === 'unauthenticated') router.replace('/login')
+  }, [ready, authStatus, router])
 
   // Poll unread counts — single request returns total + per-category breakdown.
   // The extended /api/notifications/unread-count endpoint uses a groupBy query
@@ -114,17 +114,20 @@ export default function AccountShell({ children }: { children: React.ReactNode }
 
   if (!ready || !isLoggedIn)
     return (
-      <div className="burn-subtle min-h-screen pb-20 pt-24">
-        <div className="mx-auto flex max-w-container px-6 md:px-10 lg:px-16">
-          {/* Placeholder sidebar gutter — keeps the loader in the content column */}
-          <div className="hidden w-64 shrink-0 lg:block" aria-hidden="true" />
-          <main
-            className="flex min-h-[calc(100vh-10rem)] flex-1 items-center justify-center"
-            role="status"
-            aria-live="polite"
-          >
-            <FilmStripLoader label="Loading your account…" />
-          </main>
+      <div
+        className="burn-subtle flex min-h-[100dvh] items-center justify-center pt-24 overflow-hidden"
+        role="status"
+        aria-live="polite"
+      >
+        <div className="flex w-full max-w-[480px] flex-col items-center justify-center px-6">
+          {authStatus === 'error' ? (
+            <div className="space-y-4 text-center text-repixl-text-light">
+              <p>{authError}</p>
+              <button className="rounded-lg bg-repixl-red px-4 py-2 text-white" onClick={() => void hydrate()}>Retry</button>
+            </div>
+          ) : (
+            <FilmStripLoader className="w-full" label="Loading your account…" />
+          )}
         </div>
       </div>
     )
@@ -223,6 +226,11 @@ export default function AccountShell({ children }: { children: React.ReactNode }
 
             {/* ── Main content ─────────────────────────────────── */}
             <main className="min-w-0 flex-1 text-repixl-text-light">
+              {authError && (
+                <div role="alert" className="mb-4 rounded-lg border border-repixl-muted/20 p-4 text-sm">
+                  {authError} <button className="underline" onClick={() => void hydrate()}>Retry</button>
+                </div>
+              )}
               {children}
             </main>
           </div>

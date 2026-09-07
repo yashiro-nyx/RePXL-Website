@@ -63,18 +63,7 @@ function LoginContent() {
 
     authService.oauthLoginOnly(email, nameParts[0] ?? '', nameParts.slice(1).join(' ')).then((result) => {
       if (result.ok) {
-        localStorage.removeItem('repixl-oauth-logged-out')
-        useAuthStore.setState({
-          isLoggedIn: true,
-          firstName: result.user.firstName,
-          lastName: result.user.lastName,
-          userEmail: result.user.email,
-          maskedPhone: result.user.maskedPhone,
-          maskedDob: result.user.maskedDob,
-          hasPassword: result.user.hasPassword,
-          role: result.user.role,
-          isSuperAdmin: result.user.isSuperAdmin,
-        })
+        useAuthStore.getState().acceptSession(result.user)
 
         addToast('Welcome back!')
         router.replace('/account')

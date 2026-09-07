@@ -108,7 +108,7 @@ export function NavBellDropdown({
   if (!authHydrated || !isLoggedIn) return null
 
   return (
-    <div className="relative" ref={containerRef}>
+    <div className="relative inline-flex items-center" ref={containerRef}>
       {/* Bell button */}
       <button
         ref={bellRef}
@@ -140,8 +140,6 @@ export function NavBellDropdown({
           </span>
         )}
       </button>
-
-      {/* Dropdown */}
       {open && (
         <div
           role="dialog"

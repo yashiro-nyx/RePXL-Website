@@ -13,9 +13,28 @@ vi.mock('next/navigation', () => ({ redirect }))
 import AccountPage from '@/app/(storefront)/account/page'
 
 describe('customer account navigation', () => {
-  it('opens purchases rather than a dashboard', () => {
+  it('opens Profile rather than Payments or a dashboard', () => {
     AccountPage()
-    expect(redirect).toHaveBeenCalledWith('/account/orders')
+    expect(redirect).toHaveBeenCalledWith('/account/profile')
+  })
+
+  it('centers the loader within the full viewport below the navbar', () => {
+    const shell = readFileSync('src/components/account/AccountShell.tsx', 'utf8')
+    expect(shell).toContain('items-center justify-center')
+    expect(shell).toContain('max-w-[480px]')
+    expect(shell).toContain('role="status"')
+    expect(shell).toContain('aria-live="polite"')
+    // No sidebar gutter spacer in the loading state
+    expect(shell).not.toContain('hidden w-64 shrink-0 lg:block')
+  })
+  it('keeps the native DOB picker visible in both themes', () => {
+    const modal = readFileSync('src/components/account/SensitiveChangeModal.tsx', 'utf8')
+    const css = readFileSync('src/app/globals.css', 'utf8')
+    expect(modal).toContain('type="date"')
+    expect(modal).toContain('className="account-dob-input ')
+    expect(css).toContain('.account-dob-input { color-scheme: dark; }')
+    expect(css).toContain('[data-theme="light"] .account-dob-input { color-scheme: light; }')
+    expect(css).toContain('calendar-picker-indicator { cursor: pointer; opacity: 1; }')
   })
 
   it('contains all required top-level nav items', () => {
@@ -49,6 +68,27 @@ describe('customer account navigation', () => {
     for (const group of Array.from(usedGroups)) {
       expect(NAV_GROUPS).toContain(group)
     }
+  })
+
+  it('keeps Payments reachable through the shared desktop and mobile navigation', () => {
+    const payments = accountNavigation.filter((item) => item.href === '/account/payments')
+    expect(payments).toEqual([{ href: '/account/payments', label: 'Payments', group: 'Payments' }])
+    expect(NAV_GROUPS).toContain(payments[0].group)
+    expect(accountSectionActive('/account/payments', payments[0].href)).toBe(true)
+    const shell = readFileSync('src/components/account/AccountShell.tsx', 'utf8')
+    expect(shell).toMatch(/'\/account\/payments':\s+IconCreditCard/)
+    expect(shell.match(/<NavGroups\s/g)).toHaveLength(2)
+    expect(shell).toContain('id="mobile-account-nav"')
+  })
+
+  it('keeps the Payments route on the existing safe empty-state panel', () => {
+    const route = readFileSync('src/app/(storefront)/account/payments/page.tsx', 'utf8')
+    expect(route.trim()).toBe("export { default } from '@/components/account/PaymentsPanel'")
+    const panel = readFileSync('src/components/account/PaymentsPanel.tsx', 'utf8')
+    expect(panel).toContain('No saved payment methods')
+    expect(panel).toContain('does not currently store reusable payment methods')
+    expect(panel).toContain('choose GCash at checkout')
+    expect(panel).not.toMatch(/<input|localStorage\.(setItem|getItem)|router\.(push|replace)|signOut\(/)
   })
 
   it('Security item has MFA as a child', () => {

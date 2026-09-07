@@ -22,9 +22,11 @@ export const dynamic = 'force-dynamic'
  *   hasPassword is exposed as a boolean so the UI can detect Google-only accounts
  *   and gate the email-change flow appropriately.
  */
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    const admin = await getCurrentAdmin()
+    const admin = request.nextUrl.searchParams.get('scope') === 'customer'
+      ? null
+      : await getCurrentAdmin()
     const user  = admin ?? (await getCurrentUser())
     if (!user) return unauthorizedResponse()
 
@@ -94,7 +96,9 @@ export async function GET() {
  */
 export async function PUT(request: NextRequest) {
   try {
-    const admin = await getCurrentAdmin()
+    const admin = request.nextUrl.searchParams.get('scope') === 'customer'
+      ? null
+      : await getCurrentAdmin()
     const user  = admin ?? (await getCurrentUser())
     if (!user) return unauthorizedResponse()
 

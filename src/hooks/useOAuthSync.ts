@@ -24,7 +24,7 @@
  */
 
 import { useEffect, useRef } from 'react'
-import { useSession, signOut } from 'next-auth/react'
+import { useSession } from 'next-auth/react'
 import { usePathname, useSearchParams } from 'next/navigation'
 import { useAuthStore } from '@/stores/authStore'
 
@@ -33,6 +33,7 @@ export function useOAuthSync() {
   const loginWithOAuth = useAuthStore((s) => s.loginWithOAuth)
   const isLoggedIn = useAuthStore((s) => s.isLoggedIn)
   const userEmail = useAuthStore((s) => s.userEmail)
+  const authStatus = useAuthStore((s) => s.authStatus)
 
   const pendingRef = useRef(false)
   const syncedEmailRef = useRef<string | null>(null)
@@ -43,17 +44,6 @@ export function useOAuthSync() {
   useEffect(() => {
     if (status !== 'authenticated' || !session?.user?.email) return
 
-    // ── Logout persistence guard ──────────────────────────────────────────────
-    const loggedOut =
-      typeof window !== 'undefined' &&
-      localStorage.getItem('repixl-oauth-logged-out') === '1'
-
-    if (loggedOut) {
-      // Clear the NextAuth JWT so this guard doesn't fire on every future mount.
-      signOut({ redirect: false }).catch(() => { /* non-critical */ })
-      return
-    }
-
     // ── Skip during active OAuth callback ────────────────────────────────────
     // If the page has ?oauth=login or ?oauth=register, the login/register page
     // is handling the OAuth callback itself. Don't interfere.
@@ -63,6 +53,16 @@ export function useOAuthSync() {
     // Also skip on auth pages entirely — they manage their own flow.
     if (pathname === '/login' || pathname.startsWith('/login/') || pathname === '/register') return
     // ── End skip ──────────────────────────────────────────────────────────────
+
+    // Only an explicit unauthenticated server result can start automatic bridging.
+    // Initial hydration, transient errors, and credential sessions take precedence.
+    if (authStatus !== 'unauthenticated' || isLoggedIn) return
+    try {
+      if (localStorage.getItem('repixl-oauth-logged-out') === '1') return
+    } catch {
+      // Without the logout preference, only an intentional Google callback may log in.
+      return
+    }
 
     const googleEmail = session.user.email.toLowerCase()
 
@@ -100,7 +100,7 @@ export function useOAuthSync() {
       })
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [status, session, pathname, searchParams])
+  }, [status, session, pathname, searchParams, authStatus, isLoggedIn, userEmail, loginWithOAuth])
 
   useEffect(() => {
     if (status === 'unauthenticated') {

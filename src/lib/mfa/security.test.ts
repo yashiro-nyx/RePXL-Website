@@ -38,7 +38,10 @@ import {
   getCurrentAdmin,
   getCurrentUser,
   setSessionCookie,
+  setAdminSessionCookie,
 } from '@/lib/auth-helpers'
+import { GET as me, PUT as updateProfile } from '@/app/api/auth/me/route'
+import { POST as logout } from '@/app/api/auth/logout/route'
 import { POST as login } from '@/app/api/auth/login/route'
 import { POST as google } from '@/app/api/auth/oauth/login/route'
 import { POST as legacy } from '@/app/api/auth/oauth/route'
@@ -382,6 +385,51 @@ describe.skipIf(!databaseUrl)('customer MFA security with PostgreSQL', () => {
     expect((await manage(request({ action: 'begin', password }))).status).toBe(
       401
     )
+  })
+  it('customer login survives an existing admin cookie, refresh, and then logout', async () => {
+    const user = await customer()
+    const admin = await prisma.user.create({data: {email: 'admin-session@example.test', password: 'unused', firstName: 'Admin', lastName: 'Test', role: 'ADMIN'}})
+    setAdminSessionCookie(admin.id)
+    expect((await passwordLogin()).status).toBe(200)
+    const customerRequest = new NextRequest('http://localhost/api/auth/me?scope=customer')
+    for (let refresh = 0; refresh < 2; refresh++) {
+      const response = await me(customerRequest)
+      expect(response.status).toBe(200)
+      expect((await response.json()).data.id).toBe(user.id)
+    }
+    const saved = await updateProfile(new NextRequest('http://localhost/api/auth/me?scope=customer', {
+      method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({firstName: 'Customer edit', lastName: 'Test'})
+    }))
+    expect(saved.status).toBe(200)
+    expect((await saved.json()).data.id).toBe(user.id)
+    expect((await prisma.user.findUniqueOrThrow({where: {id: admin.id}})).firstName).toBe('Admin')
+    // The default admin read and independent admin cookie remain valid.
+    expect((await (await me(new NextRequest('http://localhost/api/auth/me'))).json()).data.id).toBe(admin.id)
+    expect((await getCurrentAdmin())?.id).toBe(admin.id)
+    expect((await logout()).status).toBe(200)
+    expect((await me(customerRequest)).status).toBe(401)
+  })
+  it('MFA completion remains authenticated on repeated profile reads', async () => {
+    const {user, codes} = await enroll()
+    await challenge()
+    expect((await verify(request({code: codes[0]}))).status).toBe(200)
+    for (let refresh = 0; refresh < 2; refresh++) {
+      const response = await me(new NextRequest('http://localhost/api/auth/me?scope=customer'))
+      expect(response.status).toBe(200)
+      expect((await response.json()).data.id).toBe(user.id)
+    }
+  })
+  it.each([true, false])('Google login has a durable customer session (Google-only=%s)', async (googleOnly) => {
+    const user = await customer(googleOnly)
+    mocks.cookies.clear()
+    mocks.google.mockResolvedValue({user: {email: user.email}, primaryAuthenticatedAt: Date.now()})
+    expect((await google(request({email: user.email, firstName: 'Test'}))).status).toBe(200)
+    for (let refresh = 0; refresh < 2; refresh++) {
+      const response = await me(new NextRequest('http://localhost/api/auth/me?scope=customer'))
+      expect(response.status).toBe(200)
+      expect((await response.json()).data.id).toBe(user.id)
+    }
+    expect(await prisma.user.count({where: {email: user.email}})).toBe(1)
   })
   it('preserves password and Google login without MFA', async () => {
     const user = await customer()

@@ -129,7 +129,7 @@ describe.skipIf(!url)('sensitive profile PostgreSQL regression', () => {
   it('GET and PUT return masks and hasPassword without raw phone/DOB', async () => {
     const user = await fixture()
     for (const response of [
-      await me(),
+      await me(new NextRequest('http://localhost/api/auth/me')),
       await update(request({ firstName: 'New', lastName: 'Name' })),
     ]) {
       const body = (await response.json()).data

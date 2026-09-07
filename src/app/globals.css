@@ -588,3 +588,8 @@ body.scroll-locked {
 .auth-panel-right .bg-repixl-charcoal {
   /* removed — replaced by auth-panel-bg */
 }
+
+/* Native DOB picker follows the account theme without intercepting clicks. */
+.account-dob-input { color-scheme: dark; }
+[data-theme="light"] .account-dob-input { color-scheme: light; }
+.account-dob-input::-webkit-calendar-picker-indicator { cursor: pointer; opacity: 1; }

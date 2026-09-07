@@ -497,7 +497,7 @@ const milestones = [
     date: 'Today',
     title: '2,400+ collectors, six brands catalogued',
     description:
-      'Still small, still collector-run — every camera gets the same care, whether it\'s $40 or a rare early CyberShot.',
+      'Still small, still collector-run — every camera that passes through our hands gets the same care, whether it\'s a budget compact or a rare early CyberShot.',
   },
 ]
 
@@ -766,7 +766,7 @@ function WhereHeaded({ reducedMotion }: { reducedMotion: boolean }) {
           <p className="mt-5 text-sm leading-relaxed text-repixl-text-light/75">
             RePXL is still young — we&apos;re a small, collector-run team, and every
             camera that passes through our hands gets the same care whether it&apos;s a
-            $40 point-and-shoot or a rare early CyberShot. As we grow, our commitment
+            budget point-and-shoot or a rare early CyberShot. As we grow, our commitment
             stays the same:{' '}
             <strong className="text-repixl-text-light">transparency first, always.</strong>
           </p>

@@ -28,7 +28,7 @@ export default function MfaLoginPage() {
         throw new Error(result.error ?? 'Unable to verify code.')
       setCode('')
       setLogoutPreference(false)
-      await useAuthStore.getState().hydrate()
+      await useAuthStore.getState().refreshSession()
       router.replace('/account')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to verify code.')

@@ -33,9 +33,12 @@ function buildDatabaseUrl(): string | undefined {
 
 export const prisma =
   globalForPrisma.prisma ??
-  new PrismaClient({
-    datasources: { db: { url: buildDatabaseUrl() } },
-  })
+  (() => {
+    const url = buildDatabaseUrl()
+    return url
+      ? new PrismaClient({ datasources: { db: { url } } })
+      : new PrismaClient()
+  })()
 
 // Always assign — idempotent within a single JS runtime instance.
 // In development this prevents Fast Refresh from opening a new connection pool

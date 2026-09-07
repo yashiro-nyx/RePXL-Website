@@ -27,7 +27,7 @@ function buildSections(getAverageRating: (slug: string) => number): SpecSection[
     {
       label: 'Pricing & Availability',
       rows: [
-        { key: 'price', label: 'Price', getValue: (p) => `$${p.price}`, highlight: true },
+        { key: 'price', label: 'Price', getValue: (p) => formatPrice(p.price), highlight: true },
         { key: 'stock', label: 'Stock', getValue: (p) => Math.max(0, p.stock) > 0 ? `${Math.max(0, p.stock)} available` : 'Out of stock', highlight: true },
         { key: 'condition', label: 'Condition', getValue: (p) => p.condition.charAt(0).toUpperCase() + p.condition.slice(1), highlight: true },
       ],

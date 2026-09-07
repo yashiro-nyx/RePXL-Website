@@ -380,7 +380,7 @@ export function SensitiveChangeModal({
                     value={newValue}
                     onChange={(e) => setNewValue(e.target.value)}
                     max={new Date().toISOString().slice(0, 10)}
-                    className="w-full rounded-xl border border-repixl-muted/20 bg-repixl-charcoal px-3 py-2.5 text-sm text-repixl-text-light focus:border-repixl-muted/40 focus:outline-none"
+                    className="account-dob-input w-full rounded-xl border border-repixl-muted/20 bg-repixl-charcoal px-3 py-2.5 text-sm text-repixl-text-light focus:border-repixl-muted/40 focus:outline-none"
                   />
                 </div>
               )}

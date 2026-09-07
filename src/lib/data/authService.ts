@@ -106,10 +106,10 @@ export const authService = {
   async logout(): Promise<void> {
     await apiClient.post('/api/auth/logout')
   },
-  async me(): Promise<AuthUser | null> {
+  async me(scope: 'customer' | 'auto' = 'auto'): Promise<AuthUser | null> {
     clearLegacyAccountStorage()
     try {
-      return toAuthUser(await apiClient.get<ApiUser>('/api/auth/me'))
+      return toAuthUser(await apiClient.get<ApiUser>(scope === 'customer' ? '/api/auth/me?scope=customer' : '/api/auth/me'))
     } catch (err) {
       if (err instanceof ApiClientError && err.status === 401) return null
       throw err
@@ -121,8 +121,8 @@ export const authService = {
     username?: string | null
     gender?: string | null
     avatarUrl?: string | null
-  }): Promise<AuthUser> {
-    return toAuthUser(await apiClient.put<ApiUser>('/api/auth/me', data))
+  }, scope: 'customer' | 'auto' = 'auto'): Promise<AuthUser> {
+    return toAuthUser(await apiClient.put<ApiUser>(scope === 'customer' ? '/api/auth/me?scope=customer' : '/api/auth/me', data))
   },
   async changePassword(
     email: string,

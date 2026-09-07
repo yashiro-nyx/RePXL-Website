@@ -232,8 +232,8 @@ describe('AccountShell loader centering', () => {
     expect(src).toContain('FilmStripLoader')
   })
 
-  it('loader container uses min-h to actually enable vertical centering', () => {
+  it('loader container uses min-h to fill the viewport for vertical centering', () => {
     const src = readFileSync('src/components/account/AccountShell.tsx', 'utf8')
-    expect(src).toContain('min-h-[calc(')
+    expect(src).toContain('min-h-[100dvh]')
   })
 })

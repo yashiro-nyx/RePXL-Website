@@ -34,8 +34,8 @@ export function DealBanner() {
               className="font-display text-display-lg text-repixl-text-light"
             />
             <p className="mt-4 text-sm leading-relaxed text-repixl-text-light/70">
-              Save up to $40 on selected 2000s compacts this week — mint and
-              excellent-grade Canon and Nikon bodies, while stock lasts.
+              Explore this week's selection of mint and excellent-grade Canon and
+              Nikon 2000s compacts — condition-graded and ready to shoot.
             </p>
             <Link href="/products">
               <button

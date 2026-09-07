@@ -88,11 +88,10 @@ export default function CartPage() {
     })
   }
 
-  const SHIPPING_COST = 12
   const subtotal = selectedItems.reduce((sum, { product, quantity }) => sum + product.price * quantity, 0)
   const fullSubtotal = resolvedItems.reduce((sum, { product, quantity }) => sum + product.price * quantity, 0)
   const discount = promoApplied ? promoDiscount : 0
-  const total = subtotal + SHIPPING_COST - discount
+  const total = subtotal - discount
   const totalQty = resolvedItems.reduce((s, i) => s + i.quantity, 0)
   const selectedQty = selectedItems.reduce((s, i) => s + i.quantity, 0)
 
@@ -334,14 +333,10 @@ export default function CartPage() {
                     <dt className="text-repixl-text-light/70">Subtotal ({selectedQty} {selectedQty === 1 ? 'item' : 'items'})</dt>
                     <dd className="font-mono text-repixl-text-light">{formatPrice(subtotal)}</dd>
                   </div>
-                  <div className="flex justify-between text-sm">
-                    <dt className="text-repixl-text-light/70">Shipping (est.)</dt>
-                    <dd className="font-mono text-repixl-text-light">${SHIPPING_COST}</dd>
-                  </div>
                   {promoApplied && (
                     <div className="flex justify-between text-sm">
                       <dt className="text-repixl-success">Discount</dt>
-                      <dd className="font-mono text-repixl-success">−${discount}</dd>
+                      <dd className="font-mono text-repixl-success">−{formatPrice(discount)}</dd>
                     </div>
                   )}
                   <div className="border-t border-repixl-muted/10 pt-3">
@@ -349,6 +344,7 @@ export default function CartPage() {
                       <dt className="text-sm font-medium text-repixl-text-light">Total</dt>
                       <dd className="font-display text-xl font-bold text-repixl-text-light">{formatPrice(total)}</dd>
                     </div>
+                    <p className="mt-1 font-mono text-[9px] text-repixl-muted/60">Shipping calculated at checkout</p>
                   </div>
                 </dl>
 
@@ -366,7 +362,7 @@ export default function CartPage() {
                 ) : (
                   <p className="mt-4 flex items-center gap-1.5 font-mono text-[10px] text-repixl-success">
                     <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden="true"><path d="M20 6 9 17l-5-5" /></svg>
-                    Voucher applied — ${discount} off
+                    Voucher applied — {formatPrice(discount)} off
                   </p>
                 )}
 

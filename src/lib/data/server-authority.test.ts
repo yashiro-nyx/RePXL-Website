@@ -192,6 +192,7 @@ it.each([
 it.each(['hydrate', 'hydrateAdmin'] as const)(
   '%s ignores forged local session records',
   async (method) => {
+    useAuthStore.setState({ isLoggedIn: false, isSuperAdmin: false, authStatus: 'idle' })
     storage.set(
       'repixl-admin-session',
       JSON.stringify({

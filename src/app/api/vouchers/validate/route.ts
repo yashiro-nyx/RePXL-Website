@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { successResponse, errorResponse, unauthorizedResponse, validationError } from '@/lib/api'
 import { getCurrentUser } from '@/lib/auth-helpers'
 import { validateVoucherSchema } from '@/lib/validations'
+import { formatPrice } from '@/lib/format'
 
 // This route reads cookies / session state and must run per-request.
 export const dynamic = 'force-dynamic'
@@ -50,7 +51,7 @@ export async function POST(request: NextRequest) {
       return successResponse({
         valid: false,
         discount: 0,
-        error: `Minimum purchase of $${voucher.minPurchase} required.`,
+        error: `Minimum purchase of ${formatPrice(voucher.minPurchase)} required.`,
       })
     }
 

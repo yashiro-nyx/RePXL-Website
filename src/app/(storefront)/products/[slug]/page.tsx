@@ -463,7 +463,7 @@ export default function ProductDetailPage() {
                     children: (
                       <div className="space-y-2 text-sm text-repixl-text-light/70">
                         <p>Ships within 1–2 business days of order confirmation.</p>
-                        <p>Free shipping on orders over $150.</p>
+                        <p>Shipping options and rates are calculated at checkout.</p>
                         <p className="flex items-center gap-1.5">
                           <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-repixl-success flex-shrink-0" aria-hidden="true"><path d="M20 6 9 17l-5-5" /></svg>
                           14-day return window. Item must be in original condition.

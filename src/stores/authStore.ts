@@ -8,6 +8,10 @@ import {
 } from '@/lib/browser-storage'
 
 interface AuthState {
+  authStatus: 'idle' | 'loading' | 'authenticated' | 'unauthenticated' | 'error'
+  authError: string | null
+  acceptSession: (user: AuthUser) => void
+  refreshSession: () => Promise<void>
   isLoggedIn: boolean
   firstName: string
   lastName: string
@@ -50,6 +54,8 @@ interface AuthState {
 }
 
 const LOGGED_OUT = {
+  authStatus: 'unauthenticated' as const,
+  authError: null,
   isLoggedIn: false,
   firstName: '',
   lastName: '',
@@ -66,8 +72,11 @@ const LOGGED_OUT = {
 }
 // Prevent an older hydration response from overwriting a newer login/logout.
 let authRevision = 0
+let hydrationSequence = 0
 function userState(user: AuthUser) {
   return {
+    authStatus: 'authenticated' as const,
+    authError: null,
     isLoggedIn: true,
     firstName: user.firstName,
     lastName: user.lastName,
@@ -86,6 +95,16 @@ function userState(user: AuthUser) {
 
 export const useAuthStore = create<AuthState>((set, get) => ({
   ...LOGGED_OUT,
+  authStatus: 'idle',
+  acceptSession: (user) => {
+    ++authRevision
+    setLogoutPreference(false)
+    set(userState(user))
+  },
+  refreshSession: async () => {
+    ++authRevision
+    await get().hydrate()
+  },
   register: async (firstName, lastName, email, password) => {
     const revision = ++authRevision
     const result = await authService.register(
@@ -99,8 +118,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       set(LOGGED_OUT)
       return false
     }
-    setLogoutPreference(false)
-    set(userState(result.user))
+    get().acceptSession(result.user)
     return true
   },
   login: async (email, password) => {
@@ -112,8 +130,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       if (!result.ok && result.mfaRequired && typeof window !== 'undefined') window.location.assign('/login/mfa')
       return false
     }
-    setLogoutPreference(false)
-    set(userState(result.user))
+    get().acceptSession(result.user)
     return true
   },
   loginAdmin: async (email, password) => {
@@ -124,8 +141,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       set(LOGGED_OUT)
       return false
     }
-    setLogoutPreference(false)
-    set(userState(result.user))
+    get().acceptSession(result.user)
     return true
   },
   loginWithOAuth: async (email, firstName, lastName) => {
@@ -137,8 +153,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       if (result.mfaRequired && typeof window !== 'undefined') { window.location.assign('/login/mfa'); return }
       throw new Error(result.error)
     }
-    setLogoutPreference(false)
-    set(userState(result.user))
+    get().acceptSession(result.user)
   },
   logout: async () => {
     ++authRevision
@@ -158,7 +173,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       username,
       gender,
       avatarUrl,
-    })
+    }, get().role === 'customer' ? 'customer' : 'auto')
     if (revision === authRevision) set(userState(user))
   },
   changePassword: async (oldPassword, newPassword) => {
@@ -172,12 +187,15 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
   hydrate: async () => {
     const revision = authRevision
+    const sequence = ++hydrationSequence
+    if (!get().isLoggedIn) set({ authStatus: 'loading', authError: null })
     try {
-      const user = await authService.me()
-      if (revision === authRevision)
+      const user = await authService.me('customer')
+      if (revision === authRevision && sequence === hydrationSequence)
         set(user?.role === 'customer' ? userState(user) : LOGGED_OUT)
     } catch {
-      if (revision === authRevision) set(LOGGED_OUT)
+      if (revision === authRevision && sequence === hydrationSequence)
+        set({ authStatus: 'error', authError: 'Unable to verify your session. Please try again.' })
     }
   },
   hydrateAdmin: async () => {
