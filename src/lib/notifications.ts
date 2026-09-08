@@ -311,7 +311,12 @@ async function _doEmit({
         userId,
         event,
         message: truncateForDisplay(body),
-        channel: channel as 'IN_APP' | 'BOTH',
+        // Always store as IN_APP regardless of whether email is also being sent.
+        // The channel field on the notification row represents where it lives
+        // (the in-app inbox), not the full delivery instruction. All customer-facing
+        // queries filter by channel = 'IN_APP' — storing 'BOTH' would silently
+        // hide notifications from the inbox.
+        channel: 'IN_APP',
         isRead: false,
       },
     })
