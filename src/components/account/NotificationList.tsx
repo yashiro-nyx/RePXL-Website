@@ -72,6 +72,18 @@ export function NotificationList({ filter, heading, showTabs = false }: Notifica
 
   useEffect(() => { load() }, [load])
 
+  // Refetch when the tab becomes visible again so the list is never stale
+  // after the user switches away and back.
+  useEffect(() => {
+    const onVisible = () => { if (!document.hidden) void load() }
+    document.addEventListener('visibilitychange', onVisible)
+    window.addEventListener('focus', onVisible)
+    return () => {
+      document.removeEventListener('visibilitychange', onVisible)
+      window.removeEventListener('focus', onVisible)
+    }
+  }, [load])
+
   const markRead = async (id: string) => {
     // Optimistic update first
     setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, isRead: true } : n)))
@@ -175,8 +187,8 @@ function NotificationRow({
   const categoryLabel = eventLabel(n.event)
 
   // Derive a destination URL for order-related notifications if the message
-  // contains an order number pattern (e.g. "ORD-XXXXXX")
-  const orderMatch = n.message.match(/\b(ORD-[A-Z0-9]{6,})\b/)
+  // contains an order number (RPX- prefix format used by this application)
+  const orderMatch = n.message.match(/\b(RPX-[A-Z0-9]{6,})\b/)
   const destination = orderMatch ? `/account/orders/${orderMatch[1]}` : null
 
   const content = (

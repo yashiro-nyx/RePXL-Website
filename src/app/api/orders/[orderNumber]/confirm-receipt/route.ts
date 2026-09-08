@@ -9,6 +9,7 @@ import {
 } from '@/lib/api'
 import { getCurrentUser } from '@/lib/auth-helpers'
 import { deleteFromCloudinary, MAX_IMAGES } from '@/lib/cloudinary'
+import { emitNotification } from '@/lib/notifications'
 import { z } from 'zod'
 
 export const dynamic = 'force-dynamic'
@@ -106,6 +107,19 @@ export async function POST(
         where: { id: order.id },
         data: { status: 'COMPLETED', completedAt: new Date(), updatedAt: new Date() },
       })
+
+      // Notify customer (non-blocking)
+      emitNotification({
+        userId: user.id,
+        event: 'ORDER_STATUS_CHANGE',
+        subject: `Order ${order.orderNumber} Complete`,
+        body: `Your order ${order.orderNumber} is now complete. Thank you for shopping with RePIXL!`,
+        channel: 'BOTH',
+        recipientEmail: user.email,
+      }).catch((err) => {
+        console.error('[confirm-receipt] notification failed (non-fatal):', err)
+      })
+
       return successResponse({
         orderNumber: order.orderNumber,
         status: 'COMPLETED',
@@ -179,6 +193,18 @@ export async function POST(
   })
 
   console.log(`[confirm-receipt] ${user.email} confirmed order ${order.orderNumber} — review submitted, order COMPLETED`)
+
+  // Notify customer that order is complete (non-blocking)
+  emitNotification({
+    userId: user.id,
+    event: 'ORDER_STATUS_CHANGE',
+    subject: `Order ${order.orderNumber} Complete`,
+    body: `Your order ${order.orderNumber} is now complete. Thank you for shopping with RePIXL!`,
+    channel: 'BOTH',
+    recipientEmail: user.email,
+  }).catch((err) => {
+    console.error('[confirm-receipt] notification failed (non-fatal):', err)
+  })
 
   return successResponse({
     orderNumber: order.orderNumber,

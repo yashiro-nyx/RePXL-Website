@@ -9,6 +9,7 @@ import {
   paginatedResponse,
 } from '@/lib/api'
 import { deleteFromCloudinary, MAX_IMAGES } from '@/lib/cloudinary'
+import { emitNotification } from '@/lib/notifications'
 import {
   ALL_REASONS,
   REASON_LABELS,
@@ -168,6 +169,18 @@ export async function POST(request: NextRequest) {
         adminId: 'system',
         adminName: 'System',
       },
+    })
+
+    // Notify customer that their return request was received (non-blocking)
+    emitNotification({
+      userId: user.id,
+      event: 'RETURN_RECEIVED',
+      subject: `Return Request Received — ${input.orderNumber}`,
+      body: `Your return request for order ${input.orderNumber} has been received and is under review.`,
+      channel: 'BOTH',
+      recipientEmail: user.email,
+    }).catch((err) => {
+      console.error('[returns] RETURN_RECEIVED notification failed (non-fatal):', err)
     })
 
     return successResponse(returnRequest, 201)

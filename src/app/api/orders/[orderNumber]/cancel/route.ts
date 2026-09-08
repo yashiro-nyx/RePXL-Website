@@ -7,6 +7,7 @@ import {
   notFoundResponse,
 } from '@/lib/api'
 import { getCurrentUser } from '@/lib/auth-helpers'
+import { emitNotification } from '@/lib/notifications'
 
 export const dynamic = 'force-dynamic'
 
@@ -41,6 +42,18 @@ export async function POST(
   await prisma.order.update({
     where: { id: order.id },
     data: { status: 'CANCELLED', updatedAt: new Date() },
+  })
+
+  // Emit notification to the customer (non-blocking — failure does not roll back)
+  emitNotification({
+    userId: user.id,
+    event: 'ORDER_STATUS_CHANGE',
+    subject: `Order ${order.orderNumber} Cancelled`,
+    body: `Your order ${order.orderNumber} has been cancelled as requested.`,
+    channel: 'BOTH',
+    recipientEmail: user.email,
+  }).catch((err) => {
+    console.error('[cancel] notification failed (non-fatal):', err)
   })
 
   console.log(`[cancel] User ${user.email} cancelled order ${order.orderNumber}`)

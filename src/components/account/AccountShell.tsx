@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
@@ -18,6 +18,7 @@ import {
   NAV_GROUPS,
   type NavItem,
 } from '@/lib/account-navigation'
+import { useNotificationCount } from '@/hooks/useNotificationCount'
 
 // ── Icons ────────────────────────────────────────────────────────────────────
 
@@ -58,9 +59,13 @@ export default function AccountShell({ children }: { children: React.ReactNode }
   const { isLoggedIn, authStatus, authError, firstName, lastName, userEmail, avatarUrl, hydrate, logout } = useAuthStore()
   const [ready, setReady] = useState(false)
   const [loggingOut, setLoggingOut] = useState(false)
-  const [unreadCount, setUnreadCount] = useState(0)
-  const [categoryUnreadCounts, setCategoryUnreadCounts] = useState<Record<string, number>>({})
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
+
+  // Shared notification count — uses the same hook as the Navbar so both
+  // read from a single polling interval rather than two independent timers.
+  const { state: notifState } = useNotificationCount(isLoggedIn)
+  const unreadCount          = notifState.count
+  const categoryUnreadCounts = notifState.byCategory
 
   useEffect(() => {
     let active = true
@@ -71,30 +76,6 @@ export default function AccountShell({ children }: { children: React.ReactNode }
   useEffect(() => {
     if (ready && authStatus === 'unauthenticated') router.replace('/login')
   }, [ready, authStatus, router])
-
-  // Poll unread counts — single request returns total + per-category breakdown.
-  // The extended /api/notifications/unread-count endpoint uses a groupBy query
-  // so one DB round-trip covers both the Notifications parent badge and the
-  // per-child (Order Updates / Promotions / RePIXL Updates) sidebar badges.
-  const refreshUnread = useCallback(async () => {
-    if (!isLoggedIn) return
-    try {
-      const res = await fetch('/api/notifications/unread-count', { credentials: 'include' })
-      if (!res.ok) return
-      const { data } = await res.json()
-      setUnreadCount(data?.count ?? 0)
-      // byCategory is keyed by the route path used in the sidebar nav
-      // e.g. { '/account/notifications/order-updates': 3, '/account/notifications/promotions': 1 }
-      setCategoryUnreadCounts(data?.byCategory ?? {})
-    } catch { /* ignore */ }
-  }, [isLoggedIn])
-  useEffect(() => {
-    if (ready && isLoggedIn) {
-      refreshUnread()
-      const interval = setInterval(refreshUnread, 60_000)
-      return () => clearInterval(interval)
-    }
-  }, [ready, isLoggedIn, refreshUnread])
 
   async function handleLogout() {
     if (!window.confirm('Log out of your RePIXL account?')) return

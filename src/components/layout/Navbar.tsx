@@ -14,6 +14,7 @@ import { useAuthStore } from '@/stores/authStore'
 import { useCartStore } from '@/stores/cartStore'
 import { useWishlistStore } from '@/stores/wishlistStore'
 import { useToastStore } from '@/stores/toastStore'
+import { useNotificationCount } from '@/hooks/useNotificationCount'
 
 export function Navbar() {
   const [searchOpen, setSearchOpen] = useState(false)
@@ -23,7 +24,6 @@ export function Navbar() {
   const [logoutModalOpen, setLogoutModalOpen] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [authHydrated, setAuthHydrated] = useState(false)
-  const [navUnreadCount, setNavUnreadCount] = useState(0)
   const inputRef = useRef<HTMLInputElement>(null)
   const profileRef = useRef<HTMLDivElement>(null)
   const router = useRouter()
@@ -33,6 +33,11 @@ export function Navbar() {
 
   const cartCount = useCartStore((s) => s.items.reduce((sum, i) => sum + i.quantity, 0))
   const wishlistCount = useWishlistStore((s) => s.slugs.length)
+
+  // Shared notification count — eliminates a second independent 60-second poller
+  const { state: notifState, refresh: refreshUnreadCount, decrementCount: decrementNavCount } =
+    useNotificationCount(isLoggedIn)
+  const navUnreadCount = notifState.count
 
   // Await auth hydration before revealing auth-dependent UI
   useEffect(() => {
@@ -53,29 +58,8 @@ export function Navbar() {
     } else {
       useCartStore.setState({ items: [] })
       useWishlistStore.setState({ slugs: [] })
-      setNavUnreadCount(0)
     }
   }, [isLoggedIn])
-
-  // Fetch unread notification count (efficient — COUNT only)
-  const fetchUnreadCount = useCallback(async () => {
-    if (!isLoggedIn) return
-    try {
-      const res = await fetch('/api/notifications/unread-count', { credentials: 'include' })
-      if (res.ok) {
-        const { data } = await res.json()
-        setNavUnreadCount(data?.count ?? 0)
-      }
-    } catch { /* ignore */ }
-  }, [isLoggedIn])
-
-  useEffect(() => {
-    if (authHydrated && isLoggedIn) {
-      fetchUnreadCount()
-      const interval = setInterval(fetchUnreadCount, 60_000)
-      return () => clearInterval(interval)
-    }
-  }, [authHydrated, isLoggedIn, fetchUnreadCount])
 
   // Close profile dropdown on outside click
   useEffect(() => {
@@ -203,9 +187,8 @@ export function Navbar() {
               unreadCount={navUnreadCount}
               isLoggedIn={isLoggedIn}
               authHydrated={authHydrated}
-              onUnreadCountChange={(delta) =>
-                setNavUnreadCount((c) => Math.max(0, c + delta))
-              }
+              onUnreadCountChange={(delta) => decrementNavCount(-delta)}
+              onOpen={refreshUnreadCount}
             />
 
             {/* Cart */}

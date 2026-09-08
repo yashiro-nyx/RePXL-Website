@@ -12,6 +12,8 @@ interface NavBellDropdownProps {
   authHydrated: boolean
   /** Called when the dropdown marks a notification read so the parent badge updates */
   onUnreadCountChange: (delta: number) => void
+  /** Called when the dropdown opens — triggers a fresh unread-count fetch */
+  onOpen?: () => void
 }
 
 // ── Helper: time-ago formatting ───────────────────────────────────────────────
@@ -35,6 +37,7 @@ export function NavBellDropdown({
   isLoggedIn,
   authHydrated,
   onUnreadCountChange,
+  onOpen,
 }: NavBellDropdownProps) {
   const [open, setOpen]                   = useState(false)
   const [items, setItems]                 = useState<NotificationItem[]>([])
@@ -63,6 +66,8 @@ export function NavBellDropdown({
     if (!open) {
       setOpen(true)
       fetchPreview()
+      // Also refresh the unread count so the badge is authoritative on open
+      onOpen?.()
     } else {
       setOpen(false)
     }
@@ -194,7 +199,7 @@ export function NavBellDropdown({
               <ul role="list">
                 {items.map((n) => {
                   // Derive an order destination from the message text if possible
-                  const orderMatch = n.message.match(/\b(ORD-[A-Z0-9]{6,})\b/)
+                  const orderMatch = n.message.match(/\b(RPX-[A-Z0-9]{6,})\b/)
                   const destination = orderMatch ? `/account/orders/${orderMatch[1]}` : null
 
                   const inner = (
