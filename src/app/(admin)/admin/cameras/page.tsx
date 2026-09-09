@@ -1,8 +1,9 @@
 'use client'
 
-import { reportActionFailure } from '@/lib/action-error'
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useProductStore } from '@/stores/productStore'
+import { adminProductService, cameraSaveError } from '@/lib/data/adminProductService'
+import { apiClient } from '@/lib/api-client'
 import { Pagination } from '@/components/ui/Pagination'
 import type { Product, ConditionGrade, ProductStatus } from '@/types'
 import { formatPrice } from '@/lib/format'
@@ -29,27 +30,6 @@ const placeholderImages = [
   '/images/product-panasonic-fz7.svg',
 ]
 
-// The API returns DB-cased fields; map to our Product type shape
-interface ApiProduct {
-  id: string; slug: string; name: string; brand: string; series: string
-  price: number; condition: string; image: string; stock: number
-  status: string; serialNumber?: string; conditionNotes?: string
-  megapixels: number; zoom: string; storage: string; year: number
-}
-
-function toProduct(p: ApiProduct): Product {
-  return {
-    slug: p.slug, name: p.name, brand: p.brand, series: p.series,
-    price: p.price, condition: p.condition.toLowerCase() as ConditionGrade,
-    image: p.image, stock: p.stock,
-    status: p.status.toLowerCase().replace('_', '-') as ProductStatus,
-    description: '',
-    serialNumber: p.serialNumber,
-    conditionNotes: p.conditionNotes,
-    specs: { megapixels: p.megapixels, zoom: p.zoom, storage: p.storage, year: p.year },
-  }
-}
-
 export default function AdminCamerasPage() {
   const [products, setProducts] = useState<Product[]>([])
   const [total, setTotal] = useState(0)
@@ -59,42 +39,54 @@ export default function AdminCamerasPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [loading, setLoading] = useState(true)
   const [allBrands, setAllBrands] = useState<string[]>([])
+  const [loadError, setLoadError] = useState('')
+  const [brandError, setBrandError] = useState('')
+  const loadSequence = useRef(0)
   const [modalOpen, setModalOpen] = useState(false)
   const [editingSlug, setEditingSlug] = useState<string | null>(null)
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
 
   const load = useCallback(async (page: number, brand: string, search: string) => {
+    const sequence = ++loadSequence.current
     setLoading(true)
+    setLoadError('')
     try {
-      // Admin sees all statuses — pass ACTIVE,INACTIVE,COMING_SOON,DISCONTINUED
-      const params = new URLSearchParams({
-        page: String(page), limit: String(PAGE_SIZE),
-        status: 'ACTIVE,INACTIVE,COMING_SOON,DISCONTINUED',
-      })
-      if (brand) params.set('brand', brand)
-      if (search.trim()) params.set('search', search.trim())
-      const res = await fetch(`/api/products?${params}`, { credentials: 'include' })
-      if (!res.ok) return
-      const json = await res.json()
-      const mapped = (json.data ?? []).map(toProduct)
-      setProducts(mapped)
-      setTotal(json.pagination?.total ?? 0)
-      setTotalPages(json.pagination?.totalPages ?? 1)
-      // Collect brands for the filter dropdown (only on first unfiltered load)
-      if (!brand && !search.trim() && page === 1) {
-        const unique = Array.from(new Set(mapped.map((p: Product) => p.brand))).sort() as string[]
-        if (unique.length > 0) setAllBrands(unique)
-      }
+      const result = await adminProductService.list(page, PAGE_SIZE, brand, search)
+      if (sequence !== loadSequence.current) return true
+      setProducts(result.products)
+      setTotal(result.total)
+      setTotalPages(result.totalPages)
+      return true
+    } catch {
+      if (sequence === loadSequence.current) setLoadError('Unable to refresh cameras. Please try again.')
+      return false
     } finally {
-      setLoading(false)
+      if (sequence === loadSequence.current) setLoading(false)
     }
   }, [])
 
-  useEffect(() => { void load(currentPage, brandFilter, searchQuery) }, [currentPage, brandFilter, searchQuery, load])
+  const loadBrands = useCallback(async () => {
+    try {
+      setAllBrands(await adminProductService.brands())
+      setBrandError('')
+    } catch {
+      setBrandError('Unable to load brand options. Please try again.')
+    }
+  }, [])
+  useEffect(() => { void loadBrands() }, [loadBrands])
+  useEffect(() => {
+    void load(currentPage, brandFilter, searchQuery)
+    return () => { loadSequence.current += 1 }
+  }, [currentPage, brandFilter, searchQuery, load])
 
   const handleBrandFilter = (b: string) => { setBrandFilter(b); setCurrentPage(1) }
   const handleSearch = (q: string) => { setSearchQuery(q); setCurrentPage(1) }
   const reload = () => load(currentPage, brandFilter, searchQuery)
+  const handleSaved = async () => {
+    setModalOpen(false)
+    void loadBrands()
+    if (!await reload()) setLoadError('Camera saved, but the list could not be refreshed. Please refresh the list before making another change.')
+  }
 
   return (
     <div>
@@ -111,12 +103,16 @@ export default function AdminCamerasPage() {
           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="absolute left-3 top-1/2 -translate-y-1/2 text-repixl-muted" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
           <input type="search" value={searchQuery} onChange={(e) => handleSearch(e.target.value)} placeholder="Search by name, brand, or serial…" className="w-full rounded-xl border border-repixl-muted/20 bg-repixl-charcoal py-2 pl-10 pr-4 text-sm text-repixl-text-light/80 placeholder:text-repixl-muted shadow-sm focus:border-repixl-red/30 focus:outline-none" />
         </div>
-        <select value={brandFilter} onChange={(e) => handleBrandFilter(e.target.value)} className="rounded-xl border border-repixl-muted/20 bg-repixl-charcoal px-4 py-2 text-sm text-repixl-text-light/80 shadow-sm focus:outline-none">
+        <select aria-label="Filter by brand" value={brandFilter} onChange={(e) => handleBrandFilter(e.target.value)} className="rounded-xl border border-repixl-muted/20 bg-repixl-charcoal px-4 py-2 text-sm text-repixl-text-light/80 shadow-sm focus:outline-none">
           <option value="">All Brands</option>
           {allBrands.map((b) => <option key={b} value={b}>{b}</option>)}
         </select>
       </div>
 
+      {(loadError || brandError) && <div role="alert" className="mt-4 rounded-xl border border-red-500/30 p-3 text-sm text-red-400">
+        {loadError || brandError}
+        <button onClick={() => { void reload(); void loadBrands() }} className="ml-3 underline">Retry</button>
+      </div>}
       <div className="mt-4 overflow-x-auto rounded-2xl border border-repixl-muted/20 bg-repixl-charcoal shadow-sm">
         <table className="w-full text-left text-sm">
           <thead className="border-b border-repixl-muted/10 bg-repixl-bg/50">
@@ -124,7 +120,7 @@ export default function AdminCamerasPage() {
           </thead>
           <tbody className="divide-y divide-repixl-muted/10">
             {loading && <tr><td colSpan={8} className="px-5 py-12 text-center text-sm text-repixl-muted">Loading…</td></tr>}
-            {!loading && products.length === 0 && <tr><td colSpan={8} className="px-5 py-12 text-center text-sm text-repixl-muted">No cameras found.</td></tr>}
+            {!loading && !loadError && products.length === 0 && <tr><td colSpan={8} className="px-5 py-12 text-center text-sm text-repixl-muted">No cameras found.</td></tr>}
             {!loading && products.map((p) => (
               <tr key={p.slug} className="transition-colors hover:bg-repixl-bg/60">
                 <td className="px-5 py-3.5"><div className="h-12 w-12 overflow-hidden rounded-xl bg-repixl-bg">{/* eslint-disable-next-line @next/next/no-img-element */}<img src={p.image} alt="" className="h-full w-full object-contain" /></div></td>
@@ -167,15 +163,11 @@ export default function AdminCamerasPage() {
             <div className="mt-4 flex justify-center gap-3">
               <button onClick={async () => {
                 try {
-                  await fetch(`/api/products/${confirmDelete}`, {
-                    method: 'PATCH',
-                    headers: { 'Content-Type': 'application/json' },
-                    credentials: 'include',
-                    body: JSON.stringify({ status: 'DISCONTINUED' }),
-                  })
-                } catch { /* swallow */ }
-                setConfirmDelete(null)
-                void reload()
+                  await apiClient.patch(`/api/products/${encodeURIComponent(confirmDelete)}`, { status: 'DISCONTINUED' })
+                  setConfirmDelete(null)
+                  await handleSaved()
+                } catch (error) { setLoadError(cameraSaveError(error)); setConfirmDelete(null) }
+
               }} className="flex-1 rounded-xl bg-amber-500 px-4 py-2 text-sm font-medium text-white hover:bg-amber-600">Archive</button>
               <button onClick={() => setConfirmDelete(null)} className="flex-1 rounded-xl border border-repixl-muted/20 px-4 py-2 text-sm text-repixl-muted hover:text-repixl-text-light">Cancel</button>
             </div>
@@ -183,17 +175,41 @@ export default function AdminCamerasPage() {
         </div>
       )}
 
-      {modalOpen && <CameraModal editingSlug={editingSlug} onClose={() => { setModalOpen(false); void reload() }} />}
+      {modalOpen && <CameraModal key={editingSlug ?? "new"} editingSlug={editingSlug} onClose={() => setModalOpen(false)} onSaved={handleSaved} />}
     </div>
   )
 }
 
-function CameraModal({ editingSlug, onClose }: { editingSlug: string | null; onClose: () => void }) {
-  const products = useProductStore((s) => s.products)
+function CameraModal({ editingSlug, onClose, onSaved }: { editingSlug: string | null; onClose: () => void; onSaved: () => Promise<void> }) {
+  const [existing, setExisting] = useState<Product | null>(null)
+  const [error, setError] = useState('')
+  const [attempt, setAttempt] = useState(0)
+  useEffect(() => {
+    if (!editingSlug) return
+    let cancelled = false
+    setError('')
+    adminProductService.get(editingSlug).then(product => {
+      if (!cancelled) setExisting(product)
+    }).catch(() => {
+      if (!cancelled) setError('Unable to load this camera. Retry before editing.')
+    })
+    return () => { cancelled = true }
+  }, [editingSlug, attempt])
+
+  if (editingSlug && !existing) return <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
+    <div role="status" className="rounded-2xl border border-repixl-muted/20 bg-repixl-charcoal p-6 text-repixl-text-light">
+      {error || 'Loading camera…'}
+      {error && <button onClick={() => setAttempt(value => value + 1)} className="ml-3 underline">Retry</button>}
+      <button onClick={onClose} className="ml-3 underline">Cancel</button>
+    </div>
+  </div>
+  return <CameraForm existing={existing} editingSlug={editingSlug} onClose={onClose} onSaved={onSaved} />
+}
+
+function CameraForm({ existing, editingSlug, onClose, onSaved }: { existing: Product | null; editingSlug: string | null; onClose: () => void; onSaved: () => Promise<void> }) {
   const addProduct = useProductStore((s) => s.addProduct)
   const updateProduct = useProductStore((s) => s.updateProduct)
-  const existing = editingSlug ? products.find((p) => p.slug === editingSlug) : null
-
+  const [saving, setSaving] = useState(false)
   const [name, setName] = useState(existing?.name ?? '')
   const [brand, setBrand] = useState(existing?.brand ?? 'Canon')
   const [series, setSeries] = useState(existing?.series ?? '')
@@ -212,8 +228,10 @@ function CameraModal({ editingSlug, onClose }: { editingSlug: string | null; onC
   const [error, setError] = useState('')
 
   const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (saving) return
+    setSaving(true)
     try {
-      e.preventDefault()
       if (!name.trim() || !price.trim()) {
         setError('Name and price are required.')
         return
@@ -247,9 +265,11 @@ function CameraModal({ editingSlug, onClose }: { editingSlug: string | null; onC
       }
       if (editingSlug) await updateProduct(editingSlug, productData)
       else await addProduct(productData)
-      onClose()
-    } catch {
-      reportActionFailure()
+      await onSaved()
+    } catch (error) {
+      setError(cameraSaveError(error))
+    } finally {
+      setSaving(false)
     }
   }
 
@@ -267,7 +287,7 @@ function CameraModal({ editingSlug, onClose }: { editingSlug: string | null; onC
           </button>
         </div>
 
-        {error && <div className="mx-6 mt-4 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-400">{error}</div>}
+        {error && <div role="alert" className="mx-6 mt-4 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-400">{error}</div>}
 
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
           {/* Basic Information */}
@@ -372,9 +392,9 @@ function CameraModal({ editingSlug, onClose }: { editingSlug: string | null; onC
           {/* Footer */}
           <div className="flex items-center justify-end gap-3 border-t border-repixl-muted/20 pt-4">
             <button type="button" onClick={onClose} className="rounded-lg border border-repixl-muted/20 px-4 py-2 text-sm text-repixl-muted transition-colors hover:bg-repixl-bg hover:text-repixl-text-light">Cancel</button>
-            <button type="submit" className="flex items-center gap-2 rounded-lg bg-repixl-red px-4 py-2 text-sm font-medium text-repixl-text-light transition-colors hover:bg-red-700">
+            <button type="submit" disabled={saving} className="flex items-center gap-2 rounded-lg bg-repixl-red px-4 py-2 text-sm font-medium text-repixl-text-light transition-colors hover:bg-red-700">
               <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" /><polyline points="17 21 17 13 7 13 7 21" /><polyline points="7 3 7 8 15 8" /></svg>
-              {editingSlug ? 'Save Camera' : 'Save Camera'}
+              {saving ? 'Saving…' : 'Save Camera'}
             </button>
           </div>
         </form>
