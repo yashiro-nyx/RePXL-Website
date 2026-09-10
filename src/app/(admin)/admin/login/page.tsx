@@ -55,7 +55,7 @@ export default function AdminLoginPage() {
       <div className="w-full max-w-sm">
         <div className="mb-8 text-center">
           <p className="font-mono text-sm font-bold text-repixl-text-light">
-            RePXL <span className="text-repixl-red">Admin</span>
+            ReP<span className="text-repixl-red">XL</span> <span className="text-repixl-red">Admin</span>
           </p>
         </div>
 

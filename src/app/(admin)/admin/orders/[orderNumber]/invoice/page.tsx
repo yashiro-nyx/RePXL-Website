@@ -87,7 +87,7 @@ export default function InvoicePage() {
         {/* Header */}
         <div className="mb-8 flex items-start justify-between border-b border-gray-200 pb-6">
           <div>
-            <h1 className="font-display text-2xl font-bold tracking-tight text-gray-900">RePXL</h1>
+            <h1 className="font-display text-2xl font-bold tracking-tight text-gray-900">ReP<span className="text-repixl-red">XL</span></h1>
             <p className="mt-0.5 font-mono text-xs uppercase tracking-widest text-gray-500">Vintage Digital Cameras</p>
           </div>
           <div className="text-right">

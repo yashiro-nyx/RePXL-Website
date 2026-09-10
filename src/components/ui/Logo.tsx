@@ -15,6 +15,7 @@ interface LogoProps {
   size?: 'sm' | 'md' | 'lg'
   className?: string
   showDot?: boolean
+  accentXL?: boolean
 }
 
 const sizes = {
@@ -23,7 +24,7 @@ const sizes = {
   lg: { width: 110, height: 40 },
 }
 
-export function Logo({ size = 'md', className = '', showDot = true }: LogoProps) {
+export function Logo({ size = 'md', className = '', showDot = true, accentXL = false }: LogoProps) {
   const { width, height } = sizes[size]
 
   return (
@@ -55,9 +56,9 @@ export function Logo({ size = 'md', className = '', showDot = true }: LogoProps)
           fontWeight="600"
           fontSize="18"
           letterSpacing="-0.5"
-          fill="currentColor"
         >
-          RePXL
+          <tspan fill="currentColor">ReP</tspan>
+          <tspan fill={accentXL ? 'var(--color-red)' : 'currentColor'}>XL</tspan>
         </text>
       </svg>
 

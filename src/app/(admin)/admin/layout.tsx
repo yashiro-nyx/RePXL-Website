@@ -113,7 +113,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         {/* Logo */}
         <div className="flex h-16 items-center px-5">
           <span className="font-display text-base font-bold tracking-tight text-repixl-text-light">
-            RePXL <span className="text-red-600">Admin</span>
+            ReP<span className="text-repixl-red">XL</span> <span className="text-repixl-red">Admin</span>
           </span>
         </div>
 

@@ -133,6 +133,43 @@ html:has(.burn-minimal) {
   clip-path: polygon(0 5%, 100% 0, 100% 100%, 0 100%);
 }
 
+/* Homepage hero: both photographic layers share identical cover geometry. */
+.hero-cinematic {
+  background: #160708;
+}
+
+.hero-environment {
+  object-position: 50% 50%;
+}
+
+.hero-atmosphere {
+  background:
+    linear-gradient(180deg, rgba(8, 3, 4, 0.22) 0%, transparent 34%, rgba(7, 3, 4, 0.18) 62%, rgba(7, 3, 4, 0.72) 100%),
+    linear-gradient(90deg, rgba(8, 3, 4, 0.32) 0%, transparent 45%, rgba(8, 3, 4, 0.12) 100%);
+}
+
+.hero-wordmark {
+  color: rgba(255, 246, 242, 0.13);
+  -webkit-text-stroke: 1px rgba(255, 246, 242, 0.34);
+  text-shadow: 0 10px 40px rgba(0, 0, 0, 0.12);
+}
+
+.hero-corner,
+.hero-focus {
+  border-color: rgba(255, 245, 240, 0.48);
+  filter: drop-shadow(0 1px 4px rgba(0, 0, 0, 0.45));
+}
+
+@media (max-width: 639px) {
+  .hero-environment {
+    object-position: 54% 50%;
+  }
+
+  .hero-wordmark {
+    top: 27%;
+  }
+}
+
 /* Scroll lock fallback for modals */
 body.scroll-locked {
   overflow: hidden;

@@ -79,7 +79,7 @@ export default function PackingSlipPage() {
         {/* Header */}
         <div className="mb-6 flex items-start justify-between border-b-2 border-gray-900 pb-4">
           <div>
-            <h1 className="font-display text-xl font-bold tracking-tight text-gray-900">RePXL</h1>
+            <h1 className="font-display text-xl font-bold tracking-tight text-gray-900">ReP<span className="text-repixl-red">XL</span></h1>
             <p className="font-mono text-[10px] uppercase tracking-widest text-gray-500">Packing Slip</p>
           </div>
           <div className="text-right">
