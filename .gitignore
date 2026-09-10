@@ -7,5 +7,9 @@ node_modules
 # TypeScript incremental build cache (regenerated on build)
 tsconfig.tsbuildinfo
 *.tsbuildinfo
+
+# macOS metadata
 .DS_Store
-.DS_Store
+._*
+.AppleDouble
+.LSOverride
