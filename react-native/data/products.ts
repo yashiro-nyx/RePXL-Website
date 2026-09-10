@@ -1,0 +1,113 @@
+import type { Product } from '../types';
+
+export const PRODUCTS: Product[] = [
+  {
+    id: 1,
+    name: 'Nikon Coolpix 3200',
+    brand: 'NIKON',
+    series: 'Coolpix',
+    price: 3799,
+    condition: 'MINT',
+    rating: 2.5,
+    reviews: 24,
+    inStock: true,
+    stockCount: 5,
+    image: 'https://images.unsplash.com/photo-1516961642265-531546e84af2?w=400&h=320&fit=crop&auto=format',
+    description: 'The Nikon Coolpix 3200 is a 3.2 megapixel compact digital camera released in 2003. It features a 3× optical zoom lens (38–115mm equivalent), an aluminum body in bold colors, and a 1.5-inch LCD screen. Auto modes and a Scene Assist dial make it approachable for beginners, while its lightweight 120g body is built for all-day carry.',
+    conditionDetails: 'Rated MINT — this unit shows no signs of use. The body, lens glass, and LCD are free of scratches, dust, or marks. All buttons and controls respond normally.',
+    colorProfile: { title: 'Try the Look — Coolpix Punchy', description: 'High contrast with slightly oversaturated primaries — classic early-2000s Nikon rendering.' },
+    specs: { megapixels: '3.2 MP', sensor: '1/2.7" CCD', opticalZoom: '3× (38–115mm)', lcd: '1.5" TFT, 85k dots', isoRange: 'ISO 50–400', shutterSpeed: '1–1/2000s', storage: 'SD Card', battery: '2× AA alkaline', weight: '120g', year: '2003' },
+    reviewList: [
+      { author: 'Marco T.', rating: 3, date: 'Aug 12, 2026', body: 'Solid little camera. Colors look a bit washed out but charming for the era.' },
+      { author: 'Lia R.', rating: 2, date: 'Jul 4, 2026', body: 'Battery drains fast and the LCD is tiny by today\'s standards.' },
+    ],
+  },
+  {
+    id: 2,
+    name: 'Fujifilm FinePix F30',
+    brand: 'FUJIFILM',
+    series: 'FinePix F',
+    price: 4999,
+    condition: 'EXCELLENT',
+    rating: 5,
+    reviews: 51,
+    inStock: true,
+    stockCount: 2,
+    image: 'https://images.unsplash.com/photo-1520549233664-03f65c1d1327?w=400&h=320&fit=crop&auto=format',
+    description: 'The Fujifilm FinePix F30 is widely regarded as one of the best low-light compact cameras ever made. Its 6.3 MP SuperCCD sensor and native ISO 3200 let it shoot in conditions that left contemporaries producing noise.',
+    conditionDetails: 'Rated EXCELLENT — this unit has been lightly used and shows minor cosmetic wear consistent with careful handling. Lens glass is clear. LCD is bright with no dead pixels.',
+    colorProfile: { title: 'Try the Look — FinePix Velvia', description: 'Rich, saturated colors with lifted shadows — Fujifilm\'s signature film-inspired rendering at high ISO.' },
+    specs: { megapixels: '6.3 MP', sensor: '1/1.7" SuperCCD HR', opticalZoom: '3× (36–108mm)', lcd: '2.5" TFT, 115k dots', isoRange: 'ISO 100–3200', shutterSpeed: '3–1/2000s', storage: 'xD-Picture Card', battery: 'NP-95 Li-ion', weight: '149g', year: '2006' },
+    reviewList: [
+      { author: 'Jay B.', rating: 5, date: 'Sep 1, 2026', body: 'Absolutely legendary. Shot an entire party indoors with no flash and every frame came out usable.' },
+      { author: 'Sonia M.', rating: 5, date: 'Aug 22, 2026', body: 'The colors and skin tones are incredible. Worth every peso.' },
+      { author: 'Kath D.', rating: 4, date: 'Jul 29, 2026', body: 'Low-light king. A bit slow to focus in dim rooms but results are unmatched.' },
+    ],
+  },
+  {
+    id: 3,
+    name: 'Canon Digital IXUS V',
+    brand: 'CANON',
+    series: 'IXUS',
+    price: 3999,
+    condition: 'EXCELLENT',
+    rating: 4,
+    reviews: 27,
+    inStock: true,
+    stockCount: 3,
+    image: 'https://images.unsplash.com/photo-1603208234872-619ffa1209cb?w=400&h=320&fit=crop&auto=format',
+    description: 'Released in 2001, the Canon Digital IXUS V helped define the ultra-compact stainless-steel camera category. Its 2.0 MP CCD sensor captures images at 1600×1200.',
+    conditionDetails: 'Rated EXCELLENT — the stainless-steel body shows only superficial handling marks. Lens is clean. LCD has no scratches or dead pixels.',
+    colorProfile: { title: 'Try the Look — IXUS Cool', description: 'Cool, slightly neutral tones with clean whites — Canon\'s restrained color science from the early IXUS era.' },
+    specs: { megapixels: '2.0 MP', sensor: '1/2.7" CCD', opticalZoom: '2× (35–70mm)', lcd: '1.5" TFT, 85k dots', isoRange: 'ISO 50–400', shutterSpeed: '1–1/1500s', storage: 'CompactFlash Type I', battery: 'NB-1L Li-ion', weight: '225g', year: '2001' },
+    reviewList: [
+      { author: 'Petra L.', rating: 5, date: 'Aug 30, 2026', body: 'The build quality is incredible — feels like a piece of jewelry.' },
+      { author: 'Diego F.', rating: 3, date: 'Aug 5, 2026', body: 'CompactFlash cards are hard to find. Great display piece.' },
+    ],
+  },
+  {
+    id: 4,
+    name: 'Kodak EasyShare C300',
+    brand: 'KODAK',
+    series: 'EasyShare C',
+    price: 1499,
+    condition: 'FAIR',
+    rating: 1.5,
+    reviews: 9,
+    inStock: true,
+    stockCount: 7,
+    image: 'https://images.unsplash.com/photo-1511184059754-e4b5bbbcef75?w=400&h=320&fit=crop&auto=format',
+    description: 'The Kodak EasyShare C300 is a no-frills 3.0 MP point-and-shoot from 2004. Designed for complete simplicity, it uses the EasyShare docking system for one-touch printing.',
+    conditionDetails: 'Rated FAIR — this unit shows visible wear including scuffs on the body and minor scratches on the LCD. Functions normally but cosmetic condition is below our GOOD standard.',
+    colorProfile: { title: 'Try the Look — EasyShare Warm', description: 'Warm, slightly yellow-shifted tones with soft edges — Kodak\'s consumer-friendly processing.' },
+    specs: { megapixels: '3.0 MP', sensor: '1/2.7" CCD', opticalZoom: 'Fixed (38mm)', lcd: '1.6" TFT, 61k dots', isoRange: 'ISO 80–200', shutterSpeed: '1/4–1/1000s', storage: 'Internal / SD Card', battery: '2× AA alkaline', weight: '113g', year: '2004' },
+    reviewList: [
+      { author: 'Nino A.', rating: 2, date: 'Jul 18, 2026', body: 'Fixed focus means half the shots are soft. Got it for the price.' },
+    ],
+  },
+];
+
+export const SPEC_LABELS: Record<string, string> = {
+  megapixels: 'Resolution',
+  sensor: 'Sensor',
+  opticalZoom: 'Zoom',
+  lcd: 'LCD Screen',
+  isoRange: 'ISO Range',
+  shutterSpeed: 'Shutter Speed',
+  storage: 'Storage',
+  battery: 'Battery',
+  weight: 'Weight',
+  year: 'Year',
+};
+
+export const CONDITION_COLORS: Record<string, { text: string; border: string }> = {
+  MINT: { text: '#00c853', border: '#00c853' },
+  EXCELLENT: { text: '#2196f3', border: '#2196f3' },
+  GOOD: { text: '#ff9800', border: '#ff9800' },
+  FAIR: { text: '#f44336', border: '#f44336' },
+};
+
+export const MOCK_ORDERS = [
+  { id: 'RPX-182345', date: 'Sep 3, 2026', item: 'Fujifilm FinePix F30', status: 'Delivered', total: 5149, img: 'https://images.unsplash.com/photo-1520549233664-03f65c1d1327?w=80&h=80&fit=crop&auto=format' },
+  { id: 'RPX-173921', date: 'Aug 18, 2026', item: 'Canon Digital IXUS V', status: 'Delivered', total: 4149, img: 'https://images.unsplash.com/photo-1603208234872-619ffa1209cb?w=80&h=80&fit=crop&auto=format' },
+];

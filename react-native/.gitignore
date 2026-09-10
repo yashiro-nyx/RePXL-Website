@@ -1,0 +1,26 @@
+node_modules/
+.expo/
+dist/
+build/
+
+# Native build output
+android/
+ios/
+
+# Environment
+.env
+.env.local
+.env*.local
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Expo
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.orig.*
+web-build/
