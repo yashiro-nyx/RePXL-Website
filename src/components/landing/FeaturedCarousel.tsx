@@ -1,6 +1,7 @@
 'use client'
 
 import { reportActionFailure } from '@/lib/action-error'
+import { formatPrice } from '@/lib/format'
 import { useState, useMemo, useEffect } from 'react'
 import Link from 'next/link'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -246,7 +247,7 @@ function CenterCard({ product }: { product: any }) {
 
         {/* Price + stock */}
         <div className="mt-3 flex items-center justify-between">
-          <span className="font-display text-xl font-bold text-repixl-text-light">${product.price}</span>
+          <span className="font-display text-xl font-bold text-repixl-text-light">{formatPrice(product.price)}</span>
           <span className="font-mono text-[9px] text-repixl-success">{product.stock} in stock</span>
         </div>
 
@@ -284,7 +285,7 @@ function SideCard({ product }: { product: any }) {
             <span className="font-mono text-[8px] text-repixl-muted">{avgRating.toFixed(1)}</span>
           </div>
         )}
-        <p className="mt-1.5 font-display text-sm font-bold text-repixl-text-light">${product.price}</p>
+        <p className="mt-1.5 font-display text-sm font-bold text-repixl-text-light">{formatPrice(product.price)}</p>
       </div>
     </div>
   )
