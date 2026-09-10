@@ -350,6 +350,29 @@ async function _doEmit({
     }
   }
 
+  if ((channel === 'IN_APP' || channel === 'BOTH') && process.env.EXPO_PUSH_ENABLED === 'true') {
+    try {
+      const pushTokens = await prisma.pushToken.findMany({
+        where: { userId },
+        select: { token: true },
+      })
+      if (pushTokens.length > 0) {
+        await fetch('https://exp.host/--/api/v2/push/send', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(pushTokens.map(({ token }) => ({
+            to: token,
+            title: subject,
+            body: truncateForDisplay(body),
+            data: { notificationId, event },
+          }))),
+        })
+      }
+    } catch (pushError) {
+      console.error('[notifications] push delivery failed (non-fatal):', pushError)
+    }
+  }
+
   return { notificationId, emailDelivered }
 }
 

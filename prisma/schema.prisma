@@ -39,6 +39,8 @@ model User {
   notificationPreference UserNotificationPreference?
   recentAuth            RecentAuthRecord?
   sensitiveChangeChallenges SensitiveChangeChallenge[]
+  mobileSessions        MobileSession[]
+  pushTokens            PushToken[]
 
   // Relations
   cartItems      CartItem[]
@@ -78,6 +80,46 @@ model PasswordResetToken {
 
   @@index([email])
   @@map("password_reset_tokens")
+}
+
+// ─── MOBILE SESSIONS ───────────────────────────────────────────────────────────
+// Only token hashes are persisted. Raw access and refresh tokens exist only on
+// the device and in the response that issued them.
+
+model MobileSession {
+  id               String    @id @default(cuid())
+  userId           String    @map("user_id")
+  accessTokenHash  String    @unique @map("access_token_hash")
+  refreshTokenHash String    @unique @map("refresh_token_hash")
+  accessExpiresAt  DateTime  @map("access_expires_at")
+  refreshExpiresAt DateTime  @map("refresh_expires_at")
+  deviceName       String?   @map("device_name")
+  platform         String?
+  lastUsedAt       DateTime  @default(now()) @map("last_used_at")
+  revokedAt        DateTime? @map("revoked_at")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([refreshExpiresAt])
+  @@map("mobile_sessions")
+}
+
+model PushToken {
+  id         String   @id @default(cuid())
+  userId     String   @map("user_id")
+  token      String   @unique
+  platform   String?
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+  lastUsedAt DateTime @default(now()) @map("last_used_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("push_tokens")
 }
 
 // ─── PRODUCTS ───────────────────────────────────────────────────────────────────

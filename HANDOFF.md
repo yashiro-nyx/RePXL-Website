@@ -2,7 +2,7 @@
 
 **Project:** RePIXL: Development of a Vintage Digital Camera (Digicam) E-commerce Website  
 **Status:** Production-ready. Live on Vercel at `https://repxlph.vercel.app`  
-**Last updated:** August 2026
+**Last updated:** September 2026
 
 ---
 
@@ -25,6 +25,8 @@ RePXL is a curated, admin-managed marketplace for buying vintage digital cameras
 | Email | Gmail SMTP via Nodemailer |
 | Payments | PayMongo Hosted Checkout (Live mode active) |
 | Deployment | Vercel |
+| Mobile client | Expo SDK 57 / React Native / TypeScript |
+| Mobile state and storage | Typed API client + Expo SecureStore |
 
 ---
 
@@ -80,6 +82,8 @@ Browser (React / Zustand)
 | `Voucher` | Discount codes with usage tracking |
 | `PasswordResetToken` | SHA-256 hashed, single-use, 1-hour TTL |
 | `AdminLog` | Audit trail for admin actions |
+| `MobileSession` | Hashed, revocable native access/refresh sessions |
+| `PushToken` | Expo device tokens associated with customer accounts |
 | `NewsletterSubscriber` | Email list |
 
 ### Key Prisma commands
@@ -131,6 +135,13 @@ The seed creates:
 - HTTP-only, Secure in production, SameSite=Lax
 - `getCurrentUser()` / `getCurrentAdmin()` in `src/lib/auth-helpers.ts`
 
+### Mobile auth
+- `POST /api/mobile/auth/login` returns opaque access/refresh tokens or an MFA challenge.
+- `POST /api/mobile/auth/mfa/verify` completes the existing TOTP/recovery-code flow.
+- `POST /api/mobile/auth/refresh` rotates native tokens; logout revokes the session.
+- Native requests send `Authorization: Bearer <access-token>`.
+- `getCurrentUser()` accepts either the native bearer token or the existing web cookie, so customer APIs remain shared.
+
 ---
 
 ## 6. Main API Routes
@@ -146,6 +157,14 @@ POST   /api/auth/forgot-password
 POST   /api/auth/reset-password
 POST   /api/auth/validate-reset-token
 POST   /api/auth/oauth                     # Google OAuth → DB upsert + cookie
+
+POST   /api/mobile/auth/login              # Native login → tokens or MFA challenge
+POST   /api/mobile/auth/mfa/verify         # Native MFA completion
+POST   /api/mobile/auth/refresh             # Rotate native tokens
+POST   /api/mobile/auth/logout              # Revoke native session
+GET    /api/mobile/auth/me                 # Native bearer session check
+POST   /api/mobile/push-token               # Register Expo device token
+DELETE /api/mobile/push-token               # Remove Expo device token
 
 GET    /api/products                       # filter by status, brand, condition, price
 POST   /api/products                       # admin: create
@@ -205,6 +224,28 @@ GET    /api/admin/logs
 ```
 
 ---
+
+## Mobile App
+
+The Expo/React Native customer app lives in `mobile/` and uses the same Next.js
+API and PostgreSQL database as the website. It currently supports login, MFA,
+token refresh, SecureStore persistence, product browsing, cart, wishlist,
+profile, addresses, hosted PayMongo checkout, order history, tracking refresh,
+returns, reviews, and in-app notifications.
+
+Start the website API separately, then run:
+
+```powershell
+Set-Location mobile
+npm install
+$env:EXPO_PUBLIC_API_URL = "http://localhost:3000"
+npm run start
+```
+
+Use `http://10.0.2.2:3000` for an Android emulator or the development machine's
+LAN IP for a physical device. Push registration additionally requires
+`EXPO_PUBLIC_EXPO_PROJECT_ID`; server-side Expo dispatch is enabled with
+`EXPO_PUSH_ENABLED=true`.
 
 ## 7. Customer Features
 
@@ -342,6 +383,9 @@ NEXT_PUBLIC_SITE_URL             # https://repxlph.vercel.app (no trailing slash
 # Gmail SMTP
 GMAIL_USER           # your-gmail@gmail.com
 GMAIL_APP_PASSWORD   # 16-character App Password (not your Gmail login password)
+
+# Mobile push notifications
+EXPO_PUSH_ENABLED    # "true" to dispatch through Expo's push service
 ```
 
 ---
@@ -372,6 +416,7 @@ These are confirmed in the current codebase and do not need revisiting:
 - **Archived customers** — fetched from DB, not localStorage
 - **Product listing** — awaits DB hydration before showing results; "In Stock Only" filter added; count reflects filtered set
 - **PayMongo redirect URLs** — trailing slash stripped from `NEXT_PUBLIC_SITE_URL`
+- **Mobile integration** — native sessions, bearer access across customer APIs, checkout, orders, returns, reviews, and notifications
 
 ---
 
@@ -379,6 +424,7 @@ These are confirmed in the current codebase and do not need revisiting:
 
 - **Navbar logout** — the dropdown "Log Out" button logs out immediately without a confirmation modal (the modal only exists on the Account page sidebar)
 - **PayMongo payment methods** — at least one method must be activated in PayMongo Dashboard → Settings → Payment Methods (Live mode). If none are active, the checkout page shows "No payment methods available" — this is a PayMongo account configuration issue, not a code bug
+- **Mobile migrations** — deploy `20260910000000_add_mobile_sessions` and `20260910000001_add_push_tokens` before native login or push registration can work against a real database
 - **Birth date** — stored in localStorage per user email key (`repixl-birthdate-{email}`), not in the PostgreSQL database (no `birthDate` column in the `User` model). Changing email breaks the birthdate lookup
 - **Saved payment cards** — stored in localStorage per user (`repixl-payments-{email}`), not in the database
 - **Admin `/products` page** — renders a stub "Product management coming soon" — the actual camera management is at `/admin/cameras`

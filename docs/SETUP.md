@@ -254,3 +254,54 @@ git add prisma/migrations && git commit -m "db: your_change" && git push
 
 This means stock is never reduced for unpaid orders, and duplicate webhook
 deliveries are safe.
+
+---
+
+## Part 8 — React Native mobile app
+
+The customer mobile app is in `mobile/` and uses the same deployed Next.js API,
+Prisma business rules, and PostgreSQL database as the website. Do not put a
+database URL or payment secret in the mobile app.
+
+### 8.1 Install and run
+
+Start the website API first:
+
+```powershell
+npm run dev
+```
+
+Then, in a second terminal:
+
+```powershell
+Set-Location mobile
+npm install
+$env:EXPO_PUBLIC_API_URL = "http://localhost:3000"
+npm run start
+```
+
+Use `http://10.0.2.2:3000` from an Android emulator. For a physical device,
+use the development machine's LAN IP and ensure both devices are on the same
+network.
+
+### 8.2 Mobile database and authentication
+
+Before testing native login against a real database, deploy the committed
+migrations from the repository root:
+
+```powershell
+Set-Location ..
+npm run prisma:migrate
+```
+
+The mobile app uses opaque access/refresh tokens stored as hashes in
+`MobileSession`. Existing customer APIs accept the native bearer token, so web
+and mobile carts, wishlists, addresses, orders, and account data stay in sync.
+
+### 8.3 Push notifications
+
+Set `EXPO_PUBLIC_EXPO_PROJECT_ID` in the mobile environment to register Expo
+push tokens. Set `EXPO_PUSH_ENABLED=true` on the server only after the
+`PushToken` migration is deployed and physical-device permissions have been
+tested. Push delivery is optional; in-app notifications remain the source of
+truth.

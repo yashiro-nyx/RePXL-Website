@@ -1,6 +1,7 @@
-import { cookies } from 'next/headers'
+import { cookies, headers } from 'next/headers'
 import { createHmac, timingSafeEqual } from 'crypto'
 import { prisma } from './prisma'
+import { getMobileUserFromAccessToken } from './mobile-auth'
 
 // ─── Session Token Management ───────────────────────────────────────────────────
 // Simple token-based sessions stored as HTTP-only cookies.
@@ -125,6 +126,13 @@ export function clearAdminSessionCookie() {
  * Get current authenticated user from customer session cookie
  */
 export async function getCurrentUser(): Promise<SessionUser | null> {
+  let authorization: string | null = null
+  try {
+    authorization = headers().get('authorization')
+  } catch {}
+  const bearer = authorization?.match(/^Bearer\s+([^\s]+)$/i)?.[1]
+  if (bearer) return getMobileUserFromAccessToken(bearer)
+
   const cookieStore = cookies()
   const token = cookieStore.get(SESSION_COOKIE)?.value
 

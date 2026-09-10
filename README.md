@@ -40,6 +40,13 @@ Live at: **https://repxlph.vercel.app**
 - Activity logs (audit trail)
 - Admin account management (super-admin only)
 
+### React Native Mobile App
+- Expo/React Native customer app in [`mobile/`](./mobile)
+- Native login, MFA, token refresh, and SecureStore session persistence
+- Shared product, cart, wishlist, profile, address, checkout, order, returns, reviews, and notification APIs
+- Hosted PayMongo checkout opened through Expo WebBrowser
+- Optional Expo push notifications backed by customer device-token registration
+
 ---
 
 ## Tech Stack
@@ -55,6 +62,7 @@ Live at: **https://repxlph.vercel.app**
 | Email | Nodemailer + Gmail SMTP |
 | Payments | PayMongo Hosted Checkout |
 | Deployment | Vercel |
+| Mobile | Expo SDK 57, React Native, TypeScript, Expo SecureStore |
 
 ---
 
@@ -66,6 +74,7 @@ Live at: **https://repxlph.vercel.app**
 - PayMongo account (for real payments)
 - Gmail account with App Password (for email)
 - Google Cloud project (for Google OAuth, optional)
+- Expo CLI/dev client for mobile development (optional for web-only work)
 
 ---
 
@@ -75,6 +84,14 @@ Live at: **https://repxlph.vercel.app**
 git clone https://github.com/yashiro-nyx/RePXL-Website.git
 cd "RePXL Website"
 npm install
+```
+
+The mobile app has its own dependencies:
+
+```powershell
+Set-Location mobile
+npm install
+Set-Location ..
 ```
 
 ---
@@ -102,6 +119,14 @@ cp .env.local.example .env.local
 | `NEXT_PUBLIC_PAYMONGO_ENABLED` | optional | Set to `true` to activate PayMongo hosted checkout |
 | `GMAIL_USER` | optional | Gmail address for sending emails |
 | `GMAIL_APP_PASSWORD` | optional | Gmail App Password (not your login password) |
+| `EXPO_PUSH_ENABLED` | optional | Server-side Expo push dispatch switch; set to `true` after configuring push tokens |
+
+Mobile-only variables are supplied to Expo at runtime/build time:
+
+| Variable | Required | Purpose |
+|---|---|---|
+| `EXPO_PUBLIC_API_URL` | ✅ for mobile | Website API URL, such as `http://localhost:3000` |
+| `EXPO_PUBLIC_EXPO_PROJECT_ID` | push only | Expo project ID used to request push tokens |
 
 > Generate `NEXTAUTH_SECRET` with: `openssl rand -base64 32`
 
@@ -197,6 +222,19 @@ npm run dev
 - Storefront: [http://localhost:3000](http://localhost:3000)
 - Admin: [http://localhost:3000/admin](http://localhost:3000/admin)
 
+To run the mobile customer app, keep the website API running and use another
+terminal:
+
+```powershell
+Set-Location mobile
+$env:EXPO_PUBLIC_API_URL = "http://localhost:3000"
+npm run start
+```
+
+Use `http://10.0.2.2:3000` for an Android emulator or the development machine's
+LAN IP for a physical device. The mobile app never connects directly to Prisma
+or PostgreSQL.
+
 The app runs in offline/demo mode if `DATABASE_URL` is not set — Zustand stores fall back to localStorage and seed data. Set `DATABASE_URL` and `DIRECT_URL` to use the real database.
 
 ---
@@ -228,9 +266,12 @@ prisma generate && prisma migrate deploy && next build
 - ✅ Admin dashboard with real DB data
 - ✅ Negative stock prevention
 - ✅ PayMongo webhook with idempotency guard
+- ✅ React Native customer app with shared API/database integration
 
 **Pending (manual action required):**
 - Activate payment methods in PayMongo Dashboard (Live mode)
+- Deploy the mobile session and push-token migrations before native production testing
+- Configure an Expo project ID and test push permissions on physical devices
 - Add `birthDate` column to DB if persistent birth date is required
 - Move saved payment cards from localStorage to database
 

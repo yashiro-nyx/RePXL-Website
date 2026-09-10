@@ -5,9 +5,10 @@
 ```mermaid
 graph TB
     %% ─── CLIENTS ────────────────────────────────────────────────────────────────
-    subgraph Clients ["Clients (Browser)"]
+    subgraph Clients ["Clients (Web + Mobile)"]
         direction LR
         CS["Customer/Buyer Site<br/><i>Next.js App Router (SSR/SSG)</i><br/>─────────────────<br/>Landing Page<br/>Product Listing & PDP<br/>Compare View<br/>Cart & Checkout<br/>Account & Wishlist<br/>Reviews"]
+        MC["Customer Mobile App<br/><i>Expo / React Native</i><br/>─────────────────<br/>Catalog & Cart<br/>Checkout<br/>Orders & Tracking<br/>Returns & Reviews<br/>Notifications"]
         AS["Admin Dashboard<br/><i>Next.js App Router (CSR)</i><br/>─────────────────<br/>Sales Overview<br/>Inventory Management<br/>Order Management<br/>Customer Management<br/>Vouchers & Logs<br/>Reports & Settings"]
     end
 
@@ -15,6 +16,7 @@ graph TB
     subgraph Frontend ["Frontend Layer"]
         direction LR
         RC["React Components<br/><i>Custom UI Library</i>"]
+        RN["Native UI<br/><i>Expo / React Native</i>"]
         TW["Tailwind CSS<br/><i>Design Tokens</i>"]
         FM["Framer Motion<br/><i>Animations</i>"]
         ZS["Zustand Stores<br/><i>Cart, Wishlist, Auth State</i>"]
@@ -34,6 +36,7 @@ graph TB
         end
         subgraph AuthAPI ["Auth API"]
             AP_AUTH["/api/auth<br/><i>NextAuth.js</i><br/>Login, Register, Logout<br/>Session, Change Password"]
+            AP_MOBILE_AUTH["/api/mobile/auth<br/><i>Bearer sessions</i><br/>Login, MFA, Refresh, Logout"]
         end
         subgraph AdminAPI ["Admin API (Role-Protected)"]
             AP_ADM_STAT["/api/admin/stats<br/><i>Dashboard Metrics</i>"]
@@ -49,7 +52,7 @@ graph TB
     %% ─── DATABASE ───────────────────────────────────────────────────────────────
     subgraph Database ["Database Layer"]
         PRISMA["Prisma ORM<br/><i>Type-safe queries,<br/>Migrations, Seeding</i>"]
-        PG[("PostgreSQL<br/>─────────────────<br/>users<br/>products<br/>cart_items<br/>orders / order_items<br/>reviews<br/>addresses<br/>wishlist_items<br/>vouchers<br/>admin_logs")]
+        PG[("PostgreSQL<br/>─────────────────<br/>users<br/>products<br/>cart_items<br/>orders / order_items<br/>reviews<br/>addresses<br/>wishlist_items<br/>vouchers<br/>mobile_sessions<br/>push_tokens<br/>admin_logs")]
     end
 
     %% ─── EXTERNAL SERVICES ──────────────────────────────────────────────────────
@@ -58,6 +61,7 @@ graph TB
         PAY["Payment Gateway<br/><i>Stripe + Local Digital Payment</i><br/>─────────────────<br/>Charge, Refund,<br/>Webhook Notifications"]
         IMG["Image CDN<br/><i>Cloudinary / S3 + CDN</i><br/>─────────────────<br/>Product Images (WebP),<br/>Optimized Delivery"]
         EMAIL["Email Service<br/><i>(Future)</i><br/>─────────────────<br/>Order Confirmations,<br/>Password Resets"]
+        PUSH["Expo Push Service<br/><i>Optional native notifications</i>"]
     end
 
     %% ─── DEPLOYMENT ─────────────────────────────────────────────────────────────
@@ -67,12 +71,14 @@ graph TB
 
     %% ─── CONNECTIONS ────────────────────────────────────────────────────────────
     CS --> RC
+    MC --> RN
     AS --> RC
     RC --> TW
     RC --> FM
     RC --> ZS
 
     CS -->|"HTTP Requests"| MW
+    MC -->|"HTTPS + Bearer Tokens"| MW
     AS -->|"HTTP Requests"| MW
     MW --> API
 
@@ -84,6 +90,7 @@ graph TB
     AP_ADDR --> PRISMA
     AP_VOUCH --> PRISMA
     AP_AUTH --> PRISMA
+    AP_MOBILE_AUTH --> PRISMA
     AP_ADM_STAT --> PRISMA
     AP_ADM_CUST --> PRISMA
     AP_ADM_ACC --> PRISMA
@@ -95,6 +102,7 @@ graph TB
     PAY -->|"Webhook (payment_confirmed)"| AP_ORDER
     AP_PROD -->|"Fetch Optimized Images"| IMG
     AP_ORDER -.->|"Send Notification"| EMAIL
+    API -.->|"Push notification"| PUSH
 
     API --> VER
     PG --> VER

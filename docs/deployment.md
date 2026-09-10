@@ -141,6 +141,40 @@ haven't run yet), so running them together is safe.
    > Only this one secret is needed. If you skip it, the workflow will fail but
    > the Vercel build will still apply migrations, so deploys keep working.
 
+## Part E — Mobile app release configuration
+
+The Expo app in `mobile/` is released separately from the Vercel website, but it
+uses the same production API and database. Build the mobile app only after the
+website deployment has applied the mobile migrations:
+
+- `20260910000000_add_mobile_sessions`
+- `20260910000001_add_push_tokens`
+
+Configure the mobile build with:
+
+| Variable | Purpose |
+|---|---|
+| `EXPO_PUBLIC_API_URL` | Production API URL, for example `https://repxlph.vercel.app` |
+| `EXPO_PUBLIC_EXPO_PROJECT_ID` | Expo project ID for native push-token registration |
+
+Configure the Vercel server with `EXPO_PUSH_ENABLED=true` only after push-token
+registration has been tested on physical devices. The mobile app uses bearer
+tokens and SecureStore; it must never receive `DATABASE_URL`, `DIRECT_URL`,
+PayMongo secret keys, or other server-only credentials.
+
+From the repository root, verify the mobile workspace before a build:
+
+```powershell
+Set-Location mobile
+npm install
+npx expo install --check
+npx tsc --noEmit
+```
+
+For local device testing, use `http://10.0.2.2:3000` for an Android emulator or
+the developer machine's LAN IP for a physical device. See `mobile/README.md` for
+the current customer workflow and API route list.
+
 ---
 
 ## Everyday workflow after setup
