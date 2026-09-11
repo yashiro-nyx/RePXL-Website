@@ -25,7 +25,7 @@ RePXL is a curated, admin-managed marketplace for buying vintage digital cameras
 | Email | Gmail SMTP via Nodemailer |
 | Payments | PayMongo Hosted Checkout (Live mode active) |
 | Deployment | Vercel |
-| Mobile client | Expo SDK 57 / React Native / TypeScript |
+| Mobile client | Expo SDK 51 / Expo Router / React Native / TypeScript |
 | Mobile state and storage | Typed API client + Expo SecureStore |
 
 ---
@@ -227,7 +227,7 @@ GET    /api/admin/logs
 
 ## Mobile App
 
-The Expo/React Native customer app lives in `mobile/` and uses the same Next.js
+The Expo/React Native customer app lives in `react-native/` and uses the same Next.js
 API and PostgreSQL database as the website. It currently supports login, MFA,
 token refresh, SecureStore persistence, product browsing, cart, wishlist,
 profile, addresses, hosted PayMongo checkout, order history, tracking refresh,
@@ -236,9 +236,9 @@ returns, reviews, and in-app notifications.
 Start the website API separately, then run:
 
 ```powershell
-Set-Location mobile
+Set-Location react-native
 npm install
-$env:EXPO_PUBLIC_API_URL = "http://localhost:3000"
+$env:EXPO_PUBLIC_API_BASE_URL = "http://localhost:3000"
 npm run start
 ```
 

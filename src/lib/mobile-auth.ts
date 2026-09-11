@@ -1,5 +1,6 @@
 import { createHash, randomBytes } from 'crypto'
 import { NextRequest } from 'next/server'
+import type { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import type { SessionUser } from '@/lib/auth-helpers'
 
@@ -41,7 +42,8 @@ function userShape(user: {
 
 export async function createMobileSession(
   userId: string,
-  metadata?: { deviceName?: string; platform?: string }
+  metadata?: { deviceName?: string; platform?: string },
+  database: Pick<Prisma.TransactionClient, 'mobileSession'> = prisma
 ): Promise<MobileTokenPair> {
   const now = Date.now()
   const accessToken = newToken()
@@ -49,7 +51,7 @@ export async function createMobileSession(
   const accessExpiresAt = new Date(now + ACCESS_TTL_MS)
   const refreshExpiresAt = new Date(now + REFRESH_TTL_MS)
 
-  await prisma.mobileSession.create({
+  await database.mobileSession.create({
     data: {
       userId,
       accessTokenHash: hashToken(accessToken),

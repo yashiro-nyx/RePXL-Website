@@ -1,0 +1,9 @@
+# The Expo app is released separately. Vercel deploys only the Next.js app/API.
+mobile/
+react-native/
+
+# Generated native artifacts never belong in the web deployment bundle.
+**/.expo/
+**/web-build/
+**/android/
+**/ios/

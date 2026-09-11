@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native';
 import { router } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Feather } from '@expo/vector-icons';
@@ -15,18 +15,33 @@ const FIELDS = [
 
 export default function SignupScreen() {
   const insets = useSafeAreaInsets();
-  const { login } = useApp();
+  const { register } = useApp();
   const [vals, setVals] = useState({ name: '', email: '', password: '', confirm: '' });
   const [error, setError] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
   const set = (k: keyof typeof vals) => (v: string) => { setVals((p) => ({ ...p, [k]: v })); setError(''); };
 
-  const handleSignup = () => {
+  const handleSignup = async () => {
     if (!vals.name || !vals.email || !vals.password || !vals.confirm) { setError('Please fill in all fields.'); return; }
     if (vals.password !== vals.confirm) { setError('Passwords do not match.'); return; }
     if (vals.password.length < 8) { setError('Password must be at least 8 characters.'); return; }
-    login({ name: vals.name, email: vals.email, joined: 'September 2026' });
-    router.replace('/(tabs)/account');
+    const [firstName, ...rest] = vals.name.trim().split(/\s+/);
+    if (rest.length === 0) { setError('Enter both your first and last name.'); return; }
+    setSubmitting(true);
+    try {
+      const result = await register({ firstName, lastName: rest.join(' '), email: vals.email, password: vals.password });
+      if (result.mfaRequired) {
+        setError('Account created. Sign in to complete two-factor authentication.');
+        router.replace('/login');
+        return;
+      }
+      router.replace('/(tabs)/account');
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'Unable to create your account.');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -70,8 +85,8 @@ export default function SignupScreen() {
 
           {!!error && <Text style={styles.error}>{error}</Text>}
 
-          <TouchableOpacity style={styles.primaryBtn} onPress={handleSignup} activeOpacity={0.85}>
-            <Text style={styles.primaryBtnText}>Create Account</Text>
+          <TouchableOpacity style={styles.primaryBtn} onPress={handleSignup} activeOpacity={0.85} disabled={submitting}>
+            {submitting ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryBtnText}>Create Account</Text>}
           </TouchableOpacity>
 
           <TouchableOpacity onPress={() => router.push('/login')} style={{ marginTop: 20, alignSelf: 'center' }}>

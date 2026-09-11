@@ -41,7 +41,7 @@ Live at: **https://repxlph.vercel.app**
 - Admin account management (super-admin only)
 
 ### React Native Mobile App
-- Expo/React Native customer app in [`mobile/`](./mobile)
+- Expo/React Native customer app in [`react-native/`](./react-native)
 - Native login, MFA, token refresh, and SecureStore session persistence
 - Shared product, cart, wishlist, profile, address, checkout, order, returns, reviews, and notification APIs
 - Hosted PayMongo checkout opened through Expo WebBrowser
@@ -62,7 +62,7 @@ Live at: **https://repxlph.vercel.app**
 | Email | Nodemailer + Gmail SMTP |
 | Payments | PayMongo Hosted Checkout |
 | Deployment | Vercel |
-| Mobile | Expo SDK 57, React Native, TypeScript, Expo SecureStore |
+| Mobile | Expo SDK 51, Expo Router, React Native, TypeScript, Expo SecureStore |
 
 ---
 
@@ -89,7 +89,7 @@ npm install
 The mobile app has its own dependencies:
 
 ```powershell
-Set-Location mobile
+Set-Location react-native
 npm install
 Set-Location ..
 ```
@@ -125,7 +125,7 @@ Mobile-only variables are supplied to Expo at runtime/build time:
 
 | Variable | Required | Purpose |
 |---|---|---|
-| `EXPO_PUBLIC_API_URL` | ✅ for mobile | Website API URL, such as `http://localhost:3000` |
+| `EXPO_PUBLIC_API_BASE_URL` | ✅ for mobile | Public website origin, such as `http://localhost:3000` |
 | `EXPO_PUBLIC_EXPO_PROJECT_ID` | push only | Expo project ID used to request push tokens |
 
 > Generate `NEXTAUTH_SECRET` with: `openssl rand -base64 32`
@@ -226,8 +226,8 @@ To run the mobile customer app, keep the website API running and use another
 terminal:
 
 ```powershell
-Set-Location mobile
-$env:EXPO_PUBLIC_API_URL = "http://localhost:3000"
+Set-Location react-native
+$env:EXPO_PUBLIC_API_BASE_URL = "http://localhost:3000"
 npm run start
 ```
 

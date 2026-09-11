@@ -143,7 +143,7 @@ haven't run yet), so running them together is safe.
 
 ## Part E — Mobile app release configuration
 
-The Expo app in `mobile/` is released separately from the Vercel website, but it
+The Expo app in `react-native/` is released separately from the Vercel website, but it
 uses the same production API and database. Build the mobile app only after the
 website deployment has applied the mobile migrations:
 
@@ -154,7 +154,7 @@ Configure the mobile build with:
 
 | Variable | Purpose |
 |---|---|
-| `EXPO_PUBLIC_API_URL` | Production API URL, for example `https://repxlph.vercel.app` |
+| `EXPO_PUBLIC_API_BASE_URL` | Public API origin, for example `https://repxlph.vercel.app` |
 | `EXPO_PUBLIC_EXPO_PROJECT_ID` | Expo project ID for native push-token registration |
 
 Configure the Vercel server with `EXPO_PUSH_ENABLED=true` only after push-token
@@ -165,14 +165,14 @@ PayMongo secret keys, or other server-only credentials.
 From the repository root, verify the mobile workspace before a build:
 
 ```powershell
-Set-Location mobile
+Set-Location react-native
 npm install
 npx expo install --check
 npx tsc --noEmit
 ```
 
 For local device testing, use `http://10.0.2.2:3000` for an Android emulator or
-the developer machine's LAN IP for a physical device. See `mobile/README.md` for
+the developer machine's LAN IP for a physical device. See `react-native/README.md` for
 the current customer workflow and API route list.
 
 ---

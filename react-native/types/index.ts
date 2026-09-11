@@ -13,7 +13,8 @@ export interface Specs {
   year: string;
 }
 
-export interface Review {
+export interface ProductReview {
+  id: string;
   author: string;
   rating: number;
   date: string;
@@ -21,7 +22,8 @@ export interface Review {
 }
 
 export interface Product {
-  id: number;
+  id: string;
+  slug: string;
   name: string;
   brand: string;
   series: string;
@@ -36,16 +38,72 @@ export interface Product {
   conditionDetails: string;
   colorProfile: { title: string; description: string };
   specs: Specs;
-  reviewList: Review[];
+  reviewList: ProductReview[];
 }
 
 export interface CartItem {
+  id: string;
+  productId: string;
   product: Product;
   quantity: number;
 }
 
 export interface User {
+  id: string;
+  firstName: string;
+  lastName: string;
   name: string;
   email: string;
-  joined: string;
+}
+
+export interface Address {
+  id: string;
+  fullName: string;
+  address: string;
+  barangay: string;
+  city: string;
+  province: string;
+  postalCode: string;
+  phone: string;
+  isDefault: boolean;
+}
+
+export interface Order {
+  id: string;
+  orderNumber: string;
+  status: string;
+  paymentStatus: string;
+  total: number;
+  deliveryStatus: string;
+  trackingProgress: number;
+  trackingDescription: string;
+  createdAt: string;
+  items: Array<{ id: string; quantity: number; price: number; product: Product }>;
+}
+
+export interface Notification {
+  id: string;
+  event: string;
+  message: string;
+  isRead: boolean;
+  createdAt: string;
+}
+
+export interface AccountReview {
+  id: string;
+  productId: string;
+  rating: number;
+  comment: string;
+  verifiedPurchase: boolean;
+  createdAt: string;
+  product?: { slug: string; name: string; image?: string };
+}
+
+export interface Profile extends User {
+  username: string | null;
+  gender: string | null;
+  avatarUrl: string | null;
+  maskedPhone: string;
+  maskedDob: string;
+  hasPassword: boolean;
 }

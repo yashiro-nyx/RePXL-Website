@@ -259,7 +259,7 @@ deliveries are safe.
 
 ## Part 8 — React Native mobile app
 
-The customer mobile app is in `mobile/` and uses the same deployed Next.js API,
+The customer mobile app is in `react-native/` and uses the same deployed Next.js API,
 Prisma business rules, and PostgreSQL database as the website. Do not put a
 database URL or payment secret in the mobile app.
 
@@ -274,9 +274,9 @@ npm run dev
 Then, in a second terminal:
 
 ```powershell
-Set-Location mobile
+Set-Location react-native
 npm install
-$env:EXPO_PUBLIC_API_URL = "http://localhost:3000"
+$env:EXPO_PUBLIC_API_BASE_URL = "http://localhost:3000"
 npm run start
 ```
 

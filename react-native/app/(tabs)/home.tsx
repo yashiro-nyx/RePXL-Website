@@ -4,7 +4,7 @@ import { router } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { PRODUCTS, CONDITION_COLORS } from '../../data/products';
+import { CONDITION_COLORS } from '../../data/products';
 import { useApp } from '../../context/AppContext';
 import type { Product } from '../../types';
 
@@ -25,7 +25,7 @@ function ProductCard({ product }: { product: Product }) {
   return (
     <TouchableOpacity
       style={styles.card}
-      onPress={() => router.push({ pathname: '/product', params: { id: product.id.toString() } })}
+      onPress={() => router.push({ pathname: '/product', params: { slug: product.slug } })}
       activeOpacity={0.85}
     >
       <Image source={{ uri: product.image }} style={styles.cardImage} resizeMode="cover" />
@@ -50,7 +50,7 @@ function ProductCard({ product }: { product: Product }) {
 
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
-  const { user } = useApp();
+  const { user, products, error } = useApp();
   const [activeCategory, setActiveCategory] = useState('Popular');
 
   return (
@@ -112,7 +112,11 @@ export default function HomeScreen() {
         {/* Products */}
         <Text style={[styles.sectionTitle, { paddingHorizontal: 20, marginBottom: 12 }]}>Products</Text>
         <View style={styles.grid}>
-          {PRODUCTS.map((p) => <ProductCard key={p.id} product={p} />)}
+          {error ? <Text style={styles.loadMessage}>{error}</Text> : null}
+          {products
+            .filter((product) => !['Canon', 'Fujifilm', 'Kodak', 'Nikon'].includes(activeCategory) || product.brand.toLowerCase() === activeCategory.toLowerCase())
+            .map((product) => <ProductCard key={product.id} product={product} />)}
+          {products.length === 0 && !error ? <Text style={styles.loadMessage}>Loading current inventory…</Text> : null}
         </View>
       </ScrollView>
     </View>
@@ -138,6 +142,7 @@ const styles = StyleSheet.create({
   catPillText: { fontFamily: 'Inter_600SemiBold', fontSize: 13, color: '#aaa' },
   catPillTextActive: { color: '#fff' },
   grid: { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 14, gap: 10 },
+  loadMessage: { width: '100%', color: '#888', fontFamily: 'Inter_400Regular', fontSize: 13, textAlign: 'center', paddingVertical: 20 },
   card: { width: '47.5%', backgroundColor: '#1c1c1e', borderRadius: 16, overflow: 'hidden', borderWidth: 1, borderColor: '#2c2c2e' },
   cardImage: { width: '100%', height: 148, backgroundColor: '#111' },
   cardBody: { padding: 10, gap: 4 },

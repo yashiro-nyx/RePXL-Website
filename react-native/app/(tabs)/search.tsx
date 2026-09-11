@@ -4,7 +4,8 @@ import { router } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { PRODUCTS, CONDITION_COLORS } from '../../data/products';
+import { CONDITION_COLORS } from '../../data/products';
+import { useApp } from '../../context/AppContext';
 import type { Product } from '../../types';
 
 const BRANDS = ['All', 'Canon', 'Fujifilm', 'Kodak', 'Nikon'];
@@ -29,7 +30,7 @@ function ProductCard({ product }: { product: Product }) {
   return (
     <TouchableOpacity
       style={styles.card}
-      onPress={() => router.push({ pathname: '/product', params: { id: product.id.toString() } })}
+      onPress={() => router.push({ pathname: '/product', params: { slug: product.slug } })}
       activeOpacity={0.85}
     >
       <Image source={{ uri: product.image }} style={styles.cardImg} resizeMode="cover" />
@@ -54,6 +55,7 @@ function ProductCard({ product }: { product: Product }) {
 
 export default function SearchScreen() {
   const insets = useSafeAreaInsets();
+  const { products } = useApp();
   const [query, setQuery] = useState('');
   const [brand, setBrand] = useState('All');
   const [condition, setCondition] = useState('All');
@@ -63,7 +65,7 @@ export default function SearchScreen() {
   const hasQuery = query.trim().length > 0;
 
   const results = useMemo(() => {
-    let list = PRODUCTS.filter((p) => {
+    let list = products.filter((p) => {
       const q = query.toLowerCase();
       if (hasQuery && !p.name.toLowerCase().includes(q) && !p.brand.toLowerCase().includes(q) && !p.series?.toLowerCase().includes(q)) return false;
       if (brand !== 'All' && p.brand !== brand) return false;
@@ -78,7 +80,7 @@ export default function SearchScreen() {
       case 'Rating': list = [...list].sort((a, b) => b.rating - a.rating); break;
     }
     return list;
-  }, [query, brand, condition, sort, hasQuery]);
+  }, [products, query, brand, condition, sort, hasQuery]);
 
   const activeFilters = (brand !== 'All' ? 1 : 0) + (condition !== 'All' ? 1 : 0) + (sort !== 'Relevance' ? 1 : 0);
 
@@ -187,7 +189,7 @@ export default function SearchScreen() {
           <View>
             <Text style={styles.sectionTitle}>All Cameras</Text>
             <View style={{ gap: 12, marginTop: 10 }}>
-              {PRODUCTS.map((p) => <ProductCard key={p.id} product={p} />)}
+              {products.map((p) => <ProductCard key={p.id} product={p} />)}
             </View>
           </View>
         </ScrollView>

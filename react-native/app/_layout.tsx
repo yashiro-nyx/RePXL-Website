@@ -33,6 +33,7 @@ export default function RootLayout() {
         <Stack.Screen name="signup" />
         <Stack.Screen name="checkout" />
         <Stack.Screen name="order-confirm" />
+        <Stack.Screen name="order" />
       </Stack>
     </AppProvider>
   );

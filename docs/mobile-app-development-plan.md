@@ -8,12 +8,12 @@ The PostgreSQL database remains the single source of truth. The mobile app must 
 
 ## Current Implementation Status
 
-The initial integration is implemented in `mobile/`. Completed slices include
+The maintained integration is implemented in `react-native/`. Completed slices include
 native login/MFA/session refresh, SecureStore persistence, shared bearer access
-to customer APIs, products, cart, wishlist, profile, addresses, hosted
-PayMongo checkout, orders/tracking refresh, returns, reviews, in-app
+to customer APIs, products, cart, wishlist, profile, address reads, hosted
+PayMongo checkout, orders, reviews, in-app
 notifications, and optional Expo push-token registration. The next work is
-production hardening: image uploads for mobile reviews/returns, deep-link
+address editing, return/review submission, image uploads for mobile reviews/returns, deep-link
 payment return handling, offline/cache strategy, device testing, and app-store
 release configuration.
 
@@ -44,7 +44,7 @@ Next.js customer website and admin dashboard
 - Expo Notifications for push notifications
 - Existing Cloudinary, payment, email, and shipping integrations through the backend
 
-Create the app in a separate `mobile/` workspace initially. Shared API types and validation schemas can move into `packages/contracts/` once the first mobile endpoints are stable.
+Keep the app in the separate `react-native/` project. Shared API types and validation schemas can move into `packages/contracts/` once the mobile endpoints are stable.
 
 ## 3. Scope
 
@@ -184,7 +184,7 @@ Never ship development secrets, database URLs, admin credentials, or server-only
 
 The first implementation milestone should be:
 
-1. Create the Expo TypeScript app in `mobile/`.
+1. Maintain the Expo TypeScript app in `react-native/`.
 2. Add environment configuration and a typed API client.
 3. Add mobile token endpoints and persistent secure token storage.
 4. Implement login, registration, logout, and session hydration.

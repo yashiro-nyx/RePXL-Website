@@ -1,10 +1,8 @@
-import { isRetiredAuthEmail, withAvailableEmail } from '@/lib/retired-auth-email'
 import { NextRequest } from 'next/server'
-import bcrypt from 'bcryptjs'
-import { prisma } from '@/lib/prisma'
 import { successResponse, errorResponse, validationError } from '@/lib/api'
 import { registerSchema } from '@/lib/validations'
 import { setSessionCookie } from '@/lib/auth-helpers'
+import { CustomerRegistrationError, registerCustomer } from '@/lib/customer-registration'
 
 // This route reads cookies / session state and must run per-request.
 export const dynamic = 'force-dynamic'
@@ -18,44 +16,16 @@ export async function POST(request: NextRequest) {
       return validationError(parsed.error)
     }
 
-    const { firstName, lastName, email, password } = parsed.data
-
-    if (await isRetiredAuthEmail(email)) return errorResponse('Email is unavailable for registration.', 409)
-
-    // Check if user already exists
-    const existing = await prisma.user.findUnique({ where: { email } })
-    if (existing) {
-      return errorResponse('An account with this email already exists', 409)
-    }
-
-    // Hash password
-    const hashedPassword = await bcrypt.hash(password, 12)
-
-    // Create user
-    const user = await withAvailableEmail(email, tx => tx.user.create({
-      data: {
-        firstName,
-        lastName,
-        email,
-        password: hashedPassword,
-        role: 'CUSTOMER',
-      },
-      select: {
-        id: true,
-        email: true,
-        firstName: true,
-        lastName: true,
-        role: true,
-        isSuperAdmin: true,
-        createdAt: true,
-      },
-    }))
+    const user = await registerCustomer(parsed.data)
 
     // Set session cookie
     setSessionCookie(user.id)
 
     return successResponse(user, 201)
   } catch (error) {
+    if (error instanceof CustomerRegistrationError) {
+      return errorResponse(error.message, error.status)
+    }
     console.error('Register error:', error)
     return errorResponse('Internal server error', 500)
   }

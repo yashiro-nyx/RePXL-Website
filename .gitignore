@@ -1,8 +1,10 @@
 node_modules
 .next/
 .vercel
+.expo/
 .env*
 .env.local
+!react-native/.env.example
 
 # TypeScript incremental build cache (regenerated on build)
 tsconfig.tsbuildinfo

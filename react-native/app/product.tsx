@@ -1,12 +1,13 @@
-import { useState } from 'react';
-import { View, Text, Image, ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
+import { useEffect, useState } from 'react';
+import { View, Text, Image, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { PRODUCTS, CONDITION_COLORS, SPEC_LABELS } from '../data/products';
+import { CONDITION_COLORS, SPEC_LABELS } from '../data/products';
 import { useApp } from '../context/AppContext';
-import type { Specs } from '../types';
+import { api } from '../src/services/api';
+import type { Product, Specs } from '../types';
 
 type Tab = 'overview' | 'specs' | 'reviews';
 
@@ -36,15 +37,39 @@ function Accordion({ label, defaultOpen = false, children }: { label: string; de
 }
 
 export default function ProductScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
-  const { cart, addToCart, wishlist, compareList, toggleWishlist, toggleCompare } = useApp();
+  const { slug } = useLocalSearchParams<{ slug: string }>();
+  const { products, addToCart, user, wishlist, compareList, toggleWishlist, toggleCompare } = useApp();
   const [tab, setTab] = useState<Tab>('overview');
   const [qty, setQty] = useState(1);
   const [addedFeedback, setAddedFeedback] = useState(false);
+  const [remoteProduct, setRemoteProduct] = useState<Product | null>(null);
+  const [loadError, setLoadError] = useState('');
   const insets = useSafeAreaInsets();
 
-  const product = PRODUCTS.find((p) => p.id === parseInt(id ?? '0'));
-  if (!product) return null;
+  const listedProduct = products.find((product) => product.slug === slug);
+  useEffect(() => {
+    if (!slug) return;
+    let active = true;
+    Promise.all([api.product(slug), api.productReviews(slug)])
+      .then(([product, reviews]) => {
+        if (active) setRemoteProduct({
+          ...product,
+          reviewList: reviews,
+          reviews: reviews.length,
+          rating: reviews.length ? reviews.reduce((sum, review) => sum + review.rating, 0) / reviews.length : 0,
+        });
+      })
+      .catch((reason) => { if (active) setLoadError(reason instanceof Error ? reason.message : 'Unable to load this camera.'); });
+    return () => { active = false; };
+  }, [slug]);
+
+  const product = remoteProduct ?? listedProduct;
+  if (!product) {
+    return <View style={[styles.container, { alignItems: 'center', justifyContent: 'center', gap: 12 }]}>
+      {loadError ? <Text style={{ color: '#fff' }}>{loadError}</Text> : <ActivityIndicator color="#c62828" />}
+      <TouchableOpacity onPress={() => router.back()}><Text style={{ color: '#c62828' }}>Go back</Text></TouchableOpacity>
+    </View>;
+  }
 
   const p = product;
   const cond = CONDITION_COLORS[p.condition];
@@ -52,10 +77,18 @@ export default function ProductScreen() {
   const isComparing = compareList.includes(p.id);
   const compareAtMax = compareList.length >= 3 && !isComparing;
 
-  const handleAddToCart = () => {
-    for (let i = 0; i < qty; i++) addToCart(p);
-    setAddedFeedback(true);
-    setTimeout(() => setAddedFeedback(false), 1600);
+  const handleAddToCart = async () => {
+    if (!user) {
+      router.push('/login');
+      return;
+    }
+    try {
+      await addToCart(p, qty);
+      setAddedFeedback(true);
+      setTimeout(() => setAddedFeedback(false), 1600);
+    } catch {
+      setAddedFeedback(false);
+    }
   };
 
   const specKeys = Object.keys(p.specs) as (keyof Specs)[];
@@ -82,7 +115,7 @@ export default function ProductScreen() {
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.wishBtn, { top: insets.top + 12, backgroundColor: isWishlisted ? 'rgba(198,40,40,0.85)' : 'rgba(0,0,0,0.45)' }]}
-          onPress={() => toggleWishlist(p.id)}
+          onPress={() => { if (!user) router.push('/login'); else void toggleWishlist(p.id); }}
           activeOpacity={0.8}
         >
           <Feather name="heart" size={17} color="#fff" fill={isWishlisted ? '#fff' : 'none'} />
@@ -140,7 +173,7 @@ export default function ProductScreen() {
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.wishlistBtn, { borderColor: isWishlisted ? '#c62828' : '#d8d8d4', backgroundColor: isWishlisted ? '#fff0f0' : '#fff' }]}
-              onPress={() => toggleWishlist(p.id)}
+              onPress={() => { if (!user) router.push('/login'); else void toggleWishlist(p.id); }}
               activeOpacity={0.8}
             >
               <Feather name="heart" size={15} color={isWishlisted ? '#c62828' : '#888'} />

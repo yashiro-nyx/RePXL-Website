@@ -5,9 +5,6 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "dark",
-    "splash": {
-      "backgroundColor": "#0d0d0d"
-    },
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.repxl.mobile"
@@ -19,7 +16,16 @@
       "package": "com.repxl.mobile"
     },
     "scheme": "repxl",
-    "plugins": ["expo-router"],
+    "plugins": [
+      "expo-router",
+      "expo-notifications",
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#0d0d0d"
+        }
+      ]
+    ],
     "experiments": {
       "typedRoutes": true
     }

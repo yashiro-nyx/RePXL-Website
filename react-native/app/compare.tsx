@@ -4,7 +4,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useApp } from '../context/AppContext';
-import { PRODUCTS, CONDITION_COLORS } from '../data/products';
+import { CONDITION_COLORS } from '../data/products';
 import { Product } from '../types';
 
 const SPEC_ROWS: { label: string; key: keyof Product['specs']; higherIsBetter: boolean }[] = [
@@ -35,8 +35,8 @@ function StarRow({ rating }: { rating: number }) {
 
 export default function CompareScreen() {
   const insets = useSafeAreaInsets();
-  const { compareList, toggleCompare, addToCart } = useApp();
-  const cameras = compareList.map((id) => PRODUCTS.find((p) => p.id === id)).filter(Boolean) as Product[];
+  const { products, compareList, toggleCompare, addToCart, user } = useApp();
+  const cameras = compareList.map((id) => products.find((p) => p.id === id)).filter(Boolean) as Product[];
 
   /* Numeric extraction helpers */
   const extractNum = (val: string): number => parseFloat(val.replace(/[^0-9.]/g, '')) || 0;
@@ -93,7 +93,7 @@ export default function CompareScreen() {
                     <View style={[styles.condChip, { borderColor: cond.border }]}>
                       <Text style={[styles.condChipText, { color: cond.text }]}>{cam.condition}</Text>
                     </View>
-                    <TouchableOpacity onPress={() => addToCart(cam)} style={styles.addBtn} activeOpacity={0.85}>
+                    <TouchableOpacity onPress={() => { if (!user) router.push('/login'); else void addToCart(cam); }} style={styles.addBtn} activeOpacity={0.85}>
                       <Text style={styles.addBtnText}>Add to Cart</Text>
                     </TouchableOpacity>
                   </View>
