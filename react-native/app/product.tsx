@@ -221,8 +221,13 @@ export default function ProductScreen() {
             <View>
               <Text style={styles.bodyText}>{p.description}</Text>
               <View style={styles.pillRow}>
-                {[{ label: p.specs.megapixels, icon: '📷' }, { label: p.specs.opticalZoom + ' zoom', icon: '🔍' }, { label: p.specs.isoRange, icon: '☀️' }, { label: p.specs.weight, icon: '⚖️' }].map((pill) => (
-                  <View key={pill.label} style={styles.pill}>
+                {[
+                  { field: 'megapixels', label: p.specs.megapixels, icon: '📷' },
+                  { field: 'opticalZoom', label: p.specs.opticalZoom + ' zoom', icon: '🔍' },
+                  { field: 'isoRange', label: p.specs.isoRange, icon: '☀️' },
+                  { field: 'weight', label: p.specs.weight, icon: '⚖️' },
+                ].map((pill) => (
+                  <View key={pill.field} style={styles.pill}>
                     <Text style={{ fontSize: 11 }}>{pill.icon}</Text>
                     <Text style={styles.pillText}>{pill.label}</Text>
                   </View>
@@ -244,8 +249,8 @@ export default function ProductScreen() {
                 </View>
               ))}
               <View style={[styles.specPair, { borderTopWidth: 1, borderTopColor: '#e8e8e4', paddingTop: 14, marginTop: 4 }]}>
-                {[{ label: 'BRAND', value: p.brand }, { label: 'SERIES', value: p.series }].map((s) => (
-                  <View key={s.label} style={{ flex: 1 }}>
+                {[{ field: 'brand', label: 'BRAND', value: p.brand }, { field: 'series', label: 'SERIES', value: p.series }].map((s) => (
+                  <View key={s.field} style={{ flex: 1 }}>
                     <Text style={styles.specLabel}>{s.label}</Text>
                     <Text style={styles.specValue}>{s.value}</Text>
                   </View>
@@ -257,7 +262,7 @@ export default function ProductScreen() {
           {tab === 'reviews' && (
             <View style={{ gap: 16 }}>
               {p.reviewList.map((r, i) => (
-                <View key={i} style={{ borderBottomWidth: i < p.reviewList.length - 1 ? 1 : 0, borderBottomColor: '#e8e8e4', paddingBottom: 16 }}>
+                <View key={r.id} style={{ borderBottomWidth: i < p.reviewList.length - 1 ? 1 : 0, borderBottomColor: '#e8e8e4', paddingBottom: 16 }}>
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 }}>
                     <View>
                       <Text style={{ fontFamily: 'Inter_700Bold', fontSize: 13, color: '#111' }}>{r.author}</Text>
@@ -285,20 +290,28 @@ export default function ProductScreen() {
               </View>
             </Accordion>
             <Accordion label="AUTHENTICITY & VERIFICATION">
-              {['Serial number verified', 'Inspected by RePXL', 'Authenticity guarantee'].map((item) => (
-                <View key={item} style={{ flexDirection: 'row', gap: 10, marginBottom: 10 }}>
+              {[
+                { id: 'serial-verification', text: 'Serial number verified' },
+                { id: 'inspection', text: 'Inspected by RePXL' },
+                { id: 'authenticity', text: 'Authenticity guarantee' },
+              ].map((item) => (
+                <View key={item.id} style={{ flexDirection: 'row', gap: 10, marginBottom: 10 }}>
                   <View style={{ width: 20, height: 20, borderRadius: 10, backgroundColor: '#e8f5e9', alignItems: 'center', justifyContent: 'center' }}>
                     <Feather name="check" size={11} color="#2e7d32" />
                   </View>
-                  <Text style={[styles.bodyText, { flex: 1 }]}>{item}</Text>
+                  <Text style={[styles.bodyText, { flex: 1 }]}>{item.text}</Text>
                 </View>
               ))}
             </Accordion>
             <Accordion label="SHIPPING & RETURNS">
-              {['Ships within 1–2 business days.', 'Shipping calculated at checkout.', '14-day return window.'].map((line) => (
-                <View key={line} style={{ flexDirection: 'row', gap: 8, marginBottom: 8 }}>
+              {[
+                { id: 'dispatch-window', text: 'Ships within 1–2 business days.' },
+                { id: 'shipping-cost', text: 'Shipping calculated at checkout.' },
+                { id: 'return-window', text: '14-day return window.' },
+              ].map((line) => (
+                <View key={line.id} style={{ flexDirection: 'row', gap: 8, marginBottom: 8 }}>
                   <Feather name="check" size={13} color="#2e7d32" style={{ marginTop: 2 }} />
-                  <Text style={[styles.bodyText, { flex: 1 }]}>{line}</Text>
+                  <Text style={[styles.bodyText, { flex: 1 }]}>{line.text}</Text>
                 </View>
               ))}
             </Accordion>
