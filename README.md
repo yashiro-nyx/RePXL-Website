@@ -41,11 +41,17 @@ Live at: **https://repxlph.vercel.app**
 - Admin account management (super-admin only)
 
 ### React Native Mobile App
-- Expo/React Native customer app in [`react-native/`](./react-native)
-- Native login, MFA, token refresh, and SecureStore session persistence
-- Shared product, cart, wishlist, profile, address, checkout, order, returns, reviews, and notification APIs
-- Hosted PayMongo checkout opened through Expo WebBrowser
-- Optional Expo push notifications backed by customer device-token registration
+- Expo/React Native customer app in [`react-native/`](./react-native) (earlier prototype in `mobile/` removed)
+- Native login, registration, MFA challenge verification, token refresh rotation, and SecureStore session persistence
+- Product discovery with search query sync, brand/series filters, price brackets, in-stock toggle, and condition grading modal
+- CCD camera color simulation ("Try the Look" modal with vintage profiles for Canon, Kodak, Sony, Nikon, Fujifilm, Panasonic)
+- Camera comparison tool with interactive camera picker
+- Cart with individual/all checkboxes, live voucher code validation (`/api/vouchers/validate`), and selective checkout
+- Checkout with inline Philippine address creation modal and hosted PayMongo payments via Expo WebBrowser
+- Account dashboard with full in-app Address Management (CRUD + set default) and dedicated Wishlist sub-view
+- Order history with visual multi-step tracking timeline and live refresh
+- In-app review submission with star ratings and review deletion
+- In-app notification polling and optional Expo push-token registration
 
 ---
 

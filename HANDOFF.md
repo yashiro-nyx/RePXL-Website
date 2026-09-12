@@ -225,13 +225,20 @@ GET    /api/admin/logs
 
 ---
 
-## Mobile App
+## 6. Mobile App
 
-The Expo/React Native customer app lives in `react-native/` and uses the same Next.js
-API and PostgreSQL database as the website. It currently supports login, MFA,
-token refresh, SecureStore persistence, product browsing, cart, wishlist,
-profile, addresses, hosted PayMongo checkout, order history, tracking refresh,
-returns, reviews, and in-app notifications.
+The maintained Expo/React Native customer app lives in `react-native/` and uses the same Next.js API and PostgreSQL database as the website. (The earlier prototype directory `mobile/` has been permanently removed).
+
+Key mobile architecture and features:
+- **Authentication & Security:** Native login, registration, MFA challenge verification, token refresh rotation, and SecureStore session persistence. Logout includes confirmation modal.
+- **Product Discovery:** Full-text search with query parameter navigation, brand and series category pills, price bracket filters, "In Stock Only" toggle, condition grading guide modal, and camera comparison tool with interactive camera picker.
+- **CCD Color Simulation:** Brand CCD color profiles (`react-native/data/colorProfiles.ts`) and interactive "Try the Look" modal simulating Canon, Kodak, Sony, Nikon, Fujifilm, and Panasonic vintage rendering.
+- **Cart & Selective Checkout:** Individual item checkboxes with "Select All" toggle, clear cart confirmation modal, and real-time server-side voucher validation (`/api/vouchers/validate`) deducting discounts before forwarding selected items to checkout.
+- **Checkout & Payment:** Inline Philippine address creation modal (full region/province/city/barangay fields), default address selection, voucher discounts, and PayMongo hosted checkout sessions opened via Expo WebBrowser.
+- **Account & Address Management:** In-app Address Management modal supporting full CRUD and default address setting, dedicated Wishlist sub-view with direct "Add to Cart" and "Remove" capabilities.
+- **Orders & Tracking:** Order history with detailed view, visual multi-step tracking timeline (Placed → Confirmed → Shipped → Delivered), and live refresh.
+- **Reviews:** In-app "Write a Review" modal with star rating picker and customer review deletion.
+- **Notifications:** In-app notification polling and Expo push-token registration.
 
 Start the website API separately, then run:
 

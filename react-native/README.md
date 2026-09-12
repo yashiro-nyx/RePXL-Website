@@ -51,13 +51,14 @@ npm start
 For an Android emulator, use `http://10.0.2.2:3000` as the local API origin.
 For a physical device, use the development machine's reachable LAN address.
 
-## Current limits
+Address creation, editing, deletion, and default selection are fully supported
+in-app (both in Account settings and directly during checkout). In-app review
+submission, real-time voucher validation, selective cart checkout, interactive
+CCD color profile previews ("Try the Look"), dedicated wishlist browsing, and
+synchronized camera comparison are also active.
 
 Google OAuth uses the website's browser-cookie flow and is not exposed as a
 native login button. A future native implementation needs an authorization-code
-redirect and secure server-side token exchange.
-
-Address creation/editing, review/return submission with signed image uploads,
-payment deep-link return handling, and app-store/EAS configuration remain
-future mobile work. Existing records are available read-only where the current
-native UI has no safe editing flow.
+redirect and secure server-side token exchange. Return submission with signed
+image uploads, payment deep-link return handling, and app-store/EAS configuration
+remain future mobile work.

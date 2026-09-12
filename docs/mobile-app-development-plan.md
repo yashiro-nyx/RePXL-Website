@@ -8,14 +8,19 @@ The PostgreSQL database remains the single source of truth. The mobile app must 
 
 ## Current Implementation Status
 
-The maintained integration is implemented in `react-native/`. Completed slices include
-native login/MFA/session refresh, SecureStore persistence, shared bearer access
-to customer APIs, products, cart, wishlist, profile, address reads, hosted
-PayMongo checkout, orders, reviews, in-app
-notifications, and optional Expo push-token registration. The next work is
-address editing, return/review submission, image uploads for mobile reviews/returns, deep-link
-payment return handling, offline/cache strategy, device testing, and app-store
-release configuration.
+The maintained integration is implemented in `react-native/`. The deprecated `mobile/` prototype folder has been completely removed from the repository. Completed slices include:
+- Native login/registration, MFA challenge verification, token refresh, and SecureStore session persistence.
+- Shared bearer access to all customer APIs with automatic 401 token refresh queue.
+- Product catalog browsing, full-text search with query parameter handling, brand/series category filters, price brackets, and "In Stock Only" toggles.
+- Product detail with condition grading explainer modal, brand CCD color profile previews ("Try the Look" simulation for Canon, Kodak, Sony, Nikon, Fujifilm, Panasonic), and camera comparison tool.
+- Cart with individual and select-all checkboxes, live voucher code validation (`/api/vouchers/validate`) with real-time discount calculation, clear cart confirmation, and selective checkout forwarding.
+- Checkout with inline Philippine address creation modal, default address selection, voucher discounts, and hosted PayMongo checkout session creation.
+- Account dashboard with full in-app Address Management (CRUD + set default), dedicated Wishlist sub-view with direct "Add to Cart" and "Remove" actions, and logout confirmation modal.
+- Order history with detailed view and visual multi-step tracking status timeline.
+- In-app review creation with star ratings and review deletion.
+- In-app notification polling and optional Expo push-token registration.
+
+The next work is return request submission, image uploads for mobile reviews/returns, deep-link payment return handling, offline/cache strategy, device testing, and app-store release configuration.
 
 ## 2. Recommended Architecture
 
@@ -107,11 +112,11 @@ The app should display cached data while offline, clearly mark stale data, and q
 - Confirm iOS/Android targets, branding, payment provider behavior, analytics, crash reporting, and app-store accounts.
 - Freeze the initial customer feature list.
 - Document current endpoint behavior and identify endpoints needing mobile changes.
-- Create the `mobile/` Expo project and CI environments.
+- Maintain the `react-native/` Expo project (the deprecated `mobile/` prototype folder has been removed) and CI environments.
 
 **Exit criteria:** app launches on iOS simulator and Android emulator; development, staging, and production API URLs are configurable.
 
-### Phase 1: API and authentication foundation
+### Phase 1: API and authentication foundation (Completed)
 
 - Implement access/refresh-token flow alongside web cookies.
 - Add mobile login, registration, logout, token refresh, MFA, password reset, and session revocation.
@@ -120,37 +125,37 @@ The app should display cached data while offline, clearly mark stale data, and q
 
 **Exit criteria:** a native client can authenticate, refresh an expired access token, sign out, and access only its own customer data.
 
-### Phase 2: App shell and read-only shopping
+### Phase 2: App shell and read-only shopping (Completed)
 
 - Implement navigation, theme, typography, API client, query provider, secure storage, and global error handling.
-- Build home/catalog, search, filters, product detail, image gallery, and reviews.
+- Build home/catalog, search, filters, product detail, image gallery, condition grading explainer, brand CCD color profiles ("Try the Look"), and camera comparison tool.
 - Add loading, empty, retry, and offline states.
 
 **Exit criteria:** customers can browse the same active product inventory as the website.
 
-### Phase 3: Cart, account, wishlist, and addresses
+### Phase 3: Cart, account, wishlist, and addresses (Completed)
 
-- Implement cart operations and cross-device invalidation.
-- Implement wishlist, profile, addresses, notification preferences, and account security.
+- Implement cart operations, individual/select-all checkboxes, clear cart confirmation, and cross-device invalidation.
+- Implement dedicated wishlist sub-view with direct cart moves, customer profile, address CRUD (create, update, delete, set default) with full Philippine fields, notification preferences, and account security with logout confirmation.
 - Add optimistic updates only for low-risk operations and reconcile with the server response.
 
-**Exit criteria:** a cart or wishlist change made on web is visible in mobile after refresh, and vice versa.
+**Exit criteria:** a cart or wishlist change made on web is visible in mobile after refresh, and vice versa. Full address CRUD functions seamlessly.
 
-### Phase 4: Checkout and payments
+### Phase 4: Checkout and payments (Substantially Complete)
 
-- Implement shipping selection, address selection, vouchers, order review, and payment initiation.
-- Implement payment-provider deep links and return handling.
+- Implement shipping selection, default and inline address creation, live voucher validation in cart & checkout, order review, selective item checkout, and payment initiation.
+- Implement payment-provider deep links and return handling via Expo WebBrowser.
 - Add idempotent finalization and recovery for canceled, interrupted, or duplicate payment attempts.
 - Verify stock and totals on the server immediately before finalization.
 
 **Exit criteria:** a test customer can complete payment in staging and receive exactly one order with correctly deducted inventory.
 
-### Phase 5: Orders, tracking, returns, and notifications
+### Phase 5: Orders, tracking, returns, and notifications (Partially Complete)
 
-- Implement order history, order detail, receipt, cancellation, confirm receipt, and return requests.
-- Integrate tracking SSE where supported and polling fallback otherwise.
-- Add push notification registration, permission handling, deep links, and notification-driven refetching.
-- Add review and image-upload flows.
+- Implement order history, order detail, receipt, visual status tracking timeline, cancellation, confirm receipt, and return requests (order history, detail, receipt, and tracking timeline completed; return requests pending).
+- Integrate tracking polling and live refresh.
+- Add push notification registration, permission handling, deep links, and in-app notification polling.
+- Add review submission with star ratings and review deletion (completed; image uploads for reviews/returns pending).
 
 **Exit criteria:** an admin tracking update is reflected in the customer app and generates the expected notification without exposing another customer's order.
 

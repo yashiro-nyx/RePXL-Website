@@ -237,6 +237,29 @@ export const api = {
     return { ...profile, name: `${profile.firstName} ${profile.lastName}`.trim() };
   },
   addresses: () => authorized<Address[]>('/api/addresses'),
+  createAddress: (data: Omit<Address, 'id'>) => authorized<Address>('/api/addresses', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  }),
+  updateAddress: (id: string, data: Omit<Address, 'id'>) => authorized<Address>(`/api/addresses/${encodeURIComponent(id)}`, {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  }),
+  deleteAddress: (id: string) => authorized<{ message?: string }>(`/api/addresses/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+  }),
+  setDefaultAddress: (id: string) => authorized<Address>(`/api/addresses/${encodeURIComponent(id)}/default`, {
+    method: 'PUT',
+  }),
+  validateVoucher: (code: string, cartTotal: number) => authorized<{
+    valid: boolean;
+    discount: number;
+    error?: string;
+    voucher?: { code: string; description: string };
+  }>('/api/vouchers/validate', {
+    method: 'POST',
+    body: JSON.stringify({ code, cartTotal }),
+  }),
   orders: async () => {
     const orders = await authorized<RawOrder[]>('/api/orders?limit=50');
     return orders.map(mapOrder);
@@ -252,10 +275,19 @@ export const api = {
     body: JSON.stringify({ token, platform }),
   }),
   reviews: () => authorized<AccountReview[]>('/api/reviews?mine=true&limit=50'),
+  createReview: (productId: string, rating: number, comment: string) => authorized<AccountReview>('/api/reviews', {
+    method: 'POST',
+    body: JSON.stringify({ productId, rating, comment }),
+  }),
+  deleteReview: (reviewId: string) => authorized<{ message?: string }>(`/api/reviews/${encodeURIComponent(reviewId)}`, {
+    method: 'DELETE',
+  }),
   checkout: (
     address: Address,
     selectedProductIds: string[],
     paymentMethod: 'card' | 'gcash',
+    voucherCode: string | null = null,
+    shippingCost: number = 0,
   ) => authorized<{ checkoutUrl: string; orderNumber: string; sessionId: string }>('/api/checkout/session', {
     method: 'POST',
     body: JSON.stringify({
@@ -268,8 +300,8 @@ export const api = {
       courierName: 'Standard delivery',
       courierEstimate: '3-5 business days',
       paymentMethod,
-      voucherCode: null,
-      shippingCost: 0,
+      voucherCode,
+      shippingCost,
       selectedProductIds,
     }),
   }),

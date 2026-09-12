@@ -50,6 +50,18 @@ interface AppContextType {
   clearCart: () => Promise<void>;
   saveProfile: (input: { firstName: string; lastName: string; username?: string }) => Promise<void>;
   markNotificationRead: (id: string) => Promise<void>;
+  addAddress: (data: Omit<Address, 'id'>) => Promise<Address>;
+  updateAddress: (id: string, data: Omit<Address, 'id'>) => Promise<Address>;
+  deleteAddress: (id: string) => Promise<void>;
+  setDefaultAddress: (id: string) => Promise<void>;
+  submitReview: (productId: string, rating: number, comment: string) => Promise<AccountReview>;
+  removeReview: (reviewId: string) => Promise<void>;
+  validateVoucher: (code: string, cartTotal: number) => Promise<{
+    valid: boolean;
+    discount: number;
+    error?: string;
+    voucher?: { code: string; description: string };
+  }>;
 }
 
 const AppContext = createContext<AppContextType | null>(null);
@@ -250,6 +262,43 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setNotifications((current) => current.map((item) => item.id === id ? { ...item, ...updated } : item));
   }, []);
 
+  const addAddress = useCallback(async (data: Omit<Address, 'id'>) => {
+    const created = await api.createAddress(data);
+    setAddresses(await api.addresses());
+    return created;
+  }, []);
+
+  const updateAddress = useCallback(async (id: string, data: Omit<Address, 'id'>) => {
+    const updated = await api.updateAddress(id, data);
+    setAddresses(await api.addresses());
+    return updated;
+  }, []);
+
+  const deleteAddress = useCallback(async (id: string) => {
+    await api.deleteAddress(id);
+    setAddresses(await api.addresses());
+  }, []);
+
+  const setDefaultAddress = useCallback(async (id: string) => {
+    await api.setDefaultAddress(id);
+    setAddresses(await api.addresses());
+  }, []);
+
+  const submitReview = useCallback(async (productId: string, rating: number, comment: string) => {
+    const created = await api.createReview(productId, rating, comment);
+    setReviews(await api.reviews());
+    return created;
+  }, []);
+
+  const removeReview = useCallback(async (reviewId: string) => {
+    await api.deleteReview(reviewId);
+    setReviews(await api.reviews());
+  }, []);
+
+  const validateVoucher = useCallback(async (code: string, cartTotal: number) => {
+    return await api.validateVoucher(code, cartTotal);
+  }, []);
+
   const value = useMemo<AppContextType>(() => ({
     loading,
     refreshing,
@@ -278,11 +327,20 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     clearCart,
     saveProfile,
     markNotificationRead,
+    addAddress,
+    updateAddress,
+    deleteAddress,
+    setDefaultAddress,
+    submitReview,
+    removeReview,
+    validateVoucher,
   }), [
     loading, refreshing, error, products, cart, user, profile, wishlist, compareList,
     addresses, orders, notifications, reviews, signIn, verifyMfa, register, logout,
     refreshProducts, refreshAccount, addToCart, removeFromCart, updateQty,
     toggleWishlist, toggleCompare, clearCart, saveProfile, markNotificationRead,
+    addAddress, updateAddress, deleteAddress, setDefaultAddress, submitReview,
+    removeReview, validateVoucher,
   ]);
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
