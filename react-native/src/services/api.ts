@@ -53,9 +53,13 @@ type RawOrder = Omit<Order, 'items'> & {
 };
 
 function mapProduct(product: RawProduct): Product {
-  const image = /^https?:\/\//i.test(product.image)
-    ? product.image
-    : `${API_BASE_URL}${product.image.startsWith('/') ? '' : '/'}${product.image}`;
+  const rawImage = product.image?.trim() ?? '';
+  const image =
+    /^https?:\/\//i.test(rawImage) || rawImage.startsWith('data:')
+      ? rawImage
+      : rawImage
+        ? `${API_BASE_URL}${rawImage.startsWith('/') ? '' : '/'}${rawImage}`
+        : '';
   return {
     id: product.id,
     slug: product.slug,
