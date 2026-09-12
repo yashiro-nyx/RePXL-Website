@@ -38,12 +38,12 @@
     "node_modules",
     "mobile",
     "react-native",
+    "react-native/**",
     "react-native/.expo",
     "react-native/dist",
     "react-native/build",
     "react-native/android",
     "react-native/ios",
     "vitest.config.ts"
-  ],
-  "extends": "expo/tsconfig.base"
+  ]
 }
