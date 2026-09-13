@@ -11,7 +11,6 @@ import {
   View,
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
-import * as WebBrowser from 'expo-web-browser';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -19,7 +18,21 @@ import { useApp } from '../context/AppContext';
 import { api } from '../src/services/api';
 import type { Address } from '../types';
 
-type PayMethod = 'card' | 'gcash';
+interface CourierOption {
+  id: string;
+  name: string;
+  price: number;
+  estimate: string;
+}
+
+const COURIERS: CourierOption[] = [
+  { id: 'jnt', name: 'J&T Express', price: 150, estimate: '2–3 business days' },
+  { id: 'lbc', name: 'LBC Express', price: 200, estimate: '1–2 business days' },
+  { id: 'ninja', name: 'Ninja Van', price: 120, estimate: '3–5 business days' },
+  { id: 'grab', name: 'Grab Express', price: 300, estimate: 'Same day (metro only)' },
+];
+
+type PayMethod = 'card' | 'gcash' | 'cod';
 
 export default function CheckoutScreen() {
   const insets = useSafeAreaInsets();
@@ -46,9 +59,19 @@ export default function CheckoutScreen() {
 
   const defaultAddress = addresses.find((address) => address.isDefault) ?? addresses[0];
   const [addressId, setAddressId] = useState(defaultAddress?.id ?? '');
+  const [selectedCourierId, setSelectedCourierId] = useState<string>(COURIERS[0].id);
   const [payMethod, setPayMethod] = useState<PayMethod>('card');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+
+  // In-app Card Payment State
+  const [cardNumber, setCardNumber] = useState('');
+  const [cardExpiry, setCardExpiry] = useState('');
+  const [cardCvc, setCardCvc] = useState('');
+  const [cardholderName, setCardholderName] = useState(user?.name ?? '');
+
+  // In-app GCash State
+  const [gcashPhone, setGcashPhone] = useState(defaultAddress?.phone ?? '');
 
   // Add Address Modal state
   const [showAddressModal, setShowAddressModal] = useState(false);
@@ -64,18 +87,47 @@ export default function CheckoutScreen() {
   const [newIsDefault, setNewIsDefault] = useState(addresses.length === 0);
 
   const selectedAddress = addresses.find((address) => address.id === addressId) ?? defaultAddress;
+  const selectedCourier = COURIERS.find((c) => c.id === selectedCourierId) ?? COURIERS[0];
 
   const subtotal = useMemo(
     () => checkoutItems.reduce((sum, item) => sum + item.product.price * item.quantity, 0),
     [checkoutItems]
   );
-  const shipping = subtotal > 0 ? 150 : 0;
+  const shipping = subtotal > 0 ? selectedCourier.price : 0;
   const voucherCode = params.voucherCode || null;
   const discount = params.voucherDiscount ? parseFloat(params.voucherDiscount) : 0;
   const total = Math.max(0, subtotal - discount + shipping);
 
+  // Formatting helpers
+  const handleCardNumberChange = (text: string) => {
+    const digits = text.replace(/\D/g, '').slice(0, 16);
+    const formatted = digits.replace(/(\d{4})(?=\d)/g, '$1 ');
+    setCardNumber(formatted);
+  };
+
+  const handleExpiryChange = (text: string) => {
+    const digits = text.replace(/\D/g, '').slice(0, 4);
+    if (digits.length >= 3) {
+      setCardExpiry(`${digits.slice(0, 2)}/${digits.slice(2)}`);
+    } else {
+      setCardExpiry(digits);
+    }
+  };
+
+  const handleCvcChange = (text: string) => {
+    setCardCvc(text.replace(/\D/g, '').slice(0, 4));
+  };
+
   const handleSaveAddress = async () => {
-    if (!newFullName.trim() || !newAddress.trim() || !newBarangay.trim() || !newCity.trim() || !newProvince.trim() || !newPostalCode.trim() || !newPhone.trim()) {
+    if (
+      !newFullName.trim() ||
+      !newAddress.trim() ||
+      !newBarangay.trim() ||
+      !newCity.trim() ||
+      !newProvince.trim() ||
+      !newPostalCode.trim() ||
+      !newPhone.trim()
+    ) {
       setAddressFormError('Please fill in all address fields.');
       return;
     }
@@ -93,6 +145,8 @@ export default function CheckoutScreen() {
         isDefault: newIsDefault,
       });
       setAddressId(created.id);
+      if (!cardholderName.trim()) setCardholderName(created.fullName);
+      if (!gcashPhone.trim()) setGcashPhone(created.phone);
       setShowAddressModal(false);
     } catch (err) {
       setAddressFormError(err instanceof Error ? err.message : 'Unable to save address.');
@@ -101,7 +155,7 @@ export default function CheckoutScreen() {
     }
   };
 
-  const checkout = async () => {
+  const handleCheckout = async () => {
     if (!user) {
       router.replace('/login');
       return;
@@ -114,23 +168,69 @@ export default function CheckoutScreen() {
       setError('Your checkout cart is empty.');
       return;
     }
+
+    // Validate in-app payment details
+    if (payMethod === 'card') {
+      const rawCard = cardNumber.replace(/\s/g, '');
+      if (rawCard.length !== 16) {
+        setError('Please enter a valid 16-digit card number.');
+        return;
+      }
+      const [monthStr, yearStr] = cardExpiry.split('/');
+      const month = parseInt(monthStr ?? '0', 10);
+      if (!monthStr || !yearStr || month < 1 || month > 12 || cardExpiry.length < 5) {
+        setError('Please enter a valid expiry date (MM/YY).');
+        return;
+      }
+      if (cardCvc.length < 3) {
+        setError('Please enter a valid 3 or 4-digit CVC.');
+        return;
+      }
+      if (!cardholderName.trim()) {
+        setError('Please enter the cardholder name.');
+        return;
+      }
+    } else if (payMethod === 'gcash') {
+      const rawPhone = gcashPhone.replace(/\D/g, '');
+      if (rawPhone.length < 10) {
+        setError('Please enter a valid GCash mobile number (e.g. 09XXXXXXXXX).');
+        return;
+      }
+    }
+
     setSubmitting(true);
     setError('');
+
+    const paymentLabel =
+      payMethod === 'card'
+        ? 'Credit / Debit Card'
+        : payMethod === 'gcash'
+          ? 'GCash'
+          : 'Cash on Delivery';
+
     try {
-      const result = await api.checkout(
-        selectedAddress,
-        checkoutItems.map((item) => item.product.slug),
-        payMethod,
+      const order = await api.createOrder({
+        fullName: selectedAddress.fullName,
+        address: selectedAddress.address,
+        barangay: selectedAddress.barangay,
+        city: selectedAddress.city,
+        province: selectedAddress.province,
+        postalCode: selectedAddress.postalCode,
+        courierName: selectedCourier.name,
+        courierEstimate: selectedCourier.estimate,
+        paymentMethod: paymentLabel,
         voucherCode,
-        shipping
-      );
-      await WebBrowser.openBrowserAsync(result.checkoutUrl, {
-        presentationStyle: WebBrowser.WebBrowserPresentationStyle.FORM_SHEET,
+        shippingCost: selectedCourier.price,
+        selectedProductIds: checkoutItems.map((item) => item.product.slug),
       });
+
       await refreshAccount();
-      router.replace({ pathname: '/order-confirm', params: { orderNumber: result.orderNumber } });
+      router.replace({
+        pathname: '/order-confirm',
+        params: { orderNumber: order.orderNumber },
+      });
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : 'Unable to start secure checkout.');
+      setError(reason instanceof Error ? reason.message : 'Unable to complete checkout. Please try again.');
     } finally {
       setSubmitting(false);
     }
@@ -141,10 +241,10 @@ export default function CheckoutScreen() {
       <LinearGradient colors={['#4a0808', '#1a0202', 'transparent']} style={styles.gradient} />
 
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} activeOpacity={0.7}>
+        <TouchableOpacity onPress={() => router.back()} activeOpacity={0.7} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
           <Feather name="arrow-left" size={22} color="#fff" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Secure Checkout</Text>
+        <Text style={styles.headerTitle}>Checkout</Text>
         <View style={{ width: 22 }} />
       </View>
 
@@ -208,8 +308,8 @@ export default function CheckoutScreen() {
                   )}
                 </View>
                 <Text style={styles.optionText}>
-                  {address.address}, {address.barangay}, {address.city}, {address.province}{' '}
-                  {address.postalCode}
+                  {address.address}, {address.barangay ? `${address.barangay}, ` : ''}
+                  {address.city}, {address.province} {address.postalCode}
                 </Text>
                 <Text style={styles.phoneText}>{address.phone}</Text>
               </View>
@@ -217,31 +317,145 @@ export default function CheckoutScreen() {
           ))
         )}
 
-        {/* Payment Method */}
-        <Text style={styles.sectionTitle}>Payment Method</Text>
-        {(['card', 'gcash'] as PayMethod[]).map((method) => (
+        {/* Courier Selection */}
+        <Text style={styles.sectionTitle}>Shipping Courier</Text>
+        {COURIERS.map((courier) => (
           <TouchableOpacity
-            key={method}
-            style={[styles.option, payMethod === method && styles.optionActive]}
-            onPress={() => setPayMethod(method)}
+            key={courier.id}
+            style={[
+              styles.option,
+              selectedCourierId === courier.id && styles.optionActive,
+            ]}
+            onPress={() => setSelectedCourierId(courier.id)}
+            activeOpacity={0.8}
+          >
+            <View
+              style={[
+                styles.radio,
+                selectedCourierId === courier.id && styles.radioActive,
+              ]}
+            />
+            <View style={{ flex: 1 }}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Text style={styles.optionTitle}>{courier.name}</Text>
+                <Text style={styles.courierPrice}>₱{courier.price.toLocaleString()}.00</Text>
+              </View>
+              <Text style={styles.optionText}>{courier.estimate}</Text>
+            </View>
+          </TouchableOpacity>
+        ))}
+
+        {/* Payment Method Selection */}
+        <Text style={styles.sectionTitle}>Payment Method</Text>
+        {(
+          [
+            { id: 'card' as const, label: 'Credit / Debit Card', icon: 'credit-card', subtitle: 'Visa, Mastercard, JCB' },
+            { id: 'gcash' as const, label: 'GCash', icon: 'smartphone', subtitle: 'Philippine e-wallet' },
+            { id: 'cod' as const, label: 'Cash on Delivery', icon: 'truck', subtitle: 'Pay when delivered' },
+          ] as const
+        ).map((method) => (
+          <TouchableOpacity
+            key={method.id}
+            style={[styles.option, payMethod === method.id && styles.optionActive]}
+            onPress={() => setPayMethod(method.id)}
             activeOpacity={0.8}
           >
             <Feather
-              name={method === 'card' ? 'credit-card' : 'smartphone'}
-              size={19}
-              color={payMethod === method ? '#c62828' : '#777'}
+              name={method.icon}
+              size={18}
+              color={payMethod === method.id ? '#c62828' : '#777'}
             />
             <View style={{ flex: 1 }}>
-              <Text style={styles.optionTitle}>
-                {method === 'card' ? 'Credit / Debit Card' : 'GCash'}
-              </Text>
-              <Text style={styles.optionText}>
-                Secured hosted checkout via PayMongo.
-              </Text>
+              <Text style={styles.optionTitle}>{method.label}</Text>
+              <Text style={styles.optionText}>{method.subtitle}</Text>
             </View>
-            <View style={[styles.radio, payMethod === method && styles.radioActive]} />
+            <View style={[styles.radio, payMethod === method.id && styles.radioActive]} />
           </TouchableOpacity>
         ))}
+
+        {/* In-app Payment Inputs Card */}
+        {payMethod === 'card' && (
+          <View style={styles.paymentFieldsCard}>
+            <Text style={styles.paymentCardTitle}>Card Details</Text>
+
+            <Text style={styles.fieldLabel}>CARDHOLDER NAME</Text>
+            <TextInput
+              value={cardholderName}
+              onChangeText={setCardholderName}
+              placeholder="As shown on card"
+              placeholderTextColor="#555"
+              style={styles.input}
+              autoCapitalize="words"
+            />
+
+            <Text style={styles.fieldLabel}>CARD NUMBER</Text>
+            <TextInput
+              value={cardNumber}
+              onChangeText={handleCardNumberChange}
+              placeholder="1234 5678 9012 3456"
+              placeholderTextColor="#555"
+              keyboardType="numeric"
+              maxLength={19}
+              style={styles.input}
+            />
+
+            <View style={{ flexDirection: 'row', gap: 10 }}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.fieldLabel}>EXPIRES (MM/YY)</Text>
+                <TextInput
+                  value={cardExpiry}
+                  onChangeText={handleExpiryChange}
+                  placeholder="MM/YY"
+                  placeholderTextColor="#555"
+                  keyboardType="numeric"
+                  maxLength={5}
+                  style={styles.input}
+                />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.fieldLabel}>CVC</Text>
+                <TextInput
+                  value={cardCvc}
+                  onChangeText={handleCvcChange}
+                  placeholder="123"
+                  placeholderTextColor="#555"
+                  keyboardType="numeric"
+                  maxLength={4}
+                  secureTextEntry
+                  style={styles.input}
+                />
+              </View>
+            </View>
+          </View>
+        )}
+
+        {payMethod === 'gcash' && (
+          <View style={styles.paymentFieldsCard}>
+            <Text style={styles.paymentCardTitle}>GCash Details</Text>
+            <Text style={styles.fieldLabel}>GCASH MOBILE NUMBER</Text>
+            <TextInput
+              value={gcashPhone}
+              onChangeText={setGcashPhone}
+              placeholder="09171234567"
+              placeholderTextColor="#555"
+              keyboardType="phone-pad"
+              maxLength={13}
+              style={styles.input}
+            />
+            <Text style={styles.helperText}>
+              Your GCash account will be charged upon order placement.
+            </Text>
+          </View>
+        )}
+
+        {payMethod === 'cod' && (
+          <View style={styles.paymentFieldsCard}>
+            <Text style={styles.paymentCardTitle}>Cash on Delivery</Text>
+            <Text style={styles.helperText}>
+              Please prepare the exact cash amount upon courier delivery.
+            </Text>
+          </View>
+        )}
 
         {/* Order Summary */}
         <View style={styles.summary}>
@@ -252,7 +466,7 @@ export default function CheckoutScreen() {
                 {item.product.name} × {item.quantity}
               </Text>
               <Text style={styles.summaryValue}>
-                ₱{(item.product.price * item.quantity).toLocaleString()}
+                ₱{(item.product.price * item.quantity).toLocaleString()}.00
               </Text>
             </View>
           ))}
@@ -272,17 +486,20 @@ export default function CheckoutScreen() {
             </View>
           )}
           <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>Shipping (Standard Delivery)</Text>
-            <Text style={styles.summaryValue}>₱{shipping}.00</Text>
+            <Text style={styles.summaryLabel}>Shipping ({selectedCourier.name})</Text>
+            <Text style={styles.summaryValue}>₱{shipping.toLocaleString()}.00</Text>
           </View>
           <View style={styles.divider} />
           <View style={styles.summaryRow}>
             <Text style={styles.totalLabel}>Total</Text>
             <Text style={styles.totalValue}>₱{total.toLocaleString()}.00</Text>
           </View>
-          <Text style={styles.disclaimerText}>
-            Stock is reserved and verified securely by PayMongo upon payment.
-          </Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 }}>
+            <Feather name="shield" size={12} color="#4caf50" />
+            <Text style={styles.disclaimerText}>
+              Built-in secure checkout · 14-day return guarantee
+            </Text>
+          </View>
         </View>
 
         {!!error && <Text style={styles.error}>{error}</Text>}
@@ -293,7 +510,7 @@ export default function CheckoutScreen() {
         <TouchableOpacity
           style={[styles.cta, submitting && { opacity: 0.6 }]}
           onPress={() => {
-            void checkout();
+            void handleCheckout();
           }}
           disabled={submitting || !selectedAddress || checkoutItems.length === 0}
           activeOpacity={0.85}
@@ -302,7 +519,7 @@ export default function CheckoutScreen() {
             <ActivityIndicator color="#fff" />
           ) : (
             <Text style={styles.ctaText}>
-              Pay ₱{total.toLocaleString()} with {payMethod === 'card' ? 'Card' : 'GCash'}
+              Place Order · ₱{total.toLocaleString()}.00
             </Text>
           )}
         </TouchableOpacity>
@@ -477,7 +694,7 @@ const styles = StyleSheet.create({
     padding: 14,
     marginBottom: 9,
   },
-  optionActive: { borderColor: '#8b2020' },
+  optionActive: { borderColor: '#c62828', backgroundColor: 'rgba(198,40,40,0.06)' },
   radio: {
     width: 16,
     height: 16,
@@ -487,6 +704,7 @@ const styles = StyleSheet.create({
   },
   radioActive: { borderColor: '#c62828', backgroundColor: '#c62828' },
   optionTitle: { fontFamily: 'Inter_700Bold', fontSize: 13, color: '#fff' },
+  courierPrice: { fontFamily: 'Inter_700Bold', fontSize: 13, color: '#c62828' },
   defaultBadge: {
     color: '#4caf50',
     fontSize: 9,
@@ -543,11 +761,46 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#fff',
   },
+  paymentFieldsCard: {
+    backgroundColor: '#161618',
+    borderRadius: 14,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#2c2c2e',
+    marginTop: 4,
+    marginBottom: 10,
+    gap: 8,
+  },
+  paymentCardTitle: {
+    fontFamily: 'Inter_700Bold',
+    fontSize: 13,
+    color: '#fff',
+    marginBottom: 4,
+  },
+  input: {
+    backgroundColor: '#111',
+    borderWidth: 1,
+    borderColor: '#2c2c2e',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    color: '#fff',
+    fontFamily: 'Inter_400Regular',
+    fontSize: 13,
+    marginBottom: 4,
+  },
+  helperText: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 11,
+    color: '#888',
+    lineHeight: 16,
+    marginTop: 2,
+  },
   summary: {
     backgroundColor: '#1c1c1e',
     borderRadius: 14,
     padding: 16,
-    marginTop: 20,
+    marginTop: 18,
     gap: 9,
     borderWidth: 1,
     borderColor: '#2c2c2e',
@@ -562,9 +815,7 @@ const styles = StyleSheet.create({
   disclaimerText: {
     fontFamily: 'Inter_400Regular',
     fontSize: 10,
-    color: '#666',
-    lineHeight: 15,
-    marginTop: 4,
+    color: '#777',
   },
   error: {
     color: '#f44336',

@@ -7,15 +7,12 @@ import { adminService, type AdminCustomer } from '@/lib/data/adminService'
 import { Pagination } from '@/components/ui/Pagination'
 import { formatPrice } from '@/lib/format'
 
-const PAGE_SIZE = 10
+import {
+  getOrderStatusBadgeClass,
+  getOrderStatusLabel,
+} from '@/lib/order-status-unified'
 
-const statusStyles: Record<string, string> = {
-  Processing: 'bg-amber-500/15 text-amber-400 border-amber-500/30',
-  Shipped: 'bg-blue-500/15 text-blue-400 border-blue-500/30',
-  Delivered: 'bg-green-500/15 text-green-400 border-green-500/30',
-  Completed: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30',
-  Cancelled: 'bg-red-500/15 text-red-400 border-red-500/30',
-}
+const PAGE_SIZE = 10
 
 function censorName(name: string) {
   return name.split(' ').map((p) => p[0] + '*'.repeat(Math.max(p.length - 1, 4))).join(' ')
@@ -317,8 +314,8 @@ export default function AdminCustomersPage() {
                         <td className="py-2.5 font-mono text-xs font-semibold text-repixl-red">#{o.orderNumber.replace('RPXL-', '').slice(0, 12)}</td>
                         <td className="py-2.5 font-mono text-sm font-semibold text-repixl-text-light">{formatPrice(o.total)}</td>
                         <td className="py-2.5">
-                          <span className={`rounded-full border px-2 py-0.5 font-mono text-[9px] uppercase tracking-wider ${statusStyles[o.status] || 'text-repixl-muted'}`}>
-                            {o.status}
+                          <span className={`rounded-full border px-2 py-0.5 font-mono text-[9px] uppercase tracking-wider ${getOrderStatusBadgeClass(o.status)}`}>
+                            {getOrderStatusLabel(o.status)}
                           </span>
                         </td>
                         <td className="py-2.5 font-mono text-xs text-repixl-muted">{o.date}</td>

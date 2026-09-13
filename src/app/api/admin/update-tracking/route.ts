@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { getCurrentAdmin } from '@/lib/auth-helpers'
 import { successResponse, errorResponse, unauthorizedResponse } from '@/lib/api'
 import { emitNotification } from '@/lib/notifications'
+import { isPaymentExpired } from '@/lib/order-payment-expiry'
 
 /**
  * POST /api/admin/update-tracking
@@ -71,6 +72,33 @@ export async function POST(request: NextRequest) {
   const tracking = STEP_MAP[step as Step]
 
   console.log(`[update-tracking] Admin ${admin.email} → ${orderNumber} → ${step}`)
+
+  // ── Verify order and enforce completed payment ────────────────────────────
+  const existingOrder = await prisma.order.findUnique({
+    where: { orderNumber: orderNumber.trim() },
+  })
+
+  if (!existingOrder) {
+    return errorResponse('Order not found', 404)
+  }
+
+  if (isPaymentExpired(existingOrder)) {
+    await prisma.order.update({
+      where: { orderNumber: orderNumber.trim() },
+      data: { paymentStatus: 'FAILED', status: 'CANCELLED', updatedAt: new Date() },
+    })
+    return errorResponse(
+      'Order payment processing has expired. Delivery tracking cannot be updated.',
+      409
+    )
+  }
+
+  if (existingOrder.paymentStatus !== 'PAID') {
+    return errorResponse(
+      `Cannot update delivery tracking for an unpaid or pending order (payment status: ${existingOrder.paymentStatus}). Payment must be marked completed first.`,
+      409
+    )
+  }
 
   // ── Database update ───────────────────────────────────────────────────────
   let updated

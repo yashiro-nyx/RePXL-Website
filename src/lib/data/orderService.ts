@@ -20,6 +20,7 @@ export interface CreateOrderInput {
   paymentMethod: string
   voucherCode?: string | null
   shippingCost: number
+  selectedProductIds?: string[]
 }
 
 export const orderService = {

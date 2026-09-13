@@ -9,13 +9,10 @@ import { useOrderHistoryStore } from '@/stores/orderHistoryStore'
 import { purchaseFilters, matchesPurchaseFilter, type PurchaseFilter } from '@/lib/account-navigation'
 import { formatPrice } from '@/lib/format'
 
-const statusStyles: Record<string, string> = {
-  Processing: 'bg-amber-500/15 text-amber-400 border-amber-500/30',
-  Shipped: 'bg-blue-500/15 text-blue-400 border-blue-500/30',
-  Delivered: 'bg-green-500/15 text-green-400 border-green-500/30',
-  Completed: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30',
-  Cancelled: 'bg-red-500/15 text-red-400 border-red-500/30',
-}
+import {
+  getOrderStatusBadgeClass,
+  getOrderStatusLabel,
+} from '@/lib/order-status-unified'
 
 export default function OrderHistoryPage() {
   const router = useRouter()
@@ -82,8 +79,8 @@ export default function OrderHistoryPage() {
                       {/* Order number + status — secondary */}
                       <div className="mt-0.5 flex items-center gap-2">
                         <p className="font-mono text-[10px] text-repixl-muted">#{order.orderNumber}</p>
-                        <span className={`rounded-full border px-2 py-0.5 font-mono text-[9px] uppercase tracking-wider ${statusStyles[order.status] ?? 'bg-repixl-muted/10 text-repixl-muted'}`}>
-                          {order.status}
+                        <span className={`rounded-full border px-2 py-0.5 font-mono text-[9px] uppercase tracking-wider ${getOrderStatusBadgeClass(order.status)}`}>
+                          {getOrderStatusLabel(order.status)}
                         </span>
                       </div>
                       <p className="mt-0.5 font-mono text-[10px] text-repixl-muted">{order.date}</p>

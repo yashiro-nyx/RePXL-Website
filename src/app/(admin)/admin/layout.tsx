@@ -57,6 +57,8 @@ const superAdminSection = {
   ],
 }
 
+import { normalizeOrderStatus } from '@/lib/order-status-unified'
+
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const { isLoggedIn, role, isSuperAdmin, firstName, lastName, userEmail, hydrateAdmin, logoutAdmin, isAdminSessionValid } = useAuthStore()
   const orders = useOrderHistoryStore((s) => s.orders)
@@ -69,6 +71,25 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   useEffect(() => {
     void hydrateAdmin().finally(() => setHydrated(true))
     void useOrderHistoryStore.getState().hydrate().catch(() => {})
+
+    // Periodic re-hydration of orders store every 15s so sidebar pending order count stays live
+    const orderInterval = setInterval(() => {
+      if (useAuthStore.getState().isLoggedIn && useAuthStore.getState().role === 'admin') {
+        void useOrderHistoryStore.getState().hydrate().catch(() => {})
+      }
+    }, 15000)
+
+    const handleFocus = () => {
+      if (useAuthStore.getState().isLoggedIn && useAuthStore.getState().role === 'admin') {
+        void useOrderHistoryStore.getState().hydrate().catch(() => {})
+      }
+    }
+    window.addEventListener('focus', handleFocus)
+
+    return () => {
+      clearInterval(orderInterval)
+      window.removeEventListener('focus', handleFocus)
+    }
   }, [hydrateAdmin])
 
   // Periodic session validity check (every 60 seconds)
@@ -96,7 +117,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const allSections = isSuperAdmin
     ? [...navSections.slice(0, 2), superAdminSection, navSections[2]]
     : navSections
-  const pendingOrders = orders.filter((o) => o.status === 'Processing').length
+  const pendingOrders = orders.filter((o) => normalizeOrderStatus(o.status) === 'PROCESSING').length
   const initials = `${firstName?.[0] || ''}${lastName?.[0] || ''}`.toUpperCase() || 'A'
 
   const handleLogout = async () => { try {  await logoutAdmin(); useToastStore.getState().addToast('You\'ve been logged out.', 'info'); router.push('/admin/login')  } catch { reportActionFailure() } }

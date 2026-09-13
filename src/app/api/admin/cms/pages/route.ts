@@ -27,7 +27,12 @@ const pageInputSchema = z.object({
   title: z.string().min(1).max(200),
   slug: z.string().min(1).max(100),
   body: z.string().min(1).max(100000),
-  status: z.enum(['PUBLISHED', 'DRAFT']).default('DRAFT'),
+  status: z
+    .preprocess(
+      (val) => (typeof val === 'string' ? val.toUpperCase() : val),
+      z.enum(['PUBLISHED', 'DRAFT'])
+    )
+    .default('DRAFT'),
 })
 
 const patchPageSchema = z.object({

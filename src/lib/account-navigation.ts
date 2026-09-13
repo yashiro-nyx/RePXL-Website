@@ -82,9 +82,12 @@ export const purchaseFilters = [
 ] as const
 export type PurchaseFilter = (typeof purchaseFilters)[number]
 
+import { normalizeOrderStatus } from '@/lib/order-status-unified'
+
 export function matchesPurchaseFilter(
   order: { status: string },
   filter: PurchaseFilter
 ): boolean {
-  return filter === 'All' || order.status === filter
+  if (filter === 'All') return true
+  return normalizeOrderStatus(order.status) === normalizeOrderStatus(filter)
 }

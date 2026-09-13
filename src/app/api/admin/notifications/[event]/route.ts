@@ -14,67 +14,32 @@ import {
 } from '@/lib/notification-templates'
 import { z } from 'zod'
 
-/**
- * Task 12.7: Admin notification-template routes
- * GET /api/admin/notifications (list templates)
- * PATCH /api/admin/notifications/[event] (update template)
- *
- * Requirements: 8.1, 8.2, 8.3, 8.5, 8.9
- */
-
 export const dynamic = 'force-dynamic'
 
 const templateUpdateSchema = z.object({
   subject: z.string().min(1).max(200).optional(),
   body: z.string().min(1).max(10000).optional(),
   enabled: z.boolean().optional(),
+  isEnabled: z.boolean().optional(),
   channel: z.enum(['IN_APP', 'EMAIL', 'BOTH']).optional(),
 })
 
-// GET /api/admin/notifications — List all notification templates
-export async function GET(request: NextRequest) {
+// GET /api/admin/notifications/[event] — Fetch a notification template by event
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ event: string }> }
+) {
   try {
     const admin = await getCurrentAdmin()
     if (!admin) {
       return unauthorizedResponse('Admin access required')
     }
 
-    const templates = await prisma.notificationTemplate.findMany()
-    return successResponse(templates)
-  } catch (error) {
-    console.error('Notification templates list error:', error)
-    return errorResponse(
-      error instanceof Error ? error.message : 'Failed to fetch notification templates',
-      500
-    )
-  }
-}
-
-// PATCH /api/admin/notifications — Update a notification template
-export async function PATCH(request: NextRequest) {
-  try {
-    const admin = await getCurrentAdmin()
-    if (!admin) {
-      return unauthorizedResponse('Admin access required')
-    }
-
-    const { searchParams } = new URL(request.url)
-    const queryEvent = searchParams.get('event')
-    const body = await request.json()
-    const event = queryEvent || body.event
-
-    if (!event) {
-      return errorResponse('Event is required', 400)
-    }
-
-    // Validate event
+    const { event } = await params
     if (!NOTIFICATION_EVENTS.includes(event as NotificationEvent)) {
       return errorResponse(`Invalid notification event: ${event}`, 400)
     }
 
-    const patch = templateUpdateSchema.parse(body)
-
-    // Fetch existing template
     const template = await prisma.notificationTemplate.findUnique({
       where: { event: event as NotificationEvent },
     })
@@ -83,13 +48,48 @@ export async function PATCH(request: NextRequest) {
       return errorResponse('Notification template not found', 404)
     }
 
-    // Prepare updated template for validation
+    return successResponse(template)
+  } catch (error) {
+    console.error('Fetch notification template error:', error)
+    return errorResponse(
+      error instanceof Error ? error.message : 'Failed to fetch notification template',
+      500
+    )
+  }
+}
+
+// PATCH /api/admin/notifications/[event] — Update a notification template
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ event: string }> }
+) {
+  try {
+    const admin = await getCurrentAdmin()
+    if (!admin) {
+      return unauthorizedResponse('Admin access required')
+    }
+
+    const { event } = await params
+    if (!NOTIFICATION_EVENTS.includes(event as NotificationEvent)) {
+      return errorResponse(`Invalid notification event: ${event}`, 400)
+    }
+
+    const body = await request.json()
+    const patch = templateUpdateSchema.parse(body)
+
+    const template = await prisma.notificationTemplate.findUnique({
+      where: { event: event as NotificationEvent },
+    })
+
+    if (!template) {
+      return errorResponse('Notification template not found', 404)
+    }
+
     const updated = {
       subject: patch.subject ?? template.subject,
       body: patch.body ?? template.body,
     }
 
-    // Validate template fields
     const validation = validateTemplate(updated)
     if (!validation.valid) {
       return errorResponse(
@@ -98,7 +98,6 @@ export async function PATCH(request: NextRequest) {
       )
     }
 
-    // Check for unknown tokens (Requirement 8.5)
     const unknownTokens = findUnknownTokens(updated.body, event as NotificationEvent)
     if (unknownTokens.length > 0) {
       return errorResponse(
@@ -107,9 +106,8 @@ export async function PATCH(request: NextRequest) {
       )
     }
 
-    const activeState = (body as any).isEnabled ?? patch.enabled
+    const activeState = patch.isEnabled ?? patch.enabled
 
-    // Update template
     const result = await prisma.notificationTemplate.update({
       where: { event: event as NotificationEvent },
       data: {
@@ -120,7 +118,6 @@ export async function PATCH(request: NextRequest) {
       },
     })
 
-    // Record AdminLog
     await prisma.adminLog.create({
       data: {
         action: 'NOTIFICATION_TEMPLATE_UPDATED',
@@ -142,3 +139,4 @@ export async function PATCH(request: NextRequest) {
     )
   }
 }
+

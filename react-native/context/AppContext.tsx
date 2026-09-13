@@ -56,6 +56,7 @@ interface AppContextType {
   setDefaultAddress: (id: string) => Promise<void>;
   submitReview: (productId: string, rating: number, comment: string) => Promise<AccountReview>;
   removeReview: (reviewId: string) => Promise<void>;
+  updateOrderStatus: (orderNumber: string, status: string) => Promise<Order>;
   validateVoucher: (code: string, cartTotal: number) => Promise<{
     valid: boolean;
     discount: number;
@@ -147,19 +148,40 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     let active = true;
     (async () => {
       try {
-        const [stored, nextProducts] = await Promise.all([loadSession(), api.products()]);
+        // Immediate local restoration so UI remains persistently logged in
+        const stored = await loadSession();
         if (!active) return;
-        setProducts(nextProducts);
+        if (stored?.user) {
+          setUser(mapUser(stored.user));
+        }
+
+        // Sync products and validate session in background
+        const [nextProducts] = await Promise.all([
+          api.products().catch(() => null),
+        ]);
+        if (!active) return;
+        if (nextProducts) setProducts(nextProducts);
+
         if (stored) {
-          const authenticated = await api.me();
-          if (!active) return;
-          setUser(mapUser(authenticated));
-          await refreshAccount();
-          void registerPushNotifications().catch(() => undefined);
+          try {
+            const authenticated = await api.me();
+            if (!active) return;
+            setUser(mapUser(authenticated));
+            await refreshAccount();
+            void registerPushNotifications().catch(() => undefined);
+          } catch {
+            // Keep the user logged in if offline or network temporarily failed.
+            // Only clear account if the session was explicitly deleted (authoritative 401/403).
+            const remaining = await loadSession();
+            if (!remaining && active) {
+              resetAccount();
+            }
+          }
         }
       } catch (reason) {
         if (!active) return;
-        if (!(await loadSession())) resetAccount();
+        const remaining = await loadSession();
+        if (!remaining) resetAccount();
         setError(message(reason));
       } finally {
         if (active) setLoading(false);
@@ -255,6 +277,22 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const updated = await api.updateProfile(input);
     setProfile(updated);
     setUser(updated);
+    // Persist updated profile info in local session storage
+    const current = await loadSession();
+    if (current) {
+      await saveSession({
+        ...current,
+        user: { ...current.user, firstName: updated.firstName, lastName: updated.lastName },
+      });
+    }
+  }, []);
+
+  const updateOrderStatus = useCallback(async (orderNumber: string, status: string) => {
+    const updated = await api.updateOrderStatus(orderNumber, status);
+    setOrders((current) =>
+      current.map((order) => (order.orderNumber === orderNumber ? updated : order))
+    );
+    return updated;
   }, []);
 
   const markNotificationRead = useCallback(async (id: string) => {
@@ -333,6 +371,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setDefaultAddress,
     submitReview,
     removeReview,
+    updateOrderStatus,
     validateVoucher,
   }), [
     loading, refreshing, error, products, cart, user, profile, wishlist, compareList,
@@ -340,7 +379,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     refreshProducts, refreshAccount, addToCart, removeFromCart, updateQty,
     toggleWishlist, toggleCompare, clearCart, saveProfile, markNotificationRead,
     addAddress, updateAddress, deleteAddress, setDefaultAddress, submitReview,
-    removeReview, validateVoucher,
+    removeReview, updateOrderStatus, validateVoucher,
   ]);
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

@@ -18,7 +18,14 @@ import { Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useApp } from '../../context/AppContext';
 import { CONDITION_COLORS } from '../../data/products';
-import type { Address, Product } from '../../types';
+import {
+  getOrderStatusLabel,
+  getOrderStatusColors,
+  getPaymentStatusColors,
+  normalizeOrderStatus,
+  type Address,
+  type Product,
+} from '../../types';
 
 type Section = 'main' | 'profile' | 'purchases' | 'addresses' | 'reviews' | 'notifications' | 'wishlist';
 
@@ -166,37 +173,96 @@ function ProfileView({ onBack }: { onBack: () => void }) {
   );
 }
 
+const PURCHASE_FILTERS = ['All', 'Processing', 'Shipped', 'Delivered', 'Completed', 'Cancelled'] as const;
+
 function PurchasesView({ onBack }: { onBack: () => void }) {
   const { orders } = useApp();
+  const [filter, setFilter] = useState<(typeof PURCHASE_FILTERS)[number]>('All');
+
+  const filteredOrders = orders.filter((order) => {
+    if (filter === 'All') return true;
+    return normalizeOrderStatus(order.status) === normalizeOrderStatus(filter);
+  });
+
   return (
     <SubPage title="My Purchases" onBack={onBack}>
+      {/* Filter Tabs */}
+      <View style={styles.filterScrollWrapper}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterBar}>
+          {PURCHASE_FILTERS.map((f) => {
+            const active = filter === f;
+            return (
+              <TouchableOpacity
+                key={f}
+                style={[styles.filterChip, active && styles.filterChipActive]}
+                onPress={() => setFilter(f)}
+                activeOpacity={0.7}
+              >
+                <Text style={[styles.filterChipText, active && styles.filterChipTextActive]}>{f}</Text>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
+      </View>
+
       <ScrollView contentContainerStyle={styles.cardList}>
-        {orders.length === 0 && <Empty icon="shopping-bag" text="No orders yet." />}
-        {orders.map((order) => (
-          <TouchableOpacity
-            key={order.id}
-            style={styles.orderCard}
-            onPress={() =>
-              router.push({ pathname: '/order', params: { orderNumber: order.orderNumber } })
-            }
-            activeOpacity={0.8}
-          >
-            {order.items[0]?.product.image ? (
-              <Image source={{ uri: order.items[0].product.image }} style={styles.orderImage} />
-            ) : null}
-            <View style={{ flex: 1 }}>
-              <Text style={styles.cardTitle}>{order.items[0]?.product.name ?? 'RePXL order'}</Text>
-              <Text style={styles.cardMeta}>
-                {order.orderNumber} · {new Date(order.createdAt).toLocaleDateString()}
-              </Text>
-              <Text style={styles.cardMeta}>
-                {order.deliveryStatus} · Payment {order.paymentStatus.toLowerCase()}
-              </Text>
-              <Text style={styles.orderTotal}>₱{order.total.toLocaleString()}</Text>
-            </View>
-            <Feather name="chevron-right" size={16} color="#555" />
-          </TouchableOpacity>
-        ))}
+        {filteredOrders.length === 0 && (
+          <Empty icon="shopping-bag" text={filter === 'All' ? 'No orders yet.' : `No ${filter.toLowerCase()} purchases.`} />
+        )}
+        {filteredOrders.map((order) => {
+          const statusColors = getOrderStatusColors(order.status);
+          const paymentColors = getPaymentStatusColors(order.paymentStatus);
+          return (
+            <TouchableOpacity
+              key={order.id}
+              style={styles.orderCard}
+              onPress={() =>
+                router.push({ pathname: '/order', params: { orderNumber: order.orderNumber } })
+              }
+              activeOpacity={0.8}
+            >
+              {order.items[0]?.product.image ? (
+                <Image source={{ uri: order.items[0].product.image }} style={styles.orderImage} />
+              ) : null}
+              <View style={{ flex: 1, gap: 4 }}>
+                <Text style={styles.cardTitle}>{order.items[0]?.product.name ?? 'RePXL order'}</Text>
+                <Text style={styles.cardMeta}>
+                  {order.orderNumber} · {new Date(order.createdAt).toLocaleDateString()}
+                </Text>
+
+                {/* Status Badges Row */}
+                <View style={{ flexDirection: 'row', gap: 6, flexWrap: 'wrap', marginVertical: 2 }}>
+                  <View
+                    style={[
+                      styles.inlineBadge,
+                      { backgroundColor: statusColors.bg, borderColor: statusColors.border },
+                    ]}
+                  >
+                    <Text style={[styles.inlineBadgeText, { color: statusColors.text }]}>
+                      {getOrderStatusLabel(order.status).toUpperCase()}
+                    </Text>
+                  </View>
+                  <View
+                    style={[
+                      styles.inlineBadge,
+                      { backgroundColor: paymentColors.bg, borderColor: paymentColors.border },
+                    ]}
+                  >
+                    <Text style={[styles.inlineBadgeText, { color: paymentColors.text }]}>
+                      {order.paymentStatus.toUpperCase()}
+                    </Text>
+                  </View>
+                </View>
+
+                <Text style={styles.cardMeta}>
+                  {order.deliveryStatus || 'Order Placed'} · {order.courierName || 'Standard Delivery'}
+                </Text>
+                <Text style={styles.orderTotal}>₱{order.total.toLocaleString()}</Text>
+              </View>
+              <Feather name="chevron-right" size={16} color="#555" />
+            </TouchableOpacity>
+          );
+        })}
       </ScrollView>
     </SubPage>
   );
@@ -541,7 +607,9 @@ function ReviewsView({ onBack }: { onBack: () => void }) {
 }
 
 function WishlistView({ onBack }: { onBack: () => void }) {
-  const { wishlist, products, addToCart, toggleWishlist, user } = useApp();
+  const { wishlist, products, cart, addToCart, toggleWishlist, user } = useApp();
+  const [addingId, setAddingId] = useState<string | null>(null);
+  const [addedIds, setAddedIds] = useState<string[]>([]);
   const wishlistedProducts = products.filter((p) => wishlist.includes(p.id));
 
   return (
@@ -558,45 +626,48 @@ function WishlistView({ onBack }: { onBack: () => void }) {
               style={styles.actionPill}
               onPress={() => router.replace('/(tabs)/home')}
             >
-              <Text style={styles.actionPillText}>Browse Cameras</Text>
+              <Text style={styles.actionPillText}>Explore cameras</Text>
             </TouchableOpacity>
           </View>
         )}
+
         {wishlistedProducts.map((product) => {
-          const cond = CONDITION_COLORS[product.condition];
+          const inCart = cart.some(
+            (item) => item.product.id === product.id || item.product.slug === product.slug
+          );
+          const isJustAdded = addedIds.includes(product.id);
+          const isAdding = addingId === product.id;
+
           return (
             <TouchableOpacity
               key={product.id}
               style={styles.wishCard}
-              onPress={() =>
-                router.push({ pathname: '/product', params: { slug: product.slug } })
-              }
+              onPress={() => router.push({ pathname: '/product', params: { slug: product.slug } })}
               activeOpacity={0.85}
             >
               <Image source={{ uri: product.image }} style={styles.wishImg} resizeMode="cover" />
               <View style={{ flex: 1, gap: 4 }}>
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                  <Text style={styles.wishBrand}>{product.brand}</Text>
+                <View
+                  style={{
+                    flexDirection: 'row',
+                    justifyContent: 'space-between',
+                    alignItems: 'flex-start',
+                  }}
+                >
+                  <View style={{ flex: 1, paddingRight: 6 }}>
+                    <Text style={styles.wishBrand}>{product.brand}</Text>
+                    <Text style={styles.wishName} numberOfLines={1}>
+                      {product.name}
+                    </Text>
+                  </View>
                   <TouchableOpacity
                     onPress={() => void toggleWishlist(product.id)}
                     hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                   >
-                    <Feather name="heart" size={16} color="#c62828" fill="#c62828" />
+                    <Feather name="heart" size={16} color="#c62828" />
                   </TouchableOpacity>
                 </View>
-                <Text style={styles.wishName} numberOfLines={1}>
-                  {product.name}
-                </Text>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                  <View style={[styles.condBadge, { borderColor: cond.border }]}>
-                    <Text style={[styles.condBadgeText, { color: cond.text }]}>
-                      {product.condition}
-                    </Text>
-                  </View>
-                  <Text style={styles.stockLabel}>
-                    {product.inStock ? 'In stock' : 'Out of stock'}
-                  </Text>
-                </View>
+
                 <View
                   style={{
                     flexDirection: 'row',
@@ -607,18 +678,49 @@ function WishlistView({ onBack }: { onBack: () => void }) {
                 >
                   <Text style={styles.wishPrice}>₱{product.price.toLocaleString()}</Text>
                   <TouchableOpacity
-                    style={styles.moveToCartBtn}
+                    style={[
+                      styles.moveToCartBtn,
+                      isJustAdded && { backgroundColor: '#2e7d32' },
+                      inCart && !isJustAdded && { backgroundColor: '#a82020' },
+                    ]}
                     onPress={async () => {
                       if (!user) {
                         router.push('/login');
                         return;
                       }
-                      await addToCart(product, 1);
+                      if (isAdding) return;
+                      setAddingId(product.id);
+                      try {
+                        await addToCart(product, 1);
+                        setAddedIds((prev) => [...prev, product.id]);
+                        setTimeout(() => {
+                          setAddedIds((prev) => prev.filter((id) => id !== product.id));
+                        }, 2500);
+                      } finally {
+                        setAddingId(null);
+                      }
                     }}
+                    disabled={isAdding}
                     activeOpacity={0.8}
                   >
-                    <Feather name="shopping-bag" size={12} color="#fff" />
-                    <Text style={styles.moveToCartText}>Add to Cart</Text>
+                    {isAdding ? (
+                      <ActivityIndicator size="small" color="#fff" />
+                    ) : (
+                      <Feather
+                        name={isJustAdded ? 'check-circle' : inCart ? 'check' : 'shopping-bag'}
+                        size={12}
+                        color="#fff"
+                      />
+                    )}
+                    <Text style={styles.moveToCartText}>
+                      {isAdding
+                        ? 'Adding...'
+                        : isJustAdded
+                          ? 'Added!'
+                          : inCart
+                            ? 'In Cart'
+                            : 'Add to Cart'}
+                    </Text>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -1277,5 +1379,47 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter_700Bold',
     fontSize: 11,
     color: '#fff',
+  },
+  filterScrollWrapper: {
+    borderBottomWidth: 1,
+    borderBottomColor: '#1c1c1e',
+    backgroundColor: '#0d0d0d',
+  },
+  filterBar: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    gap: 8,
+  },
+  filterChip: {
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 20,
+    backgroundColor: '#1c1c1e',
+    borderWidth: 1,
+    borderColor: '#2c2c2e',
+  },
+  filterChipActive: {
+    backgroundColor: '#c62828',
+    borderColor: '#c62828',
+  },
+  filterChipText: {
+    fontFamily: 'Inter_500Medium',
+    fontSize: 12,
+    color: '#888',
+  },
+  filterChipTextActive: {
+    color: '#fff',
+    fontFamily: 'Inter_700Bold',
+  },
+  inlineBadge: {
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 10,
+    borderWidth: 1,
+  },
+  inlineBadgeText: {
+    fontFamily: 'Inter_700Bold',
+    fontSize: 9,
+    letterSpacing: 0.5,
   },
 });

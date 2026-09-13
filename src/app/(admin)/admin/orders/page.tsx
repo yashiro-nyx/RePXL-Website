@@ -3,20 +3,24 @@
 import { useEffect, useState, useCallback } from 'react'
 import { Pagination } from '@/components/ui/Pagination'
 import { formatPrice } from '@/lib/format'
+import {
+  CANONICAL_ORDER_STATUSES,
+  ORDER_STATUS_LABELS,
+  ORDER_STATUS_BADGE_CLASSES,
+  PAYMENT_STATUS_LABELS,
+  PAYMENT_STATUS_BADGE_CLASSES,
+  normalizeOrderStatus,
+  getOrderStatusLabel,
+  getOrderStatusBadgeClass,
+} from '@/lib/order-status-unified'
 
 const PAGE_SIZE = 10
-const allStatuses = ['PROCESSING', 'SHIPPED', 'DELIVERED', 'COMPLETED', 'CANCELLED'] as const
-const statusLabels: Record<string, string> = {
-  PROCESSING: 'Processing', SHIPPED: 'Shipped', DELIVERED: 'Delivered',
-  COMPLETED: 'Completed', CANCELLED: 'Cancelled',
-}
-const statusStyles: Record<string, string> = {
-  PROCESSING: 'bg-amber-500/15 text-amber-400 border-amber-500/30',
-  SHIPPED: 'bg-blue-500/15 text-blue-400 border-blue-500/30',
-  DELIVERED: 'bg-green-500/15 text-green-400 border-green-500/30',
-  COMPLETED: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30',
-  CANCELLED: 'bg-red-500/15 text-red-400 border-red-500/30',
-}
+const allStatuses = CANONICAL_ORDER_STATUSES
+const statusLabels = ORDER_STATUS_LABELS
+const statusStyles = ORDER_STATUS_BADGE_CLASSES
+
+const paymentStatusStyles = PAYMENT_STATUS_BADGE_CLASSES
+const paymentStatusLabels = PAYMENT_STATUS_LABELS
 
 function censorName(name: string): string {
   return name.split(' ').map((p) => p[0] + '*'.repeat(Math.max(p.length - 1, 4))).join(' ')
@@ -28,6 +32,7 @@ interface ApiOrder {
   fullName: string
   total: number
   status: string
+  paymentStatus?: string
   createdAt: string
   courierName: string
   courierEstimate: string
@@ -63,11 +68,17 @@ export default function AdminOrdersPage() {
   const [statusFilter, setStatusFilter] = useState('')
   const [searchQuery, setSearchQuery] = useState('')
   const [loading, setLoading] = useState(true)
+  const [isRefreshing, setIsRefreshing] = useState(false)
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
   const [confirmArchive, setConfirmArchive] = useState<string | null>(null)
   const [viewOrder, setViewOrder] = useState<ApiOrder | null>(null)
 
-  const load = useCallback(async (page: number, status: string, search: string) => {
-    setLoading(true)
+  const load = useCallback(async (page: number, status: string, search: string, showFullLoading = true) => {
+    if (showFullLoading) {
+      setLoading(true)
+    } else {
+      setIsRefreshing(true)
+    }
     try {
       const params = new URLSearchParams({ page: String(page), limit: String(PAGE_SIZE) })
       if (status) params.set('status', status)
@@ -78,12 +89,30 @@ export default function AdminOrdersPage() {
       setOrders(json.data ?? [])
       setTotal(json.pagination?.total ?? 0)
       setTotalPages(json.pagination?.totalPages ?? 1)
+      setLastUpdated(new Date())
     } finally {
       setLoading(false)
+      setIsRefreshing(false)
     }
   }, [])
 
-  useEffect(() => { void load(currentPage, statusFilter, searchQuery) }, [currentPage, statusFilter, searchQuery, load])
+  useEffect(() => {
+    void load(currentPage, statusFilter, searchQuery, true)
+    // Background polling every 8s to immediately reflect external updates/orders
+    const interval = setInterval(() => {
+      void load(currentPage, statusFilter, searchQuery, false)
+    }, 8000)
+
+    const handleFocus = () => {
+      void load(currentPage, statusFilter, searchQuery, false)
+    }
+    window.addEventListener('focus', handleFocus)
+
+    return () => {
+      clearInterval(interval)
+      window.removeEventListener('focus', handleFocus)
+    }
+  }, [currentPage, statusFilter, searchQuery, load])
 
   // Reset to page 1 when filters change
   const handleStatusChange = (s: string) => { setStatusFilter(s); setCurrentPage(1) }
@@ -91,25 +120,41 @@ export default function AdminOrdersPage() {
 
   const handleStatusUpdate = async (orderNumber: string, newStatus: string) => {
     if (newStatus === 'COMPLETED') return // blocked — customer only
+    const canonical = normalizeOrderStatus(newStatus)
+
+    // Optimistic UI update
+    setOrders((prev) =>
+      prev.map((o) => (o.orderNumber === orderNumber ? { ...o, status: canonical } : o))
+    )
+    if (viewOrder?.orderNumber === orderNumber) {
+      setViewOrder((o) => (o ? { ...o, status: canonical } : o))
+    }
+
     try {
-      await fetch(`/api/orders/${orderNumber}`, {
+      const res = await fetch(`/api/orders/${orderNumber}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ status: newStatus }),
+        body: JSON.stringify({ status: canonical }),
       })
-      void load(currentPage, statusFilter, searchQuery)
-      if (viewOrder?.orderNumber === orderNumber) {
-        setViewOrder((o) => o ? { ...o, status: newStatus } : o)
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        alert(data.error ?? 'Failed to update order status')
+        void load(currentPage, statusFilter, searchQuery, false)
+        return
       }
-    } catch { /* swallow */ }
+      void load(currentPage, statusFilter, searchQuery, false)
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Network error')
+      void load(currentPage, statusFilter, searchQuery, false)
+    }
   }
 
   const handleArchive = async (orderNumber: string) => {
     try {
       await fetch(`/api/orders/${orderNumber}/archive`, { method: 'POST', credentials: 'include' })
       setConfirmArchive(null)
-      void load(currentPage, statusFilter, searchQuery)
+      void load(currentPage, statusFilter, searchQuery, false)
     } catch { setConfirmArchive(null) }
   }
 
@@ -119,6 +164,34 @@ export default function AdminOrdersPage() {
         <div>
           <h1 className="text-2xl font-bold text-repixl-text-light">Order Management</h1>
           <p className="mt-0.5 text-sm text-repixl-muted">{total} total orders</p>
+        </div>
+        <div className="flex items-center gap-3">
+          <span className="flex items-center gap-1.5 font-mono text-[11px] text-repixl-muted">
+            <span
+              className={`inline-block h-2 w-2 rounded-full ${
+                isRefreshing ? 'bg-amber-400 animate-pulse' : 'bg-emerald-400'
+              }`}
+            />
+            {isRefreshing ? 'Syncing...' : lastUpdated ? 'Live sync' : 'Live'}
+          </span>
+          <button
+            type="button"
+            onClick={() => void load(currentPage, statusFilter, searchQuery, false)}
+            disabled={loading || isRefreshing}
+            className="flex items-center gap-1.5 rounded-xl border border-repixl-muted/20 bg-repixl-charcoal px-3 py-1.5 text-xs font-medium text-repixl-text-light/80 shadow-sm transition-colors hover:border-repixl-muted/40 hover:text-white"
+          >
+            <svg
+              className={`h-3.5 w-3.5 ${isRefreshing ? 'animate-spin' : ''}`}
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth="2"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+            Refresh
+          </button>
         </div>
       </div>
 
@@ -147,53 +220,80 @@ export default function AdminOrdersPage() {
         <table className="w-full text-left text-sm">
           <thead className="border-b border-repixl-muted/10 bg-repixl-bg/50">
             <tr>
-              {['Order ID', 'Customer', 'Total', 'Status', 'Date', 'Actions'].map((h) => (
+              {['Order ID', 'Customer', 'Total', 'Payment', 'Order Status', 'Date', 'Actions'].map((h) => (
                 <th key={h} className="px-5 py-3.5 text-[10px] font-semibold uppercase tracking-wider text-repixl-muted">{h}</th>
               ))}
             </tr>
           </thead>
           <tbody className="divide-y divide-repixl-muted/10">
             {loading && (
-              <tr><td colSpan={6} className="px-5 py-12 text-center text-sm text-repixl-muted">Loading…</td></tr>
+              <tr><td colSpan={7} className="px-5 py-12 text-center text-sm text-repixl-muted">Loading…</td></tr>
             )}
             {!loading && orders.length === 0 && (
-              <tr><td colSpan={6} className="px-5 py-12 text-center text-sm text-repixl-muted">No orders found.</td></tr>
+              <tr><td colSpan={7} className="px-5 py-12 text-center text-sm text-repixl-muted">No orders found.</td></tr>
             )}
-            {!loading && orders.map((order) => (
-              <tr key={order.id} className="transition-colors hover:bg-repixl-bg/60">
-                <td className="px-5 py-3.5 font-mono text-sm font-semibold text-repixl-red">#{order.orderNumber.replace('RPX-', '')}</td>
-                <td className="px-5 py-3.5 font-mono text-sm text-repixl-text-light/70">{censorName(order.fullName)}</td>
-                <td className="px-5 py-3.5 font-mono text-sm font-semibold text-repixl-text-light">{formatPrice(order.total)}</td>
-                <td className="px-5 py-3.5">
-                  <select
-                    value={order.status}
-                    onChange={(e) => {
-                      if (e.target.value === 'COMPLETED' && order.status === 'DELIVERED') {
-                        alert('Completed status can only be set by the customer after confirming receipt.')
-                        e.target.value = order.status
-                        return
-                      }
-                      void handleStatusUpdate(order.orderNumber, e.target.value)
-                    }}
-                    className={`rounded-full border px-2.5 py-1 text-[11px] font-semibold cursor-pointer appearance-none pr-6 bg-no-repeat bg-[length:10px] bg-[right_8px_center] ${statusStyles[order.status] || 'bg-repixl-bg text-repixl-text-light/70 border-repixl-muted/20'}`}
-                    style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='3'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")` }}
-                  >
-                    {allStatuses.map((s) => <option key={s} value={s}>{statusLabels[s]}</option>)}
-                  </select>
-                </td>
-                <td className="px-5 py-3.5 text-xs text-repixl-muted">
-                  {new Date(order.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}
-                </td>
-                <td className="px-5 py-3.5">
-                  <div className="flex gap-2">
-                    <button type="button" onClick={() => setViewOrder(order)} className="rounded-lg bg-repixl-red/5 px-2.5 py-1 text-xs font-medium text-repixl-red hover:bg-repixl-red/10">Manage</button>
-                    <button type="button" onClick={() => setConfirmArchive(order.orderNumber)} className="flex h-7 w-7 items-center justify-center rounded-lg bg-amber-500/10 text-amber-500 hover:bg-amber-500/20" aria-label="Archive order">
-                      <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect width="20" height="5" x="2" y="3" rx="1" /><path d="M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8" /><path d="M10 12h4" /></svg>
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            ))}
+            {!loading && orders.map((order) => {
+              const isPaid = order.paymentStatus === 'PAID'
+              return (
+                <tr key={order.id} className="transition-colors hover:bg-repixl-bg/60">
+                  <td className="px-5 py-3.5 font-mono text-sm font-semibold text-repixl-red">#{order.orderNumber.replace('RPX-', '')}</td>
+                  <td className="px-5 py-3.5 font-mono text-sm text-repixl-text-light/70">{censorName(order.fullName)}</td>
+                  <td className="px-5 py-3.5 font-mono text-sm font-semibold text-repixl-text-light">{formatPrice(order.total)}</td>
+                  <td className="px-5 py-3.5">
+                    <span className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 font-mono text-[10px] font-semibold ${paymentStatusStyles[order.paymentStatus ?? 'PENDING'] ?? 'bg-repixl-bg text-repixl-muted border-repixl-muted/20'}`}>
+                      {order.paymentStatus === 'PAID' && <span>✓</span>}
+                      {(!order.paymentStatus || order.paymentStatus === 'PENDING') && <span>⏳</span>}
+                      {order.paymentStatus === 'FAILED' && <span>✗</span>}
+                      {order.paymentStatus === 'REFUNDED' && <span>↩</span>}
+                      {paymentStatusLabels[order.paymentStatus ?? 'PENDING'] ?? (order.paymentStatus || 'Pending')}
+                    </span>
+                  </td>
+                  <td className="px-5 py-3.5">
+                    {!isPaid ? (
+                      <div className="group relative inline-block">
+                        <select
+                          disabled
+                          value={order.status}
+                          className="cursor-not-allowed rounded-full border border-repixl-muted/20 bg-repixl-bg/50 px-2.5 py-1 text-[11px] font-semibold text-repixl-muted/50 opacity-60"
+                        >
+                          {allStatuses.map((s) => <option key={s} value={s}>{statusLabels[s]}</option>)}
+                        </select>
+                        <span className="pointer-events-none absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-md bg-black/90 px-2 py-1 text-[10px] text-amber-300 opacity-0 shadow-lg transition-opacity group-hover:opacity-100 z-10">
+                          🔒 Payment must be completed first
+                        </span>
+                      </div>
+                    ) : (
+                      <select
+                        value={normalizeOrderStatus(order.status)}
+                        onChange={(e) => {
+                          if (e.target.value === 'COMPLETED' && normalizeOrderStatus(order.status) === 'DELIVERED') {
+                            alert('Completed status can only be set by the customer after confirming receipt.')
+                            e.target.value = normalizeOrderStatus(order.status)
+                            return
+                          }
+                          void handleStatusUpdate(order.orderNumber, e.target.value)
+                        }}
+                        className={`rounded-full border px-2.5 py-1 text-[11px] font-semibold cursor-pointer appearance-none pr-6 bg-no-repeat bg-[length:10px] bg-[right_8px_center] ${getOrderStatusBadgeClass(order.status)}`}
+                        style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='3'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")` }}
+                      >
+                        {allStatuses.map((s) => <option key={s} value={s}>{statusLabels[s]}</option>)}
+                      </select>
+                    )}
+                  </td>
+                  <td className="px-5 py-3.5 text-xs text-repixl-muted">
+                    {new Date(order.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}
+                  </td>
+                  <td className="px-5 py-3.5">
+                    <div className="flex gap-2">
+                      <button type="button" onClick={() => setViewOrder(order)} className="rounded-lg bg-repixl-red/5 px-2.5 py-1 text-xs font-medium text-repixl-red hover:bg-repixl-red/10">Manage</button>
+                      <button type="button" onClick={() => setConfirmArchive(order.orderNumber)} className="flex h-7 w-7 items-center justify-center rounded-lg bg-amber-500/10 text-amber-500 hover:bg-amber-500/20" aria-label="Archive order">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect width="20" height="5" x="2" y="3" rx="1" /><path d="M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8" /><path d="M10 12h4" /></svg>
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              )
+            })}
           </tbody>
         </table>
       </div>
@@ -233,6 +333,10 @@ export default function AdminOrdersPage() {
             void handleStatusUpdate(viewOrder.orderNumber, newStatus)
             setViewOrder((o) => o ? { ...o, status: newStatus } : o)
           }}
+          onPaymentCompleted={() => {
+            void load(currentPage, statusFilter, searchQuery)
+            setViewOrder((o) => o ? { ...o, paymentStatus: 'PAID' } : o)
+          }}
         />
       )}
     </div>
@@ -245,14 +349,42 @@ function OrderDetailModal({
   order,
   onClose,
   onStatusChange,
+  onPaymentCompleted,
 }: {
   order: ApiOrder
   onClose: () => void
   onStatusChange: (status: string) => void
+  onPaymentCompleted: () => void
 }) {
   const [firing, setFiring] = useState<string | null>(null)
+  const [markingPaid, setMarkingPaid] = useState(false)
   const [feedback, setFeedback] = useState<{ ok: boolean; message: string } | null>(null)
   const [currentDeliveryStatus, setCurrentDeliveryStatus] = useState(order.deliveryStatus ?? 'Order Placed')
+
+  const handleMarkPaid = async () => {
+    if (!confirm(`Mark payment as completed for order #${order.orderNumber}?`)) return
+    setMarkingPaid(true)
+    setFeedback(null)
+    try {
+      const res = await fetch(`/api/orders/${order.orderNumber}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ markPaymentCompleted: true }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (res.ok) {
+        onPaymentCompleted()
+        setFeedback({ ok: true, message: '✓ Payment marked as completed. Status editing is now unlocked.' })
+      } else {
+        setFeedback({ ok: false, message: `✗ Failed to mark payment completed: ${data.error ?? 'Unknown error'}` })
+      }
+    } catch (err) {
+      setFeedback({ ok: false, message: `✗ Network error: ${err instanceof Error ? err.message : 'Unknown error'}` })
+    } finally {
+      setMarkingPaid(false)
+    }
+  }
 
   const fireStep = async (step: typeof DELIVERY_STEPS[0]) => {
     setFiring(step.step)
@@ -267,7 +399,7 @@ function OrderDetailModal({
       const data = await res.json().catch(() => ({}))
       if (res.ok && data.success) {
         setCurrentDeliveryStatus(data.deliveryStatus ?? step.step.replace(/_/g, ' '))
-        if (step.step === 'out_for_delivery') onStatusChange('SHIPPED')
+        if (step.step === 'transit' || step.step === 'out_for_delivery') onStatusChange('SHIPPED')
         if (step.step === 'delivered') onStatusChange('DELIVERED')
         setFeedback({ ok: true, message: `✓ ${step.label} — customer tracking updated` })
       } else {
@@ -302,7 +434,7 @@ function OrderDetailModal({
               { label: 'Total', value: formatPrice(order.total) },
               { label: 'Courier', value: order.courierName },
               { label: 'Estimate', value: order.courierEstimate },
-              { label: 'Payment', value: order.paymentMethod },
+              { label: 'Payment Method', value: order.paymentMethod },
             ].map(({ label, value }) => (
               <div key={label} className="rounded-xl bg-repixl-bg/40 px-3 py-2.5">
                 <p className="font-mono text-[9px] uppercase tracking-wider text-repixl-muted">{label}</p>
@@ -311,16 +443,83 @@ function OrderDetailModal({
             ))}
           </div>
 
+          {/* Payment Status & Expiry Card */}
+          <div className="rounded-xl border border-repixl-muted/10 bg-repixl-bg/30 p-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p className="font-mono text-[10px] uppercase tracking-wider text-repixl-muted">Payment Processing</p>
+                <div className="mt-1 flex items-center gap-2">
+                  <span className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 font-mono text-xs font-semibold ${paymentStatusStyles[order.paymentStatus ?? 'PENDING'] ?? 'bg-repixl-bg text-repixl-muted border-repixl-muted/20'}`}>
+                    {order.paymentStatus === 'PAID' && <span>✓</span>}
+                    {(!order.paymentStatus || order.paymentStatus === 'PENDING') && <span>⏳</span>}
+                    {order.paymentStatus === 'FAILED' && <span>✗</span>}
+                    {order.paymentStatus === 'REFUNDED' && <span>↩</span>}
+                    {paymentStatusLabels[order.paymentStatus ?? 'PENDING'] ?? (order.paymentStatus || 'Pending')}
+                  </span>
+                  {order.paymentStatus !== 'PAID' && (
+                    <span className="text-xs text-amber-400 font-medium">
+                      {order.paymentStatus === 'FAILED'
+                        ? '• Payment processing expired / failed'
+                        : '• Status editing locked until paid'}
+                    </span>
+                  )}
+                </div>
+              </div>
+              {order.paymentStatus !== 'PAID' && order.status !== 'CANCELLED' && (
+                <button
+                  type="button"
+                  disabled={markingPaid}
+                  onClick={() => void handleMarkPaid()}
+                  className="flex items-center gap-1.5 rounded-xl border border-green-500/30 bg-green-500/15 px-3.5 py-2 text-xs font-semibold text-green-400 hover:bg-green-500/25 transition-all disabled:opacity-50 shadow-sm"
+                >
+                  {markingPaid ? (
+                    <>
+                      <span className="h-3 w-3 animate-spin rounded-full border-2 border-green-400 border-t-transparent" />
+                      Processing…
+                    </>
+                  ) : (
+                    <>
+                      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M20 6 9 17l-5-5" /></svg>
+                      Mark Payment Completed
+                    </>
+                  )}
+                </button>
+              )}
+            </div>
+            {(!order.paymentStatus || order.paymentStatus === 'PENDING') && (
+              <p className="mt-2 text-[11px] text-repixl-muted/80">
+                Payment processing expires within 24 hours of order placement. Unpaid orders will auto-cancel and release stock.
+              </p>
+            )}
+          </div>
+
           {/* Order Status */}
           <div className="rounded-xl border border-repixl-muted/10 bg-repixl-bg/30 p-4">
-            <p className="mb-3 font-mono text-[10px] uppercase tracking-wider text-repixl-muted">Order Status</p>
+            <div className="mb-3 flex items-center justify-between">
+              <p className="font-mono text-[10px] uppercase tracking-wider text-repixl-muted">Order Status</p>
+              {order.paymentStatus !== 'PAID' && (
+                <span className="text-[11px] font-semibold text-amber-400 flex items-center gap-1">
+                  <span>🔒</span> Locked (Payment Pending)
+                </span>
+              )}
+            </div>
+
+            {order.paymentStatus !== 'PAID' && (
+              <div className="mb-3 rounded-lg border border-amber-500/20 bg-amber-500/10 p-2.5 text-xs text-amber-400 flex items-center gap-2">
+                <span>🔒</span>
+                <span>Order status cannot be updated until payment has been marked completed.</span>
+              </div>
+            )}
+
             <div className="flex flex-wrap gap-2">
               {allStatuses.map((s) => {
                 const isBlockedTransition = s === 'COMPLETED' && order.status === 'DELIVERED'
+                const isLocked = order.paymentStatus !== 'PAID'
                 return (
                   <button
                     key={s}
                     type="button"
+                    disabled={isLocked}
                     onClick={() => {
                       if (isBlockedTransition) {
                         setFeedback({ ok: false, message: '✗ Completed can only be set by the customer after confirming receipt.' })
@@ -328,10 +527,18 @@ function OrderDetailModal({
                       }
                       onStatusChange(s)
                     }}
-                    title={isBlockedTransition ? 'Customer must confirm receipt to complete this order' : undefined}
+                    title={
+                      isLocked
+                        ? 'Payment must be marked completed first'
+                        : isBlockedTransition
+                        ? 'Customer must confirm receipt to complete this order'
+                        : undefined
+                    }
                     className={`rounded-full border px-3 py-1.5 font-mono text-[10px] uppercase tracking-wider transition-all ${
                       order.status === s
                         ? `${statusStyles[s]} border-current`
+                        : isLocked
+                        ? 'cursor-not-allowed border-repixl-muted/10 text-repixl-muted/30 opacity-50'
                         : isBlockedTransition
                         ? 'cursor-not-allowed border-repixl-muted/10 text-repixl-muted/30'
                         : 'border-repixl-muted/20 text-repixl-muted hover:border-repixl-muted/40 hover:text-repixl-text-light'
@@ -353,31 +560,38 @@ function OrderDetailModal({
                 <span className={`font-mono text-[9px] ${deliveryStatusColor[currentDeliveryStatus] ?? 'text-repixl-muted'}`}>{currentDeliveryStatus}</span>
               </div>
             </div>
-            <p className="mb-3 text-xs text-repixl-muted/70">Updating delivery status notifies the customer in real time.</p>
+            {order.paymentStatus !== 'PAID' ? (
+              <p className="mb-3 text-xs text-amber-400/90 font-medium">🔒 Delivery tracking updates require completed payment.</p>
+            ) : (
+              <p className="mb-3 text-xs text-repixl-muted/70">Updating delivery status notifies the customer in real time.</p>
+            )}
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-              {DELIVERY_STEPS.map((step) => (
-                <button
-                  key={step.step}
-                  type="button"
-                  onClick={() => void fireStep(step)}
-                  disabled={!!firing}
-                  className="flex items-center gap-3 rounded-xl border border-repixl-muted/15 bg-repixl-charcoal px-4 py-3 text-left transition-all hover:border-repixl-red/30 hover:bg-repixl-red/5 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg bg-repixl-red/10">
-                    {firing === step.step ? (
-                      <svg className="h-3.5 w-3.5 animate-spin text-repixl-red" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" aria-hidden="true">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                      </svg>
-                    ) : (
-                      <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-repixl-red" aria-hidden="true">
-                        <path d={step.icon} />
-                      </svg>
-                    )}
-                  </div>
-                  <span className="text-xs font-semibold text-repixl-text-light">{step.label}</span>
-                </button>
-              ))}
+              {DELIVERY_STEPS.map((step) => {
+                const isLocked = order.paymentStatus !== 'PAID'
+                return (
+                  <button
+                    key={step.step}
+                    type="button"
+                    onClick={() => void fireStep(step)}
+                    disabled={isLocked || !!firing}
+                    className="flex items-center gap-3 rounded-xl border border-repixl-muted/15 bg-repixl-charcoal px-4 py-3 text-left transition-all hover:border-repixl-red/30 hover:bg-repixl-red/5 disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg bg-repixl-red/10">
+                      {firing === step.step ? (
+                        <svg className="h-3.5 w-3.5 animate-spin text-repixl-red" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" aria-hidden="true">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                        </svg>
+                      ) : (
+                        <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-repixl-red" aria-hidden="true">
+                          <path d={step.icon} />
+                        </svg>
+                      )}
+                    </div>
+                    <span className="text-xs font-semibold text-repixl-text-light">{step.label}</span>
+                  </button>
+                )
+              })}
             </div>
             {feedback && (
               <div className={`mt-3 rounded-lg px-3 py-2 font-mono text-[10px] ${feedback.ok ? 'border border-repixl-success/20 bg-repixl-success/10 text-repixl-success' : 'border border-red-500/20 bg-red-500/10 text-red-400'}`}>

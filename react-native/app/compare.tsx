@@ -8,6 +8,7 @@ import {
   StyleSheet,
   Modal,
   TextInput,
+  ActivityIndicator,
 } from 'react-native';
 import { router } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -45,7 +46,9 @@ function StarRow({ rating }: { rating: number }) {
 
 export default function CompareScreen() {
   const insets = useSafeAreaInsets();
-  const { products, compareList, toggleCompare, addToCart, user } = useApp();
+  const { products, cart, compareList, toggleCompare, addToCart, user } = useApp();
+  const [addingId, setAddingId] = useState<string | null>(null);
+  const [addedIds, setAddedIds] = useState<string[]>([]);
   const [showPickerModal, setShowPickerModal] = useState(false);
   const [pickerSearch, setPickerSearch] = useState('');
 
@@ -180,16 +183,63 @@ export default function CompareScreen() {
                             {cam.condition}
                           </Text>
                         </View>
-                        <TouchableOpacity
-                          onPress={() => {
-                            if (!user) router.push('/login');
-                            else void addToCart(cam);
-                          }}
-                          style={styles.addBtn}
-                          activeOpacity={0.85}
-                        >
-                          <Text style={styles.addBtnText}>Add to Cart</Text>
-                        </TouchableOpacity>
+                        {(() => {
+                          const inCart = cart.some(
+                            (i) => i.product.id === cam.id || i.product.slug === cam.slug
+                          );
+                          const isJustAdded = addedIds.includes(cam.id);
+                          const isAdding = addingId === cam.id;
+
+                          return (
+                            <TouchableOpacity
+                              onPress={async () => {
+                                if (!user) {
+                                  router.push('/login');
+                                  return;
+                                }
+                                if (isAdding) return;
+                                setAddingId(cam.id);
+                                try {
+                                  await addToCart(cam, 1);
+                                  setAddedIds((prev) => [...prev, cam.id]);
+                                  setTimeout(() => {
+                                    setAddedIds((prev) => prev.filter((id) => id !== cam.id));
+                                  }, 2500);
+                                } finally {
+                                  setAddingId(null);
+                                }
+                              }}
+                              style={[
+                                styles.addBtn,
+                                isJustAdded && { backgroundColor: '#2e7d32' },
+                                inCart && !isJustAdded && { backgroundColor: '#a82020' },
+                              ]}
+                              disabled={isAdding}
+                              activeOpacity={0.85}
+                            >
+                              {isAdding ? (
+                                <ActivityIndicator size="small" color="#fff" />
+                              ) : (
+                                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
+                                  <Feather
+                                    name={isJustAdded ? 'check-circle' : inCart ? 'check' : 'shopping-bag'}
+                                    size={12}
+                                    color="#fff"
+                                  />
+                                  <Text style={styles.addBtnText}>
+                                    {isAdding
+                                      ? 'Adding...'
+                                      : isJustAdded
+                                        ? 'Added!'
+                                        : inCart
+                                          ? 'In Cart'
+                                          : 'Add to Cart'}
+                                  </Text>
+                                </View>
+                              )}
+                            </TouchableOpacity>
+                          );
+                        })()}
                       </View>
                     );
                   })}

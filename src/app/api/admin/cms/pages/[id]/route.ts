@@ -30,8 +30,43 @@ const patchPageSchema = z.object({
   title: z.string().min(1).max(200).optional(),
   slug: z.string().min(1).max(100).optional(),
   body: z.string().min(1).max(100000).optional(),
-  status: z.enum(['PUBLISHED', 'DRAFT']).optional(),
+  status: z
+    .preprocess(
+      (val) => (typeof val === 'string' ? val.toUpperCase() : val),
+      z.enum(['PUBLISHED', 'DRAFT'])
+    )
+    .optional(),
 })
+
+// GET /api/admin/cms/pages/[id] — Fetch a single static page
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const admin = await getCurrentAdmin()
+    if (!admin) {
+      return unauthorizedResponse('Admin access required')
+    }
+
+    const { id } = await paramsSchema.parseAsync(await params)
+    const page = await prisma.staticPage.findUnique({ where: { id } })
+    if (!page) {
+      return errorResponse('Page not found', 404)
+    }
+
+    return successResponse(page)
+  } catch (error) {
+    console.error('Fetch static page error:', error)
+    if (error instanceof z.ZodError) {
+      return errorResponse('Invalid page ID', 400)
+    }
+    return errorResponse(
+      error instanceof Error ? error.message : 'Failed to fetch static page',
+      500
+    )
+  }
+}
 
 // PATCH /api/admin/cms/pages/[id] — Update a static page
 export async function PATCH(

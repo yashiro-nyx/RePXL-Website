@@ -93,9 +93,23 @@ export const createOrderSchema = z.object({
   selectedProductIds: z.array(z.string().min(1)).min(1, 'Select at least one item').optional(),
 })
 
-export const updateOrderStatusSchema = z.object({
-  status: z.enum(['PROCESSING', 'SHIPPED', 'DELIVERED', 'COMPLETED', 'CANCELLED']),
-})
+export const updateOrderStatusSchema = z
+  .object({
+    status: z
+      .enum(['PROCESSING', 'SHIPPED', 'DELIVERED', 'COMPLETED', 'CANCELLED'])
+      .optional(),
+    paymentStatus: z
+      .enum(['PENDING', 'PAID', 'FAILED', 'REFUNDED'])
+      .optional(),
+    markPaymentCompleted: z.boolean().optional(),
+  })
+  .refine(
+    (data) =>
+      data.status !== undefined ||
+      data.paymentStatus !== undefined ||
+      data.markPaymentCompleted !== undefined,
+    { message: 'At least one of status, paymentStatus, or markPaymentCompleted must be provided' }
+  )
 
 // ─── Review Validations ─────────────────────────────────────────────────────────
 

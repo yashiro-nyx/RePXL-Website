@@ -1,10 +1,11 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useProductStore } from '@/stores/productStore'
 import { useOrderHistoryStore } from '@/stores/orderHistoryStore'
 import { Skeleton } from '@/components/ui'
 import { formatPrice } from '@/lib/format'
+import { normalizeOrderStatus } from '@/lib/order-status-unified'
 
 const LOW_STOCK_THRESHOLD = 1
 
@@ -13,25 +14,51 @@ export default function AdminDashboardPage() {
   const orders = useOrderHistoryStore((s) => s.orders)
   const [hydrated, setHydrated] = useState(false)
   const [customerCount, setCustomerCount] = useState<number | null>(null)
+  const [isRefreshing, setIsRefreshing] = useState(false)
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
+
+  const reloadData = useCallback(async (isInitial = false) => {
+    if (!isInitial) setIsRefreshing(true)
+    try {
+      await Promise.all([
+        useProductStore.getState().hydrate().catch(() => {}),
+        useOrderHistoryStore.getState().hydrate().catch(() => {}),
+        fetch('/api/admin/customers?limit=1', { credentials: 'include' })
+          .then((r) => (r.ok ? r.json() : null))
+          .then((json) => {
+            if (json?.pagination?.total != null) setCustomerCount(json.pagination.total)
+          })
+          .catch(() => {}),
+      ])
+      setLastUpdated(new Date())
+    } finally {
+      if (isInitial) setHydrated(true)
+      setIsRefreshing(false)
+    }
+  }, [])
 
   useEffect(() => {
-    const init = async () => {
-      await useProductStore.getState().hydrate()
-      await useOrderHistoryStore.getState().hydrate()
-      setHydrated(true)
+    void reloadData(true)
+    // Periodic background polling every 10s to keep metrics live
+    const interval = setInterval(() => {
+      void reloadData(false)
+    }, 10000)
+
+    const handleFocus = () => {
+      void reloadData(false)
     }
-    void init()
-    // Fetch real customer count from the admin API
-    fetch('/api/admin/customers?limit=1', { credentials: 'include' })
-      .then((r) => r.ok ? r.json() : null)
-      .then((json) => { if (json?.pagination?.total != null) setCustomerCount(json.pagination.total) })
-      .catch(() => { /* leave null — will show skeleton */ })
-  }, [])
+    window.addEventListener('focus', handleFocus)
+
+    return () => {
+      clearInterval(interval)
+      window.removeEventListener('focus', handleFocus)
+    }
+  }, [reloadData])
 
   const totalCameras = products.filter((p) => p.status === 'active').length
   const totalStock = products.reduce((sum, p) => sum + Math.max(0, p.stock), 0)
   const totalOrders = orders.length
-  const pendingOrders = orders.filter((o) => o.status === 'Processing').length
+  const pendingOrders = orders.filter((o) => normalizeOrderStatus(o.status) === 'PROCESSING').length
   const revenue = orders.reduce((sum, o) => sum + o.total, 0)
   const lowStockItems = products.filter((p) => p.stock > 0 && p.stock <= LOW_STOCK_THRESHOLD)
   const outOfStock = products.filter((p) => p.stock <= 0)
@@ -43,10 +70,11 @@ export default function AdminDashboardPage() {
   }))
 
   const statusCounts = {
-    Processing: orders.filter((o) => o.status === 'Processing').length,
-    Shipped: orders.filter((o) => o.status === 'Shipped').length,
-    Delivered: orders.filter((o) => o.status === 'Delivered').length,
-    Cancelled: orders.filter((o) => o.status === 'Cancelled').length,
+    Processing: orders.filter((o) => normalizeOrderStatus(o.status) === 'PROCESSING').length,
+    Shipped: orders.filter((o) => normalizeOrderStatus(o.status) === 'SHIPPED').length,
+    Delivered: orders.filter((o) => normalizeOrderStatus(o.status) === 'DELIVERED').length,
+    Completed: orders.filter((o) => normalizeOrderStatus(o.status) === 'COMPLETED').length,
+    Cancelled: orders.filter((o) => normalizeOrderStatus(o.status) === 'CANCELLED').length,
   }
 
   const salesMap: Record<string, number> = {}
@@ -59,9 +87,39 @@ export default function AdminDashboardPage() {
   return (
     <div>
       {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-repixl-text-light">Dashboard</h1>
-        <p className="mt-0.5 text-sm text-repixl-muted">Overview of your store performance and inventory.</p>
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-repixl-text-light">Dashboard</h1>
+          <p className="mt-0.5 text-sm text-repixl-muted">Overview of your store performance and inventory.</p>
+        </div>
+        <div className="flex items-center gap-3">
+          <span className="flex items-center gap-1.5 font-mono text-[11px] text-repixl-muted">
+            <span
+              className={`inline-block h-2 w-2 rounded-full ${
+                isRefreshing ? 'bg-amber-400 animate-pulse' : 'bg-emerald-400'
+              }`}
+            />
+            {isRefreshing ? 'Syncing...' : lastUpdated ? 'Live sync' : 'Live'}
+          </span>
+          <button
+            type="button"
+            onClick={() => void reloadData(false)}
+            disabled={isRefreshing}
+            className="flex items-center gap-1.5 rounded-xl border border-repixl-muted/20 bg-repixl-charcoal px-3 py-1.5 text-xs font-medium text-repixl-text-light/80 shadow-sm transition-colors hover:border-repixl-muted/40 hover:text-white"
+          >
+            <svg
+              className={`h-3.5 w-3.5 ${isRefreshing ? 'animate-spin' : ''}`}
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth="2"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+            Refresh
+          </button>
+        </div>
       </div>
 
       {!hydrated ? (
@@ -156,6 +214,7 @@ export default function AdminDashboardPage() {
               <StatusRow label="Processing" count={statusCounts.Processing} total={totalOrders} color="bg-amber-500" />
               <StatusRow label="Shipped" count={statusCounts.Shipped} total={totalOrders} color="bg-blue-500" />
               <StatusRow label="Delivered" count={statusCounts.Delivered} total={totalOrders} color="bg-green-500" />
+              <StatusRow label="Completed" count={statusCounts.Completed} total={totalOrders} color="bg-emerald-500" />
               <StatusRow label="Cancelled" count={statusCounts.Cancelled} total={totalOrders} color="bg-red-400" />
             </div>
           )}

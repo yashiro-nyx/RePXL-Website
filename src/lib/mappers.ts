@@ -218,6 +218,7 @@ export interface ApiOrder {
   courierEstimate: string
   paymentMethod: string
   voucherCode: string | null
+  paymentStatus?: 'PENDING' | 'PAID' | 'FAILED' | 'REFUNDED'
   fullName: string
   address: string
   barangay?: string
@@ -292,6 +293,7 @@ export function apiToClientOrder(o: ApiOrder): ClientOrder {
     province: o.province ?? '',
     postalCode: o.postalCode,
     status: ORDER_STATUS_TO_CLIENT[o.status] ?? 'Processing',
+    paymentStatus: o.paymentStatus,
     userEmail: o.user?.email,
     // Tracking fields — pass through from DB
     trackingNumber: o.trackingNumber ?? '',

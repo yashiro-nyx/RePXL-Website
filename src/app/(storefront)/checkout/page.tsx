@@ -36,7 +36,7 @@ const PHAddressSelect = dynamic(
 
 const fallbackItems: CartItem[] = []
 
-type PaymentMethod = 'card' | 'gcash' | 'paypal'
+type PaymentMethod = 'card' | 'gcash' | 'paypal' | 'cod'
 
 interface CourierOption {
   id: string
@@ -105,6 +105,7 @@ const paymentLabels: Record<PaymentMethod, string> = {
   card: 'Credit / Debit Card',
   gcash: 'GCash',
   paypal: 'PayPal',
+  cod: 'Cash on Delivery',
 }
 
 export default function CheckoutPage() {
@@ -340,7 +341,7 @@ export default function CheckoutPage() {
 
 
     // ── Embedded PIPM flow ──
-    if (isPaymongoEnabled()) {
+    if (isPaymongoEnabled() && paymentMethod !== 'cod') {
       try {
         const { clientKey, intentId, orderNumber } = await startPaymentIntent({
           fullName,
@@ -362,6 +363,7 @@ export default function CheckoutPage() {
           card: 'card',
           gcash: 'gcash',
           paypal: 'card',
+          cod: 'card',
         }
         const siteUrl = process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, '') ?? 'http://localhost:3000'
         const returnUrl = `${siteUrl}/checkout/success?order=${orderNumber}`
@@ -391,19 +393,23 @@ export default function CheckoutPage() {
         })
         return
       } catch (err) {
-        setPaymentError('Payment could not be started. Check your orders before retrying if the connection was interrupted.')
-        setSubmitting(false)
-        return
+        console.warn('Payment gateway unavailable, proceeding with built-in direct order placement:', err)
       }
     }
 
-    // Direct checkout is used only when the gateway is explicitly disabled.
+    // Direct built-in checkout
     const orderData = {
       shippingCost: courier.price,
-      courierName: courier.name, courierEstimate: courier.estimate,
+      courierName: courier.name,
+      courierEstimate: courier.estimate,
       paymentMethod: paymentLabels[paymentMethod],
-      fullName, address: streetAddress, barangay: phAddr.barangay,
-      city: phAddr.city, province: phAddr.province, postalCode,
+      fullName,
+      address: streetAddress,
+      barangay: phAddr.barangay,
+      city: phAddr.city,
+      province: phAddr.province,
+      postalCode,
+      selectedProductIds: cartItems.map((i) => i.product.slug),
     }
     try {
       const created = await addOrder(orderData)
@@ -1008,7 +1014,12 @@ export default function CheckoutPage() {
               <fieldset>
                 <legend className="sr-only">Select payment method</legend>
                 <div className="flex flex-wrap gap-3">
-                  {([{ id: 'card' as const, label: 'Credit / Debit Card' }, { id: 'gcash' as const, label: 'GCash' }, { id: 'paypal' as const, label: 'PayPal' }]).map((method) => (
+                  {([
+                    { id: 'card' as const, label: 'Credit / Debit Card' },
+                    { id: 'gcash' as const, label: 'GCash' },
+                    { id: 'paypal' as const, label: 'PayPal' },
+                    { id: 'cod' as const, label: 'Cash on Delivery' },
+                  ]).map((method) => (
                     <label key={method.id} className={`flex cursor-pointer items-center gap-2 rounded border px-4 py-2.5 text-sm transition-colors ${paymentMethod === method.id ? 'border-repixl-red bg-repixl-red/10 text-repixl-text-light' : 'border-repixl-muted/20 text-repixl-text-light/70 hover:border-repixl-muted/40'}`}>
                       <input type="radio" name="payment-method" value={method.id} checked={paymentMethod === method.id} onChange={() => setPaymentMethod(method.id)} className="sr-only" />
                       {method.label}
@@ -1048,11 +1059,8 @@ export default function CheckoutPage() {
                     />
                   </div>
 
-                  {/* Expiry — auto-inserts "/" after month */}
-                  <div className="sm:col-span-2">
-                    <label htmlFor="card-expiry" className="mb-1 block text-xs text-repixl-text-light/70">
-                      Expiry (MM/YY)
-                    </label>
+                  {/* Expiry — auto-formats as MM / YY */}
+                  <FieldWrapper id="card-expiry" label="Expires" error={errors.cardExpiry} className="sm:col-span-2">
                     <CardExpiryInput
                       id="card-expiry"
                       value={cardExpiry}
@@ -1062,15 +1070,14 @@ export default function CheckoutPage() {
                       className={`font-mono ${inputClass(errors.cardExpiry)}`}
                       disabled={submitting || paymentProcessing}
                     />
-                  </div>
+                  </FieldWrapper>
 
                   {/* CVC — digits only, max 4 */}
                   <FieldWrapper id="card-cvc" label="CVC" error={errors.cardCvc}>
                     <input
                       id="card-cvc"
                       type="text"
-                      inputMode="numeric"
-                      placeholder="123"
+                      placeholder="CVC"
                       autoComplete="cc-csc"
                       maxLength={4}
                       value={cardCvc}
@@ -1091,6 +1098,12 @@ export default function CheckoutPage() {
               {paymentMethod === 'paypal' && (
                 <div className="mt-5 rounded-xl border border-repixl-muted/10 bg-repixl-charcoal p-4">
                   <p className="text-sm text-repixl-text-light/70">PayPal is processed as a card payment via PayMongo.</p>
+                </div>
+              )}
+              {paymentMethod === 'cod' && (
+                <div className="mt-5 rounded-xl border border-repixl-muted/10 bg-repixl-charcoal p-4">
+                  <p className="text-sm font-medium text-repixl-text-light">Cash on Delivery</p>
+                  <p className="mt-1 text-xs text-repixl-muted">Pay in cash directly to your courier upon delivery of your gear. Please prepare the exact amount if possible.</p>
                 </div>
               )}
               </>

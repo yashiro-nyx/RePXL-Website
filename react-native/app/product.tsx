@@ -63,6 +63,7 @@ export default function ProductScreen() {
   const { slug } = useLocalSearchParams<{ slug: string }>();
   const {
     products,
+    cart,
     addToCart,
     user,
     wishlist,
@@ -74,7 +75,9 @@ export default function ProductScreen() {
 
   const [tab, setTab] = useState<Tab>('overview');
   const [qty, setQty] = useState(1);
+  const [addingToCart, setAddingToCart] = useState(false);
   const [addedFeedback, setAddedFeedback] = useState(false);
+  const [showToast, setShowToast] = useState(false);
   const [remoteProduct, setRemoteProduct] = useState<Product | null>(null);
   const [loadError, setLoadError] = useState('');
   const insets = useSafeAreaInsets();
@@ -161,17 +164,29 @@ export default function ProductScreen() {
     colorProfile.presets.find((pr) => pr.id === colorProfile.defaultPreset) ||
     colorProfile.presets[0];
 
+  const cartItem = cart.find((i) => i.product.id === p.id || i.product.slug === p.slug);
+  const cartQty = cartItem?.quantity ?? 0;
+  const inCart = cartQty > 0;
+  const isMaxInCart = p.stockCount > 0 && cartQty >= p.stockCount;
+
   const handleAddToCart = async () => {
     if (!user) {
       router.push('/login');
       return;
     }
+    if (isMaxInCart || addingToCart) return;
+
+    setAddingToCart(true);
     try {
       await addToCart(p, qty);
       setAddedFeedback(true);
-      setTimeout(() => setAddedFeedback(false), 1600);
+      setShowToast(true);
+      setTimeout(() => setAddedFeedback(false), 2500);
+      setTimeout(() => setShowToast(false), 4000);
     } catch {
       setAddedFeedback(false);
+    } finally {
+      setAddingToCart(false);
     }
   };
 
@@ -214,6 +229,32 @@ export default function ProductScreen() {
 
   return (
     <View style={styles.container}>
+      {/* ── Added to Cart Toast Notification ── */}
+      {showToast && (
+        <View style={[styles.toastBanner, { top: insets.top + 56 }]}>
+          <View style={styles.toastContent}>
+            <View style={styles.toastIcon}>
+              <Feather name="check" size={15} color="#fff" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.toastTitle} numberOfLines={1}>
+                Added {p.name} to cart
+              </Text>
+              <Text style={styles.toastSub}>
+                Item added to your cart
+              </Text>
+            </View>
+            <TouchableOpacity
+              style={styles.toastActionBtn}
+              onPress={() => router.push('/(tabs)/cart')}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.toastActionText}>View Cart →</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
+
       {/* ── Hero ── */}
       <View style={styles.hero}>
         <LinearGradient
@@ -322,16 +363,38 @@ export default function ProductScreen() {
             <TouchableOpacity
               style={[
                 styles.addBtn,
-                { backgroundColor: addedFeedback ? '#2e7d32' : '#c62828' },
-                !p.inStock && { opacity: 0.5 },
+                {
+                  backgroundColor: addedFeedback
+                    ? '#2e7d32'
+                    : isMaxInCart
+                      ? '#2c2c2e'
+                      : '#c62828',
+                },
+                (!p.inStock || isMaxInCart) && { opacity: 0.6 },
               ]}
               onPress={handleAddToCart}
-              disabled={!p.inStock}
+              disabled={!p.inStock || isMaxInCart || addingToCart}
               activeOpacity={0.85}
             >
-              <Feather name={addedFeedback ? 'check' : 'shopping-bag'} size={15} color="#fff" />
+              {addingToCart ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <Feather
+                  name={addedFeedback ? 'check-circle' : 'shopping-bag'}
+                  size={15}
+                  color="#fff"
+                />
+              )}
               <Text style={styles.addBtnText}>
-                {addedFeedback ? 'Added!' : p.inStock ? 'Add to Cart' : 'Out of Stock'}
+                {addingToCart
+                  ? 'Adding...'
+                  : addedFeedback
+                    ? 'Added to Cart!'
+                    : !p.inStock
+                      ? 'Out of Stock'
+                      : isMaxInCart
+                        ? 'Max in Cart'
+                        : 'Add to Cart'}
               </Text>
             </TouchableOpacity>
             <TouchableOpacity
@@ -1242,5 +1305,57 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#aaa',
     lineHeight: 18,
+  },
+  toastBanner: {
+    position: 'absolute',
+    left: 16,
+    right: 16,
+    zIndex: 999,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 10,
+    elevation: 10,
+  },
+  toastContent: {
+    backgroundColor: '#1c1c1e',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#4caf50',
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  toastIcon: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#4caf50',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  toastTitle: {
+    fontFamily: 'Inter_700Bold',
+    fontSize: 12,
+    color: '#fff',
+  },
+  toastSub: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 10,
+    color: '#aaa',
+    marginTop: 1,
+  },
+  toastActionBtn: {
+    backgroundColor: 'rgba(76,175,80,0.15)',
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 8,
+  },
+  toastActionText: {
+    fontFamily: 'Inter_700Bold',
+    fontSize: 11,
+    color: '#4caf50',
   },
 });

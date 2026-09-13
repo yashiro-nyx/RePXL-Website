@@ -1,4 +1,5 @@
 import { deductInventory, InsufficientStockError } from '@/lib/purchase-finalization'
+import { expireOverduePendingOrders } from '@/lib/order-payment-expiry'
 import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import {
@@ -40,6 +41,11 @@ export async function GET(request: NextRequest) {
     const isAdmin = !!admin
     const isArchived = searchParams.get('archived') === 'true'
     const statusFilter = searchParams.get('status')
+
+    // Automatically expire any overdue pending orders
+    await expireOverduePendingOrders().catch((err) => {
+      console.error('Error expiring overdue orders in GET /api/orders:', err)
+    })
 
     // Build where clause
     const where: any = { isArchived }
@@ -99,14 +105,19 @@ export async function POST(request: NextRequest) {
 
     const data = parsed.data
 
-    // Get user's cart items
+    // Get user's cart items (filtered to selectedProductIds if provided)
     const cartItems = await prisma.cartItem.findMany({
-      where: { userId: user.id },
+      where: {
+        userId: user.id,
+        ...(data.selectedProductIds && data.selectedProductIds.length > 0
+          ? { product: { slug: { in: data.selectedProductIds } } }
+          : {}),
+      },
       include: { product: true },
     })
 
     if (cartItems.length === 0) {
-      return errorResponse('Cart is empty', 400)
+      return errorResponse('Cart is empty or selected items not found', 400)
     }
 
     // Validate stock availability
@@ -189,8 +200,10 @@ export async function POST(request: NextRequest) {
       await deductInventory(tx, cartItems)
       if (appliedVoucherId) await tx.voucher.update({where: {id: appliedVoucherId}, data: {used: {increment: 1}}})
 
-      // Clear the cart
-      await tx.cartItem.deleteMany({ where: { userId: user.id } })
+      // Clear the purchased items from the cart
+      await tx.cartItem.deleteMany({
+        where: { id: { in: cartItems.map((item) => item.id) } },
+      })
 
       return newOrder
     })

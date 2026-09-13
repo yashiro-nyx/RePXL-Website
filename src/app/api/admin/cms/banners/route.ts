@@ -29,10 +29,10 @@ const bannerInputSchema = z.object({
   title: z.string().min(1).max(120),
   imageRef: z.string().min(1),
   placement: z.string(),
-  linkTarget: z.string().url(),
+  linkTarget: z.string().min(1),
   isActive: z.boolean().default(true),
-  startDate: z.string().datetime().nullable().default(null),
-  endDate: z.string().datetime().nullable().default(null),
+  startDate: z.string().nullable().optional().default(null),
+  endDate: z.string().nullable().optional().default(null),
 })
 
 // GET /api/admin/cms/banners — List all banners (ordered by updatedAt desc)
@@ -67,12 +67,17 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const input = bannerInputSchema.parse(body)
 
+    // Normalize linkTarget if relative
+    const linkTarget = input.linkTarget.startsWith('/')
+      ? `https://repxl.com${input.linkTarget}`
+      : input.linkTarget
+
     // Validate banner fields
     const validation = validateBanner({
       title: input.title,
       imageRef: input.imageRef,
       placement: input.placement,
-      linkTarget: input.linkTarget,
+      linkTarget,
     })
 
     if (!validation.valid) {
@@ -98,7 +103,7 @@ export async function POST(request: NextRequest) {
         title: input.title,
         imageRef: input.imageRef,
         placement: input.placement as BannerPlacement, // Validated by isValidPlacement above
-        linkTarget: input.linkTarget,
+        linkTarget,
         isActive: input.isActive,
         startDate,
         endDate,

@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   Image,
   ScrollView,
   StyleSheet,
@@ -12,22 +13,30 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { api } from '../src/services/api';
-import type { Order } from '../types';
+import { useApp } from '../context/AppContext';
+import {
+  getOrderStatusLabel,
+  getOrderStatusColors,
+  getPaymentStatusColors,
+  normalizeOrderStatus,
+  type Order,
+} from '../types';
 
 const TRACKING_STEPS = [
-  { label: 'Order Placed', key: 'PLACED' },
-  { label: 'Payment Confirmed', key: 'CONFIRMED' },
-  { label: 'Processing & Tested', key: 'PROCESSING' },
-  { label: 'Shipped', key: 'SHIPPED' },
-  { label: 'Delivered', key: 'DELIVERED' },
+  { label: 'Order Placed & Processing', key: 'PROCESSING' },
+  { label: 'Shipped & In Transit', key: 'SHIPPED' },
+  { label: 'Delivered to Customer', key: 'DELIVERED' },
+  { label: 'Order Completed', key: 'COMPLETED' },
 ];
 
 export default function OrderScreen() {
   const insets = useSafeAreaInsets();
   const { orderNumber } = useLocalSearchParams<{ orderNumber: string }>();
+  const { updateOrderStatus } = useApp();
   const [order, setOrder] = useState<Order | null>(null);
   const [error, setError] = useState('');
   const [refreshing, setRefreshing] = useState(false);
+  const [actionLoading, setActionLoading] = useState(false);
 
   const fetchOrder = useCallback(async () => {
     if (!orderNumber) return;
@@ -47,15 +56,67 @@ export default function OrderScreen() {
     void fetchOrder();
   }, [fetchOrder]);
 
+  const normStatus = normalizeOrderStatus(order?.status);
+  const isCancelled = normStatus === 'CANCELLED';
+
   const currentStepIndex = useMemo(() => {
     if (!order) return 0;
-    const s = (order.deliveryStatus || '').toUpperCase();
-    if (s.includes('DELIVERED') || s.includes('COMPLETED')) return 4;
-    if (s.includes('SHIPPED') || s.includes('TRANSIT') || s.includes('COURIER')) return 3;
-    if (s.includes('PROCESS') || s.includes('PREPAR')) return 2;
-    if (order.paymentStatus === 'PAID') return 1;
-    return 0;
-  }, [order]);
+    if (normStatus === 'COMPLETED') return 3;
+    if (normStatus === 'DELIVERED') return 2;
+    if (normStatus === 'SHIPPED') return 1;
+    return 0; // PROCESSING
+  }, [order, normStatus]);
+
+  const handleCancelOrder = () => {
+    if (!order) return;
+    Alert.alert(
+      'Cancel Order',
+      'Are you sure you want to cancel this order? This action cannot be undone.',
+      [
+        { text: 'Keep Order', style: 'cancel' },
+        {
+          text: 'Cancel Order',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              setActionLoading(true);
+              const updated = await updateOrderStatus(order.orderNumber, 'CANCELLED');
+              setOrder(updated);
+            } catch (err) {
+              Alert.alert('Error', err instanceof Error ? err.message : 'Failed to cancel order.');
+            } finally {
+              setActionLoading(false);
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleConfirmReceipt = () => {
+    if (!order) return;
+    Alert.alert(
+      'Confirm Delivery Received',
+      'Have you received all items in good condition? This will finalize and mark your order as Completed.',
+      [
+        { text: 'Not Yet', style: 'cancel' },
+        {
+          text: 'Yes, Confirm Received',
+          onPress: async () => {
+            try {
+              setActionLoading(true);
+              const updated = await updateOrderStatus(order.orderNumber, 'COMPLETED');
+              setOrder(updated);
+            } catch (err) {
+              Alert.alert('Error', err instanceof Error ? err.message : 'Failed to complete order.');
+            } finally {
+              setActionLoading(false);
+            }
+          },
+        },
+      ]
+    );
+  };
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
@@ -99,20 +160,47 @@ export default function OrderScreen() {
           <View style={styles.card}>
             <View style={styles.rowBetween}>
               <Text style={styles.orderNumber}>{order.orderNumber}</Text>
-              <View
-                style={[
-                  styles.paymentBadge,
-                  order.paymentStatus === 'PAID' && styles.paymentBadgePaid,
-                ]}
-              >
-                <Text
+              {/* Badges Row */}
+              <View style={styles.badgeRow}>
+                {/* Order Status Badge */}
+                <View
                   style={[
-                    styles.paymentBadgeText,
-                    order.paymentStatus === 'PAID' && styles.paymentBadgeTextPaid,
+                    styles.statusBadge,
+                    {
+                      backgroundColor: getOrderStatusColors(order.status).bg,
+                      borderColor: getOrderStatusColors(order.status).border,
+                    },
                   ]}
                 >
-                  {order.paymentStatus}
-                </Text>
+                  <Text
+                    style={[
+                      styles.statusBadgeText,
+                      { color: getOrderStatusColors(order.status).text },
+                    ]}
+                  >
+                    {getOrderStatusLabel(order.status).toUpperCase()}
+                  </Text>
+                </View>
+
+                {/* Payment Status Badge */}
+                <View
+                  style={[
+                    styles.statusBadge,
+                    {
+                      backgroundColor: getPaymentStatusColors(order.paymentStatus).bg,
+                      borderColor: getPaymentStatusColors(order.paymentStatus).border,
+                    },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.statusBadgeText,
+                      { color: getPaymentStatusColors(order.paymentStatus).text },
+                    ]}
+                  >
+                    {order.paymentStatus.toUpperCase()}
+                  </Text>
+                </View>
               </View>
             </View>
             <Text style={styles.meta}>
@@ -124,57 +212,124 @@ export default function OrderScreen() {
           {/* Tracking Status Card */}
           <View style={styles.card}>
             <Text style={styles.cardSectionTitle}>Tracking & Delivery</Text>
-            <Text style={styles.deliveryStatusMain}>{order.deliveryStatus}</Text>
-            {!!order.trackingDescription && (
-              <Text style={styles.description}>{order.trackingDescription}</Text>
-            )}
+            {isCancelled ? (
+              <View style={styles.cancelledAlert}>
+                <Feather name="alert-circle" size={18} color="#f87171" />
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.cancelledTitle}>Order Cancelled</Text>
+                  <Text style={styles.cancelledSub}>This order has been cancelled and will not be fulfilled.</Text>
+                </View>
+              </View>
+            ) : (
+              <>
+                <Text style={styles.deliveryStatusMain}>{order.deliveryStatus || 'Order Placed'}</Text>
+                {!!order.trackingDescription && (
+                  <Text style={styles.description}>{order.trackingDescription}</Text>
+                )}
 
-            {/* Tracking timeline */}
-            <View style={styles.timelineContainer}>
-              {TRACKING_STEPS.map((step, idx) => {
-                const isPassed = idx <= currentStepIndex;
-                const isCurrent = idx === currentStepIndex;
-                return (
-                  <View key={step.key} style={styles.timelineRow}>
-                    <View style={styles.timelineIconCol}>
-                      <View
-                        style={[
-                          styles.timelineDot,
-                          isPassed && styles.timelineDotPassed,
-                          isCurrent && styles.timelineDotCurrent,
-                        ]}
-                      >
-                        {isPassed && <Feather name="check" size={10} color="#fff" />}
+                {/* Tracking timeline */}
+                <View style={styles.timelineContainer}>
+                  {TRACKING_STEPS.map((step, idx) => {
+                    const isPassed = idx <= currentStepIndex;
+                    const isCurrent = idx === currentStepIndex;
+                    return (
+                      <View key={step.key} style={styles.timelineRow}>
+                        <View style={styles.timelineIconCol}>
+                          <View
+                            style={[
+                              styles.timelineDot,
+                              isPassed && styles.timelineDotPassed,
+                              isCurrent && styles.timelineDotCurrent,
+                            ]}
+                          >
+                            {isPassed && <Feather name="check" size={10} color="#fff" />}
+                          </View>
+                          {idx < TRACKING_STEPS.length - 1 && (
+                            <View
+                              style={[
+                                styles.timelineLine,
+                                idx < currentStepIndex && styles.timelineLinePassed,
+                              ]}
+                            />
+                          )}
+                        </View>
+                        <View style={styles.timelineTextCol}>
+                          <Text
+                            style={[
+                              styles.timelineLabel,
+                              isPassed && styles.timelineLabelPassed,
+                              isCurrent && styles.timelineLabelCurrent,
+                            ]}
+                          >
+                            {step.label}
+                          </Text>
+                        </View>
                       </View>
-                      {idx < TRACKING_STEPS.length - 1 && (
-                        <View
-                          style={[
-                            styles.timelineLine,
-                            idx < currentStepIndex && styles.timelineLinePassed,
-                          ]}
-                        />
-                      )}
-                    </View>
-                    <View style={styles.timelineTextCol}>
-                      <Text
-                        style={[
-                          styles.timelineLabel,
-                          isPassed && styles.timelineLabelPassed,
-                          isCurrent && styles.timelineLabelCurrent,
-                        ]}
-                      >
-                        {step.label}
-                      </Text>
-                    </View>
-                  </View>
-                );
-              })}
-            </View>
+                    );
+                  })}
+                </View>
+              </>
+            )}
           </View>
+
+          {/* Customer Actions Card */}
+          {normStatus === 'PROCESSING' && (
+            <View style={styles.card}>
+              <Text style={styles.cardSectionTitle}>Order Actions</Text>
+              <Text style={styles.actionNote}>
+                Your order is currently processing. You may cancel it before it is dispatched to the courier.
+              </Text>
+              <TouchableOpacity
+                style={styles.cancelBtn}
+                onPress={handleCancelOrder}
+                disabled={actionLoading}
+                activeOpacity={0.8}
+              >
+                {actionLoading ? (
+                  <ActivityIndicator size="small" color="#f87171" />
+                ) : (
+                  <Text style={styles.cancelBtnText}>Cancel Order</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {normStatus === 'DELIVERED' && (
+            <View style={styles.card}>
+              <Text style={styles.cardSectionTitle}>Delivery Confirmation</Text>
+              <Text style={styles.actionNote}>
+                Your order has been delivered! Please inspect your camera gear and confirm delivery.
+              </Text>
+              <TouchableOpacity
+                style={styles.confirmBtn}
+                onPress={handleConfirmReceipt}
+                disabled={actionLoading}
+                activeOpacity={0.8}
+              >
+                {actionLoading ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Text style={styles.confirmBtnText}>✓ Confirm Delivery Received</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {normStatus === 'COMPLETED' && (
+            <View style={[styles.card, styles.completedCard]}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                <Feather name="check-circle" size={20} color="#34d399" />
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.completedTitle}>Order Completed</Text>
+                  <Text style={styles.completedSub}>Receipt confirmed. Thank you for choosing RePXL!</Text>
+                </View>
+              </View>
+            </View>
+          )}
 
           {/* Items List Card */}
           <View style={styles.card}>
-            <Text style={styles.cardSectionTitle}>Purchased Items</Text>
+            <Text style={styles.cardSectionTitle}>Purchased Items ({order.items.length})</Text>
             {order.items.map((item) => (
               <TouchableOpacity
                 key={item.id}
@@ -201,17 +356,49 @@ export default function OrderScreen() {
             ))}
           </View>
 
-          {/* Payment Summary */}
+          {/* Payment & Shipping Summary */}
           <View style={styles.card}>
-            <Text style={styles.cardSectionTitle}>Payment Summary</Text>
+            <Text style={styles.cardSectionTitle}>Order Summary</Text>
             <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>Total Amount</Text>
+              <Text style={styles.summaryLabel}>Subtotal</Text>
+              <Text style={styles.summaryValText}>
+                ₱{(order.subtotal ?? (order.total - (order.shippingCost ?? 0))).toLocaleString()}.00
+              </Text>
+            </View>
+            {!!order.shippingCost && order.shippingCost > 0 && (
+              <View style={styles.summaryRow}>
+                <Text style={styles.summaryLabel}>Shipping Fee</Text>
+                <Text style={styles.summaryValText}>₱{order.shippingCost.toLocaleString()}.00</Text>
+              </View>
+            )}
+            {!!order.discount && order.discount > 0 && (
+              <View style={styles.summaryRow}>
+                <Text style={styles.summaryLabel}>Discount</Text>
+                <Text style={[styles.summaryValText, { color: '#4ade80' }]}>
+                  -₱{order.discount.toLocaleString()}.00
+                </Text>
+              </View>
+            )}
+            <View style={[styles.summaryRow, { borderTopWidth: 1, borderTopColor: '#2c2c2e', paddingTop: 8, marginTop: 4 }]}>
+              <Text style={[styles.summaryLabel, { color: '#fff', fontFamily: 'Inter_700Bold' }]}>Total Amount</Text>
               <Text style={styles.totalValue}>₱{order.total.toLocaleString()}.00</Text>
             </View>
             <View style={styles.summaryRow}>
               <Text style={styles.summaryLabel}>Payment Method</Text>
-              <Text style={styles.summaryValText}>PayMongo Secured Checkout</Text>
+              <Text style={styles.summaryValText}>{order.paymentMethod || 'Credit / Debit Card'}</Text>
             </View>
+            <View style={styles.summaryRow}>
+              <Text style={styles.summaryLabel}>Courier</Text>
+              <Text style={styles.summaryValText}>{order.courierName || 'Standard Delivery'}</Text>
+            </View>
+            {!!order.address && (
+              <View style={styles.summaryRow}>
+                <Text style={styles.summaryLabel}>Shipping Address</Text>
+                <Text style={[styles.summaryValText, { maxWidth: '60%', textAlign: 'right' }]}>
+                  {[order.address, order.city, order.province].filter(Boolean).join(', ')}
+                </Text>
+              </View>
+            )}
           </View>
         </ScrollView>
       )}
@@ -257,27 +444,19 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
     marginBottom: 4,
   },
-  rowBetween: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  orderNumber: { color: '#fff', fontFamily: 'Inter_800ExtraBold', fontSize: 17 },
-  paymentBadge: {
+  rowBetween: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 },
+  badgeRow: { flexDirection: 'row', gap: 6, alignItems: 'center' },
+  orderNumber: { color: '#fff', fontFamily: 'Inter_800ExtraBold', fontSize: 16 },
+  statusBadge: {
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 6,
     borderWidth: 1,
-    borderColor: '#eab308',
-    backgroundColor: 'rgba(234, 179, 8, 0.1)',
   },
-  paymentBadgePaid: {
-    borderColor: '#4caf50',
-    backgroundColor: 'rgba(76, 175, 80, 0.1)',
-  },
-  paymentBadgeText: {
+  statusBadgeText: {
     fontFamily: 'Inter_700Bold',
-    fontSize: 10,
-    color: '#eab308',
-  },
-  paymentBadgeTextPaid: {
-    color: '#4caf50',
+    fontSize: 9,
+    letterSpacing: 0.5,
   },
   deliveryStatusMain: {
     color: '#fff',
@@ -347,6 +526,76 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontFamily: 'Inter_700Bold',
   },
+  actionNote: {
+    color: '#aaa',
+    fontFamily: 'Inter_400Regular',
+    fontSize: 12,
+    lineHeight: 17,
+  },
+  cancelBtn: {
+    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(239, 68, 68, 0.3)',
+    borderRadius: 10,
+    paddingVertical: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 6,
+  },
+  cancelBtnText: {
+    color: '#f87171',
+    fontFamily: 'Inter_700Bold',
+    fontSize: 13,
+  },
+  confirmBtn: {
+    backgroundColor: '#10b981',
+    borderRadius: 10,
+    paddingVertical: 11,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 6,
+  },
+  confirmBtnText: {
+    color: '#fff',
+    fontFamily: 'Inter_700Bold',
+    fontSize: 13,
+  },
+  completedCard: {
+    backgroundColor: 'rgba(16, 185, 129, 0.1)',
+    borderColor: 'rgba(16, 185, 129, 0.25)',
+  },
+  completedTitle: {
+    color: '#34d399',
+    fontFamily: 'Inter_700Bold',
+    fontSize: 14,
+  },
+  completedSub: {
+    color: '#a7f3d0',
+    fontFamily: 'Inter_400Regular',
+    fontSize: 12,
+    marginTop: 2,
+  },
+  cancelledAlert: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    padding: 12,
+    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(239, 68, 68, 0.25)',
+  },
+  cancelledTitle: {
+    color: '#f87171',
+    fontFamily: 'Inter_700Bold',
+    fontSize: 14,
+  },
+  cancelledSub: {
+    color: '#fca5a5',
+    fontFamily: 'Inter_400Regular',
+    fontSize: 12,
+    marginTop: 2,
+  },
   item: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -364,7 +613,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 2,
+    paddingVertical: 3,
   },
   summaryLabel: { color: '#888', fontFamily: 'Inter_400Regular', fontSize: 13 },
   summaryValText: { color: '#ccc', fontFamily: 'Inter_500Medium', fontSize: 13 },

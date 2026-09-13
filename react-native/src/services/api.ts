@@ -153,7 +153,13 @@ async function authorized<T>(path: string, init: RequestInit = {}): Promise<T> {
       const refreshed = await refreshSession();
       return await send(refreshed.tokens.accessToken);
     } catch (refreshError) {
-      await clearSession();
+      // Only clear the session if the refresh token was authoritatively rejected by the server
+      if (
+        refreshError instanceof ApiError &&
+        (refreshError.status === 401 || refreshError.status === 403)
+      ) {
+        await clearSession();
+      }
       throw refreshError;
     }
   }
@@ -265,6 +271,13 @@ export const api = {
     return orders.map(mapOrder);
   },
   order: async (orderNumber: string) => mapOrder(await authorized<RawOrder>(`/api/orders/${encodeURIComponent(orderNumber)}`)),
+  updateOrderStatus: async (orderNumber: string, status: string): Promise<Order> => {
+    const raw = await authorized<RawOrder>(`/api/orders/${encodeURIComponent(orderNumber)}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status }),
+    });
+    return mapOrder(raw);
+  },
   notifications: () => authorized<Notification[]>('/api/notifications?limit=50'),
   markNotificationRead: (id: string) => authorized<Pick<Notification, 'id' | 'isRead'>>(
     `/api/notifications/${encodeURIComponent(id)}/read`,
@@ -282,6 +295,26 @@ export const api = {
   deleteReview: (reviewId: string) => authorized<{ message?: string }>(`/api/reviews/${encodeURIComponent(reviewId)}`, {
     method: 'DELETE',
   }),
+  createOrder: async (input: {
+    fullName: string;
+    address: string;
+    barangay?: string;
+    city: string;
+    province?: string;
+    postalCode: string;
+    courierName: string;
+    courierEstimate: string;
+    paymentMethod: string;
+    voucherCode?: string | null;
+    shippingCost: number;
+    selectedProductIds?: string[];
+  }): Promise<Order> => {
+    const raw = await authorized<RawOrder>('/api/orders', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    });
+    return mapOrder(raw);
+  },
   checkout: (
     address: Address,
     selectedProductIds: string[],

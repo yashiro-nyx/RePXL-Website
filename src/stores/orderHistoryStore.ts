@@ -24,6 +24,7 @@ export interface Order {
   province: string
   postalCode: string
   status: 'Processing' | 'Shipped' | 'Delivered' | 'Completed' | 'Cancelled'
+  paymentStatus?: 'PENDING' | 'PAID' | 'FAILED' | 'REFUNDED'
   userEmail?: string
   // Package tracking — populated by the admin update-tracking endpoint
   trackingNumber?: string

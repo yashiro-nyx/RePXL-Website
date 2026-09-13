@@ -31,11 +31,41 @@ const patchBannerSchema = z.object({
   title: z.string().min(1).max(120).optional(),
   imageRef: z.string().min(1).optional(),
   placement: z.string().optional(),
-  linkTarget: z.string().url().optional(),
+  linkTarget: z.string().min(1).optional(),
   isActive: z.boolean().optional(),
-  startDate: z.string().datetime().nullable().optional(),
-  endDate: z.string().datetime().nullable().optional(),
+  startDate: z.string().nullable().optional(),
+  endDate: z.string().nullable().optional(),
 })
+
+// GET /api/admin/cms/banners/[id] — Get a single banner by ID
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const admin = await getCurrentAdmin()
+    if (!admin) {
+      return unauthorizedResponse('Admin access required')
+    }
+
+    const { id } = await paramsSchema.parseAsync(await params)
+    const banner = await prisma.banner.findUnique({ where: { id } })
+    if (!banner) {
+      return errorResponse('Banner not found', 404)
+    }
+
+    return successResponse(banner)
+  } catch (error) {
+    console.error('CMS banner fetch error:', error)
+    if (error instanceof z.ZodError) {
+      return errorResponse('Invalid banner ID', 400)
+    }
+    return errorResponse(
+      error instanceof Error ? error.message : 'Failed to fetch banner',
+      500
+    )
+  }
+}
 
 // PATCH /api/admin/cms/banners/[id] — Update a banner
 export async function PATCH(
@@ -58,12 +88,18 @@ export async function PATCH(
       return errorResponse('Banner not found', 404)
     }
 
+    // Normalize linkTarget if relative
+    const rawLinkTarget = patch.linkTarget ?? banner.linkTarget
+    const linkTarget = rawLinkTarget.startsWith('/')
+      ? `https://repxl.com${rawLinkTarget}`
+      : rawLinkTarget
+
     // Prepare updated banner for validation
     const updated = {
       title: patch.title ?? banner.title,
       imageRef: patch.imageRef ?? banner.imageRef,
       placement: patch.placement ?? banner.placement,
-      linkTarget: patch.linkTarget ?? banner.linkTarget,
+      linkTarget,
     }
 
     // Validate banner fields
@@ -100,7 +136,7 @@ export async function PATCH(
     if (patch.title) updateData.title = patch.title
     if (patch.imageRef) updateData.imageRef = patch.imageRef
     if (patch.placement) updateData.placement = patch.placement as BannerPlacement
-    if (patch.linkTarget) updateData.linkTarget = patch.linkTarget
+    if (patch.linkTarget !== undefined) updateData.linkTarget = linkTarget
     if (patch.isActive !== undefined) updateData.isActive = patch.isActive
     if (patch.startDate !== undefined) updateData.startDate = startDate
     if (patch.endDate !== undefined) updateData.endDate = endDate

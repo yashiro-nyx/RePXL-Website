@@ -25,13 +25,11 @@ const STEP_LABELS: Record<string, string> = {
   COMPLETED: 'Completed',
 }
 
-const statusStyles: Record<string, string> = {
-  Processing: 'bg-amber-500/15 text-amber-400 border-amber-500/30',
-  Shipped: 'bg-blue-500/15 text-blue-400 border-blue-500/30',
-  Delivered: 'bg-green-500/15 text-green-400 border-green-500/30',
-  Completed: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30',
-  Cancelled: 'bg-red-500/15 text-red-400 border-red-500/30',
-}
+import {
+  normalizeOrderStatus,
+  getOrderStatusLabel,
+  getOrderStatusBadgeClass,
+} from '@/lib/order-status-unified'
 
 // ─── Rating Stars ────────────────────────────────────────────────────────────
 function StarRating({ value, onChange }: { value: number; onChange: (v: number) => void }) {
@@ -303,30 +301,27 @@ export default function OrderDetailPage() {
     )
   }
 
-  const statusMap: Record<string, string> = {
-    Processing: 'PROCESSING', Shipped: 'SHIPPED', Delivered: 'DELIVERED', Completed: 'COMPLETED', Cancelled: 'CANCELLED',
-  }
-  const enumStatus = statusMap[order.status] as any
-  const stepper = computeStepperState(enumStatus)
+  const enumStatus = normalizeOrderStatus(order.status)
+  const stepper = computeStepperState(enumStatus as any)
 
   // Map status → tracking map props — use real DB deliveryStatus if available
   const dbDeliveryStatus = order.deliveryStatus ?? ''
   const mapStatus =
-    dbDeliveryStatus === 'Delivered' || order.status === 'Delivered' || order.status === 'Completed' ? 'Delivered'
+    dbDeliveryStatus === 'Delivered' || enumStatus === 'DELIVERED' || enumStatus === 'COMPLETED' ? 'Delivered'
     : dbDeliveryStatus === 'Out for Delivery' ? 'Out for Delivery'
-    : dbDeliveryStatus === 'In Transit' || order.status === 'Shipped' ? 'In Transit'
+    : dbDeliveryStatus === 'In Transit' || enumStatus === 'SHIPPED' ? 'In Transit'
     : 'Order Placed'
 
   const mapProgress =
-    dbDeliveryStatus === 'Delivered' || order.status === 'Delivered' || order.status === 'Completed' ? 100
+    dbDeliveryStatus === 'Delivered' || enumStatus === 'DELIVERED' || enumStatus === 'COMPLETED' ? 100
     : dbDeliveryStatus === 'Out for Delivery' ? 75
-    : dbDeliveryStatus === 'In Transit' || order.status === 'Shipped' ? 50
+    : dbDeliveryStatus === 'In Transit' || enumStatus === 'SHIPPED' ? 50
     : 25
 
-  const cancellable = order.status === 'Processing'
-  const awaitingReceipt = order.status === 'Delivered'
-  const completed = order.status === 'Completed'
-  const cancelled = order.status === 'Cancelled'
+  const cancellable = enumStatus === 'PROCESSING'
+  const awaitingReceipt = enumStatus === 'DELIVERED'
+  const completed = enumStatus === 'COMPLETED'
+  const cancelled = enumStatus === 'CANCELLED'
 
   return (
     <>
@@ -345,8 +340,8 @@ export default function OrderDetailPage() {
               <span className="text-repixl-text-light/50">{order.orderNumber}</span>
             </nav>
             <div className="flex items-center gap-3">
-              <span className={`rounded-full border px-2.5 py-1 font-mono text-[10px] uppercase tracking-wider ${statusStyles[order.status] ?? ''}`}>
-                {order.status}
+              <span className={`rounded-full border px-2.5 py-1 font-mono text-[10px] uppercase tracking-wider ${getOrderStatusBadgeClass(order.status)}`}>
+                {getOrderStatusLabel(order.status)}
               </span>
               <button
                 type="button"
@@ -418,21 +413,21 @@ export default function OrderDetailPage() {
                       // so orders placed before the tracking system existed still show
                       // a sensible initial state.
                       status: order.deliveryStatus ?? (
-                        order.status === 'Processing' ? 'Order Placed'
-                        : order.status === 'Shipped' ? 'In Transit'
-                        : order.status === 'Delivered' || order.status === 'Completed' ? 'Delivered'
+                        enumStatus === 'PROCESSING' ? 'Order Placed'
+                        : enumStatus === 'SHIPPED' ? 'In Transit'
+                        : enumStatus === 'DELIVERED' || enumStatus === 'COMPLETED' ? 'Delivered'
                         : 'Order Placed'
                       ),
                       progress: order.trackingProgress ?? (
-                        order.status === 'Processing' ? 25
-                        : order.status === 'Shipped' ? 50
-                        : order.status === 'Delivered' || order.status === 'Completed' ? 100
+                        enumStatus === 'PROCESSING' ? 25
+                        : enumStatus === 'SHIPPED' ? 50
+                        : enumStatus === 'DELIVERED' || enumStatus === 'COMPLETED' ? 100
                         : 25
                       ),
                       description: order.trackingDescription ?? (
-                        order.status === 'Processing'
+                        enumStatus === 'PROCESSING'
                           ? 'We are preparing your camera gear and checking lens optics.'
-                          : order.status === 'Shipped'
+                          : enumStatus === 'SHIPPED'
                           ? 'Your camera is on its way to you.'
                           : 'Your camera has been delivered. Enjoy!'
                       ),
