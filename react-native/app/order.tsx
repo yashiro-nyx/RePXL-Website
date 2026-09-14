@@ -26,7 +26,8 @@ import {
 import { TrackingMapCard } from '../components/TrackingMapCard';
 
 const TRACKING_STEPS = [
-  { label: 'Order Placed & Processing', key: 'PROCESSING' },
+  { label: 'Order Placed', key: 'ORDER_PLACED' },
+  { label: 'Payment Processed', key: 'PAYMENT_PROCESSED' },
   { label: 'Shipped & In Transit', key: 'SHIPPED' },
   { label: 'Delivered to Customer', key: 'DELIVERED' },
   { label: 'Order Completed', key: 'COMPLETED' },
@@ -73,10 +74,13 @@ export default function OrderScreen() {
 
   const currentStepIndex = useMemo(() => {
     if (!order) return 0;
-    if (normStatus === 'COMPLETED') return 3;
-    if (normStatus === 'DELIVERED') return 2;
-    if (normStatus === 'SHIPPED') return 1;
-    return 0; // PROCESSING
+    if (normStatus === 'COMPLETED') return 4;
+    if (normStatus === 'DELIVERED') return 3;
+    if (normStatus === 'SHIPPED') return 2;
+    // PROCESSING:
+    const isPaid = order.paymentStatus?.toUpperCase() === 'PAID';
+    if (isPaid) return 1;
+    return 0;
   }, [order, normStatus]);
 
   const handleCancelOrder = () => {
@@ -183,18 +187,18 @@ export default function OrderScreen() {
                   style={[
                     styles.statusBadge,
                     {
-                      backgroundColor: getOrderStatusColors(order.status).bg,
-                      borderColor: getOrderStatusColors(order.status).border,
+                      backgroundColor: getOrderStatusColors(order.status, order.paymentStatus).bg,
+                      borderColor: getOrderStatusColors(order.status, order.paymentStatus).border,
                     },
                   ]}
                 >
                   <Text
                     style={[
                       styles.statusBadgeText,
-                      { color: getOrderStatusColors(order.status).text },
+                      { color: getOrderStatusColors(order.status, order.paymentStatus).text },
                     ]}
                   >
-                    {getOrderStatusLabel(order.status).toUpperCase()}
+                    {getOrderStatusLabel(order.status, order.paymentStatus).toUpperCase()}
                   </Text>
                 </View>
 

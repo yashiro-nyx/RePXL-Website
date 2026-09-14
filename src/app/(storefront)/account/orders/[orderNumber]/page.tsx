@@ -8,7 +8,7 @@ import { createPortal } from 'react-dom'
 import { Button, BackButton, PageLoader, ImageUploader, type UploadedImage } from '@/components/ui'
 import { useAuthStore } from '@/stores/authStore'
 import { useOrderHistoryStore, type Order } from '@/stores/orderHistoryStore'
-import { computeStepperState } from '@/lib/order-tracking'
+import { computeLifecycleStepperState } from '@/lib/order-tracking'
 import { TrackingTimeline } from '@/components/tracking/TrackingTimeline'
 import { formatPrice } from '@/lib/format'
 
@@ -17,13 +17,6 @@ const TrackingMap = dynamic(
   () => import('@/components/tracking/TrackingMap').then((m) => ({ default: m.TrackingMap })),
   { ssr: false, loading: () => <div className="mt-4 h-[300px] animate-pulse rounded-2xl bg-repixl-charcoal/40" /> }
 )
-
-const STEP_LABELS: Record<string, string> = {
-  PROCESSING: 'Order Placed',
-  SHIPPED: 'Shipped',
-  DELIVERED: 'Delivered',
-  COMPLETED: 'Completed',
-}
 
 import {
   normalizeOrderStatus,
@@ -313,7 +306,7 @@ export default function OrderDetailPage() {
   }
 
   const enumStatus = normalizeOrderStatus(order.status)
-  const stepper = computeStepperState(enumStatus as any)
+  const stepper = computeLifecycleStepperState(enumStatus as any, order.paymentStatus)
 
   // Map status → tracking map props — use real DB deliveryStatus if available
   const dbDeliveryStatus = order.deliveryStatus ?? ''
@@ -361,8 +354,8 @@ export default function OrderDetailPage() {
               <span className="text-repixl-text-light/50">{order.orderNumber}</span>
             </nav>
             <div className="flex items-center gap-3">
-              <span className={`rounded-full border px-2.5 py-1 font-mono text-[10px] uppercase tracking-wider ${getOrderStatusBadgeClass(order.status)}`}>
-                {getOrderStatusLabel(order.status)}
+              <span className={`rounded-full border px-2.5 py-1 font-mono text-[10px] uppercase tracking-wider ${getOrderStatusBadgeClass(order.status, order.paymentStatus)}`}>
+                {getOrderStatusLabel(order.status, order.paymentStatus)}
               </span>
               <button
                 type="button"
@@ -478,7 +471,7 @@ export default function OrderDetailPage() {
               <div className="rounded-2xl border border-repixl-muted/10 bg-repixl-charcoal p-5">
                 <div className="mb-5">
                   <p className="font-mono text-[10px] uppercase tracking-widest text-repixl-muted">Order Status</p>
-                  <p className="mt-0.5 text-xs text-repixl-muted/60">Overall order lifecycle — Processing → Shipped → Delivered → Completed</p>
+                  <p className="mt-0.5 text-xs text-repixl-muted/60">Overall order lifecycle — Order Placed → Payment Processed → Shipped → Delivered → Completed</p>
                 </div>
                 {stepper.cancelled ? (
                   <div className="flex items-center gap-3 rounded-xl border border-red-500/20 bg-red-500/5 px-4 py-3">
@@ -491,7 +484,7 @@ export default function OrderDetailPage() {
                   <div className="relative flex items-center justify-between">
                     <div className="absolute left-0 right-0 top-4 h-px bg-repixl-muted/15" aria-hidden="true" />
                     {stepper.steps.map((step, i) => (
-                      <div key={step.status} className="relative flex flex-col items-center gap-2 text-center">
+                      <div key={step.key} className="relative flex flex-col items-center gap-2 text-center">
                         <div className={`relative z-10 flex h-8 w-8 items-center justify-center rounded-full border-2 transition-all ${
                           step.current ? 'border-repixl-red bg-repixl-red text-white'
                           : step.reached ? 'border-repixl-success bg-repixl-success/20 text-repixl-success'
@@ -504,7 +497,7 @@ export default function OrderDetailPage() {
                           )}
                         </div>
                         <p className={`font-mono text-[9px] uppercase tracking-wider ${step.current ? 'text-repixl-red' : step.reached ? 'text-repixl-success' : 'text-repixl-muted/50'}`}>
-                          {STEP_LABELS[step.status] ?? step.status}
+                          {step.label}
                         </p>
                       </div>
                     ))}

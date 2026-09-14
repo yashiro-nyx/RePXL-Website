@@ -45,5 +45,20 @@ describe('order-status-unified', () => {
       expect(cls.length).toBeGreaterThan(0)
     }
   })
+
+  it('reflects payment state between Order Placed and Payment Processed when in PROCESSING', () => {
+    expect(getOrderStatusLabel('PROCESSING', 'PAID')).toBe('Payment Processed')
+    expect(getOrderStatusLabel('Processing', 'paid')).toBe('Payment Processed')
+    expect(getOrderStatusBadgeClass('PROCESSING', 'PAID')).toContain('text-emerald-400')
+
+    expect(getOrderStatusLabel('PROCESSING', 'PENDING')).toBe('Order Placed')
+    expect(getOrderStatusLabel('Processing', 'pending')).toBe('Order Placed')
+    expect(getOrderStatusBadgeClass('PROCESSING', 'PENDING')).toContain('text-amber-400')
+
+    // For later stages, canonical status label is preserved
+    expect(getOrderStatusLabel('SHIPPED', 'PAID')).toBe('Shipped')
+    expect(getOrderStatusLabel('DELIVERED', 'PAID')).toBe('Delivered')
+    expect(getOrderStatusLabel('COMPLETED', 'PAID')).toBe('Completed')
+  })
 })
 

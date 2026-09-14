@@ -101,8 +101,13 @@ export function normalizeOrderStatus(status: unknown): CanonicalOrderStatus {
   return 'PROCESSING';
 }
 
-export function getOrderStatusLabel(status: unknown): string {
+export function getOrderStatusLabel(status: unknown, paymentStatus?: unknown): string {
   const norm = normalizeOrderStatus(status);
+  if (norm === 'PROCESSING' && typeof paymentStatus === 'string') {
+    const pUpper = paymentStatus.trim().toUpperCase();
+    if (pUpper === 'PAID') return 'Payment Processed';
+    if (pUpper === 'PENDING') return 'Order Placed';
+  }
   switch (norm) {
     case 'PROCESSING':
       return 'Processing';
@@ -117,8 +122,17 @@ export function getOrderStatusLabel(status: unknown): string {
   }
 }
 
-export function getOrderStatusColors(status: unknown): { bg: string; text: string; border: string } {
+export function getOrderStatusColors(
+  status: unknown,
+  paymentStatus?: unknown
+): { bg: string; text: string; border: string } {
   const norm = normalizeOrderStatus(status);
+  if (norm === 'PROCESSING' && typeof paymentStatus === 'string') {
+    const pUpper = paymentStatus.trim().toUpperCase();
+    if (pUpper === 'PAID') {
+      return { bg: 'rgba(16, 185, 129, 0.15)', text: '#34d399', border: 'rgba(16, 185, 129, 0.3)' };
+    }
+  }
   switch (norm) {
     case 'PROCESSING':
       return { bg: 'rgba(245, 158, 11, 0.15)', text: '#fbbf24', border: 'rgba(245, 158, 11, 0.3)' };

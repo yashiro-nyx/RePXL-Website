@@ -147,8 +147,8 @@ export default function OrderHistoryPage() {
                         {/* Order number + status — secondary */}
                         <div className="mt-1 flex items-center gap-2">
                           <p className="font-mono text-[10px] text-repixl-muted">#{order.orderNumber}</p>
-                          <span className={`rounded-full border px-2 py-0.5 font-mono text-[9px] uppercase tracking-wider ${getOrderStatusBadgeClass(order.status)}`}>
-                            {getOrderStatusLabel(order.status)}
+                          <span className={`rounded-full border px-2 py-0.5 font-mono text-[9px] uppercase tracking-wider ${getOrderStatusBadgeClass(order.status, order.paymentStatus)}`}>
+                            {getOrderStatusLabel(order.status, order.paymentStatus)}
                           </span>
                         </div>
                         <p className="mt-1 font-mono text-[10px] text-repixl-muted">{order.date}</p>

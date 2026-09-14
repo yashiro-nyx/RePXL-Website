@@ -62,18 +62,32 @@ export function normalizeOrderStatus(status: unknown): CanonicalOrderStatus {
 }
 
 /**
- * Returns human-readable label for any status string (e.g. "Processing").
+ * Returns human-readable label for any status string (e.g. "Processing", "Payment Processed").
+ * When in PROCESSING status and paymentStatus is provided:
+ * - PAID → "Payment Processed"
+ * - PENDING → "Order Placed"
  */
-export function getOrderStatusLabel(status: unknown): string {
+export function getOrderStatusLabel(status: unknown, paymentStatus?: unknown): string {
   const norm = normalizeOrderStatus(status)
+  if (norm === 'PROCESSING' && typeof paymentStatus === 'string') {
+    const pUpper = paymentStatus.trim().toUpperCase()
+    if (pUpper === 'PAID') return 'Payment Processed'
+    if (pUpper === 'PENDING') return 'Order Placed'
+  }
   return ORDER_STATUS_LABELS[norm] ?? 'Processing'
 }
 
 /**
  * Returns Tailwind badge class string for any status string.
  */
-export function getOrderStatusBadgeClass(status: unknown): string {
+export function getOrderStatusBadgeClass(status: unknown, paymentStatus?: unknown): string {
   const norm = normalizeOrderStatus(status)
+  if (norm === 'PROCESSING' && typeof paymentStatus === 'string') {
+    const pUpper = paymentStatus.trim().toUpperCase()
+    if (pUpper === 'PAID') return 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
+    if (pUpper === 'PENDING') return 'bg-amber-500/15 text-amber-400 border-amber-500/30'
+  }
   return ORDER_STATUS_BADGE_CLASSES[norm] ?? ORDER_STATUS_BADGE_CLASSES.PROCESSING
 }
+
 

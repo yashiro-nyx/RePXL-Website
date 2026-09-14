@@ -6,6 +6,7 @@ import {
   computeStepperState,
   canAccessOrder,
   TRACKING_PROGRESSION,
+  computeLifecycleStepperState,
 } from './order-tracking'
 
 const MIN_RUNS = 100
@@ -120,5 +121,64 @@ describe('order-tracking', () => {
       }),
       { numRuns: MIN_RUNS },
     )
+  })
+
+  describe('computeLifecycleStepperState', () => {
+    it('suppresses progression when status is CANCELLED', () => {
+      const res = computeLifecycleStepperState('CANCELLED')
+      expect(res.cancelled).toBe(true)
+      expect(res.steps).toHaveLength(0)
+    })
+
+    it('marks Order Placed as current when payment is PENDING', () => {
+      const res = computeLifecycleStepperState('PROCESSING', 'PENDING')
+      expect(res.cancelled).toBe(false)
+      expect(res.steps).toHaveLength(5)
+      expect(res.steps.map((s) => s.key)).toEqual([
+        'ORDER_PLACED',
+        'PAYMENT_PROCESSED',
+        'SHIPPED',
+        'DELIVERED',
+        'COMPLETED',
+      ])
+
+      expect(res.steps[0].reached).toBe(true)
+      expect(res.steps[0].current).toBe(true)
+
+      expect(res.steps[1].reached).toBe(false)
+      expect(res.steps[1].current).toBe(false)
+    })
+
+    it('marks Payment Processed as current when payment is PAID and status is PROCESSING', () => {
+      const res = computeLifecycleStepperState('PROCESSING', 'PAID')
+      expect(res.steps[0].reached).toBe(true)
+      expect(res.steps[0].current).toBe(false)
+
+      expect(res.steps[1].reached).toBe(true)
+      expect(res.steps[1].current).toBe(true)
+
+      expect(res.steps[2].reached).toBe(false)
+      expect(res.steps[2].current).toBe(false)
+    })
+
+    it('marks Shipped as current and both Order Placed & Payment Processed as reached', () => {
+      const res = computeLifecycleStepperState('SHIPPED', 'PAID')
+      expect(res.steps[0].reached).toBe(true)
+      expect(res.steps[0].current).toBe(false)
+
+      expect(res.steps[1].reached).toBe(true)
+      expect(res.steps[1].current).toBe(false)
+
+      expect(res.steps[2].reached).toBe(true)
+      expect(res.steps[2].current).toBe(true)
+
+      expect(res.steps[3].reached).toBe(false)
+    })
+
+    it('marks all 5 steps reached when status is COMPLETED', () => {
+      const res = computeLifecycleStepperState('COMPLETED', 'PAID')
+      expect(res.steps.every((s) => s.reached)).toBe(true)
+      expect(res.steps[4].current).toBe(true)
+    })
   })
 })
