@@ -366,6 +366,51 @@ describe('Product Stock Decrement Upon Payment Confirmation', () => {
       expect(json.data.status).toBe('CANCELLED')
       expect(_mockTx.product.update).not.toHaveBeenCalled()
     })
+
+    it('rejects cancellation with 409 when order has already been SHIPPED', async () => {
+      vi.mocked(prisma.order.findUnique).mockResolvedValue({
+        id: 'ord_cust_shipped',
+        userId: 'user_1',
+        orderNumber: 'RPX-CUST-SHIPPED',
+        status: 'SHIPPED',
+        deliveryStatus: 'In Transit',
+        paymentStatus: 'PAID',
+        items: [{ productId: 'nikon_fm2', quantity: 1 }],
+      } as any)
+
+      const req = new NextRequest('http://localhost/api/orders/RPX-CUST-SHIPPED/cancel', {
+        method: 'POST',
+      })
+
+      const res = await cancelOrder(req, { params: { orderNumber: 'RPX-CUST-SHIPPED' } })
+      const json = await res.json()
+
+      expect(res.status).toBe(409)
+      expect(json.error).toContain('already been picked up by the courier or shipped')
+    })
+
+    it('rejects cancellation with 409 when order deliveryStatus indicates courier pickup', async () => {
+      vi.mocked(prisma.order.findUnique).mockResolvedValue({
+        id: 'ord_cust_transit',
+        userId: 'user_1',
+        orderNumber: 'RPX-CUST-TRANSIT',
+        status: 'PROCESSING',
+        deliveryStatus: 'Picked Up by Courier',
+        paymentStatus: 'PAID',
+        items: [{ productId: 'nikon_fm2', quantity: 1 }],
+      } as any)
+
+      const req = new NextRequest('http://localhost/api/orders/RPX-CUST-TRANSIT/cancel', {
+        method: 'POST',
+      })
+
+      const res = await cancelOrder(req, { params: { orderNumber: 'RPX-CUST-TRANSIT' } })
+      const json = await res.json()
+
+      expect(res.status).toBe(409)
+      expect(json.error).toContain('already been picked up by the courier or shipped')
+    })
   })
 })
+
 

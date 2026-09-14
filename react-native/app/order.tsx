@@ -19,6 +19,8 @@ import {
   getOrderStatusColors,
   getPaymentStatusColors,
   normalizeOrderStatus,
+  canCustomerCancelOrder,
+  getPaymentTimeRemaining,
   type Order,
 } from '../types';
 import { TrackingMapCard } from '../components/TrackingMapCard';
@@ -60,6 +62,15 @@ export default function OrderScreen() {
   const normStatus = normalizeOrderStatus(order?.status);
   const isCancelled = normStatus === 'CANCELLED';
 
+  const cancelCheck = useMemo(() => canCustomerCancelOrder(order), [order]);
+  const isCancellable = cancelCheck.allowed;
+  const isPendingPayment = order?.paymentStatus === 'PENDING' && !isCancelled;
+
+  const paymentTime = useMemo(() => {
+    if (!order?.createdAt) return null;
+    return getPaymentTimeRemaining(order.createdAt);
+  }, [order?.createdAt]);
+
   const currentStepIndex = useMemo(() => {
     if (!order) return 0;
     if (normStatus === 'COMPLETED') return 3;
@@ -70,9 +81,13 @@ export default function OrderScreen() {
 
   const handleCancelOrder = () => {
     if (!order) return;
+    if (!isCancellable) {
+      Alert.alert('Cannot Cancel', cancelCheck.reason || 'This order cannot be cancelled at this stage.');
+      return;
+    }
     Alert.alert(
       'Cancel Order',
-      'Are you sure you want to cancel this order? This action cannot be undone.',
+      'Are you sure you want to cancel this order? Orders can only be cancelled before courier pickup or shipping.',
       [
         { text: 'Keep Order', style: 'cancel' },
         {
@@ -210,6 +225,74 @@ export default function OrderScreen() {
             </Text>
           </View>
 
+          {/* Payment Expiration Notice */}
+          {isPendingPayment && paymentTime && (
+            <View
+              style={[
+                styles.card,
+                paymentTime.expired ? styles.paymentExpiredCard : styles.paymentPendingCard,
+              ]}
+            >
+              <View style={styles.bannerHeaderRow}>
+                <Feather
+                  name={paymentTime.expired ? 'alert-triangle' : 'clock'}
+                  size={15}
+                  color={paymentTime.expired ? '#f87171' : '#fbbf24'}
+                />
+                <Text
+                  style={[
+                    styles.bannerTitle,
+                    { color: paymentTime.expired ? '#f87171' : '#fbbf24' },
+                  ]}
+                >
+                  {paymentTime.expired ? 'Payment Window Expired' : 'Awaiting Payment'}
+                </Text>
+                <View
+                  style={[
+                    styles.expiryBadge,
+                    {
+                      backgroundColor: paymentTime.expired
+                        ? 'rgba(239, 68, 68, 0.2)'
+                        : 'rgba(245, 158, 11, 0.2)',
+                      borderColor: paymentTime.expired
+                        ? 'rgba(239, 68, 68, 0.4)'
+                        : 'rgba(245, 158, 11, 0.4)',
+                    },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.expiryBadgeText,
+                      { color: paymentTime.expired ? '#f87171' : '#fbbf24' },
+                    ]}
+                  >
+                    {paymentTime.expired ? 'EXPIRED' : `Expires in ${paymentTime.text}`}
+                  </Text>
+                </View>
+              </View>
+              <Text style={styles.bannerDescription}>
+                {paymentTime.expired
+                  ? 'The payment processing window for this order has expired. Unpaid orders are automatically cancelled and reserved stock restored.'
+                  : 'Please complete payment within 24 hours of placement. Orders without confirmed payment are cancelled automatically once the timer lapses.'}
+              </Text>
+            </View>
+          )}
+
+          {/* Cancelled due to expired payment */}
+          {isCancelled && order.paymentStatus === 'FAILED' && (
+            <View style={[styles.card, styles.paymentExpiredCard]}>
+              <View style={styles.bannerHeaderRow}>
+                <Feather name="alert-circle" size={15} color="#f87171" />
+                <Text style={[styles.bannerTitle, { color: '#f87171' }]}>
+                  Payment Expired — Order Cancelled
+                </Text>
+              </View>
+              <Text style={styles.bannerDescription}>
+                This order was automatically cancelled because payment was not completed within the 24-hour processing window.
+              </Text>
+            </View>
+          )}
+
           {/* Live Delivery Map Card */}
           {!isCancelled && <TrackingMapCard order={order} />}
 
@@ -287,21 +370,32 @@ export default function OrderScreen() {
           {normStatus === 'PROCESSING' && (
             <View style={styles.card}>
               <Text style={styles.cardSectionTitle}>Order Actions</Text>
-              <Text style={styles.actionNote}>
-                Your order is currently processing. You may cancel it before it is dispatched to the courier.
-              </Text>
-              <TouchableOpacity
-                style={styles.cancelBtn}
-                onPress={handleCancelOrder}
-                disabled={actionLoading}
-                activeOpacity={0.8}
-              >
-                {actionLoading ? (
-                  <ActivityIndicator size="small" color="#f87171" />
-                ) : (
-                  <Text style={styles.cancelBtnText}>Cancel Order</Text>
-                )}
-              </TouchableOpacity>
+              {isCancellable ? (
+                <>
+                  <Text style={styles.actionNote}>
+                    Your order is currently processing. You may cancel it before it is marked as picked up by courier or shipped.
+                  </Text>
+                  <TouchableOpacity
+                    style={styles.cancelBtn}
+                    onPress={handleCancelOrder}
+                    disabled={actionLoading}
+                    activeOpacity={0.8}
+                  >
+                    {actionLoading ? (
+                      <ActivityIndicator size="small" color="#f87171" />
+                    ) : (
+                      <Text style={styles.cancelBtnText}>Cancel Order</Text>
+                    )}
+                  </TouchableOpacity>
+                </>
+              ) : (
+                <View style={styles.lockedNoteBox}>
+                  <Feather name="truck" size={16} color="#888" />
+                  <Text style={styles.lockedNoteText}>
+                    This order has already been marked as picked up by courier or shipped and can no longer be cancelled.
+                  </Text>
+                </View>
+              )}
             </View>
           )}
 
@@ -629,4 +723,60 @@ const styles = StyleSheet.create({
   summaryLabel: { color: '#888', fontFamily: 'Inter_400Regular', fontSize: 13 },
   summaryValText: { color: '#ccc', fontFamily: 'Inter_500Medium', fontSize: 13 },
   totalValue: { color: '#c62828', fontFamily: 'Inter_800ExtraBold', fontSize: 17 },
+  paymentPendingCard: {
+    backgroundColor: 'rgba(245, 158, 11, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(245, 158, 11, 0.3)',
+  },
+  paymentExpiredCard: {
+    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(239, 68, 68, 0.3)',
+  },
+  bannerHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 6,
+  },
+  bannerTitle: {
+    fontFamily: 'Inter_700Bold',
+    fontSize: 13,
+    flex: 1,
+  },
+  expiryBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    borderWidth: 1,
+  },
+  expiryBadgeText: {
+    fontFamily: 'Inter_700Bold',
+    fontSize: 10,
+    textTransform: 'uppercase',
+  },
+  bannerDescription: {
+    color: '#aaa',
+    fontFamily: 'Inter_400Regular',
+    fontSize: 12,
+    lineHeight: 17,
+  },
+  lockedNoteBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    padding: 10,
+    marginTop: 4,
+  },
+  lockedNoteText: {
+    flex: 1,
+    color: '#888',
+    fontFamily: 'Inter_400Regular',
+    fontSize: 12,
+    lineHeight: 16,
+  },
 });

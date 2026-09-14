@@ -279,6 +279,7 @@ export function apiToClientOrder(o: ApiOrder): ClientOrder {
   return {
     orderNumber: o.orderNumber,
     date: o.createdAt,
+    createdAt: o.createdAt,
     items,
     subtotal: o.subtotal,
     shippingCost: o.shippingCost,

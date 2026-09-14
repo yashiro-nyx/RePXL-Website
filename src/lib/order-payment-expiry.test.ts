@@ -6,6 +6,9 @@ import {
   isPaymentExpired,
   canAdminEditOrderStatus,
   DEFAULT_PAYMENT_EXPIRY_HOURS,
+  isOrderPickedUpOrShipped,
+  canCustomerCancelOrder,
+  getPaymentTimeRemaining,
 } from './order-payment-expiry'
 
 describe('order-payment-expiry', () => {
@@ -214,4 +217,139 @@ describe('order-payment-expiry', () => {
       })
     })
   })
+
+  describe('isOrderPickedUpOrShipped', () => {
+    it('returns false for null, undefined, or empty orders', () => {
+      expect(isOrderPickedUpOrShipped(null)).toBe(false)
+      expect(isOrderPickedUpOrShipped(undefined)).toBe(false)
+      expect(isOrderPickedUpOrShipped({})).toBe(false)
+    })
+
+    it('returns false for PROCESSING order with default or early deliveryStatus', () => {
+      expect(
+        isOrderPickedUpOrShipped({ status: 'PROCESSING', deliveryStatus: 'Order Placed' })
+      ).toBe(false)
+      expect(
+        isOrderPickedUpOrShipped({ status: 'PROCESSING', deliveryStatus: null })
+      ).toBe(false)
+    })
+
+    it('returns true when status is SHIPPED, DELIVERED, or COMPLETED', () => {
+      expect(isOrderPickedUpOrShipped({ status: 'SHIPPED' })).toBe(true)
+      expect(isOrderPickedUpOrShipped({ status: 'DELIVERED' })).toBe(true)
+      expect(isOrderPickedUpOrShipped({ status: 'COMPLETED' })).toBe(true)
+      expect(isOrderPickedUpOrShipped({ status: 'shipped' })).toBe(true)
+    })
+
+    it('returns true when deliveryStatus indicates courier pickup or transit', () => {
+      expect(
+        isOrderPickedUpOrShipped({ status: 'PROCESSING', deliveryStatus: 'Picked Up by Courier' })
+      ).toBe(true)
+      expect(
+        isOrderPickedUpOrShipped({ status: 'PROCESSING', deliveryStatus: 'In Transit' })
+      ).toBe(true)
+      expect(
+        isOrderPickedUpOrShipped({ status: 'PROCESSING', deliveryStatus: 'Out for Delivery' })
+      ).toBe(true)
+      expect(
+        isOrderPickedUpOrShipped({ status: 'PROCESSING', deliveryStatus: 'Package Dispatched' })
+      ).toBe(true)
+    })
+  })
+
+  describe('canCustomerCancelOrder', () => {
+    it('allows cancellation when order is PROCESSING and not yet picked up or shipped', () => {
+      const res = canCustomerCancelOrder({
+        status: 'PROCESSING',
+        deliveryStatus: 'Order Placed',
+        paymentStatus: 'PAID',
+      })
+      expect(res.allowed).toBe(true)
+      expect(res.reason).toBeUndefined()
+    })
+
+    it('blocks cancellation if order is already CANCELLED', () => {
+      const res = canCustomerCancelOrder({
+        status: 'CANCELLED',
+      })
+      expect(res.allowed).toBe(false)
+      expect(res.reason).toContain('already been cancelled')
+    })
+
+    it('blocks cancellation if order is already COMPLETED', () => {
+      const res = canCustomerCancelOrder({
+        status: 'COMPLETED',
+      })
+      expect(res.allowed).toBe(false)
+      expect(res.reason).toContain('already been completed')
+    })
+
+    it('blocks cancellation if order status is SHIPPED', () => {
+      const res = canCustomerCancelOrder({
+        status: 'SHIPPED',
+      })
+      expect(res.allowed).toBe(false)
+      expect(res.reason).toContain('already been picked up by the courier or shipped')
+    })
+
+    it('blocks cancellation if deliveryStatus indicates courier pickup even in PROCESSING status', () => {
+      const res = canCustomerCancelOrder({
+        status: 'PROCESSING',
+        deliveryStatus: 'Picked Up by Courier',
+      })
+      expect(res.allowed).toBe(false)
+      expect(res.reason).toContain('already been picked up by the courier or shipped')
+    })
+
+    it('blocks cancellation for any other non-PROCESSING status', () => {
+      const res = canCustomerCancelOrder({
+        status: 'UNKNOWN_STATUS',
+      })
+      expect(res.allowed).toBe(false)
+      expect(res.reason).toContain('Only orders in Processing status can be cancelled')
+    })
+  })
+
+  describe('getPaymentTimeRemaining', () => {
+    const baseDate = new Date('2026-09-14T10:00:00Z').getTime()
+    const expiryMs = 24 * 60 * 60 * 1000 // 24 hours
+
+    it('returns formatted hours and minutes when within window', () => {
+      // 2 hours 15 minutes after order creation (21 hours 45 minutes remaining)
+      const now = baseDate + 2 * 60 * 60 * 1000 + 15 * 60 * 1000
+      const res = getPaymentTimeRemaining(new Date(baseDate), expiryMs, now)
+
+      expect(res.expired).toBe(false)
+      expect(res.hours).toBe(21)
+      expect(res.minutes).toBe(45)
+      expect(res.text).toBe('21h 45m')
+    })
+
+    it('returns only minutes when less than 1 hour remaining', () => {
+      // 23 hours 40 minutes after order creation (20 minutes remaining)
+      const now = baseDate + 23 * 60 * 60 * 1000 + 40 * 60 * 1000
+      const res = getPaymentTimeRemaining(new Date(baseDate), expiryMs, now)
+
+      expect(res.expired).toBe(false)
+      expect(res.hours).toBe(0)
+      expect(res.minutes).toBe(20)
+      expect(res.text).toBe('20m')
+    })
+
+    it('returns expired state when past expiryMs', () => {
+      const now = baseDate + expiryMs + 1000
+      const res = getPaymentTimeRemaining(new Date(baseDate), expiryMs, now)
+
+      expect(res.expired).toBe(true)
+      expect(res.remainingMs).toBe(0)
+      expect(res.text).toBe('Expired')
+    })
+
+    it('handles invalid dates gracefully', () => {
+      const res = getPaymentTimeRemaining('invalid-date', expiryMs, baseDate)
+      expect(res.expired).toBe(false)
+      expect(res.text).toBe('')
+    })
+  })
 })
+

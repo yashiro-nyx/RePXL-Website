@@ -26,6 +26,7 @@ export interface Order {
   status: 'Processing' | 'Shipped' | 'Delivered' | 'Completed' | 'Cancelled'
   paymentStatus?: 'PENDING' | 'PAID' | 'FAILED' | 'REFUNDED'
   userEmail?: string
+  createdAt?: string
   // Package tracking — populated by the admin update-tracking endpoint
   trackingNumber?: string
   deliveryStatus?: string

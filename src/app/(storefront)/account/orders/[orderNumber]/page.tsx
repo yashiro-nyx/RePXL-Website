@@ -30,6 +30,10 @@ import {
   getOrderStatusLabel,
   getOrderStatusBadgeClass,
 } from '@/lib/order-status-unified'
+import {
+  canCustomerCancelOrder,
+  getPaymentTimeRemaining,
+} from '@/lib/order-payment-expiry'
 
 // ─── Rating Stars ────────────────────────────────────────────────────────────
 function StarRating({ value, onChange }: { value: number; onChange: (v: number) => void }) {
@@ -97,6 +101,13 @@ export default function OrderDetailPage() {
   // Set to true immediately after a successful confirm-receipt API response.
   // Shows the completion success screen without requiring a page reload.
   const [feedbackSuccess, setFeedbackSuccess] = useState(false)
+  const [now, setNow] = useState(() => Date.now())
+
+  useEffect(() => {
+    if (order?.paymentStatus !== 'PENDING') return
+    const interval = setInterval(() => setNow(Date.now()), 30000)
+    return () => clearInterval(interval)
+  }, [order?.paymentStatus])
 
   useEffect(() => {
     hydrate().then(() => {
@@ -318,10 +329,20 @@ export default function OrderDetailPage() {
     : dbDeliveryStatus === 'In Transit' || enumStatus === 'SHIPPED' ? 50
     : 25
 
-  const cancellable = enumStatus === 'PROCESSING'
+  const cancelCheck = canCustomerCancelOrder({
+    status: enumStatus,
+    deliveryStatus: order.deliveryStatus,
+    paymentStatus: order.paymentStatus,
+    createdAt: order.createdAt || order.date,
+  })
+  const cancellable = cancelCheck.allowed
   const awaitingReceipt = enumStatus === 'DELIVERED'
   const completed = enumStatus === 'COMPLETED'
   const cancelled = enumStatus === 'CANCELLED'
+
+  const paymentTime = (order.createdAt || order.date)
+    ? getPaymentTimeRemaining(order.createdAt || order.date, undefined, now)
+    : { expired: false, remainingMs: 0, hours: 0, minutes: 0, text: '' }
 
   return (
     <>
@@ -356,6 +377,98 @@ export default function OrderDetailPage() {
               </button>
             </div>
           </div>
+
+          {/* Payment Processing Expiration Banner */}
+          {order.paymentStatus === 'PENDING' && !cancelled && (
+            <div
+              className={`mb-6 rounded-2xl border p-5 transition-all ${
+                paymentTime.expired
+                  ? 'border-red-500/30 bg-red-500/10 text-red-300'
+                  : 'border-amber-500/30 bg-amber-500/10 text-amber-300'
+              }`}
+            >
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="flex items-start gap-3.5">
+                  <div
+                    className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl ${
+                      paymentTime.expired ? 'bg-red-500/20 text-red-400' : 'bg-amber-500/20 text-amber-400'
+                    }`}
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="20"
+                      height="20"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      aria-hidden="true"
+                    >
+                      <circle cx="12" cy="12" r="10" />
+                      <polyline points="12 6 12 12 16 14" />
+                    </svg>
+                  </div>
+                  <div>
+                    <div className="flex flex-wrap items-center gap-2.5">
+                      <p className="font-display text-sm font-semibold text-repixl-text-light">
+                        {paymentTime.expired ? 'Payment Window Expired' : 'Awaiting Payment Confirmation'}
+                      </p>
+                      <span
+                        className={`rounded-md border px-2 py-0.5 font-mono text-[11px] font-bold uppercase tracking-wider ${
+                          paymentTime.expired
+                            ? 'border-red-500/40 bg-red-500/20 text-red-300'
+                            : 'border-amber-500/40 bg-amber-500/20 text-amber-300'
+                        }`}
+                      >
+                        {paymentTime.expired ? 'EXPIRED' : `Expires in ${paymentTime.text}`}
+                      </span>
+                    </div>
+                    <p className="mt-1 text-xs text-repixl-text-light/70">
+                      {paymentTime.expired
+                        ? 'The payment processing window for this order has expired. Unpaid orders are automatically cancelled and reserved stock returned to inventory.'
+                        : 'Please finalize your payment before the 24-hour processing window expires. Orders without confirmed payment are automatically cancelled once the timer lapses.'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Expired / Cancelled notice for FAILED payment */}
+          {cancelled && order.paymentStatus === 'FAILED' && (
+            <div className="mb-6 rounded-2xl border border-red-500/30 bg-red-500/10 p-5 text-red-300">
+              <div className="flex items-start gap-3.5">
+                <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-red-500/20 text-red-400">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="18"
+                    height="18"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    aria-hidden="true"
+                  >
+                    <circle cx="12" cy="12" r="10" />
+                    <line x1="15" y1="9" x2="9" y2="15" />
+                    <line x1="9" y1="9" x2="15" y2="15" />
+                  </svg>
+                </div>
+                <div>
+                  <p className="font-display text-sm font-semibold text-repixl-text-light">
+                    Order Cancelled — Payment Expired
+                  </p>
+                  <p className="mt-1 text-xs text-repixl-text-light/70">
+                    Payment was not completed within the allotted processing window. Reserved inventory has been safely restored.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
 
           <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
             {/* Left column */}
@@ -401,17 +514,15 @@ export default function OrderDetailPage() {
 
               {/* ── Delivery Tracking (always shown for non-cancelled) ── */}
               {!cancelled && (
-                <div className="space-y-0">
+                <div>
                   <div className="mb-2 px-1">
-                    <p className="font-mono text-[10px] uppercase tracking-widest text-repixl-muted">Shipment & Delivery</p>
-                    <p className="mt-0.5 text-xs text-repixl-muted/60">Real-time package status and courier updates</p>
+                    <p className="font-mono text-[10px] uppercase tracking-widest text-repixl-muted">Package Tracking</p>
                   </div>
-                  <TrackingTimeline
-                    trackingNumber={order.orderNumber}
+                  <TrackingMap
+                    status={mapStatus}
+                    progress={mapProgress}
+                    order={order}
                     initialState={{
-                      // Prefer real DB tracking fields; fall back to status-derived values
-                      // so orders placed before the tracking system existed still show
-                      // a sensible initial state.
                       status: order.deliveryStatus ?? (
                         enumStatus === 'PROCESSING' ? 'Order Placed'
                         : enumStatus === 'SHIPPED' ? 'In Transit'
@@ -433,27 +544,44 @@ export default function OrderDetailPage() {
                       ),
                     }}
                   />
-                  <TrackingMap status={mapStatus} progress={mapProgress} order={order} />
                 </div>
               )}
 
               {/* ── Context-sensitive action cards ── */}
 
               {/* PROCESSING: Cancel Order */}
-              {cancellable && (
+              {enumStatus === 'PROCESSING' && (
                 <div className="rounded-2xl border border-repixl-muted/10 bg-repixl-charcoal p-5">
                   <p className="mb-3 font-mono text-[10px] uppercase tracking-widest text-repixl-muted">Order Actions</p>
-                  <p className="mb-4 text-sm text-repixl-text-light/70">
-                    Your order is being processed. You can cancel it before it ships.
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => setCancelModalOpen(true)}
-                    className="flex items-center gap-2 rounded-xl border border-red-500/30 bg-red-500/5 px-4 py-2.5 text-sm font-medium text-red-400 transition-colors hover:bg-red-500/10"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg>
-                    Cancel Order
-                  </button>
+                  {cancellable ? (
+                    <>
+                      <p className="mb-4 text-sm text-repixl-text-light/70">
+                        Your order is being prepared. You can cancel it before it has been marked as picked up by courier or shipped.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => setCancelModalOpen(true)}
+                        className="flex items-center gap-2 rounded-xl border border-red-500/30 bg-red-500/5 px-4 py-2.5 text-sm font-medium text-red-400 transition-colors hover:bg-red-500/10"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg>
+                        Cancel Order
+                      </button>
+                    </>
+                  ) : (
+                    <div className="flex items-start gap-3 rounded-xl border border-repixl-muted/15 bg-repixl-bg/40 p-3.5">
+                      <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-repixl-muted/10 text-repixl-muted">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                          <rect x="1" y="3" width="15" height="13" /><polygon points="16 8 20 8 23 11 23 16 16 16 16 8" /><circle cx="5.5" cy="18.5" r="2.5" /><circle cx="18.5" cy="18.5" r="2.5" />
+                        </svg>
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-repixl-text-light">Order In Progress / Dispatched</p>
+                        <p className="mt-0.5 text-xs text-repixl-muted">
+                          This order has already been marked as picked up by courier or is en route, so it can no longer be cancelled.
+                        </p>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -574,7 +702,7 @@ export default function OrderDetailPage() {
             </div>
             <h3 className="text-center font-display text-lg font-semibold text-repixl-text-light">Cancel Order?</h3>
             <p className="mt-2 text-center text-sm text-repixl-muted">
-              Are you sure you want to cancel order <span className="font-mono text-repixl-text-light/80">{order.orderNumber}</span>? This cannot be undone.
+              Are you sure you want to cancel order <span className="font-mono text-repixl-text-light/80">{order.orderNumber}</span>? Orders can only be cancelled before courier pickup or shipping.
             </p>
             {cancelError && (
               <p className="mt-3 rounded-lg border border-red-500/20 bg-red-500/10 px-3 py-2 text-center text-xs text-red-400">{cancelError}</p>

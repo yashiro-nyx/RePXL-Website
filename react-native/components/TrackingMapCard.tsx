@@ -96,9 +96,16 @@ export function TrackingMapCard({ order }: TrackingMapCardProps) {
           <View style={[styles.pulseDot, isDelivered && styles.pulseDotDelivered]} />
           <View>
             <Text style={styles.topTitle}>DELIVERY ROUTE</Text>
-            <Text style={styles.topSubtitle}>
-              {order.courierName || 'RePXL Express'} • {order.orderNumber}
-            </Text>
+            <TouchableOpacity
+              style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 1 }}
+              onPress={handleCopyWaybill}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.topSubtitle}>
+                {order.courierName || 'RePXL Express'} • {order.orderNumber}
+              </Text>
+              <Feather name={copied ? 'check' : 'copy'} size={10} color={copied ? '#22c55e' : '#777'} />
+            </TouchableOpacity>
           </View>
         </View>
 
@@ -242,6 +249,29 @@ export function TrackingMapCard({ order }: TrackingMapCardProps) {
                 >
                   Delivery Address
                 </SvgText>
+                {!isDelivered && (
+                  <>
+                    <SvgText
+                      x="0"
+                      y="-16"
+                      fill="#e5e5e5"
+                      fontSize="8.5"
+                      fontWeight="700"
+                      textAnchor="middle"
+                    >
+                      {destination.name.slice(0, 14)}
+                    </SvgText>
+                    <SvgText
+                      x="0"
+                      y="20"
+                      fill="#22c55e"
+                      fontSize="7.5"
+                      textAnchor="middle"
+                    >
+                      Delivery Address
+                    </SvgText>
+                  </>
+                )}
               </G>
 
               {/* 4. Moving Courier Vehicle Marker */}
@@ -385,60 +415,6 @@ export function TrackingMapCard({ order }: TrackingMapCardProps) {
           </View>
         </View>
       )}
-
-      {/* ── Realistic Shipping Details Grid ── */}
-      <View style={styles.hudGrid}>
-        <View style={styles.hudCol}>
-          <Text style={styles.hudLabel}>CARRIER</Text>
-          <Text style={styles.hudValue} numberOfLines={1}>
-            {order.courierName || 'RePXL Express'}
-          </Text>
-        </View>
-
-        <View style={styles.hudCol}>
-          <Text style={styles.hudLabel}>STATUS</Text>
-          <Text style={styles.hudValue} numberOfLines={1}>
-            {isDelivered
-              ? 'Delivered'
-              : isOutForDelivery
-              ? 'Out for Delivery'
-              : isInTransit
-              ? 'In Transit'
-              : 'Processing'}
-          </Text>
-        </View>
-
-        <View style={styles.hudCol}>
-          <Text style={styles.hudLabel}>DELIVERY TO</Text>
-          <Text style={styles.hudValue} numberOfLines={1}>
-            {destination.name}
-          </Text>
-        </View>
-
-        <View style={styles.hudCol}>
-          <Text style={styles.hudLabel}>ESTIMATED</Text>
-          <Text style={[styles.hudValue, { color: '#fbbf24' }]} numberOfLines={1}>
-            {eta.etaText.replace('Estimated ', '')}
-          </Text>
-        </View>
-      </View>
-
-      {/* ── Action Footbar ── */}
-      <View style={styles.footbar}>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.footTrackingLabel}>TRACKING NUMBER</Text>
-          <Text style={styles.footTrackingVal}>{order.orderNumber}</Text>
-        </View>
-
-        <TouchableOpacity
-          style={[styles.copyBtn, copied && styles.copyBtnSuccess]}
-          onPress={handleCopyWaybill}
-          activeOpacity={0.8}
-        >
-          <Feather name={copied ? 'check' : 'copy'} size={12} color="#fff" />
-          <Text style={styles.copyBtnText}>{copied ? 'Copied' : 'Copy Tracking #'}</Text>
-        </TouchableOpacity>
-      </View>
     </View>
   );
 }
@@ -591,71 +567,6 @@ const styles = StyleSheet.create({
     fontSize: 10,
     color: '#888',
     marginTop: 2,
-  },
-  hudGrid: {
-    flexDirection: 'row',
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255, 255, 255, 0.06)',
-    backgroundColor: '#141210',
-    padding: 12,
-  },
-  hudCol: {
-    flex: 1,
-    paddingHorizontal: 4,
-  },
-  hudLabel: {
-    fontFamily: 'Inter_700Bold',
-    fontSize: 8,
-    letterSpacing: 0.8,
-    color: '#888',
-    marginBottom: 3,
-  },
-  hudValue: {
-    fontFamily: 'Inter_600SemiBold',
-    fontSize: 10.5,
-    color: '#e5e5e5',
-  },
-  footbar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    backgroundColor: '#181614',
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255, 255, 255, 0.06)',
-  },
-  footTrackingLabel: {
-    fontFamily: 'Inter_700Bold',
-    fontSize: 8,
-    color: '#777',
-    letterSpacing: 0.8,
-  },
-  footTrackingVal: {
-    fontFamily: 'Inter_600SemiBold',
-    fontSize: 11,
-    color: '#ddd',
-    marginTop: 1,
-  },
-  copyBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
-  },
-  copyBtnSuccess: {
-    backgroundColor: '#2e7d32',
-    borderColor: '#2e7d32',
-  },
-  copyBtnText: {
-    fontFamily: 'Inter_600SemiBold',
-    fontSize: 10,
-    color: '#fff',
   },
 });
 

@@ -8,12 +8,13 @@ import {
 } from '@/lib/api'
 import { getCurrentUser } from '@/lib/auth-helpers'
 import { emitNotification } from '@/lib/notifications'
+import { canCustomerCancelOrder } from '@/lib/order-payment-expiry'
 
 export const dynamic = 'force-dynamic'
 
 // POST /api/orders/[orderNumber]/cancel
-// Customer-facing: cancel a PROCESSING order that belongs to the authenticated user.
-// Server enforces: authenticated, owner, order is still cancellable (PROCESSING).
+// Customer-facing: cancel an order that belongs to the authenticated user.
+// Server enforces: authenticated, owner, and order is not yet picked up by courier or shipped.
 export async function POST(
   _request: NextRequest,
   { params }: { params: { orderNumber: string } }
@@ -27,6 +28,7 @@ export async function POST(
       id: true,
       userId: true,
       status: true,
+      deliveryStatus: true,
       orderNumber: true,
       paymentStatus: true,
       total: true,
@@ -39,6 +41,15 @@ export async function POST(
 
   // Ownership check — server-enforced
   if (order.userId !== user.id) return notFoundResponse('Order not found')
+
+  // Enforce customer cancellation rules: allowed in PROCESSING before courier pickup / shipping
+  const cancelCheck = canCustomerCancelOrder(order)
+  if (!cancelCheck.allowed) {
+    return errorResponse(
+      cancelCheck.reason || 'Order cannot be cancelled at this stage.',
+      409
+    )
+  }
 
   // Only PROCESSING orders can be cancelled by the customer
   if (order.status !== 'PROCESSING') {

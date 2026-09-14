@@ -158,3 +158,132 @@ export async function expireOverduePendingOrders(
     return 0
   }
 }
+
+const PICKED_UP_OR_SHIPPED_KEYWORDS = [
+  'picked up',
+  'pickup',
+  'in transit',
+  'out for delivery',
+  'delivered',
+  'departed',
+  'en route',
+  'shipped',
+  'dispatched',
+]
+
+/**
+ * Returns true if an order has been marked as shipped or picked up by the courier.
+ * Checked against order status and courier delivery status keywords.
+ */
+export function isOrderPickedUpOrShipped(order?: {
+  status?: string | null
+  deliveryStatus?: string | null
+} | null): boolean {
+  if (!order) return false
+
+  const normStatus = (order.status || '').trim().toUpperCase()
+  if (
+    normStatus === 'SHIPPED' ||
+    normStatus === 'DELIVERED' ||
+    normStatus === 'COMPLETED'
+  ) {
+    return true
+  }
+
+  if (order.deliveryStatus) {
+    const lowerDelivery = order.deliveryStatus.toLowerCase()
+    return PICKED_UP_OR_SHIPPED_KEYWORDS.some((kw) => lowerDelivery.includes(kw))
+  }
+
+  return false
+}
+
+/**
+ * Determines whether a customer is allowed to cancel their order.
+ * Customer cancellation is permitted while the order is in PROCESSING,
+ * UNLESS the order has already been marked as picked up by courier or shipped.
+ */
+export function canCustomerCancelOrder(order?: {
+  status?: string | null
+  deliveryStatus?: string | null
+  paymentStatus?: string | null
+  createdAt?: string | Date | null
+} | null): { allowed: boolean; reason?: string } {
+  if (!order) {
+    return { allowed: false, reason: 'Invalid order.' }
+  }
+
+  const normStatus = (order.status || '').trim().toUpperCase()
+
+  if (normStatus === 'CANCELLED') {
+    return { allowed: false, reason: 'This order has already been cancelled.' }
+  }
+
+  if (normStatus === 'COMPLETED') {
+    return { allowed: false, reason: 'This order has already been completed.' }
+  }
+
+  if (isOrderPickedUpOrShipped(order)) {
+    return {
+      allowed: false,
+      reason: 'Order cannot be cancelled because it has already been picked up by the courier or shipped.',
+    }
+  }
+
+  if (normStatus !== 'PROCESSING') {
+    return {
+      allowed: false,
+      reason: `Order cannot be cancelled at this stage (current status: ${order.status ?? 'unknown'}). Only orders in Processing status can be cancelled.`,
+    }
+  }
+
+  return { allowed: true }
+}
+
+/**
+ * Calculates remaining time in the payment processing window.
+ */
+export function getPaymentTimeRemaining(
+  createdAt: Date | string,
+  expiryMs: number = getPaymentExpiryMs(),
+  now: number = Date.now()
+): {
+  expired: boolean
+  remainingMs: number
+  hours: number
+  minutes: number
+  text: string
+} {
+  const createdTime = new Date(createdAt).getTime()
+  if (Number.isNaN(createdTime)) {
+    return { expired: false, remainingMs: 0, hours: 0, minutes: 0, text: '' }
+  }
+
+  const expiryTime = createdTime + expiryMs
+  const remainingMs = Math.max(0, expiryTime - now)
+
+  if (remainingMs <= 0) {
+    return {
+      expired: true,
+      remainingMs: 0,
+      hours: 0,
+      minutes: 0,
+      text: 'Expired',
+    }
+  }
+
+  const totalMinutes = Math.floor(remainingMs / (60 * 1000))
+  const hours = Math.floor(totalMinutes / 60)
+  const minutes = totalMinutes % 60
+
+  const text = hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`
+
+  return {
+    expired: false,
+    remainingMs,
+    hours,
+    minutes,
+    text,
+  }
+}
+
