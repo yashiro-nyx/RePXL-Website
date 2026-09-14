@@ -106,16 +106,31 @@ function mapOrder(order: RawOrder): Order {
   };
 }
 
-async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
-  const response = await fetch(`${API_BASE_URL}${path}`, {
-    ...init,
-    headers: { Accept: 'application/json', 'Content-Type': 'application/json', ...init.headers },
-  });
-  const body = (await response.json().catch(() => null)) as ApiEnvelope<T> | null;
-  if (!response.ok || !body?.success || body.data === undefined) {
-    throw new ApiError(body?.error ?? `Request failed (${response.status})`, response.status);
+const DEFAULT_TIMEOUT_MS = 15000;
+
+async function request<T>(path: string, init: RequestInit = {}, timeoutMs = DEFAULT_TIMEOUT_MS): Promise<T> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    const response = await fetch(`${API_BASE_URL}${path}`, {
+      ...init,
+      signal: init.signal || controller.signal,
+      headers: { Accept: 'application/json', 'Content-Type': 'application/json', ...init.headers },
+    });
+    clearTimeout(timer);
+    const body = (await response.json().catch(() => null)) as ApiEnvelope<T> | null;
+    if (!response.ok || !body?.success || body.data === undefined) {
+      throw new ApiError(body?.error ?? `Request failed (${response.status})`, response.status);
+    }
+    return body.data;
+  } catch (error: any) {
+    clearTimeout(timer);
+    if (error?.name === 'AbortError' || error?.message?.includes('aborted')) {
+      throw new ApiError('Request timed out. Please check your connection and try again.', 408);
+    }
+    throw error;
   }
-  return body.data;
 }
 
 let refreshPromise: Promise<MobileSession> | null = null;
@@ -342,6 +357,7 @@ export const api = {
       selectedProductIds,
     }),
   }),
+  health: () => request<{ status: string; uptimeSeconds: number; database: { status: string; latencyMs: number } }>('/api/health'),
 };
 
 export { clearSession, loadSession, mapUser, saveSession };

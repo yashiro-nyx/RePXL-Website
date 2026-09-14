@@ -270,28 +270,11 @@ export default function ProductScreen() {
         >
           <Feather name="arrow-left" size={17} color="#fff" />
         </TouchableOpacity>
-        <TouchableOpacity
-          style={[
-            styles.wishBtn,
-            {
-              top: insets.top + 12,
-              backgroundColor: isWishlisted ? 'rgba(198,40,40,0.85)' : 'rgba(0,0,0,0.45)',
-            },
-          ]}
-          onPress={() => {
-            if (!user) router.push('/login');
-            else void toggleWishlist(p.id);
-          }}
-          activeOpacity={0.8}
-        >
-          <Feather name="heart" size={17} color="#fff" fill={isWishlisted ? '#fff' : 'none'} />
-        </TouchableOpacity>
-
         <Image source={{ uri: p.image }} style={styles.heroImage} resizeMode="contain" />
 
         <TouchableOpacity
           onPress={() => setShowConditionGuide(true)}
-          style={[styles.condOver, { borderColor: cond.border }]}
+          style={[styles.condOver, { top: insets.top + 14, borderColor: cond.border }]}
           activeOpacity={0.8}
         >
           <Text style={[styles.condOverText, { color: cond.text }]}>{p.condition}</Text>
@@ -407,7 +390,7 @@ export default function ProductScreen() {
               ]}
               onPress={() => {
                 if (!user) router.push('/login');
-                else void toggleWishlist(p.id);
+                else void toggleWishlist(p.id).catch(() => {});
               }}
               activeOpacity={0.8}
             >
@@ -862,23 +845,11 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255,255,255,0.1)',
     zIndex: 10,
   },
-  wishBtn: {
-    position: 'absolute',
-    right: 20,
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
-    zIndex: 10,
-  },
   heroImage: { width: '75%', height: '75%' },
   condOver: {
     position: 'absolute',
     top: 14,
-    right: 68,
+    right: 20,
     borderWidth: 1.5,
     borderRadius: 4,
     paddingHorizontal: 8,
@@ -886,6 +857,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.55)',
     flexDirection: 'row',
     alignItems: 'center',
+    zIndex: 10,
   },
   condOverText: { fontSize: 9, fontFamily: 'Inter_800ExtraBold', letterSpacing: 0.8 },
   dots: { position: 'absolute', bottom: 14, flexDirection: 'row', gap: 6 },

@@ -1,20 +1,32 @@
 import { Platform } from 'react-native';
 import * as Notifications from 'expo-notifications';
+import Constants, { ExecutionEnvironment } from 'expo-constants';
 import { api } from './api';
 
-// Configure notification behavior for foreground alerts
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldShowBanner: true,
-    shouldShowList: true,
-    shouldPlaySound: true,
-    shouldSetBadge: true,
-  }),
-});
+export const isExpoGo =
+  Constants.executionEnvironment === ExecutionEnvironment.StoreClient ||
+  (Constants as any).appOwnership === 'expo';
+
+// Configure notification behavior for foreground alerts (avoid running on Android in Expo Go)
+if (!(isExpoGo && Platform.OS === 'android')) {
+  Notifications.setNotificationHandler({
+    handleNotification: async () => ({
+      shouldShowAlert: true,
+      shouldShowBanner: true,
+      shouldShowList: true,
+      shouldPlaySound: true,
+      shouldSetBadge: true,
+    }),
+  });
+}
 
 export async function registerPushNotifications() {
   if (Platform.OS === 'web') return;
+
+  // Remote push notifications are not supported in Expo Go on Android (SDK 53+)
+  if (isExpoGo && Platform.OS === 'android') {
+    return;
+  }
 
   try {
     if (Platform.OS === 'android') {

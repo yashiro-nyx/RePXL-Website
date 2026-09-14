@@ -13,9 +13,21 @@ import {
 const rateLimitMap = new Map<string, { count: number; resetAt: number }>()
 const RATE_LIMIT_MAX = 3
 const RATE_LIMIT_WINDOW = 10 * 60 * 1000
+const MAX_MAP_SIZE = 1000
+
+function pruneRateLimitMap(now: number) {
+  if (rateLimitMap.size > MAX_MAP_SIZE) {
+    rateLimitMap.forEach((val, key) => {
+      if (now > val.resetAt) {
+        rateLimitMap.delete(key)
+      }
+    })
+  }
+}
 
 function isRateLimited(ip: string): boolean {
   const now = Date.now()
+  pruneRateLimitMap(now)
   const record = rateLimitMap.get(ip)
   if (!record || now > record.resetAt) {
     rateLimitMap.set(ip, { count: 1, resetAt: now + RATE_LIMIT_WINDOW })

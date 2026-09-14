@@ -57,12 +57,22 @@ export async function POST(request: NextRequest) {
       return successResponse(existing) // Idempotent — just return existing
     }
 
-    const item = await prisma.wishlistItem.create({
-      data: { userId: user.id, productId },
-      include: { product: true },
-    })
-
-    return successResponse(item, 201)
+    try {
+      const item = await prisma.wishlistItem.create({
+        data: { userId: user.id, productId },
+        include: { product: true },
+      })
+      return successResponse(item, 201)
+    } catch (createError: any) {
+      if (createError?.code === 'P2002') {
+        const item = await prisma.wishlistItem.findUnique({
+          where: { userId_productId: { userId: user.id, productId } },
+          include: { product: true },
+        })
+        return successResponse(item ?? { userId: user.id, productId })
+      }
+      throw createError
+    }
   } catch (error) {
     console.error('Add to wishlist error:', error)
     return errorResponse('Internal server error', 500)

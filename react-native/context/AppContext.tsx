@@ -1,4 +1,5 @@
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { Platform } from 'react-native';
 import type {
   AccountReview,
   Address,
@@ -11,6 +12,7 @@ import type {
 } from '../types';
 import {
   api,
+  ApiError,
   clearSession,
   loadSession,
   mapUser,
@@ -18,7 +20,7 @@ import {
   type LoginResult,
 } from '../src/services/api';
 import type { MobileUser } from '../src/services/session';
-import { registerPushNotifications } from '../src/services/push';
+import { registerPushNotifications, isExpoGo } from '../src/services/push';
 import * as Notifications from 'expo-notifications';
 
 type AuthResult = { mfaRequired: boolean; challenge?: string };
@@ -84,6 +86,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [wishlist, setWishlist] = useState<string[]>([]);
+  const wishlistLockRef = useRef<Set<string>>(new Set());
+  const cartLockRef = useRef<Set<string>>(new Set());
   const [compareList, setCompareList] = useState<string[]>([]);
   const [addresses, setAddresses] = useState<Address[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
@@ -238,8 +242,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const addToCart = useCallback(async (product: Product, quantity = 1) => {
     if (!user) throw new Error('Sign in to add items to your synced cart.');
-    await api.addToCart(product.id, quantity);
-    await reloadCart();
+    if (cartLockRef.current.has(product.id)) return;
+    cartLockRef.current.add(product.id);
+    try {
+      await api.addToCart(product.id, quantity);
+      await reloadCart();
+    } finally {
+      cartLockRef.current.delete(product.id);
+    }
   }, [reloadCart, user]);
 
   const removeFromCart = useCallback(async (productId: string) => {
@@ -259,9 +269,42 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const toggleWishlist = useCallback(async (productId: string) => {
     if (!user) throw new Error('Sign in to use your synced wishlist.');
-    if (wishlist.includes(productId)) await api.removeWishlist(productId);
-    else await api.addWishlist(productId);
-    setWishlist((await api.wishlist()).map((item) => item.product.id));
+    if (wishlistLockRef.current.has(productId)) return;
+    wishlistLockRef.current.add(productId);
+
+    const isCurrentlyWishlisted = wishlist.includes(productId);
+
+    // Optimistically update local wishlist state immediately
+    setWishlist((current) =>
+      isCurrentlyWishlisted
+        ? current.filter((id) => id !== productId)
+        : [...current, productId]
+    );
+
+    try {
+      if (isCurrentlyWishlisted) {
+        await api.removeWishlist(productId).catch((err) => {
+          if (err instanceof ApiError && err.status === 404) return;
+          throw err;
+        });
+      } else {
+        await api.addWishlist(productId).catch((err) => {
+          if (err instanceof ApiError && err.status === 409) return;
+          throw err;
+        });
+      }
+      const synced = await api.wishlist();
+      setWishlist(synced.map((item) => item.product.id));
+    } catch (err) {
+      console.warn('[wishlist] Failed to toggle wishlist:', err);
+      // Re-sync on error to restore consistent server state
+      try {
+        const synced = await api.wishlist();
+        setWishlist(synced.map((item) => item.product.id));
+      } catch {}
+    } finally {
+      wishlistLockRef.current.delete(productId);
+    }
   }, [user, wishlist]);
 
   const toggleCompare = useCallback((productId: string) => {
@@ -323,6 +366,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, [notifications]);
 
   useEffect(() => {
+    if (isExpoGo && Platform.OS === 'android') return;
     let sub: Notifications.Subscription | null = null;
     try {
       sub = Notifications.addNotificationReceivedListener(() => {

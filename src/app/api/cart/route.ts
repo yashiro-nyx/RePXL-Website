@@ -72,18 +72,35 @@ export async function POST(request: NextRequest) {
       return successResponse(item)
     }
 
-    // Create new cart item
+    // Create new cart item with concurrent insert protection
     const cappedQty = Math.min(quantity, product.stock)
-    const item = await prisma.cartItem.create({
-      data: {
-        userId: user.id,
-        productId,
-        quantity: cappedQty,
-      },
-      include: { product: true },
-    })
-
-    return successResponse(item, 201)
+    try {
+      const item = await prisma.cartItem.create({
+        data: {
+          userId: user.id,
+          productId,
+          quantity: cappedQty,
+        },
+        include: { product: true },
+      })
+      return successResponse(item, 201)
+    } catch (createError: any) {
+      if (createError?.code === 'P2002') {
+        const concurrent = await prisma.cartItem.findUnique({
+          where: { userId_productId: { userId: user.id, productId } },
+        })
+        if (concurrent) {
+          const newQty = Math.min(concurrent.quantity + quantity, product.stock)
+          const updated = await prisma.cartItem.update({
+            where: { id: concurrent.id },
+            data: { quantity: newQty },
+            include: { product: true },
+          })
+          return successResponse(updated)
+        }
+      }
+      throw createError
+    }
   } catch (error) {
     console.error('Add to cart error:', error)
     return errorResponse('Internal server error', 500)

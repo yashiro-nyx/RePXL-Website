@@ -661,7 +661,7 @@ function WishlistView({ onBack }: { onBack: () => void }) {
                     </Text>
                   </View>
                   <TouchableOpacity
-                    onPress={() => void toggleWishlist(product.id)}
+                    onPress={() => void toggleWishlist(product.id).catch(() => {})}
                     hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                   >
                     <Feather name="heart" size={16} color="#c62828" />
