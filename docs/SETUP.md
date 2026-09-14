@@ -172,6 +172,9 @@ keys, and register a live webhook — no code changes.
 | `NEXT_PUBLIC_PAYMONGO_PUBLIC_KEY` | payments | `pk_test_...` |
 | `PAYMONGO_WEBHOOK_SECRET` | payments | `whsk_...` |
 | `NEXT_PUBLIC_PAYMONGO_ENABLED` | payments | `true` to turn on the redirect flow |
+| `MFA_ENCRYPTION_KEY` | optional | `openssl rand -hex 32` (AES-256-GCM encryption for customer MFA) |
+| `SHIPPING_WEBHOOK_SECRET` | optional | `openssl rand -hex 32` (Bearer auth for `/api/webhooks/shipping`) |
+| `CLOUDINARY_CLOUD_NAME` / `API_KEY` / `API_SECRET` | optional | Image uploads for product/review photos |
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | optional | Google sign-in |
 | `GMAIL_USER` / `GMAIL_APP_PASSWORD` | optional | reset/newsletter/contact emails |
 

@@ -31,7 +31,7 @@
       - [x] ~~Registration/Login: Secure sign-up and authentication for customer accounts.~~  
       - [x] ~~User Profile: View/edit personal information, shipping addresses, billing details.~~  
       - [x] ~~Wishlist/Favorites: Ability to save products for later viewing or purchase.~~  
-      - [ ] Notifications: Alerts for order status, promotions, etc.  
+      - [x] ~~Notifications: Alerts for order status, promotions, etc.~~  
 - [x] ~~3\. Product Catalog & Search:~~  
       - [x] ~~Product Listing Page: Displays all available products.~~  
       - [x] ~~Search Functionality: Ability to search for products by keywords.~~  
@@ -67,8 +67,8 @@
       - [x] ~~View All Orders: List of all customer orders.~~  
       - [x] ~~Order Details View: Comprehensive view of each order.~~  
       - [x] ~~Update Order Status: (e.g., "Pending," "Processing," "Shipped," "Delivered," "Cancelled").~~  
-      - [ ] Print Invoices/Packing Slips.  
-      - [ ] Manage Returns/Refunds.  
+      - [x] ~~Print Invoices/Packing Slips.~~  
+      - [x] ~~Manage Returns/Refunds.~~  
 - [x] ~~4\. Inventory Management~~  
       - [x] ~~Track stock levels for all products.~~  
       - [x] ~~Low stock alerts.~~  
@@ -77,65 +77,65 @@
       - [x] ~~Manage admin accounts (view, add, edit, delete).~~  
 - [x] ~~6\. Sales & Analytics Reports~~  
       - [x] ~~Access to sales data, revenue, product performance reports.~~  
-      - [ ] Customer insights.  
-- [ ] 7\. Content Management System (CMS)  
-      - [ ] Manage static pages (About Us, Contact, FAQs, Privacy Policy).  
-      - [ ] Manage promotions, banners, and homepage content.  
+      - [x] ~~Customer insights.~~  
+- [x] ~~7\. Content Management System (CMS)~~  
+      - [x] ~~Manage static pages (About Us, Contact, FAQs, Privacy Policy).~~  
+      - [x] ~~Manage promotions, banners, and homepage content.~~  
 - [x] ~~8\. Settings & Configuration:~~  
       - [x] ~~Manage platform-wide settings (e.g., currency, shipping options, payment options).~~  
-- [ ] 9\. Notification Management  
-      - [ ] Configure and send automated notifications (e.g., order confirmation emails).  
+- [x] ~~9\. Notification Management~~  
+      - [x] ~~Configure and send automated notifications (e.g., order confirmation emails).~~  
 - [x] ~~10\. Audit Trail~~
 
 ## IV. Mobile Application (Customer Side) 
 
-- [ ] 1\. Mobile User Authentication   
-      - [ ] Customer Registration and Login  
-      - [ ] Secure Authentication  
+- [x] ~~1\. Mobile User Authentication~~  
+      - [x] ~~Customer Registration and Login~~  
+      - [x] ~~Secure Authentication~~  
       - [ ] Forgot Password / Password Reset  
-      - [ ] Session Management   
-- [ ] 2\. Mobile Home Screen   
-      - [ ] Display featured products and promotions  
-      - [ ] Product Categories  
-      - [ ] Search Bar  
-      - [ ] Recommended Products   
-- [ ] 3\. Product Browsing   
-      - [ ] Product Listing  
-      - [ ] Product Details with Images  
-      - [ ] Product Search  
-      - [ ] Product Filtering  
-      - [ ] Product Sorting   
-- [ ] 4\. Shopping Cart   
-      - [ ] Add to Cart  
-      - [ ] Update Quantity  
-      - [ ] Remove Item  
-      - [ ] Cart Summary   
-- [ ] 5\. Mobile Checkout   
-      - [ ] Shipping Address Selection  
-      - [ ] Payment Method Selection  
-      - [ ] Order Review  
-      - [ ] Place Order   
-- [ ] 6\. Order Management   
-      - [ ] View Current Orders  
-      - [ ] Order History  
-      - [ ] Order Tracking  
-      - [ ] Order Status Updates   
-- [ ] 7\. Customer Profile   
-      - [ ] View/Edit Profile  
+      - [x] ~~Session Management~~  
+- [x] ~~2\. Mobile Home Screen~~  
+      - [x] ~~Display featured products and promotions~~  
+      - [x] ~~Product Categories~~  
+      - [x] ~~Search Bar~~  
+      - [x] ~~Recommended Products~~  
+- [x] ~~3\. Product Browsing~~  
+      - [x] ~~Product Listing~~  
+      - [x] ~~Product Details with Images~~  
+      - [x] ~~Product Search~~  
+      - [x] ~~Product Filtering~~  
+      - [x] ~~Product Sorting~~  
+- [x] ~~4\. Shopping Cart~~  
+      - [x] ~~Add to Cart~~  
+      - [x] ~~Update Quantity~~  
+      - [x] ~~Remove Item~~  
+      - [x] ~~Cart Summary~~  
+- [x] ~~5\. Mobile Checkout~~  
+      - [x] ~~Shipping Address Selection~~  
+      - [x] ~~Payment Method Selection~~  
+      - [x] ~~Order Review~~  
+      - [x] ~~Place Order~~  
+- [x] ~~6\. Order Management~~  
+      - [x] ~~View Current Orders~~  
+      - [x] ~~Order History~~  
+      - [x] ~~Order Tracking~~  
+      - [x] ~~Order Status Updates~~  
+- [x] ~~7\. Customer Profile~~  
+      - [x] ~~View/Edit Profile~~  
       - [ ] Change Password  
-      - [ ] Manage Delivery Addresses   
-- [ ] 8\. Wishlist   
-      - [ ] Add to Wishlist  
-      - [ ] Remove from Wishlist  
-      - [ ] Move Wishlist Item to Cart   
-- [ ] 9\. Notifications   
-      - [ ] Push Notifications for Order Updates  
-      - [ ] Promotional Notifications  
-      - [ ] Order Confirmation Notification   
-- [ ] 10\. Reviews and Ratings   
-      - [ ] Submit Product Reviews  
-      - [ ] Give Product Ratings  
-      - [ ] View Existing Reviews   
+      - [x] ~~Manage Delivery Addresses~~  
+- [x] ~~8\. Wishlist~~  
+      - [x] ~~Add to Wishlist~~  
+      - [x] ~~Remove from Wishlist~~  
+      - [x] ~~Move Wishlist Item to Cart~~  
+- [x] ~~9\. Notifications~~  
+      - [x] ~~Push Notifications for Order Updates~~  
+      - [x] ~~Promotional Notifications~~  
+      - [x] ~~Order Confirmation Notification~~  
+- [x] ~~10\. Reviews and Ratings~~  
+      - [x] ~~Submit Product Reviews~~  
+      - [x] ~~Give Product Ratings~~  
+      - [x] ~~View Existing Reviews~~  
 - [ ] 11\. Customer Support   
       - [ ] Contact Support  
       - [ ] FAQs  

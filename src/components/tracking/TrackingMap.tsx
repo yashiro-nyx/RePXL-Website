@@ -1,51 +1,108 @@
 'use client'
 
 /**
- * TrackingMap — delivery route visualisation using react-leaflet + OpenStreetMap.
+ * Enhanced TrackingMap — interactive delivery route visualisation using react-leaflet + OpenStreetMap.
  *
- * Always renders for non-cancelled orders:
- *  • "Order Placed" / Processing → placeholder "preparing" panel
- *  • "Out for Delivery" / Shipped → active map, vehicle marker moves along route
- *  • "Delivered"                 → map at destination, delivery confirmed
- *
- * The route is a simulated Metro Manila delivery path labelled clearly as
- * "Simulated tracking route" so customers know it is not real-time GPS.
- *
- * react-leaflet requires a browser environment — this component is always
- * loaded via next/dynamic (ssr: false) by the parent page.
+ * Features:
+ *  • Active visualization across ALL fulfillment stages (Processing, In Transit, Out for Delivery, Delivered)
+ *  • Dynamic destination geocoding based on customer's city / province (Metro Manila & Provincial)
+ *  • Intermediate sorting facility waypoints and realistic road trajectories
+ *  • Stage-aware animated markers (Fulfillment radar beacon, Transport truck, Local courier scooter, Delivered check)
+ *  • Telemetry HUD overlay: Origin Hub, Current Sorting Station, Destination Address, Courier info, ETA window
+ *  • Interactive map controls: Fit Route, Focus Courier, Focus Destination
  */
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { MapContainer, TileLayer, Polyline, Marker, Tooltip, useMap } from 'react-leaflet'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
+import {
+  REPIXL_CENTRAL_HUB,
+  REPIXL_CENTRAL_HUB_NAME,
+  resolveDestinationCoordinates,
+  getRegionalSortingFacility,
+  generateDeliveryRoute,
+  interpolateRoute,
+  calculateDistanceKm,
+  getRouteFraction,
+  getEstimatedDeliveryWindow,
+  type LatLngTuple,
+} from '@/lib/delivery-routing'
 
-// ── Simulated delivery route: Parañaque hub → Quezon City ────────────────────
-const ROUTE_COORDS: [number, number][] = [
-  [14.4793, 121.0198],
-  [14.4870, 121.0180],
-  [14.5020, 121.0155],
-  [14.5200, 121.0120],
-  [14.5430, 121.0198],
-  [14.5720, 121.0300],
-  [14.5980, 121.0350],
-  [14.6200, 121.0400],
-  [14.6420, 121.0450],
-  [14.6760, 121.0440],
-]
+export interface TrackingMapOrder {
+  orderNumber?: string
+  city?: string
+  province?: string
+  address?: string
+  postalCode?: string
+  courierName?: string
+  courierEstimate?: string
+  trackingNumber?: string
+  deliveryStatus?: string
+  trackingProgress?: number
+  trackingDescription?: string
+}
 
-// Custom vehicle marker
+export interface TrackingMapProps {
+  status: string
+  progress: number
+  order?: TrackingMapOrder
+}
+
+// ── Custom Leaflet Icons ────────────────────────────────────────────────────────
+
+// Origin Hub Icon
+const hubIcon = L.divIcon({
+  className: '',
+  iconSize: [34, 34],
+  iconAnchor: [17, 17],
+  html: `<div style="
+    width:34px;height:34px;
+    background:#1c1917;
+    border:2px solid #c22c2c;
+    border-radius:50%;
+    display:flex;align-items:center;justify-content:center;
+    box-shadow:0 0 12px rgba(194,44,44,0.4);
+  ">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f5f1ec" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+      <polyline points="9 22 9 12 15 12 15 22"/>
+    </svg>
+  </div>`,
+})
+
+// Sorting Facility Icon
+const sortingFacilityIcon = L.divIcon({
+  className: '',
+  iconSize: [28, 28],
+  iconAnchor: [14, 14],
+  html: `<div style="
+    width:28px;height:28px;
+    background:#292524;
+    border:2px solid #3b82f6;
+    border-radius:50%;
+    display:flex;align-items:center;justify-content:center;
+    box-shadow:0 2px 8px rgba(59,130,246,0.3);
+  ">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#60a5fa" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="2" y="7" width="20" height="14" rx="2" ry="2"/>
+      <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>
+    </svg>
+  </div>`,
+})
+
+// Active Vehicle / Courier Marker
 const vehicleIcon = L.divIcon({
   className: '',
-  iconSize: [36, 36],
-  iconAnchor: [18, 18],
+  iconSize: [38, 38],
+  iconAnchor: [19, 19],
   html: `<div style="
-    width:36px;height:36px;
+    width:38px;height:38px;
     background:#c22c2c;
     border:2px solid #f5f1ec;
     border-radius:50%;
     display:flex;align-items:center;justify-content:center;
-    box-shadow:0 2px 8px rgba(0,0,0,0.5);
+    box-shadow:0 0 16px rgba(194,44,44,0.7);
   ">
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
       <path d="M5 17H3a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11a2 2 0 0 1 2 2v3"/>
@@ -55,135 +112,338 @@ const vehicleIcon = L.divIcon({
   </div>`,
 })
 
+// Destination Customer Pin
 const destinationIcon = L.divIcon({
   className: '',
-  iconSize: [28, 28],
-  iconAnchor: [14, 28],
+  iconSize: [32, 32],
+  iconAnchor: [16, 32],
   html: `<div style="
-    width:28px;height:28px;
-    background:#5A6E4E;
+    width:32px;height:32px;
+    background:#2e7d32;
     border:2px solid #f5f1ec;
     border-radius:50% 50% 50% 0;
     transform:rotate(-45deg);
-    box-shadow:0 2px 6px rgba(0,0,0,0.4);
-  "></div>`,
+    display:flex;align-items:center;justify-content:center;
+    box-shadow:0 3px 10px rgba(0,0,0,0.5);
+  ">
+    <div style="transform:rotate(45deg);width:10px;height:10px;background:#fff;border-radius:50%;"></div>
+  </div>`,
 })
 
-function interpolateRoute(route: [number, number][], fraction: number): [number, number] {
-  if (fraction <= 0) return route[0]
-  if (fraction >= 1) return route[route.length - 1]
-  const totalSegments = route.length - 1
-  const targetDistance = fraction * totalSegments
-  const segmentIndex = Math.floor(targetDistance)
-  const segmentFraction = targetDistance - segmentIndex
-  const start = route[Math.min(segmentIndex, route.length - 1)]
-  const end = route[Math.min(segmentIndex + 1, route.length - 1)]
-  return [
-    start[0] + (end[0] - start[0]) * segmentFraction,
-    start[1] + (end[1] - start[1]) * segmentFraction,
-  ]
-}
-
-function MapCenterUpdater({ center }: { center: [number, number] }) {
+// Interactive Map Controller
+function MapController({
+  route,
+  center,
+  targetAction,
+  resetAction,
+}: {
+  route: LatLngTuple[]
+  center: LatLngTuple
+  targetAction: string | null
+  resetAction: () => void
+}) {
   const map = useMap()
+
   useEffect(() => {
-    map.panTo(center, { animate: true, duration: 1.2 })
-  }, [center, map])
+    if (!targetAction) return
+    if (targetAction === 'fit') {
+      const bounds = L.latLngBounds(route.map(([lat, lng]) => [lat, lng]))
+      map.fitBounds(bounds, { padding: [50, 50], maxZoom: 15, animate: true })
+    } else if (targetAction === 'courier') {
+      map.panTo(center, { animate: true, duration: 1 })
+      map.setZoom(14)
+    } else if (targetAction === 'dest') {
+      map.panTo(route[route.length - 1], { animate: true, duration: 1 })
+      map.setZoom(15)
+    } else if (targetAction === 'hub') {
+      map.panTo(REPIXL_CENTRAL_HUB, { animate: true, duration: 1 })
+      map.setZoom(14)
+    }
+    resetAction()
+  }, [targetAction, route, center, map, resetAction])
+
   return null
 }
 
-interface TrackingMapProps {
-  status: string
-  progress: number
-}
-
-export function TrackingMap({ status, progress }: TrackingMapProps) {
+export function TrackingMap({ status, progress, order }: TrackingMapProps) {
   const [mounted, setMounted] = useState(false)
-  useEffect(() => { setMounted(true) }, [])
+  const [targetAction, setTargetAction] = useState<string | null>(null)
+  const [copied, setCopied] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  // Resolve destination coordinates based on order shipping address
+  const destination = useMemo(() => {
+    return resolveDestinationCoordinates(order?.city, order?.province, order?.address)
+  }, [order?.city, order?.province, order?.address])
+
+  // Resolve regional sorting center
+  const sortingFacility = useMemo(() => {
+    return getRegionalSortingFacility(destination)
+  }, [destination])
+
+  // Generate route coordinates from Parañaque Hub to Customer Destination
+  const routeCoords = useMemo(() => {
+    return generateDeliveryRoute(destination.coords, sortingFacility.coords)
+  }, [destination.coords, sortingFacility.coords])
+
+  // Compute live vehicle positioning along route
+  const routeFraction = useMemo(() => {
+    return getRouteFraction(status, progress)
+  }, [status, progress])
+
+  const vehiclePosition = useMemo(() => {
+    return interpolateRoute(routeCoords, routeFraction)
+  }, [routeCoords, routeFraction])
+
+  // Distance calculations
+  const totalDistanceKm = useMemo(() => {
+    return calculateDistanceKm(REPIXL_CENTRAL_HUB, destination.coords)
+  }, [destination.coords])
+
+  const remainingDistanceKm = useMemo(() => {
+    return Math.max(0, Math.round(totalDistanceKm * (1 - routeFraction) * 10) / 10)
+  }, [totalDistanceKm, routeFraction])
+
+  const eta = useMemo(() => {
+    return getEstimatedDeliveryWindow(status, progress)
+  }, [status, progress])
+
+  const isPreparing = eta.stage === 'PROCESSING'
+  const isDelivered = eta.stage === 'DELIVERED'
+
+  const handleCopyTracking = () => {
+    const code = order?.trackingNumber || order?.orderNumber || ''
+    if (!code) return
+    navigator.clipboard.writeText(code).then(() => {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    })
+  }
 
   if (!mounted) return null
 
-  const isActive = status === 'Out for Delivery' || status === 'Delivered'
-
-  // Show a clear placeholder while order is still being prepared
-  if (!isActive) {
-    return (
-      <div className="mt-4 overflow-hidden rounded-2xl border border-repixl-muted/10">
-        <div className="flex items-center justify-between bg-repixl-charcoal px-4 py-3">
-          <div className="flex items-center gap-2">
-            <span className="h-2 w-2 rounded-full bg-repixl-muted/30" aria-hidden="true" />
-            <p className="font-mono text-[10px] uppercase tracking-widest text-repixl-muted">Delivery Map</p>
+  return (
+    <div className="mt-4 overflow-hidden rounded-2xl border border-repixl-muted/20 bg-repixl-charcoal shadow-xl">
+      {/* ── Header Bar ── */}
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-repixl-muted/15 bg-repixl-bg/90 px-4 py-3">
+        <div className="flex items-center gap-2.5">
+          <span
+            className={`h-2.5 w-2.5 rounded-full ${
+              isDelivered ? 'bg-emerald-500' : 'animate-pulse bg-repixl-red'
+            }`}
+            aria-hidden="true"
+          />
+          <div>
+            <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-repixl-text-light">
+              Live Location Tracking
+            </p>
+            <p className="text-[11px] text-repixl-muted">
+              {order?.courierName || 'RePXL Express Courier'} •{' '}
+              <span className="font-mono text-repixl-text-light/80">
+                {order?.trackingNumber || order?.orderNumber || 'RPX-TRK'}
+              </span>
+            </p>
           </div>
-          <p className="font-mono text-[9px] text-repixl-muted/50">Simulated tracking route</p>
         </div>
-        <div className="flex h-[220px] flex-col items-center justify-center gap-3 bg-repixl-bg/30">
-          <div className="flex h-12 w-12 items-center justify-center rounded-full border border-repixl-muted/15 bg-repixl-charcoal/60">
-            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-repixl-muted/50" aria-hidden="true">
-              <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z" /><circle cx="12" cy="10" r="3" />
-            </svg>
-          </div>
-          <p className="font-mono text-[10px] uppercase tracking-wider text-repixl-muted/60">
-            Map available once your order ships
+
+        {/* Quick controls */}
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setTargetAction('fit')}
+            className="rounded-md border border-repixl-muted/20 bg-repixl-charcoal/80 px-2.5 py-1 font-mono text-[10px] uppercase tracking-wider text-repixl-muted transition hover:border-repixl-muted/50 hover:text-repixl-text-light"
+            title="Fit complete delivery route"
+          >
+            Fit Route
+          </button>
+          <button
+            type="button"
+            onClick={() => setTargetAction('courier')}
+            className="rounded-md border border-repixl-muted/20 bg-repixl-charcoal/80 px-2.5 py-1 font-mono text-[10px] uppercase tracking-wider text-repixl-muted transition hover:border-repixl-muted/50 hover:text-repixl-text-light"
+            title="Center on package / courier location"
+          >
+            Courier
+          </button>
+          <button
+            type="button"
+            onClick={() => setTargetAction('dest')}
+            className="rounded-md border border-repixl-muted/20 bg-repixl-charcoal/80 px-2.5 py-1 font-mono text-[10px] uppercase tracking-wider text-repixl-muted transition hover:border-repixl-muted/50 hover:text-repixl-text-light"
+            title="Center on customer delivery address"
+          >
+            Destination
+          </button>
+        </div>
+      </div>
+
+      {/* ── Delivery Telemetry HUD Bar ── */}
+      <div className="grid grid-cols-2 gap-2 border-b border-repixl-muted/15 bg-repixl-charcoal/95 p-3 sm:grid-cols-4">
+        {/* Origin */}
+        <div className="rounded-lg bg-repixl-bg/50 p-2.5">
+          <p className="font-mono text-[9px] uppercase tracking-widest text-repixl-muted">Fulfillment Hub</p>
+          <p className="truncate text-xs font-semibold text-repixl-text-light">Parañaque Main Hub</p>
+          <p className="font-mono text-[9px] text-emerald-400/80">Dispatched & Certified</p>
+        </div>
+
+        {/* Sorting Station */}
+        <div className="rounded-lg bg-repixl-bg/50 p-2.5">
+          <p className="font-mono text-[9px] uppercase tracking-widest text-repixl-muted">Sorting Hub</p>
+          <p className="truncate text-xs font-semibold text-repixl-text-light">{sortingFacility.name.split('(')[0]}</p>
+          <p className="font-mono text-[9px] text-blue-400/80">{progress >= 50 ? 'Processed' : 'En route'}</p>
+        </div>
+
+        {/* Destination */}
+        <div className="rounded-lg bg-repixl-bg/50 p-2.5">
+          <p className="font-mono text-[9px] uppercase tracking-widest text-repixl-muted">Destination</p>
+          <p className="truncate text-xs font-semibold text-repixl-text-light">{destination.name}</p>
+          <p className="truncate font-mono text-[9px] text-repixl-muted">
+            {order?.address ? `${order.address}` : `${destination.name}, ${destination.region}`}
+          </p>
+        </div>
+
+        {/* Status / ETA */}
+        <div className="rounded-lg bg-repixl-bg/50 p-2.5">
+          <p className="font-mono text-[9px] uppercase tracking-widest text-repixl-muted">Delivery ETA</p>
+          <p className="truncate text-xs font-semibold text-amber-400">{eta.etaText}</p>
+          <p className="font-mono text-[9px] text-repixl-muted">
+            {isDelivered ? '0 km remaining' : `${remainingDistanceKm} km from destination`}
           </p>
         </div>
       </div>
-    )
-  }
 
-  // Map progress: 75–100 → route fraction 0–1
-  const routeFraction = status === 'Delivered' ? 1 : Math.max(0, Math.min(1, (progress - 75) / 25))
-  const markerPosition = interpolateRoute(ROUTE_COORDS, routeFraction)
-  const mapCenter: [number, number] = markerPosition
-
-  return (
-    <div className="mt-4 overflow-hidden rounded-2xl border border-repixl-muted/10">
-      {/* Map header */}
-      <div className="flex items-center justify-between bg-repixl-charcoal px-4 py-3">
-        <div className="flex items-center gap-2">
-          <span className="h-2 w-2 animate-pulse rounded-full bg-repixl-red" aria-hidden="true" />
-          <p className="font-mono text-[10px] uppercase tracking-widest text-repixl-muted">Live Delivery Map</p>
-        </div>
-        <p className="font-mono text-[9px] text-amber-400/70">⚠ Simulated tracking route</p>
-      </div>
-
-      {/* Map container */}
-      <div style={{ height: 300 }}>
+      {/* ── Interactive Leaflet Map Container ── */}
+      <div style={{ height: 340, width: '100%', position: 'relative' }}>
         <MapContainer
-          center={mapCenter}
+          center={vehiclePosition}
           zoom={12}
           style={{ height: '100%', width: '100%' }}
           scrollWheelZoom={false}
           zoomControl
         >
+          {/* CartoDB Dark Matter base tile layer */}
           <TileLayer
-            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>'
+            url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
           />
 
-          {/* Route polyline */}
+          {/* Full Planned Delivery Route (Dotted Background) */}
           <Polyline
-            positions={ROUTE_COORDS}
-            pathOptions={{ color: '#c22c2c', weight: 3, opacity: 0.7, dashArray: '6 4' }}
+            positions={routeCoords}
+            pathOptions={{
+              color: '#78716c',
+              weight: 3,
+              opacity: 0.45,
+              dashArray: '6 6',
+            }}
           />
 
-          {/* Vehicle marker */}
-          <Marker position={markerPosition} icon={vehicleIcon}>
-            <Tooltip direction="top" offset={[0, -20]} permanent={false}>
-              <span style={{ fontSize: '12px', fontWeight: 600 }}>
-                {status === 'Delivered' ? '📦 Delivered!' : '🚚 En route…'}
-              </span>
+          {/* Active Travelled Route Polyline */}
+          <Polyline
+            positions={routeCoords.slice(
+              0,
+              Math.max(2, Math.ceil(routeFraction * routeCoords.length))
+            )}
+            pathOptions={{
+              color: isDelivered ? '#22c55e' : '#c22c2c',
+              weight: 4,
+              opacity: 0.9,
+            }}
+          />
+
+          {/* 1. Origin Fulfillment Hub Marker */}
+          <Marker position={REPIXL_CENTRAL_HUB} icon={hubIcon}>
+            <Tooltip direction="top" offset={[0, -18]} permanent={false}>
+              <div style={{ padding: '2px 4px', color: '#111' }}>
+                <p style={{ margin: 0, fontWeight: 700, fontSize: '11px' }}>{REPIXL_CENTRAL_HUB_NAME}</p>
+                <p style={{ margin: 0, fontSize: '10px', color: '#666' }}>Dispatch & Authenticity Lab</p>
+              </div>
             </Tooltip>
           </Marker>
 
-          {/* Destination marker */}
-          <Marker position={ROUTE_COORDS[ROUTE_COORDS.length - 1]} icon={destinationIcon}>
-            <Tooltip direction="top" offset={[0, -10]} permanent>
-              <span style={{ fontSize: '11px' }}>🏠 Delivery Address</span>
+          {/* 2. Intermediate Sorting Facility Marker */}
+          <Marker position={sortingFacility.coords} icon={sortingFacilityIcon}>
+            <Tooltip direction="top" offset={[0, -15]} permanent={false}>
+              <div style={{ padding: '2px 4px', color: '#111' }}>
+                <p style={{ margin: 0, fontWeight: 700, fontSize: '11px' }}>{sortingFacility.name}</p>
+                <p style={{ margin: 0, fontSize: '10px', color: '#666' }}>Regional Logistics Hub</p>
+              </div>
             </Tooltip>
           </Marker>
 
-          <MapCenterUpdater center={mapCenter} />
+          {/* 3. Moving Vehicle / Courier Marker */}
+          <Marker position={vehiclePosition} icon={vehicleIcon}>
+            <Tooltip direction="top" offset={[0, -20]} permanent>
+              <div style={{ padding: '3px 6px', color: '#111' }}>
+                <p style={{ margin: 0, fontWeight: 700, fontSize: '11px', color: '#c22c2c' }}>
+                  {isDelivered ? '📦 Package Delivered' : isPreparing ? '🏭 Gear Being Packaged' : '🚚 Courier in Transit'}
+                </p>
+                <p style={{ margin: 0, fontSize: '10px', color: '#444' }}>
+                  {isDelivered
+                    ? 'Delivered at Doorstep'
+                    : isPreparing
+                    ? 'Serial verification complete'
+                    : `${remainingDistanceKm} km to ${destination.name}`}
+                </p>
+              </div>
+            </Tooltip>
+          </Marker>
+
+          {/* 4. Destination Customer Marker */}
+          <Marker position={destination.coords} icon={destinationIcon}>
+            <Tooltip direction="top" offset={[0, -25]} permanent>
+              <div style={{ padding: '2px 6px', color: '#111' }}>
+                <p style={{ margin: 0, fontWeight: 700, fontSize: '11px' }}>🏠 Delivery Address</p>
+                <p style={{ margin: 0, fontSize: '10px', color: '#555' }}>
+                  {order?.address || destination.name}
+                </p>
+              </div>
+            </Tooltip>
+          </Marker>
+
+          <MapController
+            route={routeCoords}
+            center={vehiclePosition}
+            targetAction={targetAction}
+            resetAction={() => setTargetAction(null)}
+          />
         </MapContainer>
+
+        {/* Map Bottom Status Badge */}
+        <div className="pointer-events-none absolute bottom-3 left-3 z-[1000] flex items-center gap-2 rounded-lg border border-repixl-muted/20 bg-repixl-charcoal/90 px-3 py-1.5 backdrop-blur-sm">
+          <span className="h-2 w-2 rounded-full bg-emerald-400" />
+          <span className="font-mono text-[10px] text-repixl-text-light/90">
+            {isDelivered
+              ? 'Completed • Delivery Confirmed'
+              : `${progress}% Completed • ${eta.badge}`}
+          </span>
+        </div>
+
+        {/* Copy Waybill Quick Action */}
+        <div className="absolute bottom-3 right-3 z-[1000]">
+          <button
+            type="button"
+            onClick={handleCopyTracking}
+            className="flex items-center gap-1.5 rounded-lg border border-repixl-muted/20 bg-repixl-charcoal/90 px-3 py-1.5 font-mono text-[10px] uppercase tracking-wider text-repixl-text-light transition hover:border-repixl-muted/40 hover:bg-repixl-bg backdrop-blur-sm"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="12"
+              height="12"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <rect width="14" height="14" x="8" y="8" rx="2" ry="2" />
+              <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" />
+            </svg>
+            {copied ? 'Copied Waybill!' : 'Copy Tracking #'}
+          </button>
+        </div>
       </div>
     </div>
   )

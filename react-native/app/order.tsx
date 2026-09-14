@@ -21,6 +21,7 @@ import {
   normalizeOrderStatus,
   type Order,
 } from '../types';
+import { TrackingMapCard } from '../components/TrackingMapCard';
 
 const TRACKING_STEPS = [
   { label: 'Order Placed & Processing', key: 'PROCESSING' },
@@ -209,9 +210,12 @@ export default function OrderScreen() {
             </Text>
           </View>
 
+          {/* Live Delivery Map Card */}
+          {!isCancelled && <TrackingMapCard order={order} />}
+
           {/* Tracking Status Card */}
           <View style={styles.card}>
-            <Text style={styles.cardSectionTitle}>Tracking & Delivery</Text>
+            <Text style={styles.cardSectionTitle}>Tracking Timeline</Text>
             {isCancelled ? (
               <View style={styles.cancelledAlert}>
                 <Feather name="alert-circle" size={18} color="#f87171" />

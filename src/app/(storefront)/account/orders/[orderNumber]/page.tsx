@@ -433,7 +433,7 @@ export default function OrderDetailPage() {
                       ),
                     }}
                   />
-                  <TrackingMap status={mapStatus} progress={mapProgress} />
+                  <TrackingMap status={mapStatus} progress={mapProgress} order={order} />
                 </div>
               )}
 
