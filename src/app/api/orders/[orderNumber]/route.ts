@@ -229,6 +229,16 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         body: `Your order ${updated.orderNumber} status has changed from ${order.status} to ${updated.status}.`,
         channel: 'BOTH',
         recipientEmail: updated.user.email,
+        context: {
+          orderNumber: updated.orderNumber,
+          customerName: `${updated.user?.firstName ?? ''} ${updated.user?.lastName ?? ''}`.trim() || updated.user?.email || 'Customer',
+          status: updated.status,
+          orderStatus: updated.status,
+          orderTotal: updated.total != null ? `₱${updated.total.toLocaleString()}` : '',
+          orderDate: updated.createdAt ? new Date(updated.createdAt).toLocaleDateString('en-US', { dateStyle: 'medium' }) : '',
+          courierName: updated.courierName || 'Standard Delivery',
+          trackingNumber: updated.trackingNumber || 'Pending assignment',
+        },
       })
 
       // Log admin action

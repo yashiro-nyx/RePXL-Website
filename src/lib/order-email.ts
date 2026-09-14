@@ -71,6 +71,12 @@ export async function sendOrderConfirmationEmail(order: OrderEmailData): Promise
     year: 'numeric', month: 'long', day: 'numeric',
   })
 
+  const siteUrl = (
+    process.env.NEXT_PUBLIC_SITE_URL ??
+    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000')
+  ).replace(/\/+$/, '')
+  const trackOrderUrl = `${siteUrl}/account/orders/${order.orderNumber}`
+
   // ── Build item rows ─────────────────────────────────────────────────────────
   const itemRowsHtml = order.items.map((item) => {
     const name = item.product?.name ?? 'Product'
@@ -206,7 +212,7 @@ export async function sendOrderConfirmationEmail(order: OrderEmailData): Promise
                   </table>
 
                   <!-- Shipping address -->
-                  <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="border:1px solid rgba(140,133,128,0.12);">
+                  <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="border:1px solid rgba(140,133,128,0.12);margin-bottom:28px;">
                     <tr>
                       <td style="padding:14px 16px;">
                         <p style="margin:0 0 6px;font-family:monospace;font-size:9px;text-transform:uppercase;letter-spacing:1px;color:#8c8580;">Shipping Address</p>
@@ -216,6 +222,24 @@ export async function sendOrderConfirmationEmail(order: OrderEmailData): Promise
                           ${safe(order.city)}${order.province ? `, ${safe(order.province)}` : ''}<br/>
                           ${safe(order.postalCode)}
                         </p>
+                      </td>
+                    </tr>
+                  </table>
+
+                  <!-- Track Order CTA Button -->
+                  <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin-bottom:12px;">
+                    <tr>
+                      <td align="center">
+                        <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+                          <tr>
+                            <td bgcolor="#c22c2c" style="border-radius:4px;">
+                              <a href="${trackOrderUrl}" target="_blank"
+                                 style="display:inline-block;padding:14px 36px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:14px;font-weight:700;letter-spacing:0.4px;color:#ffffff;background-color:#c22c2c;text-decoration:none;border-radius:4px;">
+                                Track Order Details Live
+                              </a>
+                            </td>
+                          </tr>
+                        </table>
                       </td>
                     </tr>
                   </table>
@@ -277,6 +301,10 @@ export async function sendOrderConfirmationEmail(order: OrderEmailData): Promise
     order.barangay ? order.barangay : '',
     `${order.city}${order.province ? `, ${order.province}` : ''}`,
     order.postalCode,
+    '',
+    'TRACK YOUR ORDER LIVE',
+    '────────────────────',
+    trackOrderUrl,
     '',
     `© ${new Date().getFullYear()} RePXL — Vintage Digital Cameras`,
   ].filter((line) => line !== null).join('\n')

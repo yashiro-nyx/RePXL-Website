@@ -14,7 +14,7 @@
 
 import { getSettings } from './settings'
 import { resolvePlaceholders, type NotificationEvent, EVENT_CATEGORY_MAP } from './notification-templates'
-import { sendNotificationEmail } from './mailer'
+import { sendNotificationEmail, renderBrandedEmailHtml } from './mailer'
 import { prisma } from './prisma'
 
 export type { NotificationEvent }
@@ -196,13 +196,14 @@ export function isMandatoryEvent(event: NotificationEvent): boolean {
   return (MANDATORY_EVENTS as readonly string[]).includes(event)
 }
 
-interface EmitNotificationOptions {
+export interface EmitNotificationOptions {
   userId: string
   event: NotificationEvent
   subject: string
   body: string
   channel: 'IN_APP' | 'EMAIL' | 'BOTH'
   recipientEmail?: string
+  context?: Record<string, string>
 }
 
 /**
@@ -214,11 +215,12 @@ interface EmitNotificationOptions {
  *
  * Consults UserNotificationPreference for per-category suppression.
  * Mandatory events (ORDER_CONFIRMATION, security alerts) are never suppressed.
+ * Resolves database-managed template subject and body if available.
  */
 export async function emitNotification(
   options: EmitNotificationOptions
 ): Promise<{ notificationId: string; emailDelivered?: boolean }> {
-  const { userId, event, subject, body, channel, recipientEmail } = options
+  const { userId, event, subject, body, channel, recipientEmail, context } = options
 
   // Fetch the user, preferences, and template
   const user = await prisma.user.findUnique({
@@ -237,6 +239,25 @@ export async function emitNotification(
   if (template && shouldSuppressForDisabledTemplate(template.isEnabled)) {
     return { notificationId: '', emailDelivered: false }
   }
+
+  // Build merged placeholder context
+  const customerName = `${user.firstName} ${user.lastName}`.trim() || user.email
+  const mergedContext: Record<string, string> = {
+    customerName,
+    ...context,
+  }
+
+  // Resolve custom template from database (or fallback to provided subject/body)
+  const resolvedSubject = template
+    ? resolvePlaceholders(template.subject, mergedContext)
+    : resolvePlaceholders(subject, mergedContext)
+
+  const resolvedBody = template
+    ? resolvePlaceholders(template.body, mergedContext)
+    : resolvePlaceholders(body, mergedContext)
+
+  const activeChannel = template ? (template.channel as 'IN_APP' | 'EMAIL' | 'BOTH') : channel
+  const orderNumber = mergedContext.orderNumber
 
   // Determine per-category suppression (unless this is a mandatory event)
   const mandatory = isMandatoryEvent(event)
@@ -266,8 +287,8 @@ export async function emitNotification(
 
     // If both channels are suppressed, bail out entirely
     const effectiveChannel =
-      channel === 'IN_APP' ? (effectiveSuppressInApp  ? 'SUPPRESSED' : 'IN_APP')  :
-      channel === 'EMAIL'  ? (effectiveSuppressEmail   ? 'SUPPRESSED' : 'EMAIL')   :
+      activeChannel === 'IN_APP' ? (effectiveSuppressInApp  ? 'SUPPRESSED' : 'IN_APP')  :
+      activeChannel === 'EMAIL'  ? (effectiveSuppressEmail   ? 'SUPPRESSED' : 'EMAIL')   :
       // BOTH
       effectiveSuppressInApp && effectiveSuppressEmail  ? 'SUPPRESSED' :
       effectiveSuppressInApp                            ? 'EMAIL'      :
@@ -280,10 +301,28 @@ export async function emitNotification(
 
     // Re-scope channel if one side was suppressed
     const resolvedChannel = effectiveChannel as 'IN_APP' | 'EMAIL' | 'BOTH'
-    return _doEmit({ userId, event, subject, body, channel: resolvedChannel, recipientEmail, user })
+    return _doEmit({
+      userId,
+      event,
+      subject: resolvedSubject,
+      body: resolvedBody,
+      channel: resolvedChannel,
+      recipientEmail,
+      user,
+      orderNumber,
+    })
   }
 
-  return _doEmit({ userId, event, subject, body, channel, recipientEmail, user })
+  return _doEmit({
+    userId,
+    event,
+    subject: resolvedSubject,
+    body: resolvedBody,
+    channel: activeChannel,
+    recipientEmail,
+    user,
+    orderNumber,
+  })
 }
 
 async function _doEmit({
@@ -294,6 +333,7 @@ async function _doEmit({
   recipientEmail,
   user,
   subject,
+  orderNumber,
 }: {
   userId: string
   event: NotificationEvent
@@ -302,6 +342,7 @@ async function _doEmit({
   channel: 'IN_APP' | 'EMAIL' | 'BOTH'
   recipientEmail?: string
   user: { id: string }
+  orderNumber?: string
 }): Promise<{ notificationId: string; emailDelivered?: boolean }> {
   // Create in-app notification (source of truth) if channel includes it
   let notificationId = ''
@@ -328,7 +369,28 @@ async function _doEmit({
   // Attempt email delivery if channel includes EMAIL and recipientEmail is provided
   if ((channel === 'EMAIL' || channel === 'BOTH') && recipientEmail) {
     try {
-      await sendNotificationEmail(recipientEmail, subject, body)
+      const siteUrl = (
+        process.env.NEXT_PUBLIC_SITE_URL ??
+        (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000')
+      ).replace(/\/+$/, '')
+
+      const paragraphsHtml = body
+        .split(/\n\n+/)
+        .map((p) => `<p style="margin:0 0 16px;">${p.replace(/\n/g, '<br />')}</p>`)
+        .join('')
+
+      const actionUrl = orderNumber ? `${siteUrl}/account/orders/${orderNumber}` : undefined
+      const actionText = orderNumber ? 'Track Order Details' : undefined
+
+      const html = renderBrandedEmailHtml({
+        title: subject,
+        bodyHtml: paragraphsHtml,
+        actionUrl,
+        actionText,
+        footerNote: 'You received this notification because of an update on your RePXL account.',
+      })
+
+      await sendNotificationEmail(recipientEmail, subject, body, { html })
       emailDelivered = true
     } catch (emailError) {
       const systemAdmin = await prisma.user.findFirst({

@@ -29,6 +29,8 @@ export async function POST(
       status: true,
       orderNumber: true,
       paymentStatus: true,
+      total: true,
+      createdAt: true,
       items: { select: { productId: true, quantity: true } },
     },
   })
@@ -70,6 +72,14 @@ export async function POST(
     body: `Your order ${order.orderNumber} has been cancelled as requested.`,
     channel: 'BOTH',
     recipientEmail: user.email,
+    context: {
+      orderNumber: order.orderNumber,
+      customerName: `${user.firstName ?? ''} ${user.lastName ?? ''}`.trim() || user.email || 'Customer',
+      status: 'CANCELLED',
+      orderStatus: 'CANCELLED',
+      orderTotal: order.total != null ? `₱${order.total.toLocaleString()}` : '',
+      orderDate: order.createdAt ? new Date(order.createdAt).toLocaleDateString('en-US', { dateStyle: 'medium' }) : '',
+    },
   }).catch((err) => {
     console.error('[cancel] notification failed (non-fatal):', err)
   })

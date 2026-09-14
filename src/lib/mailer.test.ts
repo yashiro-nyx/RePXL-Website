@@ -9,7 +9,7 @@ vi.mock('nodemailer', () => ({
   },
 }))
 
-import { sendNotificationEmail } from './mailer'
+import { sendNotificationEmail, renderBrandedEmailHtml } from './mailer'
 
 describe('sendNotificationEmail (Requirements 8.8, 9.8)', () => {
   const ORIGINAL_ENV = { ...process.env }
@@ -110,3 +110,37 @@ describe('sendNotificationEmail (Requirements 8.8, 9.8)', () => {
     expect(sendMail).not.toHaveBeenCalled()
   })
 })
+
+describe('renderBrandedEmailHtml', () => {
+  it('renders a branded email with title, preheader, body, button, and footer', () => {
+    const html = renderBrandedEmailHtml({
+      title: 'Order Status Update',
+      preheader: 'Your parcel is on the way',
+      bodyHtml: '<p>Package dispatched via LBC Express.</p>',
+      actionUrl: 'https://repxlph.vercel.app/account/orders/RPX-101',
+      actionText: 'Track Parcel',
+      footerNote: 'Automated notice.',
+    })
+
+    expect(html).toContain('RePXL')
+    expect(html).toContain('Order Status Update')
+    expect(html).toContain('Your parcel is on the way')
+    expect(html).toContain('Package dispatched via LBC Express.')
+    expect(html).toContain('https://repxlph.vercel.app/account/orders/RPX-101')
+    expect(html).toContain('Track Parcel')
+    expect(html).toContain('Automated notice.')
+    expect(html).toContain('Vintage Digital Cameras')
+  })
+
+  it('omits button when actionUrl or actionText are not provided', () => {
+    const html = renderBrandedEmailHtml({
+      title: 'Store Announcement',
+      bodyHtml: '<p>New cameras added to the collection.</p>',
+    })
+
+    expect(html).toContain('Store Announcement')
+    expect(html).toContain('New cameras added to the collection.')
+    expect(html).not.toContain('<!-- BUTTON -->')
+  })
+})
+

@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { successResponse, errorResponse, unauthorizedResponse, validationError } from '@/lib/api'
 import { getCurrentUser, requireRecentAuth } from '@/lib/auth-helpers'
 import { changePasswordSchema } from '@/lib/validations'
+import { sendPasswordChangedEmail } from '@/lib/auth-email'
 
 // This route reads cookies / session state and must run per-request.
 export const dynamic = 'force-dynamic'
@@ -46,6 +47,15 @@ export async function POST(request: NextRequest) {
     await prisma.user.update({
       where: { id: user.id },
       data: { password: hashedPassword },
+    })
+
+    // Non-blocking security notification email
+    void sendPasswordChangedEmail({
+      email: fullUser.email,
+      name: `${fullUser.firstName} ${fullUser.lastName}`.trim() || undefined,
+      changedAt: new Date(),
+    }).catch((err) => {
+      console.error('[change-password] failed to send security alert email:', err)
     })
 
     return successResponse({ message: 'Password changed successfully' })

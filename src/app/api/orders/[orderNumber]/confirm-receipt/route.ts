@@ -116,6 +116,14 @@ export async function POST(
         body: `Your order ${order.orderNumber} is now complete. Thank you for shopping with RePIXL!`,
         channel: 'BOTH',
         recipientEmail: user.email,
+        context: {
+          orderNumber: order.orderNumber,
+          customerName: `${user.firstName ?? ''} ${user.lastName ?? ''}`.trim() || user.email || 'Customer',
+          status: 'COMPLETED',
+          orderStatus: 'COMPLETED',
+          orderTotal: order.total != null ? `₱${order.total.toLocaleString()}` : '',
+          orderDate: order.createdAt ? new Date(order.createdAt).toLocaleDateString('en-US', { dateStyle: 'medium' }) : '',
+        },
       }).catch((err) => {
         console.error('[confirm-receipt] notification failed (non-fatal):', err)
       })
@@ -202,6 +210,14 @@ export async function POST(
     body: `Your order ${order.orderNumber} is now complete. Thank you for shopping with RePIXL!`,
     channel: 'BOTH',
     recipientEmail: user.email,
+    context: {
+      orderNumber: order.orderNumber,
+      customerName: `${user.firstName ?? ''} ${user.lastName ?? ''}`.trim() || user.email || 'Customer',
+      status: 'COMPLETED',
+      orderStatus: 'COMPLETED',
+      orderTotal: order.total != null ? `₱${order.total.toLocaleString()}` : '',
+      orderDate: order.createdAt ? new Date(order.createdAt).toLocaleDateString('en-US', { dateStyle: 'medium' }) : '',
+    },
   }).catch((err) => {
     console.error('[confirm-receipt] notification failed (non-fatal):', err)
   })

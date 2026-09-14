@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import bcrypt from 'bcryptjs'
 import { prisma } from '@/lib/prisma'
 import { consumeResetToken } from '@/lib/resetTokens'
+import { sendPasswordChangedEmail } from '@/lib/auth-email'
 
 const MIN_PASSWORD_LENGTH = 8
 
@@ -48,6 +49,15 @@ export async function POST(req: NextRequest) {
     await prisma.user.update({
       where: { id: user.id },
       data: { password: hashedPassword },
+    })
+
+    // Non-blocking security notification email
+    void sendPasswordChangedEmail({
+      email: user.email,
+      name: `${user.firstName} ${user.lastName}`.trim() || undefined,
+      changedAt: new Date(),
+    }).catch((err) => {
+      console.error('[reset-password] failed to send security alert email:', err)
     })
 
     return NextResponse.json({ success: true, email })

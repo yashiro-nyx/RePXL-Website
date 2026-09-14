@@ -145,7 +145,12 @@ export async function POST(request: NextRequest) {
       where: { orderNumber: orderNumber.trim() },
       select: {
         userId: true,
-        user: { select: { email: true } },
+        status: true,
+        courierName: true,
+        trackingNumber: true,
+        total: true,
+        createdAt: true,
+        user: { select: { email: true, firstName: true, lastName: true } },
       },
     })
 
@@ -157,6 +162,16 @@ export async function POST(request: NextRequest) {
         body: tracking.trackingDescription,
         channel: 'BOTH',
         recipientEmail: order.user?.email ?? undefined,
+        context: {
+          orderNumber,
+          customerName: `${order.user?.firstName ?? ''} ${order.user?.lastName ?? ''}`.trim() || order.user?.email || 'Customer',
+          status: tracking.deliveryStatus || order.status,
+          orderStatus: tracking.deliveryStatus || order.status,
+          courierName: order.courierName || 'Standard Delivery',
+          trackingNumber: order.trackingNumber || 'Pending assignment',
+          orderTotal: order.total != null ? `₱${order.total.toLocaleString()}` : '',
+          orderDate: order.createdAt ? new Date(order.createdAt).toLocaleDateString('en-US', { dateStyle: 'medium' }) : '',
+        },
       }).catch((err) => {
         console.error('[update-tracking] notification failed (non-fatal):', err)
       })
