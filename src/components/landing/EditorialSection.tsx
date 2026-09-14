@@ -1,13 +1,38 @@
 'use client'
 
-import { useRef } from 'react'
+import { useRef, useState, useEffect } from 'react'
 import { motion, useScroll, useTransform } from 'framer-motion'
 import { Container } from '@/components/layout/Container'
 import { useReducedMotion } from '@/hooks/useReducedMotion'
 
+interface EditorialContent {
+  eyebrow?: string
+  heading?: string
+  body?: string
+}
+
 export function EditorialSection() {
   const reducedMotion = useReducedMotion()
   const sectionRef = useRef<HTMLDivElement>(null)
+  const [editorial, setEditorial] = useState<EditorialContent | null>(null)
+
+  useEffect(() => {
+    let isMounted = true
+    fetch('/api/cms/homepage')
+      .then((res) => (res.ok ? res.json() : null))
+      .then((body) => {
+        if (isMounted && body?.data && Array.isArray(body.data)) {
+          const ed = body.data.find((b: any) => b.type === 'editorial' && b.isPublished)
+          if (ed && ed.content && typeof ed.content === 'object') {
+            setEditorial(ed.content)
+          }
+        }
+      })
+      .catch(() => {})
+    return () => {
+      isMounted = false
+    }
+  }, [])
 
   const { scrollYProgress } = useScroll({
     target: sectionRef,
@@ -117,7 +142,7 @@ export function EditorialSection() {
             className="flex flex-col gap-8 md:col-span-7 md:pl-8"
           >
             <span className="font-mono text-xs uppercase tracking-widest text-repixl-muted">
-              — The digicam era
+              {editorial?.eyebrow || '— The digicam era'}
             </span>
 
             <motion.h2
@@ -127,20 +152,23 @@ export function EditorialSection() {
               viewport={{ once: false, margin: '-10% 0px' }}
               className="font-display text-display-lg leading-tight text-repixl-text-light md:text-display-xl"
             >
-              {renderWords('Before filters,', 'edLine1')}
-              <br />
-              {renderWords('there was', 'edLine2')}
-              <span className="italic text-repixl-rose">{renderWords('film-tone', 'edLine2b')}</span>
-              <br />
-              {renderWords('at ISO 100.', 'edLine3')}
+              {editorial?.heading ? (
+                renderWords(editorial.heading, 'edCustom')
+              ) : (
+                <>
+                  {renderWords('Before filters,', 'edLine1')}
+                  <br />
+                  {renderWords('there was', 'edLine2')}
+                  <span className="italic text-repixl-rose">{renderWords('film-tone', 'edLine2b')}</span>
+                  <br />
+                  {renderWords('at ISO 100.', 'edLine3')}
+                </>
+              )}
             </motion.h2>
 
             <p className="max-w-lg text-base leading-relaxed text-repixl-text-light/60">
-              Two megapixels. A fixed lens. No post-processing. The early
-              2000s gave us cameras that captured light with an honesty that
-              no preset can replicate — warm grain, crushed shadows, and
-              colors that felt like memory. We collect them so you can shoot
-              that way again.
+              {editorial?.body ||
+                'Two megapixels. A fixed lens. No post-processing. The early 2000s gave us cameras that captured light with an honesty that no preset can replicate — warm grain, crushed shadows, and colors that felt like memory. We collect them so you can shoot that way again.'}
             </p>
 
             {/* Monospace spec callout */}

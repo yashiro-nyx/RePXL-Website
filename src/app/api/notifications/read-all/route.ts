@@ -24,3 +24,6 @@ export async function POST() {
     return errorResponse('Internal server error', 500)
   }
 }
+
+export const PATCH = POST
+

@@ -35,6 +35,8 @@ const bannerInputSchema = z.object({
   endDate: z.string().nullable().optional().default(null),
 })
 
+import { DEFAULT_LANDING_BANNERS } from '@/lib/cms-defaults'
+
 // GET /api/admin/cms/banners — List all banners (ordered by updatedAt desc)
 export async function GET(request: NextRequest) {
   try {
@@ -43,7 +45,14 @@ export async function GET(request: NextRequest) {
       return unauthorizedResponse('Admin access required')
     }
 
-    const banners = await prisma.banner.findMany()
+    let banners = await prisma.banner.findMany()
+    if (banners.length === 0) {
+      for (const b of DEFAULT_LANDING_BANNERS) {
+        await prisma.banner.create({ data: b })
+      }
+      banners = await prisma.banner.findMany()
+    }
+
     const sorted = sortByUpdatedDesc(banners)
 
     return successResponse(sorted)

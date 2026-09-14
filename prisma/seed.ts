@@ -1,5 +1,6 @@
 import { PrismaClient } from '@prisma/client'
 import bcrypt from 'bcryptjs'
+import { MODERN_DEFAULT_TEMPLATES } from '../src/lib/notification-templates'
 
 const prisma = new PrismaClient()
 
@@ -420,59 +421,27 @@ async function main() {
   console.log(`  ✓ ${vouchersData.length} vouchers seeded`)
 
   // ─── Seed Notification Templates ────────────────────────────────────────────
-  const templatesData = [
-    {
-      event: 'ORDER_CONFIRMATION' as const,
-      subject: 'Order Confirmed - {{orderNumber}}',
-      body: 'Thank you for your purchase! Your order {{orderNumber}} has been confirmed.\n\nOrder Total: {{orderTotal}}\n\nWe will notify you when your order ships.',
-      channel: 'BOTH' as const,
-      isEnabled: true,
-    },
-    {
-      event: 'ORDER_STATUS_CHANGE' as const,
-      subject: 'Order {{orderNumber}} Status Update',
-      body: 'Your order {{orderNumber}} has been {{orderStatus}}.\n\nTracking: {{courierName}} - {{courierEstimate}}',
-      channel: 'BOTH' as const,
-      isEnabled: true,
-    },
-    {
-      event: 'RETURN_RECEIVED' as const,
-      subject: 'Return Request Received - {{orderNumber}}',
-      body: 'We have received your return request for order {{orderNumber}}. Our team will review it within 3 business days.\n\nReturn ID: {{returnRequestId}}',
-      channel: 'BOTH' as const,
-      isEnabled: true,
-    },
-    {
-      event: 'RETURN_STATUS_CHANGE' as const,
-      subject: 'Return Status Update - {{returnRequestId}}',
-      body: 'Your return request {{returnRequestId}} status has changed to: {{returnStatus}}',
-      channel: 'BOTH' as const,
-      isEnabled: true,
-    },
-    {
-      event: 'REFUND_COMPLETED' as const,
-      subject: 'Refund Completed - {{orderNumber}}',
-      body: 'Your refund has been processed successfully!\n\nRefund Amount: {{refundAmount}}\n\nIt may take 3-5 business days to appear in your account.',
-      channel: 'BOTH' as const,
-      isEnabled: true,
-    },
-    {
-      event: 'PROMOTION' as const,
-      subject: '{{promotionTitle}}',
-      body: '{{promotionBody}}\n\nUse code: {{promotionCode}}',
-      channel: 'BOTH' as const,
-      isEnabled: true,
-    },
-  ]
+  const templatesData = Object.values(MODERN_DEFAULT_TEMPLATES).map((t) => ({
+    event: t.event,
+    subject: t.subject,
+    body: t.body,
+    channel: t.channel,
+    isEnabled: t.isEnabled,
+  }))
 
   for (const t of templatesData) {
     await prisma.notificationTemplate.upsert({
       where: { event: t.event },
-      update: {},
+      update: {
+        subject: t.subject,
+        body: t.body,
+        channel: t.channel,
+        isEnabled: t.isEnabled,
+      },
       create: t,
     })
   }
-  console.log(`  ✓ ${templatesData.length} notification templates seeded`)
+  console.log(`  ✓ ${templatesData.length} modern notification templates seeded`)
 
   // ─── Seed Platform Settings ────────────────────────────────────────────────
   const settingsData = [
@@ -541,6 +510,71 @@ async function main() {
     })
   }
   console.log(`  ✓ ${settingsData.length} platform settings seeded`)
+
+  // ─── Seed Landing Banners ───────────────────────────────────────────────────
+  const bannerCount = await prisma.banner.count()
+  if (bannerCount === 0) {
+    const defaultBanners = [
+      {
+        title: 'More than just a photo.',
+        imageRef: '/images/camherosec.png',
+        placement: 'HOMEPAGE_HERO' as const,
+        linkTarget: 'https://repxl.com/products',
+        isActive: true,
+      },
+      {
+        title: 'Hottest Deals',
+        imageRef: '/images/editorial-2.svg',
+        placement: 'HOMEPAGE_STRIP' as const,
+        linkTarget: 'https://repxl.com/products',
+        isActive: true,
+      },
+      {
+        title: 'Our Staff Pick — Sony Cyber-shot W800',
+        imageRef: '/images/product-sony-w800.svg',
+        placement: 'SIDEBAR' as const,
+        linkTarget: 'https://repxl.com/products?brand=sony',
+        isActive: true,
+      },
+    ]
+    for (const b of defaultBanners) {
+      await prisma.banner.create({ data: b })
+    }
+    console.log(`  ✓ ${defaultBanners.length} landing banners seeded`)
+  }
+
+  // ─── Seed Homepage Content Blocks ───────────────────────────────────────────
+  const blockCount = await prisma.homepageContentBlock.count()
+  if (blockCount === 0) {
+    const defaultBlocks = [
+      {
+        type: 'editorial',
+        displayOrder: 1,
+        isPublished: true,
+        content: {
+          eyebrow: '— The digicam era',
+          heading: 'Before filters, there was just light.',
+          body: 'In the early 2000s, CCD sensors captured the world with an unapologetic warmth that modern smartphones cannot fake.',
+          quoteAuthor: 'RePXL Editorial',
+        },
+      },
+      {
+        type: 'announcement',
+        displayOrder: 2,
+        isPublished: true,
+        content: {
+          title: 'Top Deals',
+          badge: 'Up to 30% OFF',
+          subtitle: 'Selected Brands',
+          linkTarget: '/products',
+        },
+      },
+    ]
+    for (const block of defaultBlocks) {
+      await prisma.homepageContentBlock.create({ data: block })
+    }
+    console.log(`  ✓ ${defaultBlocks.length} homepage blocks seeded`)
+  }
 
   // ─── Seed Admin Log ─────────────────────────────────────────────────────────
   await prisma.adminLog.create({

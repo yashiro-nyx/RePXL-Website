@@ -23,10 +23,24 @@ export async function GET(request: NextRequest) {
       where.placement = placement as BannerPlacement
     }
 
-    const banners = await prisma.banner.findMany({
+    let banners = await prisma.banner.findMany({
       where,
       orderBy: { updatedAt: 'desc' },
     })
+
+    if (banners.length === 0) {
+      const totalCount = await prisma.banner.count()
+      if (totalCount === 0) {
+        const { DEFAULT_LANDING_BANNERS } = await import('@/lib/cms-defaults')
+        for (const b of DEFAULT_LANDING_BANNERS) {
+          await prisma.banner.create({ data: b })
+        }
+        banners = await prisma.banner.findMany({
+          where,
+          orderBy: { updatedAt: 'desc' },
+        })
+      }
+    }
 
     const now = new Date()
     const activeBanners = banners.filter((b) => isBannerVisible(b, now))

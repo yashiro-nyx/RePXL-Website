@@ -12,7 +12,7 @@ import { updateOrderStatusSchema } from '@/lib/validations'
 import { emitNotification } from '@/lib/notifications'
 import { buildOrderStatusUpdate } from '@/lib/order-status'
 import { canAdminEditOrderStatus, isPaymentExpired } from '@/lib/order-payment-expiry'
-import { finalizePaidOrder } from '@/lib/purchase-finalization'
+import { finalizePaidOrder, InsufficientStockError } from '@/lib/purchase-finalization'
 import type { OrderStatus } from '@prisma/client'
 
 // This route reads cookies / session state and must run per-request.
@@ -128,20 +128,20 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
           return errorResponse('Cannot mark an expired or cancelled order as paid.', 409)
         }
 
-        const isGatewayOrder = !!(order.paymentIntentId || order.paymentSessionId)
-        if (isGatewayOrder) {
+        try {
           const finalized = await finalizePaidOrder(order.orderNumber)
           if (!finalized) {
             const recheck = await prisma.order.findUnique({ where: { orderNumber: params.orderNumber } })
             if (recheck?.paymentStatus !== 'PAID') {
-              return errorResponse('Failed to finalize gateway payment. Check stock availability.', 409)
+              return errorResponse('Failed to finalize payment. Check stock availability.', 409)
             }
           }
-        } else {
-          await prisma.order.update({
-            where: { orderNumber: params.orderNumber },
-            data: { paymentStatus: 'PAID', updatedAt: new Date() },
-          })
+        } catch (err) {
+          if (err instanceof InsufficientStockError) {
+            return errorResponse(err.message, 409)
+          }
+          console.error(`Failed to finalize payment for order ${order.orderNumber}:`, err)
+          return errorResponse('Failed to finalize payment. Check stock availability.', 409)
         }
         order.paymentStatus = 'PAID'
 
@@ -211,6 +211,16 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
           user: { select: { id: true, email: true, firstName: true, lastName: true } },
         },
       })
+
+      // Restore inventory if a paid order is cancelled
+      if (status === 'CANCELLED' && order.paymentStatus === 'PAID') {
+        for (const item of order.items) {
+          await prisma.product.update({
+            where: { id: item.productId },
+            data: { stock: { increment: item.quantity } },
+          })
+        }
+      }
 
       await emitNotification({
         userId: updated.user.id,

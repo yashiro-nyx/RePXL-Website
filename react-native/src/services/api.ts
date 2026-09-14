@@ -283,6 +283,10 @@ export const api = {
     `/api/notifications/${encodeURIComponent(id)}/read`,
     { method: 'PATCH' },
   ),
+  markAllNotificationsRead: () => authorized<{ updated?: number; count?: number }>(
+    '/api/notifications/read-all',
+    { method: 'POST' },
+  ),
   registerPushToken: (token: string, platform: string) => authorized<{ id: string; registered: boolean }>('/api/mobile/push-token', {
     method: 'POST',
     body: JSON.stringify({ token, platform }),

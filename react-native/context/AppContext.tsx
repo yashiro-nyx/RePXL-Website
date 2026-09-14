@@ -19,6 +19,7 @@ import {
 } from '../src/services/api';
 import type { MobileUser } from '../src/services/session';
 import { registerPushNotifications } from '../src/services/push';
+import * as Notifications from 'expo-notifications';
 
 type AuthResult = { mfaRequired: boolean; challenge?: string };
 
@@ -35,6 +36,7 @@ interface AppContextType {
   addresses: Address[];
   orders: Order[];
   notifications: Notification[];
+  unreadNotificationsCount: number;
   reviews: AccountReview[];
   signIn: (email: string, password: string) => Promise<AuthResult>;
   verifyMfa: (challenge: string, code: string) => Promise<void>;
@@ -42,6 +44,7 @@ interface AppContextType {
   logout: () => Promise<void>;
   refreshProducts: (query?: string) => Promise<void>;
   refreshAccount: () => Promise<void>;
+  refreshNotifications: () => Promise<void>;
   addToCart: (product: Product, quantity?: number) => Promise<void>;
   removeFromCart: (productId: string) => Promise<void>;
   updateQty: (productId: string, quantity: number) => Promise<void>;
@@ -50,6 +53,7 @@ interface AppContextType {
   clearCart: () => Promise<void>;
   saveProfile: (input: { firstName: string; lastName: string; username?: string }) => Promise<void>;
   markNotificationRead: (id: string) => Promise<void>;
+  markAllNotificationsRead: () => Promise<void>;
   addAddress: (data: Omit<Address, 'id'>) => Promise<Address>;
   updateAddress: (id: string, data: Omit<Address, 'id'>) => Promise<Address>;
   deleteAddress: (id: string) => Promise<void>;
@@ -295,10 +299,42 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     return updated;
   }, []);
 
+  const refreshNotifications = useCallback(async () => {
+    try {
+      const next = await api.notifications();
+      setNotifications(next);
+    } catch {
+      // non-fatal
+    }
+  }, []);
+
   const markNotificationRead = useCallback(async (id: string) => {
     const updated = await api.markNotificationRead(id);
     setNotifications((current) => current.map((item) => item.id === id ? { ...item, ...updated } : item));
   }, []);
+
+  const markAllNotificationsRead = useCallback(async () => {
+    await api.markAllNotificationsRead();
+    setNotifications((current) => current.map((item) => ({ ...item, isRead: true })));
+  }, []);
+
+  const unreadNotificationsCount = useMemo(() => {
+    return notifications.filter((item) => !item.isRead).length;
+  }, [notifications]);
+
+  useEffect(() => {
+    let sub: Notifications.Subscription | null = null;
+    try {
+      sub = Notifications.addNotificationReceivedListener(() => {
+        void refreshNotifications();
+      });
+    } catch {
+      // ignore in non-supported environments
+    }
+    return () => {
+      sub?.remove();
+    };
+  }, [refreshNotifications]);
 
   const addAddress = useCallback(async (data: Omit<Address, 'id'>) => {
     const created = await api.createAddress(data);
@@ -330,11 +366,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const removeReview = useCallback(async (reviewId: string) => {
     await api.deleteReview(reviewId);
-    setReviews(await api.reviews());
+    setReviews((current) => current.filter((item) => item.id !== reviewId));
   }, []);
 
   const validateVoucher = useCallback(async (code: string, cartTotal: number) => {
-    return await api.validateVoucher(code, cartTotal);
+    return api.validateVoucher(code, cartTotal);
   }, []);
 
   const value = useMemo<AppContextType>(() => ({
@@ -350,6 +386,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     addresses,
     orders,
     notifications,
+    unreadNotificationsCount,
     reviews,
     signIn,
     verifyMfa,
@@ -357,6 +394,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     logout,
     refreshProducts,
     refreshAccount,
+    refreshNotifications,
     addToCart,
     removeFromCart,
     updateQty,
@@ -365,6 +403,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     clearCart,
     saveProfile,
     markNotificationRead,
+    markAllNotificationsRead,
     addAddress,
     updateAddress,
     deleteAddress,
@@ -375,9 +414,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     validateVoucher,
   }), [
     loading, refreshing, error, products, cart, user, profile, wishlist, compareList,
-    addresses, orders, notifications, reviews, signIn, verifyMfa, register, logout,
-    refreshProducts, refreshAccount, addToCart, removeFromCart, updateQty,
-    toggleWishlist, toggleCompare, clearCart, saveProfile, markNotificationRead,
+    addresses, orders, notifications, unreadNotificationsCount, reviews, signIn, verifyMfa, register, logout,
+    refreshProducts, refreshAccount, refreshNotifications, addToCart, removeFromCart, updateQty,
+    toggleWishlist, toggleCompare, clearCart, saveProfile, markNotificationRead, markAllNotificationsRead,
     addAddress, updateAddress, deleteAddress, setDefaultAddress, submitReview,
     removeReview, updateOrderStatus, validateVoucher,
   ]);

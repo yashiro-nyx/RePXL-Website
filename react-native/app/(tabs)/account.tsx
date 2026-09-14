@@ -733,27 +733,54 @@ function WishlistView({ onBack }: { onBack: () => void }) {
 }
 
 function NotificationsView({ onBack }: { onBack: () => void }) {
-  const { notifications, markNotificationRead } = useApp();
+  const { notifications, markNotificationRead, markAllNotificationsRead, unreadNotificationsCount } = useApp();
   return (
     <SubPage title="Notifications" onBack={onBack}>
       <ScrollView contentContainerStyle={styles.cardList}>
-        {notifications.length === 0 && <Empty icon="bell" text="No notifications." />}
-        {notifications.map((notification) => (
+        {unreadNotificationsCount > 0 && (
           <TouchableOpacity
-            key={notification.id}
-            style={[styles.infoCard, !notification.isRead && styles.unreadCard]}
-            onPress={() => {
-              if (!notification.isRead) void markNotificationRead(notification.id);
-            }}
-            activeOpacity={0.8}
+            onPress={() => void markAllNotificationsRead()}
+            style={{ alignSelf: 'flex-end', paddingVertical: 4, paddingHorizontal: 10, marginBottom: 8, backgroundColor: '#1c1c1e', borderRadius: 8 }}
           >
-            <Text style={styles.cardTitle}>{notification.event.replace(/_/g, ' ')}</Text>
-            <Text style={styles.cardBody}>{notification.message}</Text>
-            <Text style={styles.cardMeta}>
-              {new Date(notification.createdAt).toLocaleString()}
-            </Text>
+            <Text style={{ color: '#aaa', fontSize: 11, fontFamily: 'Inter_500Medium' }}>Mark all as read</Text>
           </TouchableOpacity>
-        ))}
+        )}
+        {notifications.length === 0 && <Empty icon="bell" text="No notifications." />}
+        {notifications.map((notification) => {
+          const match = notification.message.match(/\b(RPX-[A-Z0-9]+)\b/i);
+          const orderNumber = match ? match[1] : null;
+          return (
+            <TouchableOpacity
+              key={notification.id}
+              style={[styles.infoCard, !notification.isRead && styles.unreadCard]}
+              onPress={() => {
+                if (!notification.isRead) void markNotificationRead(notification.id);
+                if (orderNumber) {
+                  router.push({ pathname: '/order', params: { orderNumber } });
+                }
+              }}
+              activeOpacity={0.8}
+            >
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                <Text style={styles.cardTitle}>{notification.event.replace(/_/g, ' ')}</Text>
+                {!notification.isRead && (
+                  <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: '#c62828' }} />
+                )}
+              </View>
+              <Text style={styles.cardBody}>{notification.message}</Text>
+              {orderNumber && (
+                <View style={{ marginTop: 8 }}>
+                  <Text style={{ color: '#60a5fa', fontSize: 11, fontFamily: 'Inter_600SemiBold' }}>
+                    Track Order #{orderNumber} →
+                  </Text>
+                </View>
+              )}
+              <Text style={styles.cardMeta}>
+                {new Date(notification.createdAt).toLocaleString()}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
       </ScrollView>
     </SubPage>
   );
@@ -776,6 +803,7 @@ export default function AccountScreen() {
     wishlist,
     reviews,
     notifications,
+    unreadNotificationsCount,
     refreshing,
     refreshAccount,
     logout,
@@ -872,8 +900,8 @@ export default function AccountScreen() {
           <NavRow
             icon="bell"
             label="Notifications"
-            badge={notifications.filter((item) => !item.isRead).length}
-            onPress={() => setSection('notifications')}
+            badge={unreadNotificationsCount}
+            onPress={() => router.push('/notifications')}
           />
         </View>
 

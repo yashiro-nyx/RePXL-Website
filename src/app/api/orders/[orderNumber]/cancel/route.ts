@@ -23,7 +23,14 @@ export async function POST(
 
   const order = await prisma.order.findUnique({
     where: { orderNumber: params.orderNumber },
-    select: { id: true, userId: true, status: true, orderNumber: true },
+    select: {
+      id: true,
+      userId: true,
+      status: true,
+      orderNumber: true,
+      paymentStatus: true,
+      items: { select: { productId: true, quantity: true } },
+    },
   })
 
   if (!order) return notFoundResponse('Order not found')
@@ -39,9 +46,20 @@ export async function POST(
     )
   }
 
-  await prisma.order.update({
-    where: { id: order.id },
-    data: { status: 'CANCELLED', updatedAt: new Date() },
+  await prisma.$transaction(async (tx) => {
+    await tx.order.update({
+      where: { id: order.id },
+      data: { status: 'CANCELLED', updatedAt: new Date() },
+    })
+
+    if (order.paymentStatus === 'PAID') {
+      for (const item of order.items) {
+        await tx.product.update({
+          where: { id: item.productId },
+          data: { stock: { increment: item.quantity } },
+        })
+      }
+    }
   })
 
   // Emit notification to the customer (non-blocking — failure does not roll back)

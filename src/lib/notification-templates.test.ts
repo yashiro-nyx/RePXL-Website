@@ -4,6 +4,8 @@ import {
   ALLOWED_TOKENS,
   NOTIFICATION_EVENTS,
   TEMPLATE_LIMITS,
+  MODERN_DEFAULT_TEMPLATES,
+  SAMPLE_TEMPLATE_CONTEXT,
   findUnknownTokens,
   resolvePlaceholders,
   validateTemplate,
@@ -162,3 +164,68 @@ describe('Property 29: Unknown placeholder tokens are detected', () => {
     }
   })
 })
+
+describe('Modern Default Templates Specification & Safety', () => {
+  it('defines a modern default template for every NotificationEvent', () => {
+    for (const event of NOTIFICATION_EVENTS) {
+      const template = MODERN_DEFAULT_TEMPLATES[event]
+      expect(template, `Missing modern default template for ${event}`).toBeDefined()
+      expect(template.event).toBe(event)
+      expect(template.subject.trim().length).toBeGreaterThan(5)
+      expect(template.body.trim().length).toBeGreaterThan(20)
+      expect(template.channel).toBe('BOTH')
+      expect(template.isEnabled).toBe(true)
+    }
+  })
+
+  it('validates all modern default templates against length constraints', () => {
+    for (const event of NOTIFICATION_EVENTS) {
+      const template = MODERN_DEFAULT_TEMPLATES[event]
+      const validation = validateTemplate({
+        subject: template.subject,
+        body: template.body,
+      })
+      expect(validation.valid, `Validation failed for ${event}: ${JSON.stringify(validation.errors)}`).toBe(true)
+      expect(validation.errors).toEqual([])
+    }
+  })
+
+  it('contains zero unknown tokens in subjects and bodies for all 7 modern default templates', () => {
+    for (const event of NOTIFICATION_EVENTS) {
+      const template = MODERN_DEFAULT_TEMPLATES[event]
+      const unknownInBody = findUnknownTokens(template.body, event)
+      const unknownInSubject = findUnknownTokens(template.subject, event)
+
+      expect(unknownInBody, `Unknown tokens in ${event} body: ${unknownInBody.join(', ')}`).toEqual([])
+      expect(unknownInSubject, `Unknown tokens in ${event} subject: ${unknownInSubject.join(', ')}`).toEqual([])
+    }
+  })
+
+  it('resolves all placeholders cleanly with SAMPLE_TEMPLATE_CONTEXT', () => {
+    for (const event of NOTIFICATION_EVENTS) {
+      const template = MODERN_DEFAULT_TEMPLATES[event]
+      const resolvedSubject = resolvePlaceholders(template.subject, SAMPLE_TEMPLATE_CONTEXT)
+      const resolvedBody = resolvePlaceholders(template.body, SAMPLE_TEMPLATE_CONTEXT)
+
+      // Ensure no {{...}} remains unresolved
+      expect(/\{\{\s*[A-Za-z0-9_]+\s*\}\}/.test(resolvedSubject), `Unresolved token in subject: ${resolvedSubject}`).toBe(false)
+      expect(/\{\{\s*[A-Za-z0-9_]+\s*\}\}/.test(resolvedBody), `Unresolved token in body: ${resolvedBody}`).toBe(false)
+    }
+  })
+
+  it('resolves aliases when primary or alias token is in context', () => {
+    // orderStatus alias for status
+    expect(resolvePlaceholders('Status is {{orderStatus}}', { status: 'DELIVERED' })).toBe('Status is DELIVERED')
+    expect(resolvePlaceholders('Status is {{status}}', { orderStatus: 'PROCESSING' })).toBe('Status is PROCESSING')
+
+    // returnRequestId alias for returnId
+    expect(resolvePlaceholders('Case #{{returnRequestId}}', { returnId: 'RET-999' })).toBe('Case #RET-999')
+
+    // promotionTitle / promoTitle alias
+    expect(resolvePlaceholders('{{promotionTitle}}', { promoTitle: 'Flash Sale' })).toBe('Flash Sale')
+
+    // promoCode / promotionCode alias
+    expect(resolvePlaceholders('Use code {{promotionCode}}', { promoCode: 'SUMMER25' })).toBe('Use code SUMMER25')
+  })
+})
+

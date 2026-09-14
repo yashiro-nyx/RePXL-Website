@@ -28,8 +28,11 @@ vi.mock('@/lib/notifications', () => ({
   emitNotification: vi.fn().mockResolvedValue(true),
 }))
 
+import * as purchaseFinalization from '@/lib/purchase-finalization'
+
 vi.mock('@/lib/purchase-finalization', () => ({
   finalizePaidOrder: vi.fn().mockResolvedValue(true),
+  InsufficientStockError: class InsufficientStockError extends Error {},
 }))
 
 describe('Order Payment Guard — Admin Status Editing Restrictions', () => {
@@ -166,12 +169,7 @@ describe('Order Payment Guard — Admin Status Editing Restrictions', () => {
 
     expect(res.status).toBe(200)
     expect(json.success).toBe(true)
-    expect(prisma.order.update).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: { orderNumber: 'RPX-1234' },
-        data: expect.objectContaining({ paymentStatus: 'PAID' }),
-      })
-    )
+    expect(purchaseFinalization.finalizePaidOrder).toHaveBeenCalledWith('RPX-1234')
   })
 
   it('rejects delivery tracking update when order is unpaid or pending', async () => {

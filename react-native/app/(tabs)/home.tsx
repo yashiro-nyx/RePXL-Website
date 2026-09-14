@@ -72,7 +72,7 @@ function ProductCard({ product }: { product: Product }) {
 
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
-  const { user, products, error } = useApp();
+  const { user, products, error, unreadNotificationsCount } = useApp();
   const [activeCategory, setActiveCategory] = useState('Popular');
   const [homeSearch, setHomeSearch] = useState('');
 
@@ -127,8 +127,24 @@ export default function HomeScreen() {
         </View>
         <View style={styles.headerActions}>
           <TouchableOpacity
+            onPress={() => router.push('/notifications')}
+            style={styles.bellButton}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            activeOpacity={0.7}
+          >
+            <Feather name="bell" size={20} color="#fff" />
+            {unreadNotificationsCount > 0 && (
+              <View style={styles.bellBadge}>
+                <Text style={styles.bellBadgeText}>
+                  {unreadNotificationsCount > 99 ? '99+' : unreadNotificationsCount}
+                </Text>
+              </View>
+            )}
+          </TouchableOpacity>
+          <TouchableOpacity
             onPress={() => router.push('/(tabs)/search')}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            activeOpacity={0.7}
           >
             <Feather name="search" size={20} color="#fff" />
           </TouchableOpacity>
@@ -231,7 +247,21 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
   },
   logoDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: '#c62828', marginLeft: 3 },
-  headerActions: { flexDirection: 'row', gap: 16 },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 16 },
+  bellButton: { position: 'relative', justifyContent: 'center', alignItems: 'center' },
+  bellBadge: {
+    position: 'absolute',
+    top: -5,
+    right: -7,
+    backgroundColor: '#c62828',
+    borderRadius: 99,
+    minWidth: 16,
+    height: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 3,
+  },
+  bellBadgeText: { color: '#fff', fontSize: 9, fontFamily: 'Inter_700Bold' },
   greeting: { fontFamily: 'Inter_700Bold', fontSize: 18, color: '#fff' },
   greetingSub: { fontFamily: 'Inter_400Regular', fontSize: 13, color: '#666', marginTop: 2 },
   searchBar: {

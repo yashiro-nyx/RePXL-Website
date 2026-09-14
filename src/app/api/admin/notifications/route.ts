@@ -28,6 +28,7 @@ const templateUpdateSchema = z.object({
   subject: z.string().min(1).max(200).optional(),
   body: z.string().min(1).max(10000).optional(),
   enabled: z.boolean().optional(),
+  isEnabled: z.boolean().optional(),
   channel: z.enum(['IN_APP', 'EMAIL', 'BOTH']).optional(),
 })
 

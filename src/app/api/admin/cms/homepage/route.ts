@@ -37,9 +37,19 @@ export async function GET(request: NextRequest) {
       return unauthorizedResponse('Admin access required')
     }
 
-    const blocks = await prisma.homepageContentBlock.findMany({
+    let blocks = await prisma.homepageContentBlock.findMany({
       orderBy: { displayOrder: 'asc' },
     })
+
+    if (blocks.length === 0) {
+      const { DEFAULT_HOMEPAGE_BLOCKS } = await import('@/lib/cms-defaults')
+      for (const block of DEFAULT_HOMEPAGE_BLOCKS) {
+        await prisma.homepageContentBlock.create({ data: block })
+      }
+      blocks = await prisma.homepageContentBlock.findMany({
+        orderBy: { displayOrder: 'asc' },
+      })
+    }
 
     return successResponse(blocks)
   } catch (error) {

@@ -1,10 +1,18 @@
 'use client'
 
+import { useState, useEffect } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
 import { useReducedMotion } from '@/hooks/useReducedMotion'
 import { useThemeStore } from '@/stores/themeStore'
+
+interface HeroBannerData {
+  id: string
+  title: string
+  imageRef: string
+  linkTarget: string
+}
 
 const HERO_ASSETS = {
   light: {
@@ -23,6 +31,42 @@ export function Hero() {
   const theme = useThemeStore((state) => state.theme)
   const reducedMotion = useReducedMotion()
   const assets = HERO_ASSETS[theme]
+  const [banner, setBanner] = useState<HeroBannerData | null>(null)
+
+  useEffect(() => {
+    let isMounted = true
+    fetch('/api/banners?placement=HOMEPAGE_HERO')
+      .then((res) => (res.ok ? res.json() : null))
+      .then((body) => {
+        if (isMounted && body?.data && Array.isArray(body.data) && body.data.length > 0) {
+          setBanner(body.data[0])
+        }
+      })
+      .catch(() => {})
+    return () => {
+      isMounted = false
+    }
+  }, [])
+
+  const heroTitle = banner?.title || 'More than just a photo.'
+  const heroImage = banner?.imageRef || '/images/camherosec.png'
+  let heroLink = '/products'
+  if (banner?.linkTarget) {
+    try {
+      if (banner.linkTarget.startsWith('/')) {
+        heroLink = banner.linkTarget
+      } else {
+        const u = new URL(banner.linkTarget)
+        if (u.hostname.includes('repxl.com') || u.hostname === 'localhost') {
+          heroLink = u.pathname + u.search + u.hash
+        } else {
+          heroLink = banner.linkTarget
+        }
+      }
+    } catch {
+      heroLink = banner.linkTarget
+    }
+  }
 
   const reveal = reducedMotion
     ? { initial: false as const, animate: undefined }
@@ -97,8 +141,8 @@ export function Hero() {
           className="relative h-full w-full"
         >
           <Image
-            src="/images/camherosec.png"
-            alt="Canon camera featured in the RePXL collection"
+            src={heroImage}
+            alt={heroTitle}
             fill
             priority
             sizes="(min-width: 1024px) 47vw, (min-width: 768px) 55vw, 92vw"
@@ -170,14 +214,14 @@ export function Hero() {
             Capture more
           </p>
           <h1 className="font-display text-[clamp(2.35rem,5vw,4.35rem)] font-semibold leading-[0.98] tracking-normal text-white">
-            More than just a photo.
+            {heroTitle}
           </h1>
           <p className="mt-4 max-w-sm text-sm leading-relaxed text-white/80 sm:text-base">
             Discover vintage digital cameras made for capturing the moments and
             stories you will want to keep.
           </p>
           <Link
-            href="/products"
+            href={heroLink}
             className="mt-6 inline-flex h-12 items-center justify-center rounded bg-repixl-red px-7 text-sm font-semibold text-white transition-colors hover:bg-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-repixl-red"
           >
             Shop Cameras

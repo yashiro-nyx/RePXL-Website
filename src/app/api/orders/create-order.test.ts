@@ -137,11 +137,8 @@ describe('POST /api/orders — Built-in Order Placement', () => {
       })
     )
 
-    // Verify inventory deducted
-    expect(purchaseFinalization.deductInventory).toHaveBeenCalledWith(
-      expect.anything(),
-      mockCart
-    )
+    // Verify inventory deduction is deferred to payment confirmation
+    expect(purchaseFinalization.deductInventory).not.toHaveBeenCalled()
 
     // Verify only purchased cart items are deleted
     expect(_mockTx.cartItem.deleteMany).toHaveBeenCalledWith({

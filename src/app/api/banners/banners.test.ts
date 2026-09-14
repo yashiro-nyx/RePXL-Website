@@ -15,9 +15,13 @@ vi.mock('@/lib/prisma', () => ({
   prisma: {
     banner: {
       findMany: vi.fn(),
+      count: vi.fn().mockResolvedValue(1),
+      create: vi.fn().mockResolvedValue({}),
     },
     homepageContentBlock: {
       findMany: vi.fn(),
+      count: vi.fn().mockResolvedValue(1),
+      create: vi.fn().mockResolvedValue({}),
     },
     staticPage: {
       findUnique: vi.fn(),

@@ -11,7 +11,7 @@ type BottomTabBarProps = Parameters<
 
 function CustomTabBar({ state, navigation }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
-  const { cart } = useApp();
+  const { cart, unreadNotificationsCount } = useApp();
   const cartCount = cart.reduce((s, i) => s + i.quantity, 0);
 
   const tabs = [
@@ -39,6 +39,9 @@ function CustomTabBar({ state, navigation }: BottomTabBarProps) {
                 <View style={styles.badge}>
                   <Text style={styles.badgeText}>{cartCount}</Text>
                 </View>
+              )}
+              {tab.name === 'account' && unreadNotificationsCount > 0 && (
+                <View style={styles.dotBadge} />
               )}
             </View>
             <Text style={[styles.label, { color }]}>{tab.label}</Text>
@@ -93,5 +96,14 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 9,
     fontFamily: 'Inter_700Bold',
+  },
+  dotBadge: {
+    position: 'absolute',
+    top: -2,
+    right: -4,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#c62828',
   },
 });

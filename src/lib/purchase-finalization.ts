@@ -45,10 +45,6 @@ export async function finalizePaidOrder(orderNumber: string) {
         orderNumber,
         paymentStatus: 'PENDING',
         status: 'PROCESSING',
-        OR: [
-          { paymentIntentId: { not: null } },
-          { paymentSessionId: { not: null } },
-        ],
       },
       data: { paymentStatus: 'PAID' },
     })

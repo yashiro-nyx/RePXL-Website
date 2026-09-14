@@ -197,9 +197,6 @@ export async function POST(request: NextRequest) {
         },
       })
 
-      await deductInventory(tx, cartItems)
-      if (appliedVoucherId) await tx.voucher.update({where: {id: appliedVoucherId}, data: {used: {increment: 1}}})
-
       // Clear the purchased items from the cart
       await tx.cartItem.deleteMany({
         where: { id: { in: cartItems.map((item) => item.id) } },
