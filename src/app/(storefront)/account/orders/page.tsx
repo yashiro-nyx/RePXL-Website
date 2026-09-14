@@ -14,6 +14,56 @@ import {
   getOrderStatusLabel,
 } from '@/lib/order-status-unified'
 
+function OrdersSkeleton() {
+  return (
+    <div className="min-w-0 animate-pulse" aria-busy="true" aria-label="Loading purchases">
+      <div className="mb-8 border-b border-repixl-muted/10 pb-6">
+        <div className="mt-3 h-9 w-48 rounded-lg bg-repixl-muted/20" />
+        <div className="mt-2 h-4 w-20 rounded bg-repixl-muted/10" />
+      </div>
+
+      {/* Filter tabs skeleton */}
+      <div className="mb-6 flex gap-2 overflow-x-auto pb-2">
+        {[80, 95, 75, 85, 90, 80].map((w, i) => (
+          <div
+            key={i}
+            style={{ width: `${w}px` }}
+            className="h-9 shrink-0 rounded-lg border border-repixl-muted/10 bg-repixl-charcoal/60"
+          />
+        ))}
+      </div>
+
+      {/* Cards list skeleton */}
+      <div className="space-y-3">
+        {[1, 2, 3].map((i) => (
+          <div
+            key={i}
+            className="rounded-2xl border border-repixl-muted/10 bg-repixl-charcoal p-5 space-y-4"
+          >
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div className="space-y-2">
+                <div className="h-4 w-52 rounded bg-repixl-muted/20" />
+                <div className="flex items-center gap-2">
+                  <div className="h-3 w-16 rounded bg-repixl-muted/10" />
+                  <div className="h-4 w-20 rounded-full bg-repixl-muted/15" />
+                </div>
+                <div className="h-3 w-24 rounded bg-repixl-muted/10" />
+              </div>
+              <div className="space-y-1.5 text-right">
+                <div className="h-6 w-24 rounded bg-repixl-muted/20 ml-auto" />
+              </div>
+            </div>
+            <div className="flex items-center justify-between border-t border-repixl-muted/10 pt-3">
+              <div className="h-3 w-36 rounded bg-repixl-muted/10" />
+              <div className="h-3 w-32 rounded bg-repixl-muted/15" />
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 export default function OrderHistoryPage() {
   const router = useRouter()
   const { isLoggedIn, userEmail, hydrate } = useAuthStore()
@@ -30,7 +80,7 @@ export default function OrderHistoryPage() {
     if (hydrated && !isLoggedIn) router.push('/login')
   }, [hydrated, isLoggedIn, router])
 
-  if (!hydrated || !isLoggedIn) return <PageLoader label="Loading orders…" />
+  if (!hydrated || !isLoggedIn) return <OrdersSkeleton />
 
   if (loadError) return <p role="alert" className="text-red-400">Unable to load purchases. Please refresh to retry.</p>
 
@@ -48,8 +98,23 @@ export default function OrderHistoryPage() {
           </div>
 
           <div className="mb-6 flex gap-2 overflow-x-auto pb-2" aria-label="Filter purchases">
-            {purchaseFilters.map(value => <button key={value} type="button" aria-pressed={filter === value} onClick={() => setFilter(value)} className={`shrink-0 rounded-lg border px-4 py-2 text-sm ${filter === value ? 'border-repixl-red bg-repixl-red/10 text-repixl-red' : 'border-repixl-muted/20 text-repixl-muted hover:text-repixl-text-light'}`}>{value}</button>)}
+            {purchaseFilters.map(value => (
+              <button
+                key={value}
+                type="button"
+                aria-pressed={filter === value}
+                onClick={() => setFilter(value)}
+                className={`shrink-0 rounded-lg border px-4 py-2 text-sm transition-all ${
+                  filter === value
+                    ? 'border-repixl-red bg-repixl-red/10 text-repixl-red font-medium shadow-sm shadow-repixl-red/20'
+                    : 'border-repixl-muted/20 text-repixl-muted hover:border-repixl-muted/40 hover:text-repixl-text-light'
+                }`}
+              >
+                {value}
+              </button>
+            ))}
           </div>
+
           {orders.length === 0 ? (
             <div className="flex flex-col items-center rounded-2xl border border-dashed border-repixl-muted/20 py-24 text-center">
               <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-repixl-charcoal/50">
@@ -69,44 +134,46 @@ export default function OrderHistoryPage() {
                 const primaryLabel = first?.name ?? 'Order'
                 const extraLabel = extra > 0 ? ` + ${extra} more` : ''
                 return (
-                <div key={order.orderNumber} className="rounded-2xl border border-repixl-muted/10 bg-repixl-charcoal p-5 transition-colors hover:border-repixl-muted/20">
-                  <div className="flex flex-wrap items-start justify-between gap-4">
-                    <div>
-                      {/* Item name — primary */}
-                      <p className="text-sm font-semibold text-repixl-text-light">
-                        {primaryLabel}<span className="text-repixl-muted">{extraLabel}</span>
-                      </p>
-                      {/* Order number + status — secondary */}
-                      <div className="mt-0.5 flex items-center gap-2">
-                        <p className="font-mono text-[10px] text-repixl-muted">#{order.orderNumber}</p>
-                        <span className={`rounded-full border px-2 py-0.5 font-mono text-[9px] uppercase tracking-wider ${getOrderStatusBadgeClass(order.status)}`}>
-                          {getOrderStatusLabel(order.status)}
-                        </span>
+                  <div
+                    key={order.orderNumber}
+                    className="group rounded-2xl border border-repixl-muted/10 bg-repixl-charcoal p-5 transition-all duration-200 hover:border-repixl-muted/30 hover:bg-repixl-charcoal/90 hover:shadow-lg hover:shadow-black/20"
+                  >
+                    <div className="flex flex-wrap items-start justify-between gap-4">
+                      <div>
+                        {/* Item name — primary */}
+                        <p className="text-sm font-semibold text-repixl-text-light">
+                          {primaryLabel}<span className="text-repixl-muted">{extraLabel}</span>
+                        </p>
+                        {/* Order number + status — secondary */}
+                        <div className="mt-1 flex items-center gap-2">
+                          <p className="font-mono text-[10px] text-repixl-muted">#{order.orderNumber}</p>
+                          <span className={`rounded-full border px-2 py-0.5 font-mono text-[9px] uppercase tracking-wider ${getOrderStatusBadgeClass(order.status)}`}>
+                            {getOrderStatusLabel(order.status)}
+                          </span>
+                        </div>
+                        <p className="mt-1 font-mono text-[10px] text-repixl-muted">{order.date}</p>
                       </div>
-                      <p className="mt-0.5 font-mono text-[10px] text-repixl-muted">{order.date}</p>
+                      <div className="text-right">
+                        <p className="font-display text-lg font-bold text-repixl-text-light">{formatPrice(order.total)}</p>
+                      </div>
                     </div>
-                    <div className="text-right">
-                      <p className="font-display text-lg font-bold text-repixl-text-light">{formatPrice(order.total)}</p>
-                      <p className="font-mono text-[10px] text-repixl-muted">{order.courierName}</p>
+                    <div className="mt-3 flex items-center justify-between border-t border-repixl-muted/10 pt-3">
+                      <p className="text-xs text-repixl-muted">{order.items.length} {order.items.length === 1 ? 'item' : 'items'} · {order.paymentMethod}</p>
+                      <Link
+                        href={`/account/orders/${order.orderNumber}`}
+                        className="inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-wider text-repixl-muted transition-colors hover:text-repixl-text-light"
+                      >
+                        <span>View Details & Tracking</span>
+                        <span className="transition-transform group-hover:translate-x-0.5">→</span>
+                      </Link>
                     </div>
                   </div>
-                  <div className="mt-3 flex items-center justify-between border-t border-repixl-muted/10 pt-3">
-                    <p className="text-xs text-repixl-muted">{order.items.length} {order.items.length === 1 ? 'item' : 'items'} · {order.paymentMethod}</p>
-                    <Link
-                      href={`/account/orders/${order.orderNumber}`}
-                      className="font-mono text-[10px] uppercase tracking-wider text-repixl-muted transition-colors hover:text-repixl-text-light"
-                    >
-                      View Details / Track →
-                    </Link>
-                  </div>
-                </div>
                 )
               })}
             </div>
           )}
         </>
       </div>
-
     </>
   )
 }

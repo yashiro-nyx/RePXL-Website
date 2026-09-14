@@ -213,9 +213,16 @@ export default function OrderScreen() {
           {/* Live Delivery Map Card */}
           {!isCancelled && <TrackingMapCard order={order} />}
 
-          {/* Tracking Status Card */}
+          {/* Shipment Details & Timeline */}
           <View style={styles.card}>
-            <Text style={styles.cardSectionTitle}>Tracking Timeline</Text>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+              <Text style={styles.cardSectionTitle}>Shipment Details</Text>
+              {order.courierName ? (
+                <Text style={{ fontSize: 11, fontFamily: 'Inter_500Medium', color: '#888' }}>
+                  {order.courierName}
+                </Text>
+              ) : null}
+            </View>
             {isCancelled ? (
               <View style={styles.cancelledAlert}>
                 <Feather name="alert-circle" size={18} color="#f87171" />

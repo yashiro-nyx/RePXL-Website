@@ -4,6 +4,7 @@ import {
   Alert,
   Image,
   Modal,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Switch,
@@ -176,7 +177,7 @@ function ProfileView({ onBack }: { onBack: () => void }) {
 const PURCHASE_FILTERS = ['All', 'Processing', 'Shipped', 'Delivered', 'Completed', 'Cancelled'] as const;
 
 function PurchasesView({ onBack }: { onBack: () => void }) {
-  const { orders } = useApp();
+  const { orders, refreshing, refreshAccount } = useApp();
   const [filter, setFilter] = useState<(typeof PURCHASE_FILTERS)[number]>('All');
 
   const filteredOrders = orders.filter((order) => {
@@ -205,7 +206,17 @@ function PurchasesView({ onBack }: { onBack: () => void }) {
         </ScrollView>
       </View>
 
-      <ScrollView contentContainerStyle={styles.cardList}>
+      <ScrollView
+        contentContainerStyle={styles.cardList}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={() => void refreshAccount()}
+            tintColor="#c62828"
+            colors={['#c62828']}
+          />
+        }
+      >
         {filteredOrders.length === 0 && (
           <Empty icon="shopping-bag" text={filter === 'All' ? 'No orders yet.' : `No ${filter.toLowerCase()} purchases.`} />
         )}
@@ -255,9 +266,12 @@ function PurchasesView({ onBack }: { onBack: () => void }) {
                 </View>
 
                 <Text style={styles.cardMeta}>
-                  {order.deliveryStatus || 'Order Placed'} · {order.courierName || 'Standard Delivery'}
+                  {order.items.length} {order.items.length === 1 ? 'item' : 'items'}
                 </Text>
-                <Text style={styles.orderTotal}>₱{order.total.toLocaleString()}</Text>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 2 }}>
+                  <Text style={styles.orderTotal}>₱{order.total.toLocaleString()}</Text>
+                  <Text style={styles.viewDetailsHint}>View details & tracking →</Text>
+                </View>
               </View>
               <Feather name="chevron-right" size={16} color="#555" />
             </TouchableOpacity>
@@ -795,9 +809,63 @@ function Empty({ icon, text }: { icon: keyof typeof Feather.glyphMap; text: stri
   );
 }
 
+function AccountSkeleton({ insetsTop }: { insetsTop: number }) {
+  return (
+    <View style={[styles.container, { paddingTop: insetsTop }]}>
+      <LinearGradient colors={['#4a0808', '#1a0202', 'transparent']} style={styles.topGradient} />
+      <View style={styles.topBar}>
+        <View style={styles.skeletonTitle} />
+      </View>
+      <View style={{ paddingHorizontal: 20, gap: 14 }}>
+        {/* User Card Skeleton */}
+        <View style={styles.userCardSkeleton}>
+          <View style={styles.skeletonAvatar} />
+          <View style={{ flex: 1, gap: 8 }}>
+            <View style={styles.skeletonTextLineMed} />
+            <View style={styles.skeletonTextLineShort} />
+          </View>
+        </View>
+
+        {/* Stats Row Skeleton */}
+        <View style={styles.statsRow}>
+          <View style={styles.statBox}>
+            <View style={styles.skeletonStatVal} />
+            <View style={styles.skeletonStatLabel} />
+          </View>
+          <View style={styles.statBox}>
+            <View style={styles.skeletonStatVal} />
+            <View style={styles.skeletonStatLabel} />
+          </View>
+          <View style={styles.statBox}>
+            <View style={styles.skeletonStatVal} />
+            <View style={styles.skeletonStatLabel} />
+          </View>
+        </View>
+
+        {/* Section Label Skeleton */}
+        <View style={styles.skeletonSectionLabel} />
+
+        {/* Nav Group Skeleton */}
+        <View style={styles.navGroup}>
+          {[1, 2, 3, 4, 5, 6].map((i) => (
+            <View key={i} style={styles.skeletonNavRow}>
+              <View style={styles.skeletonIconBox} />
+              <View style={[styles.skeletonTextLineMed, { width: 110 + (i % 3) * 20 }]} />
+              <View style={{ marginLeft: 'auto' }}>
+                <Feather name="chevron-right" size={16} color="#2c2c2e" />
+              </View>
+            </View>
+          ))}
+        </View>
+      </View>
+    </View>
+  );
+}
+
 export default function AccountScreen() {
   const insets = useSafeAreaInsets();
   const {
+    loading,
     user,
     orders,
     wishlist,
@@ -812,6 +880,7 @@ export default function AccountScreen() {
   const [section, setSection] = useState<Section>('main');
   const [showLogoutModal, setShowLogoutModal] = useState(false);
 
+  if (loading && !user) return <AccountSkeleton insetsTop={insets.top} />;
   if (!user) return <SignedOut />;
   if (section === 'profile') return <ProfileView onBack={() => setSection('main')} />;
   if (section === 'purchases') return <PurchasesView onBack={() => setSection('main')} />;
@@ -833,7 +902,17 @@ export default function AccountScreen() {
         </TouchableOpacity>
       </View>
 
-      <ScrollView contentContainerStyle={{ paddingBottom: 32 }}>
+      <ScrollView
+        contentContainerStyle={{ paddingBottom: 32 }}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={() => void refreshAccount()}
+            tintColor="#c62828"
+            colors={['#c62828']}
+          />
+        }
+      >
         <View style={styles.userCard}>
           <View style={styles.avatarMed}>
             <Text style={styles.avatarMedText}>{initials}</Text>
@@ -1004,6 +1083,34 @@ const styles = StyleSheet.create({
     paddingVertical: 18,
   },
   topBarTitle: { fontFamily: 'Inter_700Bold', fontSize: 18, color: '#fff' },
+  skeletonTitle: { width: 120, height: 22, borderRadius: 6, backgroundColor: '#262628' },
+  userCardSkeleton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    padding: 14,
+    backgroundColor: '#1c1c1e',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#2c2c2e',
+    marginBottom: 0,
+  },
+  skeletonAvatar: { width: 50, height: 50, borderRadius: 25, backgroundColor: '#262628' },
+  skeletonTextLineMed: { height: 14, borderRadius: 4, backgroundColor: '#262628' },
+  skeletonTextLineShort: { width: '45%', height: 11, borderRadius: 4, backgroundColor: '#202022' },
+  skeletonStatVal: { width: 28, height: 20, borderRadius: 4, backgroundColor: '#262628', marginBottom: 4 },
+  skeletonStatLabel: { width: 44, height: 10, borderRadius: 3, backgroundColor: '#202022' },
+  skeletonSectionLabel: { width: 70, height: 12, borderRadius: 3, backgroundColor: '#202022', marginVertical: 4 },
+  skeletonNavRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 15,
+    gap: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#1a1a1a',
+  },
+  skeletonIconBox: { width: 22, height: 22, borderRadius: 6, backgroundColor: '#202022' },
   userCard: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1161,7 +1268,8 @@ const styles = StyleSheet.create({
   cardTitle: { fontFamily: 'Inter_700Bold', fontSize: 14, color: '#fff' },
   cardMeta: { fontFamily: 'Inter_400Regular', fontSize: 11, color: '#777', marginTop: 3 },
   cardBody: { fontFamily: 'Inter_400Regular', fontSize: 13, color: '#bbb', lineHeight: 19 },
-  orderTotal: { fontFamily: 'Inter_800ExtraBold', fontSize: 14, color: '#fff', marginTop: 7 },
+  orderTotal: { fontFamily: 'Inter_800ExtraBold', fontSize: 14, color: '#fff', marginTop: 4 },
+  viewDetailsHint: { fontFamily: 'Inter_500Medium', fontSize: 11, color: '#888' },
   titleRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   defaultBadge: {
     color: '#4caf50',

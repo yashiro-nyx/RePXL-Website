@@ -61,8 +61,22 @@ export default function ReviewsPanel() {
       />
 
       {loading && (
-        <div className="rounded-xl border border-repixl-muted/10 bg-repixl-charcoal p-8 text-center">
-          <p className="text-sm text-repixl-muted">Loading reviews…</p>
+        <div className="space-y-3 animate-pulse" role="status" aria-label="Loading reviews">
+          {[1, 2].map((i) => (
+            <div key={i} className="rounded-xl border border-repixl-muted/10 bg-repixl-charcoal p-5 space-y-3">
+              <div className="flex items-start justify-between">
+                <div className="space-y-2">
+                  <div className="h-4 w-40 rounded bg-repixl-muted/20" />
+                  <div className="h-3 w-20 rounded bg-repixl-muted/15" />
+                </div>
+                <div className="h-3 w-24 rounded bg-repixl-muted/10" />
+              </div>
+              <div className="space-y-1.5">
+                <div className="h-3 w-full rounded bg-repixl-muted/15" />
+                <div className="h-3 w-3/4 rounded bg-repixl-muted/10" />
+              </div>
+            </div>
+          ))}
         </div>
       )}
 

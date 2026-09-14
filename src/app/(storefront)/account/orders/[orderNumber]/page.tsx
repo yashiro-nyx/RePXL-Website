@@ -403,8 +403,8 @@ export default function OrderDetailPage() {
               {!cancelled && (
                 <div className="space-y-0">
                   <div className="mb-2 px-1">
-                    <p className="font-mono text-[10px] uppercase tracking-widest text-repixl-muted">Delivery Tracking</p>
-                    <p className="mt-0.5 text-xs text-repixl-muted/60">Package delivery journey — Order Placed → In Transit → Out for Delivery → Delivered</p>
+                    <p className="font-mono text-[10px] uppercase tracking-widest text-repixl-muted">Shipment & Delivery</p>
+                    <p className="mt-0.5 text-xs text-repixl-muted/60">Real-time package status and courier updates</p>
                   </div>
                   <TrackingTimeline
                     trackingNumber={order.orderNumber}

@@ -84,16 +84,13 @@ export function TrackingTimeline({ trackingNumber, initialState }: TrackingTimel
       {/* Header */}
       <div className="mb-5 flex items-center justify-between">
         <div>
-          <p className="font-mono text-[10px] uppercase tracking-widest text-repixl-muted">Tracking</p>
+          <p className="font-mono text-[10px] uppercase tracking-widest text-repixl-muted">Package Tracking</p>
           <p className="mt-0.5 font-mono text-xs font-semibold text-repixl-text-light">{trackingNumber}</p>
         </div>
-        <div className="flex items-center gap-1.5">
-          <span
-            className={`h-2 w-2 rounded-full ${connected ? 'animate-pulse bg-repixl-success' : error ? 'bg-repixl-red' : 'bg-repixl-muted/40'}`}
-            aria-hidden="true"
-          />
+        <div className="flex items-center gap-1.5 rounded-full border border-repixl-muted/15 bg-repixl-bg/50 px-2.5 py-1">
+          <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" aria-hidden="true" />
           <span className="font-mono text-[9px] uppercase tracking-wider text-repixl-muted">
-            {connected ? 'Live' : error ? 'Offline' : 'Connecting…'}
+            {state.progress >= 100 ? 'Delivered' : 'On Schedule'}
           </span>
         </div>
       </div>
@@ -163,6 +160,7 @@ export function TrackingTimeline({ trackingNumber, initialState }: TrackingTimel
       {/* Current status description */}
       <div className="mt-5 rounded-xl border border-repixl-muted/10 bg-repixl-bg/40 px-4 py-3">
         <p className="font-mono text-[9px] uppercase tracking-wider text-repixl-muted">Status</p>
+        <p className="font-mono text-[9px] uppercase tracking-wider text-repixl-muted">Delivery Status</p>
         <p className="mt-1 text-sm font-medium text-repixl-text-light">{state.status}</p>
         <p className="mt-0.5 text-xs text-repixl-muted/80">{state.description}</p>
       </div>

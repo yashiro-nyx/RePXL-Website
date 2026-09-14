@@ -36,15 +36,6 @@ const CANVAS_HEIGHT = 200;
 export function TrackingMapCard({ order }: TrackingMapCardProps) {
   const [viewMode, setViewMode] = useState<'map' | 'details'>('map');
   const [copied, setCopied] = useState(false);
-  const [pulse, setPulse] = useState(0);
-
-  // Subtle radar pulse timer
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setPulse((p) => (p + 1) % 3);
-    }, 800);
-    return () => clearInterval(timer);
-  }, []);
 
   const destination = useMemo(() => {
     return resolveDestinationCoordinates(order.city, order.province, order.address);
@@ -104,7 +95,7 @@ export function TrackingMapCard({ order }: TrackingMapCardProps) {
         <View style={styles.titleRow}>
           <View style={[styles.pulseDot, isDelivered && styles.pulseDotDelivered]} />
           <View>
-            <Text style={styles.topTitle}>LIVE LOCATION TRACKING</Text>
+            <Text style={styles.topTitle}>DELIVERY ROUTE</Text>
             <Text style={styles.topSubtitle}>
               {order.courierName || 'RePXL Express'} • {order.orderNumber}
             </Text>
@@ -120,7 +111,7 @@ export function TrackingMapCard({ order }: TrackingMapCardProps) {
           >
             <Feather name="map" size={12} color={viewMode === 'map' ? '#fff' : '#888'} />
             <Text style={[styles.toggleBtnText, viewMode === 'map' && styles.toggleBtnTextActive]}>
-              Map
+              Route
             </Text>
           </TouchableOpacity>
 
@@ -131,7 +122,7 @@ export function TrackingMapCard({ order }: TrackingMapCardProps) {
           >
             <Feather name="list" size={12} color={viewMode === 'details' ? '#fff' : '#888'} />
             <Text style={[styles.toggleBtnText, viewMode === 'details' && styles.toggleBtnTextActive]}>
-              Hubs
+              Stops
             </Text>
           </TouchableOpacity>
         </View>
@@ -157,7 +148,7 @@ export function TrackingMapCard({ order }: TrackingMapCardProps) {
               {/* Map Background */}
               <Rect width="340" height="200" fill="url(#bgGrad)" rx="12" />
 
-              {/* Topographic / Grid lines */}
+              {/* Grid lines */}
               <Line x1="20" y1="50" x2="320" y2="50" stroke="rgba(255,255,255,0.03)" strokeWidth="1" />
               <Line x1="20" y1="100" x2="320" y2="100" stroke="rgba(255,255,255,0.03)" strokeWidth="1" />
               <Line x1="20" y1="150" x2="320" y2="150" stroke="rgba(255,255,255,0.03)" strokeWidth="1" />
@@ -197,7 +188,7 @@ export function TrackingMapCard({ order }: TrackingMapCardProps) {
                 fill="none"
               />
 
-              {/* 1. Origin Hub Pin (Parañaque) */}
+              {/* 1. Origin Fulfillment Center Pin (Parañaque) */}
               <G x={p0.x} y={p0.y}>
                 <Circle r="12" fill="#221f1d" stroke="#c62828" strokeWidth="2" />
                 <Circle r="4" fill="#c62828" />
@@ -209,11 +200,11 @@ export function TrackingMapCard({ order }: TrackingMapCardProps) {
                   fontWeight="600"
                   textAnchor="middle"
                 >
-                  Central Hub
+                  Fulfillment Center
                 </SvgText>
               </G>
 
-              {/* 2. Intermediate Sorting Facility Pin */}
+              {/* 2. Intermediate Distribution Facility Pin */}
               <G x={p1.x} y={p1.y}>
                 <Circle r="9" fill="#1c1917" stroke="#3b82f6" strokeWidth="1.5" />
                 <Circle r="3" fill="#60a5fa" />
@@ -224,11 +215,11 @@ export function TrackingMapCard({ order }: TrackingMapCardProps) {
                   fontSize="8"
                   textAnchor="middle"
                 >
-                  Sorting Hub
+                  Distribution Facility
                 </SvgText>
               </G>
 
-              {/* 3. Destination Customer Pin */}
+              {/* 3. Destination Pin */}
               <G x={p2.x} y={p2.y}>
                 <Circle r="11" fill="#1b2e1b" stroke="#22c55e" strokeWidth="2" />
                 <Circle r="4" fill="#22c55e" />
@@ -249,30 +240,18 @@ export function TrackingMapCard({ order }: TrackingMapCardProps) {
                   fontSize="7.5"
                   textAnchor="middle"
                 >
-                  Destination
+                  Delivery Address
                 </SvgText>
               </G>
 
               {/* 4. Moving Courier Vehicle Marker */}
               <G x={vehiclePos.x} y={vehiclePos.y}>
-                {/* Radar ripple rings */}
+                {/* Ambient glow halo */}
                 {!isDelivered && (
-                  <>
-                    <Circle
-                      r={14 + pulse * 4}
-                      fill="none"
-                      stroke="rgba(198,40,40,0.4)"
-                      strokeWidth="1.5"
-                      opacity={1 - pulse * 0.3}
-                    />
-                    <Circle
-                      r={20 + pulse * 5}
-                      fill="none"
-                      stroke="rgba(198,40,40,0.2)"
-                      strokeWidth="1"
-                      opacity={0.8 - pulse * 0.3}
-                    />
-                  </>
+                  <Circle
+                    r="18"
+                    fill="rgba(198,40,40,0.18)"
+                  />
                 )}
 
                 {/* Main Vehicle Circle */}
@@ -298,9 +277,9 @@ export function TrackingMapCard({ order }: TrackingMapCardProps) {
                 {/* Floating Courier Tooltip */}
                 <G y="-22">
                   <Rect
-                    x="-42"
+                    x="-46"
                     y="-11"
-                    width="84"
+                    width="92"
                     height="18"
                     rx="9"
                     fill="rgba(20,18,16,0.92)"
@@ -321,7 +300,7 @@ export function TrackingMapCard({ order }: TrackingMapCardProps) {
                       ? 'Out for Delivery'
                       : isInTransit
                       ? 'In Transit'
-                      : 'Preparing Gear'}
+                      : 'Preparing Package'}
                   </SvgText>
                 </G>
               </G>
@@ -335,29 +314,29 @@ export function TrackingMapCard({ order }: TrackingMapCardProps) {
                     {isDelivered
                       ? 'DELIVERED'
                       : isOutForDelivery
-                      ? 'NEARBY'
+                      ? 'OUT FOR DELIVERY'
                       : isInTransit
-                      ? 'ON THE ROAD'
-                      : 'WAREHOUSE'}
+                      ? 'IN TRANSIT'
+                      : 'PROCESSING'}
                   </Text>
                 </View>
                 <Text style={styles.mapDistText}>
-                  {isDelivered ? 'Arrived at address' : `${remainingKm} km away`}
+                  {isDelivered ? 'Arrived at address' : `${remainingKm} km remaining`}
                 </Text>
               </View>
             </View>
           </View>
         </>
       ) : (
-        /* ── Detailed Waypoints View ── */
+        /* ── Transit Checkpoints View ── */
         <View style={styles.waypointList}>
           <View style={styles.waypointItem}>
             <View style={styles.waypointDotActive}>
               <Feather name="check" size={10} color="#fff" />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={styles.waypointTitle}>RePXL Central Fulfillment Hub (Parañaque)</Text>
-              <Text style={styles.waypointSub}>Origin • Inspected & Verified</Text>
+              <Text style={styles.waypointTitle}>RePXL Fulfillment Center (Parañaque)</Text>
+              <Text style={styles.waypointSub}>Origin • Inspected & Dispatched</Text>
             </View>
           </View>
 
@@ -372,7 +351,7 @@ export function TrackingMapCard({ order }: TrackingMapCardProps) {
             </View>
             <View style={{ flex: 1 }}>
               <Text style={styles.waypointTitle}>{sortingFacility.name}</Text>
-              <Text style={styles.waypointSub}>Regional Hub • Sorting & Dispatch</Text>
+              <Text style={styles.waypointSub}>Distribution Facility • In Transit</Text>
             </View>
           </View>
 
@@ -388,7 +367,7 @@ export function TrackingMapCard({ order }: TrackingMapCardProps) {
             <View style={{ flex: 1 }}>
               <Text style={styles.waypointTitle}>Local Delivery Courier</Text>
               <Text style={styles.waypointSub}>
-                {order.courierName || 'RePXL Logistics Express'} • Last-mile transport
+                {order.courierName || 'RePXL Express Courier'} • Out for delivery
               </Text>
             </View>
           </View>
@@ -400,38 +379,44 @@ export function TrackingMapCard({ order }: TrackingMapCardProps) {
             <View style={{ flex: 1 }}>
               <Text style={styles.waypointTitle}>{order.address || destination.name}</Text>
               <Text style={styles.waypointSub}>
-                Destination • {destination.name}, {destination.region}
+                Delivery Address • {destination.name}, {destination.region}
               </Text>
             </View>
           </View>
         </View>
       )}
 
-      {/* ── Telemetry HUD Grid ── */}
+      {/* ── Realistic Shipping Details Grid ── */}
       <View style={styles.hudGrid}>
         <View style={styles.hudCol}>
-          <Text style={styles.hudLabel}>DISPATCH HUB</Text>
+          <Text style={styles.hudLabel}>CARRIER</Text>
           <Text style={styles.hudValue} numberOfLines={1}>
-            Parañaque Hub
+            {order.courierName || 'RePXL Express'}
           </Text>
         </View>
 
         <View style={styles.hudCol}>
-          <Text style={styles.hudLabel}>SORTING STATION</Text>
+          <Text style={styles.hudLabel}>STATUS</Text>
           <Text style={styles.hudValue} numberOfLines={1}>
-            {sortingFacility.name.split('(')[0]}
+            {isDelivered
+              ? 'Delivered'
+              : isOutForDelivery
+              ? 'Out for Delivery'
+              : isInTransit
+              ? 'In Transit'
+              : 'Processing'}
           </Text>
         </View>
 
         <View style={styles.hudCol}>
-          <Text style={styles.hudLabel}>DESTINATION</Text>
+          <Text style={styles.hudLabel}>DELIVERY TO</Text>
           <Text style={styles.hudValue} numberOfLines={1}>
             {destination.name}
           </Text>
         </View>
 
         <View style={styles.hudCol}>
-          <Text style={styles.hudLabel}>ESTIMATED ETA</Text>
+          <Text style={styles.hudLabel}>ESTIMATED</Text>
           <Text style={[styles.hudValue, { color: '#fbbf24' }]} numberOfLines={1}>
             {eta.etaText.replace('Estimated ', '')}
           </Text>
@@ -451,7 +436,7 @@ export function TrackingMapCard({ order }: TrackingMapCardProps) {
           activeOpacity={0.8}
         >
           <Feather name={copied ? 'check' : 'copy'} size={12} color="#fff" />
-          <Text style={styles.copyBtnText}>{copied ? 'Copied' : 'Copy Waybill'}</Text>
+          <Text style={styles.copyBtnText}>{copied ? 'Copied' : 'Copy Tracking #'}</Text>
         </TouchableOpacity>
       </View>
     </View>

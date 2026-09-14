@@ -232,13 +232,13 @@ export function TrackingMap({ status, progress, order }: TrackingMapProps) {
         <div className="flex items-center gap-2.5">
           <span
             className={`h-2.5 w-2.5 rounded-full ${
-              isDelivered ? 'bg-emerald-500' : 'animate-pulse bg-repixl-red'
+              isDelivered ? 'bg-emerald-500' : 'bg-repixl-red'
             }`}
             aria-hidden="true"
           />
           <div>
             <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-repixl-text-light">
-              Live Location Tracking
+              Delivery Route
             </p>
             <p className="text-[11px] text-repixl-muted">
               {order?.courierName || 'RePXL Express Courier'} •{' '}
@@ -249,66 +249,50 @@ export function TrackingMap({ status, progress, order }: TrackingMapProps) {
           </div>
         </div>
 
-        {/* Quick controls */}
+        {/* Map controls */}
         <div className="flex items-center gap-2">
           <button
             type="button"
             onClick={() => setTargetAction('fit')}
-            className="rounded-md border border-repixl-muted/20 bg-repixl-charcoal/80 px-2.5 py-1 font-mono text-[10px] uppercase tracking-wider text-repixl-muted transition hover:border-repixl-muted/50 hover:text-repixl-text-light"
-            title="Fit complete delivery route"
+            className="rounded-lg border border-repixl-muted/20 bg-repixl-charcoal/80 px-3 py-1 font-mono text-[10px] uppercase tracking-wider text-repixl-muted transition hover:border-repixl-muted/40 hover:text-repixl-text-light"
+            title="Reset map view"
           >
-            Fit Route
-          </button>
-          <button
-            type="button"
-            onClick={() => setTargetAction('courier')}
-            className="rounded-md border border-repixl-muted/20 bg-repixl-charcoal/80 px-2.5 py-1 font-mono text-[10px] uppercase tracking-wider text-repixl-muted transition hover:border-repixl-muted/50 hover:text-repixl-text-light"
-            title="Center on package / courier location"
-          >
-            Courier
-          </button>
-          <button
-            type="button"
-            onClick={() => setTargetAction('dest')}
-            className="rounded-md border border-repixl-muted/20 bg-repixl-charcoal/80 px-2.5 py-1 font-mono text-[10px] uppercase tracking-wider text-repixl-muted transition hover:border-repixl-muted/50 hover:text-repixl-text-light"
-            title="Center on customer delivery address"
-          >
-            Destination
+            Reset View
           </button>
         </div>
       </div>
 
-      {/* ── Delivery Telemetry HUD Bar ── */}
+      {/* ── Delivery Info Bar ── */}
       <div className="grid grid-cols-2 gap-2 border-b border-repixl-muted/15 bg-repixl-charcoal/95 p-3 sm:grid-cols-4">
-        {/* Origin */}
+        {/* Carrier */}
         <div className="rounded-lg bg-repixl-bg/50 p-2.5">
-          <p className="font-mono text-[9px] uppercase tracking-widest text-repixl-muted">Fulfillment Hub</p>
-          <p className="truncate text-xs font-semibold text-repixl-text-light">Parañaque Main Hub</p>
-          <p className="font-mono text-[9px] text-emerald-400/80">Dispatched & Certified</p>
+          <p className="font-mono text-[9px] uppercase tracking-widest text-repixl-muted">Carrier</p>
+          <p className="truncate text-xs font-semibold text-repixl-text-light">{order?.courierName || 'Standard Delivery'}</p>
+          <p className="font-mono text-[9px] text-repixl-muted">Ground Express</p>
         </div>
 
-        {/* Sorting Station */}
+        {/* Status */}
         <div className="rounded-lg bg-repixl-bg/50 p-2.5">
-          <p className="font-mono text-[9px] uppercase tracking-widest text-repixl-muted">Sorting Hub</p>
-          <p className="truncate text-xs font-semibold text-repixl-text-light">{sortingFacility.name.split('(')[0]}</p>
-          <p className="font-mono text-[9px] text-blue-400/80">{progress >= 50 ? 'Processed' : 'En route'}</p>
+          <p className="font-mono text-[9px] uppercase tracking-widest text-repixl-muted">Delivery Status</p>
+          <p className="truncate text-xs font-semibold text-repixl-text-light">{status || 'In Transit'}</p>
+          <p className="font-mono text-[9px] text-emerald-400/80">{isDelivered ? 'Delivered' : 'On Schedule'}</p>
         </div>
 
         {/* Destination */}
         <div className="rounded-lg bg-repixl-bg/50 p-2.5">
-          <p className="font-mono text-[9px] uppercase tracking-widest text-repixl-muted">Destination</p>
+          <p className="font-mono text-[9px] uppercase tracking-widest text-repixl-muted">Shipping Address</p>
           <p className="truncate text-xs font-semibold text-repixl-text-light">{destination.name}</p>
           <p className="truncate font-mono text-[9px] text-repixl-muted">
-            {order?.address ? `${order.address}` : `${destination.name}, ${destination.region}`}
+            {order?.address ? order.address : `${destination.name}, ${destination.region}`}
           </p>
         </div>
 
         {/* Status / ETA */}
         <div className="rounded-lg bg-repixl-bg/50 p-2.5">
-          <p className="font-mono text-[9px] uppercase tracking-widest text-repixl-muted">Delivery ETA</p>
-          <p className="truncate text-xs font-semibold text-amber-400">{eta.etaText}</p>
+          <p className="font-mono text-[9px] uppercase tracking-widest text-repixl-muted">Estimated Delivery</p>
+          <p className="truncate text-xs font-semibold text-amber-400">{eta.etaText.replace('Estimated ', '')}</p>
           <p className="font-mono text-[9px] text-repixl-muted">
-            {isDelivered ? '0 km remaining' : `${remainingDistanceKm} km from destination`}
+            {isDelivered ? 'Delivered to address' : 'In transit'}
           </p>
         </div>
       </div>
@@ -357,7 +341,7 @@ export function TrackingMap({ status, progress, order }: TrackingMapProps) {
             <Tooltip direction="top" offset={[0, -18]} permanent={false}>
               <div style={{ padding: '2px 4px', color: '#111' }}>
                 <p style={{ margin: 0, fontWeight: 700, fontSize: '11px' }}>{REPIXL_CENTRAL_HUB_NAME}</p>
-                <p style={{ margin: 0, fontSize: '10px', color: '#666' }}>Dispatch & Authenticity Lab</p>
+                <p style={{ margin: 0, fontSize: '10px', color: '#666' }}>Dispatch Facility</p>
               </div>
             </Tooltip>
           </Marker>
@@ -366,8 +350,8 @@ export function TrackingMap({ status, progress, order }: TrackingMapProps) {
           <Marker position={sortingFacility.coords} icon={sortingFacilityIcon}>
             <Tooltip direction="top" offset={[0, -15]} permanent={false}>
               <div style={{ padding: '2px 4px', color: '#111' }}>
-                <p style={{ margin: 0, fontWeight: 700, fontSize: '11px' }}>{sortingFacility.name}</p>
-                <p style={{ margin: 0, fontSize: '10px', color: '#666' }}>Regional Logistics Hub</p>
+                <p style={{ margin: 0, fontWeight: 700, fontSize: '11px' }}>{sortingFacility.name.split('(')[0].trim()}</p>
+                <p style={{ margin: 0, fontSize: '10px', color: '#666' }}>Distribution Facility</p>
               </div>
             </Tooltip>
           </Marker>
@@ -377,14 +361,14 @@ export function TrackingMap({ status, progress, order }: TrackingMapProps) {
             <Tooltip direction="top" offset={[0, -20]} permanent>
               <div style={{ padding: '3px 6px', color: '#111' }}>
                 <p style={{ margin: 0, fontWeight: 700, fontSize: '11px', color: '#c22c2c' }}>
-                  {isDelivered ? '📦 Package Delivered' : isPreparing ? '🏭 Gear Being Packaged' : '🚚 Courier in Transit'}
+                  {isDelivered ? 'Package Delivered' : isPreparing ? 'Order Processed' : 'Courier En Route'}
                 </p>
                 <p style={{ margin: 0, fontSize: '10px', color: '#444' }}>
                   {isDelivered
-                    ? 'Delivered at Doorstep'
+                    ? 'Delivered to address'
                     : isPreparing
-                    ? 'Serial verification complete'
-                    : `${remainingDistanceKm} km to ${destination.name}`}
+                    ? 'Ready for dispatch'
+                    : `In transit to ${destination.name}`}
                 </p>
               </div>
             </Tooltip>
@@ -394,7 +378,7 @@ export function TrackingMap({ status, progress, order }: TrackingMapProps) {
           <Marker position={destination.coords} icon={destinationIcon}>
             <Tooltip direction="top" offset={[0, -25]} permanent>
               <div style={{ padding: '2px 6px', color: '#111' }}>
-                <p style={{ margin: 0, fontWeight: 700, fontSize: '11px' }}>🏠 Delivery Address</p>
+                <p style={{ margin: 0, fontWeight: 700, fontSize: '11px' }}>Delivery Address</p>
                 <p style={{ margin: 0, fontSize: '10px', color: '#555' }}>
                   {order?.address || destination.name}
                 </p>
@@ -412,11 +396,13 @@ export function TrackingMap({ status, progress, order }: TrackingMapProps) {
 
         {/* Map Bottom Status Badge */}
         <div className="pointer-events-none absolute bottom-3 left-3 z-[1000] flex items-center gap-2 rounded-lg border border-repixl-muted/20 bg-repixl-charcoal/90 px-3 py-1.5 backdrop-blur-sm">
-          <span className="h-2 w-2 rounded-full bg-emerald-400" />
+          <span className={`h-2 w-2 rounded-full ${isDelivered ? 'bg-emerald-400' : 'bg-amber-400'}`} />
           <span className="font-mono text-[10px] text-repixl-text-light/90">
             {isDelivered
-              ? 'Completed • Delivery Confirmed'
-              : `${progress}% Completed • ${eta.badge}`}
+              ? 'Delivered'
+              : isPreparing
+              ? 'Order Processed • Awaiting Pickup'
+              : 'In Transit • On Schedule'}
           </span>
         </div>
 

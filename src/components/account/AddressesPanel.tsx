@@ -15,6 +15,32 @@ const PHAddressSelect = dynamic(
   { ssr: false, loading: () => <div className="h-28 animate-pulse rounded-xl bg-repixl-charcoal/40" /> }
 )
 
+function AddressesSkeleton() {
+  return (
+    <div className="rounded-xl border border-repixl-muted/10 bg-repixl-charcoal p-6 animate-pulse" role="status" aria-label="Loading addresses">
+      <div className="mb-5 flex items-center justify-between">
+        <div>
+          <div className="h-3 w-16 rounded bg-repixl-muted/15" />
+          <div className="mt-1.5 h-6 w-36 rounded bg-repixl-muted/25" />
+        </div>
+        <div className="h-9 w-28 rounded-lg bg-repixl-muted/15" />
+      </div>
+      <div className="space-y-3">
+        {[1, 2].map((i) => (
+          <div key={i} className="rounded-lg border border-repixl-muted/10 bg-repixl-bg p-4 space-y-2.5">
+            <div className="flex items-center justify-between">
+              <div className="h-4 w-32 rounded bg-repixl-muted/20" />
+              <div className="h-4 w-12 rounded-full bg-repixl-muted/15" />
+            </div>
+            <div className="h-3 w-64 rounded bg-repixl-muted/15" />
+            <div className="h-3 w-24 rounded bg-repixl-muted/10" />
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 export default function AddressesPanel() {
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState(false)
@@ -54,7 +80,7 @@ export default function AddressesPanel() {
     }
   }
 
-  if (loading) return <p role="status" className="text-repixl-muted">Loading addresses…</p>
+  if (loading) return <AddressesSkeleton />
   if (loadError) return <p role="alert" className="text-red-400">Unable to load addresses. Please refresh to retry.</p>
 
   const editingAddress = editingId ? addresses.find((a) => a.id === editingId) : undefined
