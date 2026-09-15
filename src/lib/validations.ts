@@ -93,6 +93,25 @@ export const createOrderSchema = z.object({
   selectedProductIds: z.array(z.string().min(1)).min(1, 'Select at least one item').optional(),
 })
 
+export const processPaymentSchema = createOrderSchema.extend({
+  phone: z.string().optional(),
+  returnUrl: z.string().optional(),
+  card: z
+    .object({
+      cardNumber: z.string().min(12, 'Valid card number is required'),
+      expMonth: z.number().int().min(1).max(12),
+      expYear: z.number().int(),
+      cvc: z.string().min(3).max(4),
+      cardholderName: z.string().optional(),
+    })
+    .optional(),
+  gcash: z
+    .object({
+      phone: z.string().min(10, 'Valid GCash phone number is required'),
+    })
+    .optional(),
+})
+
 export const updateOrderStatusSchema = z
   .object({
     status: z

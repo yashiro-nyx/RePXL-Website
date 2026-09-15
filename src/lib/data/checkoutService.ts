@@ -71,4 +71,47 @@ export async function startPaymentIntent(input: {
   return apiClient.post<PaymentIntentResponse>('/api/checkout/payment-intent', input)
 }
 
+export interface ProcessPaymentInput {
+  fullName: string
+  address: string
+  barangay?: string
+  city: string
+  province?: string
+  postalCode: string
+  phone?: string
+  courierName: string
+  courierEstimate: string
+  paymentMethod: string
+  voucherCode?: string | null
+  shippingCost: number
+  selectedProductIds?: string[]
+  card?: {
+    cardNumber: string
+    expMonth: number
+    expYear: number
+    cvc: string
+    cardholderName?: string
+  }
+  gcash?: {
+    phone: string
+  }
+  returnUrl?: string
+}
+
+export interface ProcessPaymentResponse {
+  success: boolean
+  orderNumber: string
+  isPaid: boolean
+  status: string
+  nextActionUrl?: string
+  intentId?: string
+  message?: string
+}
+
+export async function processPayment(
+  input: ProcessPaymentInput
+): Promise<ProcessPaymentResponse> {
+  return apiClient.post<ProcessPaymentResponse>('/api/checkout/process-payment', input)
+}
+
 export type { Order }

@@ -18,7 +18,7 @@ import { useAddressStore } from '@/stores/addressStore'
 import { useRevealAnimation } from '@/hooks/useRevealAnimation'
 import { useFilteredInput, nameChars, digitsOnly } from '@/hooks/useFilteredInput'
 import { validatePHPhone } from '@/components/ui/PhoneInput'
-import { isPaymongoEnabled, startPaymentIntent } from '@/lib/data/checkoutService'
+import { isPaymongoEnabled, startPaymentIntent, processPayment } from '@/lib/data/checkoutService'
 import { usePaymentProcessor } from '@/components/checkout/PaymentProcessor'
 import { CardNumberInput } from '@/components/ui/CardNumberInput'
 import { CardExpiryInput } from '@/components/ui/CardExpiryInput'
@@ -340,85 +340,68 @@ export default function CheckoutPage() {
     setPaymentError(null)
 
 
-    // ── Embedded PIPM flow ──
-    if (isPaymongoEnabled() && paymentMethod !== 'cod') {
-      try {
-        const { clientKey, intentId, orderNumber } = await startPaymentIntent({
-          fullName,
-          address: streetAddress,
-          barangay: phAddr.barangay,
-          city: phAddr.city,
-          province: phAddr.province,
-          postalCode,
-          courierName: courier.name,
-          courierEstimate: courier.estimate,
-          paymentMethod: paymentLabels[paymentMethod],
-          shippingCost: courier.price,
-          // Pass selected product slugs so the server creates the order from
-          // ONLY these items — not the customer's entire DB cart.
-          selectedProductIds: cartItems.map((i) => i.product.slug),
-        })
-
-        const pmTypeMap: Record<PaymentMethod, string> = {
-          card: 'card',
-          gcash: 'gcash',
-          paypal: 'card',
-          cod: 'card',
-        }
-        const siteUrl = process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, '') ?? 'http://localhost:3000'
-        const returnUrl = `${siteUrl}/checkout/success?order=${orderNumber}`
-
-        await startPayment({
-          intentId,
-          clientKey,
-          orderNumber,
-          returnUrl,
-          type: pmTypeMap[paymentMethod] as 'card' | 'gcash' | 'grab_pay' | 'paymaya',
-          card: paymentMethod === 'card' ? {
-            cardNumber,
-            expMonth: (() => {
-              const raw = cardExpiry.replace(/\s/g, '')
-              return parseInt(raw.split('/')[0] ?? '1', 10)
-            })(),
-            expYear: (() => {
-              const raw = cardExpiry.replace(/\s/g, '')
-              const yy = parseInt(raw.split('/')[1] ?? '30', 10)
-              return yy < 100 ? yy + 2000 : yy
-            })(),
-            cvc: cardCvc,
-            cardholderName: get('cardholder-name') || fullName,
-            billingEmail: email,
-            billingPhone: phone,
-          } : undefined,
-        })
-        return
-      } catch (err) {
-        console.warn('Payment gateway unavailable, proceeding with built-in direct order placement:', err)
-      }
-    }
-
-    // Direct built-in checkout
-    const orderData = {
-      shippingCost: courier.price,
-      courierName: courier.name,
-      courierEstimate: courier.estimate,
-      paymentMethod: paymentLabels[paymentMethod],
-      fullName,
-      address: streetAddress,
-      barangay: phAddr.barangay,
-      city: phAddr.city,
-      province: phAddr.province,
-      postalCode,
-      selectedProductIds: cartItems.map((i) => i.product.slug),
-    }
     try {
-      const created = await addOrder(orderData)
-      // The order API already clears purchased cart items. Refresh for display;
-      // a refresh failure must not cause an already-confirmed order to be retried.
+      const expMonth = (() => {
+        const raw = cardExpiry.replace(/\s/g, '')
+        return parseInt(raw.split('/')[0] ?? '1', 10)
+      })()
+      const expYear = (() => {
+        const raw = cardExpiry.replace(/\s/g, '')
+        const yy = parseInt(raw.split('/')[1] ?? '30', 10)
+        return yy < 100 ? yy + 2000 : yy
+      })()
+
+      const res = await processPayment({
+        fullName,
+        address: streetAddress,
+        barangay: phAddr.barangay,
+        city: phAddr.city,
+        province: phAddr.province,
+        postalCode,
+        phone,
+        courierName: courier.name,
+        courierEstimate: courier.estimate,
+        paymentMethod: paymentLabels[paymentMethod],
+        shippingCost: courier.price,
+        selectedProductIds: cartItems.map((i) => i.product.slug),
+        card:
+          paymentMethod === 'card'
+            ? {
+                cardNumber: cardNumber.replace(/\s/g, ''),
+                expMonth,
+                expYear,
+                cvc: cardCvc,
+                cardholderName: get('cardholder-name') || fullName,
+              }
+            : undefined,
+        gcash:
+          paymentMethod === 'gcash'
+            ? {
+                phone,
+              }
+            : undefined,
+        returnUrl: typeof window !== 'undefined' ? `${window.location.origin}/checkout/success` : undefined,
+      })
+
+      if (res.isPaid || res.status === 'PAID' || res.status === 'PROCESSING') {
+        await useCartStore.getState().hydrate()
+        router.push(`/checkout/success?order=${encodeURIComponent(res.orderNumber)}`)
+        return
+      }
+
+      if (res.status === 'AWAITING_NEXT_ACTION' && res.nextActionUrl) {
+        window.location.href = res.nextActionUrl
+        return
+      }
+
       await useCartStore.getState().hydrate()
-      router.push(`/checkout/success?order=${encodeURIComponent(created.orderNumber)}`)
-    } catch {
-      setPaymentError('We could not confirm your order. Check your order history before trying again.')
+      router.push(`/checkout/success?order=${encodeURIComponent(res.orderNumber)}`)
+    } catch (err) {
+      setPaymentError(
+        err instanceof Error
+          ? err.message
+          : 'We could not confirm your order. Check your order history before trying again.'
+      )
     } finally {
       setSubmitting(false)
     }

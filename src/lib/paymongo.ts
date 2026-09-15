@@ -118,6 +118,103 @@ export async function retrievePaymentIntent(id: string): Promise<PaymentIntent> 
   return res.data
 }
 
+// ─── Payment Methods & Attaching ───────────────────────────────────────────────
+
+export interface CreateCardPaymentMethodInput {
+  type: 'card'
+  card: {
+    cardNumber: string
+    expMonth: number
+    expYear: number
+    cvc: string
+  }
+  billing?: {
+    name?: string
+    email?: string
+    phone?: string
+    address?: {
+      line1?: string
+      city?: string
+      state?: string
+      postal_code?: string
+      country?: string
+    }
+  }
+  metadata?: Record<string, string>
+}
+
+export interface CreateWalletPaymentMethodInput {
+  type: 'gcash' | 'paymaya' | 'grab_pay'
+  billing?: {
+    name?: string
+    email?: string
+    phone?: string
+  }
+  metadata?: Record<string, string>
+}
+
+export type CreatePaymentMethodInput =
+  | CreateCardPaymentMethodInput
+  | CreateWalletPaymentMethodInput
+
+export interface PaymentMethodResponse {
+  id: string
+  type: string
+  attributes?: Record<string, unknown>
+}
+
+export async function createPaymentMethod(
+  input: CreatePaymentMethodInput
+): Promise<PaymentMethodResponse> {
+  const attributes: Record<string, unknown> = {
+    type: input.type,
+    billing: input.billing ?? {},
+    metadata: input.metadata,
+  }
+
+  if (input.type === 'card') {
+    attributes.details = {
+      card_number: input.card.cardNumber.replace(/\s/g, ''),
+      exp_month: input.card.expMonth,
+      exp_year: input.card.expYear,
+      cvc: input.card.cvc,
+    }
+  }
+
+  const res = await paymongoRequest<{ data: PaymentMethodResponse }>(
+    '/payment_methods',
+    'POST',
+    { data: { attributes } }
+  )
+  return res.data
+}
+
+export interface AttachPaymentMethodInput {
+  paymentMethodId: string
+  clientKey: string
+  returnUrl?: string
+}
+
+export async function attachPaymentMethod(
+  intentId: string,
+  input: AttachPaymentMethodInput
+): Promise<PaymentIntent> {
+  const res = await paymongoRequest<{ data: PaymentIntent }>(
+    `/payment_intents/${intentId}/attach`,
+    'POST',
+    {
+      data: {
+        attributes: {
+          payment_method: input.paymentMethodId,
+          client_key: input.clientKey,
+          return_url: input.returnUrl,
+        },
+      },
+    }
+  )
+  return res.data
+}
+
 // ─── Checkout Sessions ──────────────────────────────────────────────────────────
 
 export interface CheckoutLineItem {

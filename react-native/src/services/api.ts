@@ -386,6 +386,44 @@ export const api = {
       selectedProductIds,
     }),
   }),
+  processPayment: (payload: {
+    fullName: string;
+    address: string;
+    barangay?: string;
+    city: string;
+    province?: string;
+    postalCode: string;
+    phone?: string;
+    courierName: string;
+    courierEstimate: string;
+    paymentMethod: string;
+    voucherCode?: string | null;
+    shippingCost: number;
+    selectedProductIds?: string[];
+    card?: {
+      cardNumber: string;
+      expMonth: number;
+      expYear: number;
+      cvc: string;
+      cardholderName?: string;
+    };
+    gcash?: {
+      phone: string;
+    };
+    returnUrl?: string;
+  }) =>
+    authorized<{
+      success: boolean;
+      orderNumber: string;
+      isPaid: boolean;
+      status: string;
+      nextActionUrl?: string;
+      intentId?: string;
+      message?: string;
+    }>('/api/checkout/process-payment', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
   verifyCheckout: (orderNumber: string) =>
     authorized<{
       orderNumber: string;

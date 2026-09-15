@@ -210,63 +210,79 @@ export default function CheckoutScreen() {
           : 'Cash on Delivery';
 
     try {
-      if (payMethod === 'card' || payMethod === 'gcash') {
-        try {
-          const session = await api.checkout(
-            selectedAddress,
-            checkoutItems.map((item) => item.product.slug),
-            payMethod,
-            voucherCode,
-            selectedCourier.price,
-            selectedCourier.name,
-            selectedCourier.estimate
-          );
+      const [monthStr, yearStr] = cardExpiry.split('/');
+      const expMonth = parseInt(monthStr ?? '1', 10);
+      const rawYear = parseInt(yearStr ?? '30', 10);
+      const expYear = rawYear < 100 ? rawYear + 2000 : rawYear;
 
-          if (session?.checkoutUrl) {
-            // Open PayMongo Hosted Checkout in in-app browser
-            await WebBrowser.openBrowserAsync(session.checkoutUrl);
-
-            // Reconcile payment status upon returning
-            try {
-              await api.verifyCheckout(session.orderNumber);
-            } catch {
-              // Non-fatal, order detail fetch will also auto-reconcile
-            }
-
-            await refreshAccount();
-            router.replace({
-              pathname: '/order-confirm',
-              params: { orderNumber: session.orderNumber },
-            });
-            return;
-          }
-        } catch (err) {
-          console.warn('PayMongo hosted checkout session failed, falling back to direct order:', err);
-        }
-      }
-
-      const order = await api.createOrder({
+      const res = await api.processPayment({
         fullName: selectedAddress.fullName,
         address: selectedAddress.address,
         barangay: selectedAddress.barangay,
         city: selectedAddress.city,
         province: selectedAddress.province,
         postalCode: selectedAddress.postalCode,
+        phone: selectedAddress.phone,
         courierName: selectedCourier.name,
         courierEstimate: selectedCourier.estimate,
         paymentMethod: paymentLabel,
         voucherCode,
         shippingCost: selectedCourier.price,
         selectedProductIds: checkoutItems.map((item) => item.product.slug),
+        card:
+          payMethod === 'card'
+            ? {
+                cardNumber: cardNumber.replace(/\s/g, ''),
+                expMonth,
+                expYear,
+                cvc: cardCvc,
+                cardholderName: cardholderName.trim() || selectedAddress.fullName,
+              }
+            : undefined,
+        gcash:
+          payMethod === 'gcash'
+            ? {
+                phone: gcashPhone.replace(/\D/g, ''),
+              }
+            : undefined,
       });
 
+      if (res.isPaid || res.status === 'PROCESSING' || res.status === 'PAID') {
+        // Direct order completion (card paid, COD placed, or demo flow)
+        await refreshAccount();
+        router.replace({
+          pathname: '/order-confirm',
+          params: { orderNumber: res.orderNumber },
+        });
+        return;
+      }
+
+      if (res.status === 'AWAITING_NEXT_ACTION' && res.nextActionUrl) {
+        // 3DS OTP verification or GCash authorization prompt
+        await WebBrowser.openBrowserAsync(res.nextActionUrl);
+
+        try {
+          await api.verifyCheckout(res.orderNumber);
+        } catch {
+          // Non-fatal, order detail fetch also auto-reconciles
+        }
+
+        await refreshAccount();
+        router.replace({
+          pathname: '/order-confirm',
+          params: { orderNumber: res.orderNumber },
+        });
+        return;
+      }
+
+      // Default fallback
       await refreshAccount();
       router.replace({
         pathname: '/order-confirm',
-        params: { orderNumber: order.orderNumber },
+        params: { orderNumber: res.orderNumber },
       });
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : 'Unable to complete checkout. Please try again.');
+      setError(reason instanceof Error ? reason.message : 'Unable to complete checkout. Please check your details and try again.');
     } finally {
       setSubmitting(false);
     }
