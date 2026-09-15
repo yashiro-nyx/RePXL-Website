@@ -42,7 +42,7 @@ export default function LoginScreen() {
     setGoogleSubmitting(true);
     setError('');
     try {
-      const result = await signInWithGoogle('login');
+      const result = await signInWithGoogle('auto');
       if (result.cancelled) return;
       if (result.mfaRequired && result.challenge) {
         setChallenge(result.challenge);

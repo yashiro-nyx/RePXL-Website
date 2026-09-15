@@ -50,7 +50,7 @@ export default function SignupScreen() {
     setGoogleSubmitting(true);
     setError('');
     try {
-      const result = await signInWithGoogle('register');
+      const result = await signInWithGoogle('auto');
       if (result.cancelled) return;
       if (result.mfaRequired && result.challenge) {
         router.replace('/login');

@@ -1,5 +1,5 @@
 import { deductInventory, InsufficientStockError } from '@/lib/purchase-finalization'
-import { expireOverduePendingOrders } from '@/lib/order-payment-expiry'
+import { expireOverduePendingOrders } from '@/lib/order-payment-expiry-server'
 import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import {

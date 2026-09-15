@@ -121,7 +121,11 @@ async function request<T>(path: string, init: RequestInit = {}, timeoutMs = DEFA
     clearTimeout(timer);
     const body = (await response.json().catch(() => null)) as ApiEnvelope<T> | null;
     if (!response.ok || !body?.success || body.data === undefined) {
-      throw new ApiError(body?.error ?? `Request failed (${response.status})`, response.status);
+      const fallback =
+        response.status === 404
+          ? `Server route not found (${response.status}: ${path}). Please ensure the server has the latest deployment.`
+          : `Request failed (${response.status})`;
+      throw new ApiError(body?.error ?? fallback, response.status);
     }
     return body.data;
   } catch (error: any) {

@@ -15,7 +15,7 @@ vi.mock('@/lib/purchase-finalization', () => ({
   InsufficientStockError: class InsufficientStockError extends Error {},
 }))
 
-vi.mock('@/lib/order-payment-expiry', () => ({
+vi.mock('@/lib/order-payment-expiry-server', () => ({
   expireOverduePendingOrders: vi.fn().mockResolvedValue(0),
 }))
 

@@ -163,7 +163,7 @@ describe('order-payment-expiry', () => {
         },
       } as any
 
-      const { expireOverduePendingOrders } = await import('./order-payment-expiry')
+      const { expireOverduePendingOrders } = await import('./order-payment-expiry-server')
       const count = await expireOverduePendingOrders(mockPrisma)
       expect(count).toBe(0)
     })
@@ -195,7 +195,7 @@ describe('order-payment-expiry', () => {
         $transaction: vi.fn().mockImplementation(async (cb) => cb(mockTx)),
       } as any
 
-      const { expireOverduePendingOrders } = await import('./order-payment-expiry')
+      const { expireOverduePendingOrders } = await import('./order-payment-expiry-server')
       const count = await expireOverduePendingOrders(mockPrisma)
 
       expect(count).toBe(1)
