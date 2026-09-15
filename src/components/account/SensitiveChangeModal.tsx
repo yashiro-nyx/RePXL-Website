@@ -238,7 +238,7 @@ export function SensitiveChangeModal({
       aria-modal="true"
       aria-label={`Change ${label}`}
     >
-      <div className="w-full max-w-md rounded-2xl border border-repixl-muted/10 bg-repixl-bg shadow-2xl">
+      <div className="max-h-[calc(100dvh-2rem)] w-full max-w-md overflow-y-auto rounded-2xl border border-repixl-muted/10 bg-repixl-bg shadow-2xl">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-repixl-muted/10 px-6 py-4">
           <h2 className="font-display text-base font-semibold text-repixl-text-light">

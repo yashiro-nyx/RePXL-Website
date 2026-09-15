@@ -154,7 +154,7 @@ html:has(.burn-minimal) {
   top: 18%;
   transform: translateX(-50%);
   color: rgba(255, 246, 242, 0.10);
-  font-size: clamp(5.75rem, 30vw, 7.25rem);
+  font-size: clamp(4.5rem, 25vw, 7.25rem);
   -webkit-text-stroke: 1.25px rgba(255, 246, 242, 0.30);
   text-shadow: 0 12px 44px rgba(0, 0, 0, 0.18);
 }
@@ -309,6 +309,133 @@ html:has(.burn-minimal) {
   .hero-content {
     padding-inline: clamp(4rem, 7vw, 6rem);
     padding-bottom: clamp(4.5rem, 9vh, 6.5rem);
+  }
+}
+
+/* Homepage deal banner: one mountain scene relit around a shared phone mockup. */
+.deal-banner {
+  --deal-text: #f5f1ec;
+  --deal-copy-muted: rgba(245, 241, 236, 0.76);
+  --deal-detail: rgba(245, 241, 236, 0.24);
+  --deal-accent: #dc3b38;
+  border-color: rgba(220, 59, 56, 0.2);
+  background: #100607;
+  color: var(--deal-text);
+  isolation: isolate;
+}
+
+.deal-banner-mountain {
+  object-position: 52% 48%;
+  opacity: 0.9;
+  filter: saturate(0.82) contrast(1.08) brightness(0.8);
+  transform: scale(1.025);
+}
+
+.deal-banner-atmosphere {
+  background:
+    radial-gradient(circle at 72% 48%, rgba(196, 37, 35, 0.22), transparent 34%),
+    linear-gradient(90deg, rgba(10, 4, 5, 0.98) 0%, rgba(13, 5, 6, 0.9) 32%, rgba(14, 5, 7, 0.4) 58%, rgba(8, 3, 4, 0.12) 100%),
+    linear-gradient(180deg, rgba(8, 3, 4, 0.15), transparent 46%, rgba(8, 3, 4, 0.52));
+}
+
+.deal-banner-wordmark {
+  color: transparent;
+  -webkit-text-stroke: 1px rgba(245, 241, 236, 0.09);
+  opacity: 0.9;
+}
+
+.deal-banner-viewfinder {
+  color: var(--deal-detail);
+}
+
+.deal-banner-copy {
+  color: var(--deal-text);
+  text-shadow: 0 2px 18px rgba(0, 0, 0, 0.5);
+}
+
+.deal-banner-copy > div:first-child {
+  color: var(--deal-accent);
+}
+
+.deal-banner-copy p {
+  color: var(--deal-copy-muted);
+}
+
+.deal-banner-phone {
+  filter:
+    drop-shadow(-20px 18px 30px rgba(0, 0, 0, 0.58))
+    drop-shadow(0 0 30px rgba(181, 35, 34, 0.2));
+}
+
+.deal-banner-cta {
+  background: #f5f1ec;
+  color: #1a1816;
+}
+
+.deal-banner-cta:hover {
+  background: #ffffff;
+}
+
+[data-theme="light"] .deal-banner {
+  --deal-text: #211a18;
+  --deal-copy-muted: rgba(33, 26, 24, 0.76);
+  --deal-detail: rgba(91, 50, 48, 0.24);
+  --deal-accent: #b52a2a;
+  border-color: rgba(151, 71, 68, 0.22);
+  background: #f2e9e5;
+}
+
+[data-theme="light"] .deal-banner-mountain {
+  opacity: 0.58;
+  filter: sepia(0.3) saturate(0.62) hue-rotate(320deg) brightness(1.8) contrast(0.72);
+  mix-blend-mode: multiply;
+}
+
+[data-theme="light"] .deal-banner-atmosphere {
+  background:
+    radial-gradient(circle at 72% 48%, rgba(132, 64, 69, 0.14), transparent 34%),
+    linear-gradient(90deg, rgba(248, 243, 238, 0.98) 0%, rgba(247, 239, 235, 0.92) 32%, rgba(241, 222, 219, 0.48) 58%, rgba(240, 218, 216, 0.1) 100%),
+    linear-gradient(180deg, rgba(255, 250, 245, 0.16), transparent 46%, rgba(234, 211, 207, 0.42));
+}
+
+[data-theme="light"] .deal-banner-wordmark {
+  -webkit-text-stroke-color: rgba(133, 54, 55, 0.13);
+}
+
+[data-theme="light"] .deal-banner-copy {
+  text-shadow: 0 1px 14px rgba(255, 248, 242, 0.62);
+}
+
+[data-theme="light"] .deal-banner-phone {
+  filter:
+    drop-shadow(-18px 20px 30px rgba(58, 31, 31, 0.28))
+    drop-shadow(0 0 24px rgba(87, 45, 48, 0.2));
+}
+
+[data-theme="light"] .deal-banner-cta {
+  background: #211a18;
+  color: #fff9f4;
+}
+
+[data-theme="light"] .deal-banner-cta:hover {
+  background: #b52a2a;
+}
+
+@media (max-width: 767px) {
+  .deal-banner-mountain {
+    object-position: 58% 50%;
+  }
+
+  .deal-banner-atmosphere {
+    background:
+      linear-gradient(180deg, rgba(9, 4, 5, 0.93) 0%, rgba(11, 4, 6, 0.7) 37%, rgba(10, 4, 5, 0.12) 66%, rgba(8, 3, 4, 0.42) 100%),
+      radial-gradient(circle at 70% 72%, rgba(196, 37, 35, 0.2), transparent 38%);
+  }
+
+  [data-theme="light"] .deal-banner-atmosphere {
+    background:
+      linear-gradient(180deg, rgba(249, 244, 239, 0.97) 0%, rgba(247, 237, 232, 0.8) 37%, rgba(242, 220, 218, 0.12) 66%, rgba(232, 207, 205, 0.35) 100%),
+      radial-gradient(circle at 70% 72%, rgba(143, 65, 70, 0.14), transparent 38%);
   }
 }
 

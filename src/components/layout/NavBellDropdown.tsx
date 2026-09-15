@@ -122,7 +122,7 @@ export function NavBellDropdown({
         aria-expanded={open}
         aria-haspopup="true"
         onClick={handleToggle}
-        className="relative text-repixl-text-light/80 transition-colors hover:text-repixl-text-light"
+        className="relative flex h-10 w-10 items-center justify-center text-repixl-text-light/80 transition-colors hover:text-repixl-text-light"
       >
         <svg
           xmlns="http://www.w3.org/2000/svg"
@@ -150,9 +150,8 @@ export function NavBellDropdown({
           role="dialog"
           aria-label="Notification preview"
           className={[
-            'absolute right-0 top-full z-50 mt-3',
-            // Desktop: fixed-width panel; mobile: full-width sheet anchored right
-            'w-[min(22rem,calc(100vw-2rem))]',
+            'fixed left-4 right-4 top-[4.5rem] z-50 sm:absolute sm:left-auto sm:right-0 sm:top-full sm:mt-3',
+            'w-auto sm:w-[min(22rem,calc(100vw-2rem))]',
             'overflow-hidden rounded-2xl border border-repixl-muted/20',
             'bg-repixl-bg shadow-2xl shadow-black/40',
           ].join(' ')}

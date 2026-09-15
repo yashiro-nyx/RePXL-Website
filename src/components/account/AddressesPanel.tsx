@@ -86,8 +86,8 @@ export default function AddressesPanel() {
   const editingAddress = editingId ? addresses.find((a) => a.id === editingId) : undefined
 
   return (
-    <div className="rounded-xl border border-repixl-muted/10 bg-repixl-charcoal p-6">
-      <div className="mb-5 flex items-center justify-between">
+    <div className="rounded-xl border border-repixl-muted/10 bg-repixl-charcoal p-4 sm:p-6">
+      <div className="mb-5 flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <span className="font-mono text-[10px] uppercase tracking-widest text-repixl-muted">— Delivery</span>
           <h2 className="mt-1 font-display text-lg font-semibold text-repixl-text-light">Saved Addresses</h2>
@@ -103,16 +103,16 @@ export default function AddressesPanel() {
         <ul className="space-y-3">
           {addresses.map((addr) => (
             <li key={addr.id} className="rounded-lg border border-repixl-muted/10 bg-repixl-bg p-4">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <div className="flex items-center gap-2">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
                     <p className="text-sm font-medium text-repixl-text-light">{addr.fullName}</p>
                     {addr.isDefault && <span className="rounded-full bg-repixl-success/15 px-2 py-0.5 font-mono text-[9px] uppercase text-repixl-success">Default</span>}
                   </div>
                   <p className="mt-0.5 text-xs text-repixl-text-light/60">{addr.address}, {addr.barangay}, {addr.city} {addr.postalCode}</p>
                   {addr.phone && <p className="font-mono text-[10px] text-repixl-muted">{addr.phone}</p>}
                 </div>
-                <div className="flex shrink-0 gap-2">
+                <div className="flex flex-wrap gap-2 sm:shrink-0">
                   {!addr.isDefault && (
                     <button
                       type="button"

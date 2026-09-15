@@ -91,8 +91,8 @@ export default function ReviewsPanel() {
         <div className="space-y-3">
           {filtered.map((review) => (
             <div key={review.id} className="rounded-xl border border-repixl-muted/10 bg-repixl-charcoal p-4">
-              <div className="flex items-start justify-between gap-3">
-                <div>
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div className="min-w-0 flex-1">
                   <Link href={`/products/${review.product?.slug}`} className="text-sm font-medium text-repixl-text-light hover:underline">
                     {review.product?.name ?? review.product?.slug}
                   </Link>

@@ -193,7 +193,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 {pendingOrders > 0 && <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-repixl-red text-[9px] font-bold text-white">{pendingOrders}</span>}
               </button>
               {notifOpen && (
-                <div className="absolute right-0 top-full mt-2 w-80 rounded-2xl border border-repixl-muted/20 bg-repixl-charcoal p-4 shadow-xl">
+                <div className="absolute right-0 top-full mt-2 w-[min(20rem,calc(100vw-2rem))] rounded-2xl border border-repixl-muted/20 bg-repixl-charcoal p-4 shadow-xl">
                   <div className="flex items-center justify-between"><p className="text-sm font-semibold text-repixl-text-light">Notifications</p><button onClick={() => setNotifOpen(false)} className="text-xs text-repixl-muted hover:text-repixl-text-light">Close</button></div>
                   {pendingOrders === 0 ? <p className="mt-3 text-center text-xs text-repixl-muted">No new notifications.</p> : (
                     <div className="mt-3 max-h-60 space-y-2 overflow-y-auto">
