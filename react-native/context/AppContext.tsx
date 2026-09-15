@@ -17,13 +17,18 @@ import {
   loadSession,
   mapUser,
   saveSession,
+  API_BASE_URL,
   type LoginResult,
 } from '../src/services/api';
 import type { MobileUser } from '../src/services/session';
 import { registerPushNotifications, isExpoGo } from '../src/services/push';
 import * as Notifications from 'expo-notifications';
+import * as WebBrowser from 'expo-web-browser';
+import * as Linking from 'expo-linking';
 
-type AuthResult = { mfaRequired: boolean; challenge?: string };
+WebBrowser.maybeCompleteAuthSession();
+
+type AuthResult = { mfaRequired: boolean; challenge?: string; cancelled?: boolean };
 
 interface AppContextType {
   loading: boolean;
@@ -41,6 +46,7 @@ interface AppContextType {
   unreadNotificationsCount: number;
   reviews: AccountReview[];
   signIn: (email: string, password: string) => Promise<AuthResult>;
+  signInWithGoogle: (mode?: 'login' | 'register' | 'auto') => Promise<AuthResult>;
   verifyMfa: (challenge: string, code: string) => Promise<void>;
   register: (input: { firstName: string; lastName: string; email: string; password: string }) => Promise<AuthResult>;
   logout: () => Promise<void>;
@@ -215,6 +221,40 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     await acceptLogin(result);
     return { mfaRequired: false };
   }, [acceptLogin]);
+
+  const signInWithGoogle = useCallback(
+    async (mode: 'login' | 'register' | 'auto' = 'auto'): Promise<AuthResult> => {
+      setError('');
+      const redirectUri = Linking.createURL('auth/callback');
+      const authUrl = `${API_BASE_URL}/auth/mobile-google?mode=${mode}&redirect_uri=${encodeURIComponent(redirectUri)}`;
+
+      const sessionResult = await WebBrowser.openAuthSessionAsync(authUrl, redirectUri);
+
+      if (sessionResult.type !== 'success' || !sessionResult.url) {
+        // User dismissed/cancelled Google sign-in window
+        return { mfaRequired: false, cancelled: true };
+      }
+
+      const parsed = Linking.parse(sessionResult.url);
+      if (parsed.queryParams?.error) {
+        throw new Error(String(parsed.queryParams.error));
+      }
+
+      const ticket = parsed.queryParams?.ticket as string | undefined;
+      if (!ticket) {
+        throw new Error('Google sign-in did not return a valid session ticket.');
+      }
+
+      const result = await api.exchangeGoogleOAuthTicket(ticket);
+      if (result.mfaRequired && result.challenge) {
+        return { mfaRequired: true, challenge: result.challenge };
+      }
+
+      await acceptLogin(result);
+      return { mfaRequired: false };
+    },
+    [acceptLogin]
+  );
 
   const verifyMfa = useCallback(async (challenge: string, code: string) => {
     const result = await api.verifyMfa(challenge, code.trim());
@@ -451,6 +491,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     unreadNotificationsCount,
     reviews,
     signIn,
+    signInWithGoogle,
     verifyMfa,
     register,
     logout,
@@ -478,7 +519,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     validateVoucher,
   }), [
     loading, refreshing, error, products, cart, user, profile, wishlist, compareList,
-    addresses, orders, notifications, unreadNotificationsCount, reviews, signIn, verifyMfa, register, logout,
+    addresses, orders, notifications, unreadNotificationsCount, reviews, signIn, signInWithGoogle, verifyMfa, register, logout,
     refreshProducts, refreshAccount, refreshNotifications, addToCart, removeFromCart, updateQty,
     toggleWishlist, toggleCompare, clearCart, saveProfile, markNotificationRead, markAllNotificationsRead,
     addAddress, updateAddress, deleteAddress, setDefaultAddress, submitReview,

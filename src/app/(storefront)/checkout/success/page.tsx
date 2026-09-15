@@ -50,7 +50,8 @@ interface OrderData {
 
 function SuccessInner() {
   const params = useSearchParams()
-  const orderNumber = params.get('order') ?? ''
+  const initialOrderNumber = params.get('order') ?? ''
+  const paymentIntentId = params.get('payment_intent_id') ?? ''
   const [order, setOrder] = useState<OrderData | null>(null)
   const [fetchStatus, setFetchStatus] = useState<'loading' | 'found' | 'pending' | 'error'>('loading')
 
@@ -60,7 +61,7 @@ function SuccessInner() {
     // Re-hydrate product store so the listing immediately shows updated stock.
     useProductStore.getState().hydrate()
 
-    if (!orderNumber) {
+    if (!initialOrderNumber && !paymentIntentId) {
       setFetchStatus('error')
       return
     }
@@ -71,13 +72,16 @@ function SuccessInner() {
       // ── Step 1: Server-side payment verification ──────────────────────────────
       // Call /api/checkout/verify to confirm payment with PayMongo directly and
       // finalize the order (PENDING → PAID, stock decremented, cart cleared).
-      // This is the primary finalization path — the webhook is a backup.
+      let resolvedOrderNum = initialOrderNumber
       try {
         const verifyRes = await fetch('/api/checkout/verify', {
           method: 'POST',
           credentials: 'include',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ orderNumber }),
+          body: JSON.stringify({
+            orderNumber: initialOrderNumber || undefined,
+            paymentIntentId: paymentIntentId || undefined,
+          }),
           cache: 'no-store',
         })
 
@@ -85,14 +89,11 @@ function SuccessInner() {
           if (!cancelled) setFetchStatus('error')
           return
         }
-        if (!verifyRes.ok) {
-          // 401 = user not authenticated; 404 = order not found for this user
-          // 422 = no payment intent (fallback order); 502 = PayMongo unreachable
-          // In all these cases we still try to poll below — don't bail early.
-          console.warn('[success] verify returned', verifyRes.status)
-        } else {
+        if (verifyRes.ok) {
           const vData = await verifyRes.json().catch(() => ({}))
-          console.log('[success] verify result:', vData?.data)
+          if (vData?.data?.orderNumber) {
+            resolvedOrderNum = vData.data.orderNumber
+          }
         }
       } catch (err) {
         // Network error — continue to polling anyway
@@ -101,18 +102,23 @@ function SuccessInner() {
 
       if (cancelled) return
 
+      if (!resolvedOrderNum) {
+        setFetchStatus('error')
+        return
+      }
+
       // Re-hydrate cart/products after finalization
       useCartStore.getState().hydrate()
       useProductStore.getState().hydrate()
 
-      // ── Step 2: Poll GET /api/orders/{orderNumber} for the receipt data ────────
+      // ── Step 2: Poll GET /api/orders/{resolvedOrderNum} for the receipt data ──
       let tries = 0
       const MAX_TRIES = 10
 
       const poll = async () => {
         if (cancelled) return
         try {
-          const res = await fetch(`/api/orders/${encodeURIComponent(orderNumber)}`, {
+          const res = await fetch(`/api/orders/${encodeURIComponent(resolvedOrderNum)}`, {
             credentials: 'include',
             cache: 'no-store',
           })
@@ -152,7 +158,9 @@ function SuccessInner() {
     run()
 
     return () => { cancelled = true }
-  }, [orderNumber])
+  }, [initialOrderNumber, paymentIntentId])
+
+  const displayOrderNumber = order?.orderNumber || initialOrderNumber
 
   const dateStr = order
     ? new Date(order.createdAt).toLocaleDateString('en-US', {
@@ -170,8 +178,8 @@ function SuccessInner() {
           <div className="mx-auto flex max-w-lg flex-col items-center justify-center py-24 text-center">
             <div className="h-10 w-10 animate-spin rounded-full border-2 border-repixl-muted/30 border-t-repixl-red" />
             <p className="mt-6 text-sm text-repixl-muted">Confirming your order…</p>
-            {orderNumber && (
-              <p className="mt-1 font-mono text-xs text-repixl-muted/60">{orderNumber}</p>
+            {displayOrderNumber && (
+              <p className="mt-1 font-mono text-xs text-repixl-muted/60">{displayOrderNumber}</p>
             )}
           </div>
         </Container>
@@ -192,8 +200,8 @@ function SuccessInner() {
             </div>
             <h1 className="font-display text-display-md text-repixl-text-light">{fetchStatus === 'error' ? 'Order Not Confirmed' : 'Confirmation Pending'}</h1>
             <p className="mt-3 text-sm text-repixl-muted">
-              {orderNumber ? (
-                <>Your order <span className="font-mono text-repixl-text-light">{orderNumber}</span> has not yet been confirmed.</>
+              {displayOrderNumber ? (
+                <>Your order <span className="font-mono text-repixl-text-light">{displayOrderNumber}</span> has not yet been confirmed.</>
               ) : (
                 'We could not confirm your order.'
               )}

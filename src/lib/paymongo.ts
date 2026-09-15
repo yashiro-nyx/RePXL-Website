@@ -149,6 +149,13 @@ export interface CreateWalletPaymentMethodInput {
     name?: string
     email?: string
     phone?: string
+    address?: {
+      line1?: string
+      city?: string
+      state?: string
+      postal_code?: string
+      country?: string
+    }
   }
   metadata?: Record<string, string>
 }
@@ -166,9 +173,25 @@ export interface PaymentMethodResponse {
 export async function createPaymentMethod(
   input: CreatePaymentMethodInput
 ): Promise<PaymentMethodResponse> {
+  const billing: Record<string, unknown> = {}
+  if (input.billing?.name?.trim()) billing.name = input.billing.name.trim()
+  if (input.billing?.email?.trim()) billing.email = input.billing.email.trim()
+  if (input.billing?.phone && input.billing.phone.trim().length >= 7) {
+    billing.phone = input.billing.phone.trim()
+  }
+  if (input.billing?.address) {
+    const addr: Record<string, string> = {}
+    if (input.billing.address.line1?.trim()) addr.line1 = input.billing.address.line1.trim()
+    if (input.billing.address.city?.trim()) addr.city = input.billing.address.city.trim()
+    if (input.billing.address.state?.trim()) addr.state = input.billing.address.state.trim()
+    if (input.billing.address.postal_code?.trim()) addr.postal_code = input.billing.address.postal_code.trim()
+    addr.country = 'PH'
+    billing.address = addr
+  }
+
   const attributes: Record<string, unknown> = {
     type: input.type,
-    billing: input.billing ?? {},
+    billing,
     metadata: input.metadata,
   }
 

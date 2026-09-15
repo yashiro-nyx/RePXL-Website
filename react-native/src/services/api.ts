@@ -204,6 +204,12 @@ export const api = {
       body: JSON.stringify(input),
       headers: { 'x-platform': 'expo' },
     }),
+  exchangeGoogleOAuthTicket: (ticket: string) =>
+    request<LoginResult>('/api/mobile/auth/google/exchange', {
+      method: 'POST',
+      body: JSON.stringify({ ticket }),
+      headers: { 'x-platform': 'expo' },
+    }),
   me: () => authorized<MobileUser>('/api/mobile/auth/me'),
   logout: (refreshToken: string) => authorized<{ loggedOut: boolean }>('/api/mobile/auth/logout', {
     method: 'POST',
@@ -424,7 +430,7 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(payload),
     }),
-  verifyCheckout: (orderNumber: string) =>
+    verifyCheckout: (orderNumber: string) =>
     authorized<{
       orderNumber: string;
       status: string;
@@ -435,6 +441,27 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ orderNumber }),
     }),
+  getCheckoutConfig: () =>
+    request<{
+      isConfigured: boolean;
+      isTestMode: boolean;
+      publicKey: string;
+      testCard: {
+        number: string;
+        expiry: string;
+        cvc: string;
+        cardholderName: string;
+      };
+      testCard3DS: {
+        number: string;
+        expiry: string;
+        cvc: string;
+        cardholderName: string;
+      };
+      testGcash: {
+        phone: string;
+      };
+    }>('/api/checkout/config'),
   health: () => request<{ status: string; uptimeSeconds: number; database: { status: string; latencyMs: number } }>('/api/health'),
 };
 

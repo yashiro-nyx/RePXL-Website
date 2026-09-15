@@ -5,6 +5,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useApp } from '../context/AppContext';
+import { GoogleAuthButton } from '../components/GoogleAuthButton';
 
 const FIELDS = [
   { key: 'name', label: 'FULL NAME', placeholder: 'Alex Reyes', type: 'default' },
@@ -15,10 +16,11 @@ const FIELDS = [
 
 export default function SignupScreen() {
   const insets = useSafeAreaInsets();
-  const { register } = useApp();
+  const { register, signInWithGoogle } = useApp();
   const [vals, setVals] = useState({ name: '', email: '', password: '', confirm: '' });
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [googleSubmitting, setGoogleSubmitting] = useState(false);
 
   const set = (k: keyof typeof vals) => (v: string) => { setVals((p) => ({ ...p, [k]: v })); setError(''); };
 
@@ -41,6 +43,24 @@ export default function SignupScreen() {
       setError(reason instanceof Error ? reason.message : 'Unable to create your account.');
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleGoogleSignUp = async () => {
+    setGoogleSubmitting(true);
+    setError('');
+    try {
+      const result = await signInWithGoogle('register');
+      if (result.cancelled) return;
+      if (result.mfaRequired && result.challenge) {
+        router.replace('/login');
+        return;
+      }
+      router.replace('/(tabs)/account');
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'Google sign-up failed.');
+    } finally {
+      setGoogleSubmitting(false);
     }
   };
 
@@ -85,11 +105,24 @@ export default function SignupScreen() {
 
           {!!error && <Text style={styles.error}>{error}</Text>}
 
-          <TouchableOpacity style={styles.primaryBtn} onPress={handleSignup} activeOpacity={0.85} disabled={submitting}>
+          <TouchableOpacity style={styles.primaryBtn} onPress={handleSignup} activeOpacity={0.85} disabled={submitting || googleSubmitting}>
             {submitting ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryBtnText}>Create Account</Text>}
           </TouchableOpacity>
 
-          <TouchableOpacity onPress={() => router.push('/login')} style={{ marginTop: 20, alignSelf: 'center' }}>
+          <View style={styles.dividerRow}>
+            <View style={styles.dividerLine} />
+            <Text style={styles.dividerText}>or continue with</Text>
+            <View style={styles.dividerLine} />
+          </View>
+
+          <GoogleAuthButton
+            title="Sign Up with Google"
+            onPress={handleGoogleSignUp}
+            loading={googleSubmitting}
+            disabled={submitting}
+          />
+
+          <TouchableOpacity onPress={() => router.push('/login')} style={{ marginTop: 24, alignSelf: 'center' }}>
             <Text style={styles.switchText}>
               Already have an account? <Text style={styles.switchLink}>Sign in</Text>
             </Text>
@@ -117,6 +150,22 @@ const styles = StyleSheet.create({
   error: { fontFamily: 'Inter_400Regular', fontSize: 13, color: '#f44336', textAlign: 'center', marginBottom: 8 },
   primaryBtn: { backgroundColor: '#c62828', borderRadius: 12, paddingVertical: 15, alignItems: 'center' },
   primaryBtnText: { fontFamily: 'Inter_700Bold', fontSize: 15, color: '#fff', letterSpacing: 0.3 },
+  dividerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 20,
+    gap: 12,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: '#262628',
+  },
+  dividerText: {
+    fontFamily: 'Inter_500Medium',
+    fontSize: 12,
+    color: '#666',
+  },
   switchText: { fontFamily: 'Inter_400Regular', fontSize: 14, color: '#666' },
   switchLink: { fontFamily: 'Inter_700Bold', color: '#c62828' },
 });

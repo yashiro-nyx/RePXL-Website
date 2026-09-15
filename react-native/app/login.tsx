@@ -5,10 +5,11 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useApp } from '../context/AppContext';
+import { GoogleAuthButton } from '../components/GoogleAuthButton';
 
 export default function LoginScreen() {
   const insets = useSafeAreaInsets();
-  const { signIn, verifyMfa } = useApp();
+  const { signIn, signInWithGoogle, verifyMfa } = useApp();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPw, setShowPw] = useState(false);
@@ -16,6 +17,7 @@ export default function LoginScreen() {
   const [challenge, setChallenge] = useState('');
   const [mfaCode, setMfaCode] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [googleSubmitting, setGoogleSubmitting] = useState(false);
 
   const handleLogin = async () => {
     if (!email || !password) { setError('Please fill in all fields.'); return; }
@@ -33,6 +35,24 @@ export default function LoginScreen() {
       setError(reason instanceof Error ? reason.message : 'Unable to sign in.');
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    setGoogleSubmitting(true);
+    setError('');
+    try {
+      const result = await signInWithGoogle('login');
+      if (result.cancelled) return;
+      if (result.mfaRequired && result.challenge) {
+        setChallenge(result.challenge);
+        return;
+      }
+      router.replace('/(tabs)/account');
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'Google sign-in failed.');
+    } finally {
+      setGoogleSubmitting(false);
     }
   };
 
@@ -94,7 +114,7 @@ export default function LoginScreen() {
 
           {!!error && <Text style={styles.error}>{error}</Text>}
 
-          <TouchableOpacity style={styles.primaryBtn} onPress={challenge ? handleMfa : handleLogin} activeOpacity={0.85} disabled={submitting}>
+          <TouchableOpacity style={styles.primaryBtn} onPress={challenge ? handleMfa : handleLogin} activeOpacity={0.85} disabled={submitting || googleSubmitting}>
             {submitting ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryBtnText}>{challenge ? 'Verify and Continue' : 'Sign In'}</Text>}
           </TouchableOpacity>
 
@@ -104,8 +124,20 @@ export default function LoginScreen() {
             </TouchableOpacity>
           ) : (
             <>
-              <Text style={styles.nativeNote}>Google sign-in is currently available on the RePXL website.</Text>
-              <TouchableOpacity onPress={() => router.push('/signup')} style={{ marginTop: 18, alignSelf: 'center' }}>
+              <View style={styles.dividerRow}>
+                <View style={styles.dividerLine} />
+                <Text style={styles.dividerText}>or continue with</Text>
+                <View style={styles.dividerLine} />
+              </View>
+
+              <GoogleAuthButton
+                title="Sign In with Google"
+                onPress={handleGoogleSignIn}
+                loading={googleSubmitting}
+                disabled={submitting}
+              />
+
+              <TouchableOpacity onPress={() => router.push('/signup')} style={{ marginTop: 24, alignSelf: 'center' }}>
                 <Text style={styles.switchText}>Don't have an account? <Text style={styles.switchLink}>Sign up</Text></Text>
               </TouchableOpacity>
             </>
@@ -132,7 +164,22 @@ const styles = StyleSheet.create({
   error: { fontFamily: 'Inter_400Regular', fontSize: 13, color: '#f44336', textAlign: 'center', marginBottom: 8 },
   primaryBtn: { backgroundColor: '#c62828', borderRadius: 12, paddingVertical: 15, alignItems: 'center', marginTop: 8 },
   primaryBtnText: { fontFamily: 'Inter_700Bold', fontSize: 15, color: '#fff', letterSpacing: 0.3 },
-  nativeNote: { fontFamily: 'Inter_400Regular', fontSize: 12, color: '#666', textAlign: 'center', lineHeight: 18, marginTop: 18 },
+  dividerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 20,
+    gap: 12,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: '#262628',
+  },
+  dividerText: {
+    fontFamily: 'Inter_500Medium',
+    fontSize: 12,
+    color: '#666',
+  },
   switchText: { fontFamily: 'Inter_400Regular', fontSize: 14, color: '#666' },
   switchLink: { fontFamily: 'Inter_700Bold', color: '#c62828' },
 });

@@ -10,6 +10,7 @@ import { getCurrentUser } from '@/lib/auth-helpers'
 import { processPaymentSchema } from '@/lib/validations'
 import {
   isPaymongoConfigured,
+  isTestMode,
   createPaymentIntent,
   createPaymentMethod,
   attachPaymentMethod,
@@ -338,8 +339,12 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    const returnUrl =
-      data.returnUrl || `${siteUrl()}/checkout/success?order=${orderNumber}`
+    let returnUrl =
+      data.returnUrl || `${siteUrl()}/checkout/success`
+    if (!returnUrl.includes('order=')) {
+      const sep = returnUrl.includes('?') ? '&' : '?'
+      returnUrl = `${returnUrl}${sep}order=${orderNumber}`
+    }
 
     // Attach Payment Method to Payment Intent
     const attached = await attachPaymentMethod(intent.id, {
@@ -358,6 +363,7 @@ export async function POST(request: NextRequest) {
         orderNumber: order.orderNumber,
         isPaid: true,
         status: 'PAID',
+        isTestMode: isTestMode(),
       })
     }
 
@@ -371,6 +377,7 @@ export async function POST(request: NextRequest) {
         status: 'AWAITING_NEXT_ACTION',
         nextActionUrl,
         intentId: intent.id,
+        isTestMode: isTestMode(),
       })
     }
 
@@ -388,15 +395,14 @@ export async function POST(request: NextRequest) {
       isPaid: false,
       status: attachedStatus,
       intentId: intent.id,
+      isTestMode: isTestMode(),
     })
   } catch (error) {
     if (error instanceof InsufficientStockError) {
       return errorResponse(error.message, 409)
     }
     console.error('Process payment error:', error)
-    return errorResponse(
-      error instanceof Error ? error.message : 'Unable to process payment.',
-      400
-    )
+    const msg = error instanceof Error ? error.message : 'Unable to process payment.'
+    return errorResponse(msg, 400)
   }
 }

@@ -48,23 +48,32 @@ export async function POST(request: NextRequest) {
     return unauthorizedResponse()
   }
 
-  let body: { orderNumber?: string }
+  let body: { orderNumber?: string; paymentIntentId?: string }
   try {
     body = await request.json()
   } catch {
     return errorResponse('Invalid request body', 400)
   }
 
-  const { orderNumber } = body
-  if (!orderNumber || typeof orderNumber !== 'string') {
-    return errorResponse('orderNumber is required', 400)
+  const { orderNumber, paymentIntentId } = body
+  if (
+    (!orderNumber || typeof orderNumber !== 'string') &&
+    (!paymentIntentId || typeof paymentIntentId !== 'string')
+  ) {
+    return errorResponse('orderNumber or paymentIntentId is required', 400)
   }
 
-  console.log(`[CHECKOUT verify] Verifying order ${orderNumber} for user ${user.id}`)
+  console.log(
+    `[CHECKOUT verify] Verifying order ${orderNumber || paymentIntentId} for user ${user.id}`
+  )
 
   // Load the order with ownership check
-  const order = await prisma.order.findUnique({
-    where: { orderNumber },
+  const order = await prisma.order.findFirst({
+    where: {
+      userId: user.id,
+      ...(orderNumber ? { orderNumber } : {}),
+      ...(paymentIntentId ? { paymentIntentId } : {}),
+    },
     include: {
       items: { include: { product: true } },
       user: { select: { id: true, email: true, firstName: true, lastName: true } },
@@ -72,25 +81,28 @@ export async function POST(request: NextRequest) {
   })
 
   if (!order) {
-    console.warn(`[CHECKOUT verify] Order not found: ${orderNumber}`)
+    console.warn(`[CHECKOUT verify] Order not found for: ${orderNumber || paymentIntentId}`)
     return errorResponse('Order not found', 404)
   }
 
-  // Ownership — the calling user must own this order
-  if (order.userId !== user.id) {
-    console.warn(`[CHECKOUT verify] Ownership mismatch: order.userId=${order.userId} user.id=${user.id}`)
-    return errorResponse('Order not found', 404)
-  }
+  const resolvedOrderNumber = order.orderNumber
 
   if (order.paymentStatus === 'PAID') {
-    return successResponse({ orderNumber, status: order.status, paymentStatus: 'PAID', alreadyFinalized: true })
+    return successResponse({
+      orderNumber: resolvedOrderNumber,
+      status: order.status,
+      paymentStatus: 'PAID',
+      alreadyFinalized: true,
+    })
   }
-  if (order.paymentStatus !== 'PENDING' || order.status !== 'PROCESSING') return errorResponse('Order cannot be finalized', 409)
+  if (order.paymentStatus !== 'PENDING' || order.status !== 'PROCESSING') {
+    return errorResponse('Order cannot be finalized', 409)
+  }
 
   // Verify payment status directly with PayMongo
   const gatewayId = order.paymentIntentId ?? order.paymentSessionId
   if (!gatewayId) {
-    console.warn(`[CHECKOUT verify] No gateway ID for order ${orderNumber}`)
+    console.warn(`[CHECKOUT verify] No gateway ID for order ${resolvedOrderNumber}`)
     return errorResponse('No payment intent found for this order', 422)
   }
 
@@ -100,46 +112,58 @@ export async function POST(request: NextRequest) {
       paymentIntentId: order.paymentIntentId,
       paymentSessionId: order.paymentSessionId,
     })
-    console.log(`[CHECKOUT verify] Order ${orderNumber} verification:`, verification)
+    console.log(`[CHECKOUT verify] Order ${resolvedOrderNumber} verification:`, verification)
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
-    console.error(`[CHECKOUT verify] Failed to verify payment for ${orderNumber}:`, msg)
+    console.error(`[CHECKOUT verify] Failed to verify payment for ${resolvedOrderNumber}:`, msg)
     return errorResponse(`Could not verify payment: ${msg}`, 502)
   }
 
   if (!verification.isPaid) {
-    console.log(`[CHECKOUT verify] Payment not yet paid (${verification.status}) for ${orderNumber}`)
+    console.log(
+      `[CHECKOUT verify] Payment not yet paid (${verification.status}) for ${resolvedOrderNumber}`
+    )
     return successResponse({
-      orderNumber,
+      orderNumber: resolvedOrderNumber,
       paymentStatus: 'PENDING',
       piStatus: verification.status,
       alreadyFinalized: false,
-      message: verification.status === 'processing' ? 'Payment is still processing.' : `Payment status: ${verification.status}`,
+      message:
+        verification.status === 'processing'
+          ? 'Payment is still processing.'
+          : `Payment status: ${verification.status}`,
     })
   }
 
   // Payment is confirmed paid/succeeded — finalize the order
-  console.log(`[CHECKOUT verify] Payment succeeded — finalizing order ${orderNumber}`)
+  console.log(`[CHECKOUT verify] Payment succeeded — finalizing order ${resolvedOrderNumber}`)
 
   try {
-    await finalizePaidOrder(orderNumber)
+    await finalizePaidOrder(resolvedOrderNumber)
     if (verification.paymentId && !order.paymentReference) {
-      await prisma.order.update({
-        where: { orderNumber },
-        data: { paymentReference: verification.paymentId },
-      }).catch(() => {})
+      await prisma.order
+        .update({
+          where: { orderNumber: resolvedOrderNumber },
+          data: { paymentReference: verification.paymentId },
+        })
+        .catch(() => {})
     }
-    const current = await prisma.order.findUniqueOrThrow({ where: { orderNumber } })
+    const current = await prisma.order.findUniqueOrThrow({
+      where: { orderNumber: resolvedOrderNumber },
+    })
     if (current.paymentStatus !== 'PAID') return errorResponse('Order cannot be finalized', 409)
-    console.log(`[CHECKOUT verify] Order finalized: ${orderNumber}`)
+    console.log(`[CHECKOUT verify] Order finalized: ${resolvedOrderNumber}`)
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
-    console.error(`[CHECKOUT verify] Finalization failed for ${orderNumber}:`, msg)
-    return errorResponse(err instanceof InsufficientStockError ? err.message : 'Order finalization failed. Please retry.', err instanceof InsufficientStockError ? 409 : 500)
+    console.error(`[CHECKOUT verify] Finalization failed for ${resolvedOrderNumber}:`, msg)
+    return errorResponse(
+      err instanceof InsufficientStockError ? err.message : 'Order finalization failed. Please retry.',
+      err instanceof InsufficientStockError ? 409 : 500
+    )
   }
 
   return successResponse({
-    orderNumber,
+    orderNumber: resolvedOrderNumber,
     status: 'PROCESSING',
     paymentStatus: 'PAID',
     alreadyFinalized: false,
