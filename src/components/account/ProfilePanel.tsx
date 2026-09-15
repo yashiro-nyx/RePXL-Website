@@ -139,7 +139,7 @@ export default function ProfilePanel() {
 
   return (
     <>
-      <div className="rounded-xl border border-repixl-muted/10 bg-repixl-charcoal p-6">
+      <div className="rounded-xl border border-repixl-muted/10 bg-repixl-charcoal p-4 sm:p-6">
         <div className="mb-6">
           <span className="font-mono text-[10px] uppercase tracking-widest text-repixl-muted">— Edit your info</span>
           <h2 className="mt-1 font-display text-lg font-semibold text-repixl-text-light">Profile Information</h2>
@@ -172,7 +172,7 @@ export default function ProfilePanel() {
               </div>
 
               {/* First / Last name */}
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div>
                   <label htmlFor="p-first" className="mb-1.5 block text-xs text-repixl-text-light/70">First Name</label>
                   <input id="p-first" type="text" value={first} onChange={(e) => setFirst(e.target.value)} className={ic(errors.first)} {...nameFilter} />

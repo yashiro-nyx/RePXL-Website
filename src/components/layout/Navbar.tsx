@@ -122,10 +122,11 @@ export function Navbar() {
   return (
     <>
       <header className="fixed left-0 right-0 top-0 z-50 bg-gradient-to-b from-repixl-bg/80 to-transparent backdrop-blur-sm">
-        <nav className="mx-auto flex max-w-container items-center justify-between px-6 py-4 md:px-10 lg:px-16">
+        <nav className="mx-auto flex max-w-container items-center justify-between px-4 py-4 sm:px-6 md:px-10 lg:px-16">
           {/* Logo */}
           <Link href="/" className="text-repixl-text-light">
-            <Logo size="md" accentXL />
+            <span className="sm:hidden"><Logo size="sm" accentXL /></span>
+            <span className="hidden sm:inline-flex"><Logo size="md" accentXL /></span>
           </Link>
 
           {/* Nav links */}
@@ -137,14 +138,14 @@ export function Navbar() {
           </ul>
 
           {/* Icon cluster */}
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-0 sm:gap-2 lg:gap-4">
             {/* Theme toggle */}
-            <ThemeToggle />
+            <div className="hidden sm:block"><ThemeToggle /></div>
 
             {/* Search */}
             <div className="relative flex items-center">
               {searchOpen && (
-                <form onSubmit={handleSearchSubmit} className="absolute right-8 top-1/2 -translate-y-1/2">
+                <form onSubmit={handleSearchSubmit} className="fixed left-4 right-4 top-[4.5rem] sm:absolute sm:left-auto sm:right-10 sm:top-1/2 sm:-translate-y-1/2">
                   <label htmlFor="nav-search" className="sr-only">Search cameras</label>
                   <input
                     ref={inputRef}
@@ -155,11 +156,11 @@ export function Navbar() {
                     onBlur={() => { if (!query.trim()) setSearchOpen(false) }}
                     onKeyDown={(e) => { if (e.key === 'Escape') { setSearchOpen(false); setQuery('') } }}
                     placeholder="Search cameras..."
-                    className="w-48 rounded border border-repixl-muted/30 bg-repixl-bg/90 px-3 py-1.5 text-sm text-repixl-text-light placeholder:text-repixl-muted/60 backdrop-blur-md focus:border-repixl-muted/50 focus:outline-none md:w-56"
+                    className="w-full rounded border border-repixl-muted/30 bg-repixl-bg/95 px-3 py-2.5 text-sm text-repixl-text-light shadow-xl placeholder:text-repixl-muted/60 backdrop-blur-md focus:border-repixl-muted/50 focus:outline-none sm:w-48 sm:py-1.5 sm:shadow-none md:w-56"
                   />
                 </form>
               )}
-              <button type="button" aria-label="Search" onClick={() => setSearchOpen((prev) => !prev)} className="text-repixl-text-light/80 transition-colors hover:text-repixl-text-light">
+              <button type="button" aria-label="Search" onClick={() => setSearchOpen((prev) => !prev)} className="flex h-10 w-10 items-center justify-center text-repixl-text-light/80 transition-colors hover:text-repixl-text-light">
                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" /></svg>
               </button>
             </div>
@@ -172,7 +173,7 @@ export function Navbar() {
                 if (!isLoggedIn) { e.preventDefault(); setLoginModalOpen(true) }
                 else router.push('/wishlist')
               }}
-              className="relative text-repixl-text-light/80 transition-colors hover:text-repixl-text-light"
+              className="relative hidden h-10 w-10 items-center justify-center text-repixl-text-light/80 transition-colors hover:text-repixl-text-light sm:inline-flex"
             >
               <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z" /></svg>
               {wishlistCount > 0 && (
@@ -199,7 +200,7 @@ export function Navbar() {
                 if (!isLoggedIn) setLoginModalOpen(true)
                 else router.push('/cart')
               }}
-              className="relative text-repixl-text-light/80 transition-colors hover:text-repixl-text-light"
+              className="relative flex h-10 w-10 items-center justify-center text-repixl-text-light/80 transition-colors hover:text-repixl-text-light"
             >
               <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="8" cy="21" r="1" /><circle cx="19" cy="21" r="1" /><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12" /></svg>
               {cartCount > 0 && (
@@ -210,7 +211,7 @@ export function Navbar() {
             </button>
 
             {/* Profile / Account — neutral placeholder until auth hydrates */}
-            <div className="relative" ref={profileRef}>
+            <div className="relative flex h-10 w-10 items-center justify-center" ref={profileRef}>
               {!authHydrated ? (
                 // Neutral skeleton — prevents logged-out icon flash on refresh
                 <div className="h-8 w-8 rounded-full bg-repixl-muted/10" aria-hidden="true" />
@@ -285,7 +286,7 @@ export function Navbar() {
             </div>
 
             {/* Mobile menu toggle */}
-            <button type="button" aria-label="Menu" onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="text-repixl-text-light/80 transition-colors hover:text-repixl-text-light md:hidden">
+            <button type="button" aria-label="Menu" onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="flex h-10 w-10 items-center justify-center text-repixl-text-light/80 transition-colors hover:text-repixl-text-light md:hidden">
               {mobileMenuOpen ? (
                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg>
               ) : (
@@ -303,11 +304,16 @@ export function Navbar() {
               <li><Link href="/products" onClick={() => setMobileMenuOpen(false)} className="block text-sm text-repixl-text-light/80 transition-colors hover:text-repixl-text-light">Cameras</Link></li>
               <li><Link href="/compare" onClick={() => setMobileMenuOpen(false)} className="block text-sm text-repixl-text-light/80 transition-colors hover:text-repixl-text-light">Compare</Link></li>
               <li><Link href="/about" onClick={() => setMobileMenuOpen(false)} className="block text-sm text-repixl-text-light/80 transition-colors hover:text-repixl-text-light">About</Link></li>
+              <li className="flex items-center justify-between text-sm text-repixl-text-light/80 sm:hidden">
+                <span>Appearance</span>
+                <ThemeToggle />
+              </li>
             </ul>
             {isLoggedIn && (
               <div className="mt-4 border-t border-repixl-muted/10 pt-4 space-y-2">
                 <Link href="/account" onClick={() => setMobileMenuOpen(false)} className="block text-sm text-repixl-text-light/80 hover:text-repixl-text-light">My Account</Link>
                 <Link href="/account/orders" onClick={() => setMobileMenuOpen(false)} className="block text-sm text-repixl-text-light/80 hover:text-repixl-text-light">My Purchases</Link>
+                <Link href="/wishlist" onClick={() => setMobileMenuOpen(false)} className="block text-sm text-repixl-text-light/80 hover:text-repixl-text-light">Wishlist</Link>
                 <Link href="/account/notifications" onClick={() => setMobileMenuOpen(false)} className="flex items-center justify-between text-sm text-repixl-text-light/80 hover:text-repixl-text-light">
                   Notifications
                   {navUnreadCount > 0 && (

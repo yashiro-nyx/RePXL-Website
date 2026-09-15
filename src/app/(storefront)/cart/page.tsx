@@ -163,7 +163,7 @@ export default function CartPage() {
         <Container>
           {/* Header */}
           <motion.div variants={fadeUp} initial="hidden" animate="show" className="mb-8 border-b border-repixl-muted/10 pb-6">
-            <div className="flex items-end justify-between gap-4">
+            <div className="flex flex-wrap items-end justify-between gap-4">
               <div>
                 <span className="font-mono text-xs uppercase tracking-widest text-repixl-muted">— Your selection</span>
                 <h1 className="mt-2 font-display text-display-md text-repixl-text-light md:text-display-lg">Cart</h1>
@@ -219,7 +219,7 @@ export default function CartPage() {
                       variants={staggerItem}
                       exit={reducedMotion ? { opacity: 1 } : { opacity: 0, height: 0, marginBottom: 0 }}
                       transition={{ duration: reducedMotion ? 0 : 0.3 }}
-                      className={`flex gap-3 rounded-lg border bg-repixl-charcoal p-4 transition-colors hover:border-repixl-muted/20 ${
+                      className={`flex gap-3 rounded-lg border bg-repixl-charcoal p-3 transition-colors hover:border-repixl-muted/20 sm:p-4 ${
                         isSelected ? 'border-repixl-red/30' : 'border-repixl-muted/10'
                       }`}
                     >
@@ -242,28 +242,28 @@ export default function CartPage() {
                       </div>
 
                       {/* Product image */}
-                      <Link href={`/products/${product.slug}`} className="h-20 w-20 flex-shrink-0 overflow-hidden rounded-lg bg-repixl-bg p-1 transition-opacity hover:opacity-80">
+                      <Link href={`/products/${product.slug}`} className="h-16 w-16 flex-shrink-0 overflow-hidden rounded-lg bg-repixl-bg p-1 transition-opacity hover:opacity-80 sm:h-20 sm:w-20">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img src={product.image} alt={product.name} className="h-full w-full object-contain" />
                       </Link>
 
                       {/* Details */}
-                      <div className="flex flex-1 flex-col justify-between">
+                      <div className="flex min-w-0 flex-1 flex-col justify-between">
                         <div>
-                          <div className="flex items-start justify-between gap-4">
-                            <div>
-                              <Link href={`/products/${product.slug}`} className="text-sm font-medium text-repixl-text-light transition-colors hover:text-repixl-text-light/80">
+                          <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+                            <div className="min-w-0">
+                              <Link href={`/products/${product.slug}`} className="line-clamp-2 text-sm font-medium text-repixl-text-light transition-colors hover:text-repixl-text-light/80">
                                 {product.name}
                               </Link>
                               <p className="mt-0.5 font-mono text-[10px] uppercase tracking-wider text-repixl-muted">
                                 {product.brand} · {product.series}
                               </p>
                             </div>
-                            <span className="font-display text-lg font-semibold text-repixl-text-light">
+                            <span className="shrink-0 font-display text-base font-semibold text-repixl-text-light sm:text-lg">
                               {formatPrice(product.price * quantity)}
                             </span>
                           </div>
-                          <div className="mt-2 flex items-center gap-3">
+                          <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1">
                             <ConditionBadge condition={product.condition} />
                             <span className="font-mono text-[10px] text-repixl-muted">{formatPrice(product.price)} each</span>
                             {product.stock > 0 && product.stock <= 3 && (
@@ -271,7 +271,7 @@ export default function CartPage() {
                             )}
                           </div>
                         </div>
-                        <div className="mt-3 flex items-center gap-4">
+                        <div className="mt-3 flex flex-wrap items-center gap-4">
                           {/* Quantity */}
                           <div className="flex items-center rounded border border-repixl-muted/20">
                             <button type="button" onClick={async () => {
@@ -321,7 +321,7 @@ export default function CartPage() {
 
             {/* Order summary sidebar */}
             <motion.aside variants={fadeUp} initial="hidden" animate="show" transition={{ delay: reducedMotion ? 0 : 0.2 }} className="lg:col-span-1">
-              <div className="sticky top-24 rounded-lg border border-repixl-muted/10 bg-repixl-charcoal p-6">
+              <div className="sticky top-24 rounded-lg border border-repixl-muted/10 bg-repixl-charcoal p-4 sm:p-6">
                 <p className="font-mono text-[10px] uppercase tracking-widest text-repixl-muted">Order Summary</p>
                 {selectedItems.length < resolvedItems.length && selectedItems.length > 0 && (
                   <p className="mt-1 font-mono text-[9px] text-repixl-warning">
@@ -354,7 +354,7 @@ export default function CartPage() {
                     <label htmlFor="promo-code" className="mb-1.5 block font-mono text-[10px] uppercase tracking-wider text-repixl-muted">Voucher code</label>
                     <div className="flex gap-2">
                       <input id="promo-code" type="text" value={promoCode} onChange={(e) => setPromoCode(e.target.value)} placeholder="Enter code"
-                        className="flex-1 rounded border border-repixl-muted/20 bg-repixl-bg px-3 py-2 text-sm text-repixl-text-light placeholder:text-repixl-muted/50 focus:border-repixl-muted/50 focus:outline-none" />
+                        className="min-w-0 flex-1 rounded border border-repixl-muted/20 bg-repixl-bg px-3 py-2 text-sm text-repixl-text-light placeholder:text-repixl-muted/50 focus:border-repixl-muted/50 focus:outline-none" />
                       <button type="submit" className="rounded border border-repixl-muted/20 px-3 py-2 font-mono text-xs font-medium text-repixl-text-light/70 transition-colors hover:border-repixl-muted/50 hover:text-repixl-text-light">Apply</button>
                     </div>
                     {promoError && <p className="mt-1.5 text-xs text-red-400">{promoError}</p>}
@@ -374,7 +374,7 @@ export default function CartPage() {
                   <p className="mt-2 text-center font-mono text-[10px] text-repixl-muted/60">Select at least one item above</p>
                 )}
 
-                <div className="mt-4 flex items-center justify-center gap-1.5">
+                <div className="mt-4 flex items-center justify-center gap-1.5 text-center">
                   <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-repixl-muted/60" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
                   <span className="font-mono text-[10px] text-repixl-muted/60">Secure checkout · 14-day returns</span>
                 </div>
@@ -400,7 +400,7 @@ export default function CartPage() {
             <p className="mt-2 text-center text-sm text-repixl-muted">
               Remove all {totalQty} {totalQty === 1 ? 'item' : 'items'} from your cart? This cannot be undone.
             </p>
-            <div className="mt-6 flex items-center gap-3">
+            <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center">
               <button type="button" onClick={() => setClearModalOpen(false)}
                 className="flex-1 rounded-xl border border-repixl-muted/20 px-4 py-2.5 text-sm text-repixl-text-light/70 transition-colors hover:bg-repixl-bg hover:text-repixl-text-light">
                 Cancel
@@ -457,7 +457,7 @@ export default function CartPage() {
               <span className="font-display text-lg font-bold text-repixl-text-light">{formatPrice(total)}</span>
             </div>
             {/* Actions */}
-            <div className="mt-5 flex items-center gap-3">
+            <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center">
               <button type="button" onClick={() => setCheckoutModalOpen(false)}
                 className="flex-1 rounded-xl border border-repixl-muted/20 px-4 py-2.5 text-sm text-repixl-text-light/70 transition-colors hover:bg-repixl-bg hover:text-repixl-text-light">
                 Keep Shopping
