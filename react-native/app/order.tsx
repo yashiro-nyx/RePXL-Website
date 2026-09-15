@@ -26,6 +26,7 @@ import {
 import { TrackingMapCard } from '../components/TrackingMapCard';
 
 const TRACKING_STEPS = [
+  { label: 'Order Placed & Processing', key: 'PROCESSING' },
   { label: 'Order Placed', key: 'ORDER_PLACED' },
   { label: 'Payment Processed', key: 'PAYMENT_PROCESSED' },
   { label: 'Shipped & In Transit', key: 'SHIPPED' },
@@ -36,7 +37,7 @@ const TRACKING_STEPS = [
 export default function OrderScreen() {
   const insets = useSafeAreaInsets();
   const { orderNumber } = useLocalSearchParams<{ orderNumber: string }>();
-  const { updateOrderStatus } = useApp();
+  const { cancelOrder, confirmReceipt, updateOrderStatus } = useApp();
   const [order, setOrder] = useState<Order | null>(null);
   const [error, setError] = useState('');
   const [refreshing, setRefreshing] = useState(false);
@@ -83,6 +84,21 @@ export default function OrderScreen() {
     return 0;
   }, [order, normStatus]);
 
+  // Auto-poll when order is pending payment to detect external PayMongo completion
+  useEffect(() => {
+    if (!isPendingPayment) return;
+    let count = 0;
+    const interval = setInterval(() => {
+      count += 1;
+      if (count > 20) {
+        clearInterval(interval);
+        return;
+      }
+      void fetchOrder();
+    }, 6000);
+    return () => clearInterval(interval);
+  }, [isPendingPayment, fetchOrder]);
+
   const handleCancelOrder = () => {
     if (!order) return;
     if (!isCancellable) {
@@ -100,7 +116,7 @@ export default function OrderScreen() {
           onPress: async () => {
             try {
               setActionLoading(true);
-              const updated = await updateOrderStatus(order.orderNumber, 'CANCELLED');
+              const updated = await cancelOrder(order.orderNumber);
               setOrder(updated);
             } catch (err) {
               Alert.alert('Error', err instanceof Error ? err.message : 'Failed to cancel order.');
@@ -125,7 +141,7 @@ export default function OrderScreen() {
           onPress: async () => {
             try {
               setActionLoading(true);
-              const updated = await updateOrderStatus(order.orderNumber, 'COMPLETED');
+              const updated = await confirmReceipt(order.orderNumber);
               setOrder(updated);
             } catch (err) {
               Alert.alert('Error', err instanceof Error ? err.message : 'Failed to complete order.');
@@ -279,6 +295,19 @@ export default function OrderScreen() {
                   ? 'The payment processing window for this order has expired. Unpaid orders are automatically cancelled and reserved stock restored.'
                   : 'Please complete payment within 24 hours of placement. Orders without confirmed payment are cancelled automatically once the timer lapses.'}
               </Text>
+              {!paymentTime.expired && (
+                <TouchableOpacity
+                  style={styles.checkPaymentBtn}
+                  onPress={() => void fetchOrder()}
+                  disabled={refreshing}
+                  activeOpacity={0.7}
+                >
+                  <Feather name="refresh-cw" size={13} color="#fbbf24" />
+                  <Text style={styles.checkPaymentBtnText}>
+                    {refreshing ? 'Checking...' : 'Check Payment Status'}
+                  </Text>
+                </TouchableOpacity>
+              )}
             </View>
           )}
 
@@ -782,5 +811,23 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter_400Regular',
     fontSize: 12,
     lineHeight: 16,
+  },
+  checkPaymentBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    alignSelf: 'flex-start',
+    backgroundColor: 'rgba(245, 158, 11, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(245, 158, 11, 0.4)',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    marginTop: 10,
+  },
+  checkPaymentBtnText: {
+    color: '#fbbf24',
+    fontFamily: 'Inter_700Bold',
+    fontSize: 12,
   },
 });

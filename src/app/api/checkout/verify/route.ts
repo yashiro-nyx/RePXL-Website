@@ -10,6 +10,7 @@ import {
   isPaymongoConfigured,
   retrievePaymentIntent,
   retrieveCheckoutSession,
+  checkPaymongoPaymentStatus,
 } from '@/lib/paymongo'
 import { finalizePaidOrder, InsufficientStockError } from '@/lib/purchase-finalization'
 
@@ -25,7 +26,7 @@ export const dynamic = 'force-dynamic'
  * 1. Authenticate the user (customer session cookie).
  * 2. Find the order by orderNumber — ownership check.
  * 3. If already PAID → return success (idempotent).
- * 4. Retrieve the PaymentIntent from PayMongo to confirm status = 'succeeded'.
+ * 4. Verify payment status with PayMongo (Checkout Session or Payment Intent).
  * 5. Run finalization transaction: PAID + stock decrement + cart clear.
  * 6. Return success.
  *
@@ -86,45 +87,49 @@ export async function POST(request: NextRequest) {
   }
   if (order.paymentStatus !== 'PENDING' || order.status !== 'PROCESSING') return errorResponse('Order cannot be finalized', 409)
 
-  // Retrieve the PaymentIntent from PayMongo to verify actual payment status
-  const intentId = order.paymentIntentId ?? order.paymentSessionId
-  if (!intentId) {
-    console.warn(`[CHECKOUT verify] No payment intent ID for order ${orderNumber}`)
+  // Verify payment status directly with PayMongo
+  const gatewayId = order.paymentIntentId ?? order.paymentSessionId
+  if (!gatewayId) {
+    console.warn(`[CHECKOUT verify] No gateway ID for order ${orderNumber}`)
     return errorResponse('No payment intent found for this order', 422)
   }
 
-  let piStatus: string
+  let verification
   try {
-    if (order.paymentIntentId) {
-      piStatus = (await retrievePaymentIntent(order.paymentIntentId)).attributes.status
-    } else {
-      const session = await retrieveCheckoutSession(intentId)
-      piStatus = session.attributes.payment_intent?.attributes?.status ?? 'pending'
-    }
-    console.log(`[CHECKOUT verify] PaymentIntent ${intentId} status: ${piStatus}`)
+    verification = await checkPaymongoPaymentStatus({
+      paymentIntentId: order.paymentIntentId,
+      paymentSessionId: order.paymentSessionId,
+    })
+    console.log(`[CHECKOUT verify] Order ${orderNumber} verification:`, verification)
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
-    console.error(`[CHECKOUT verify] Failed to retrieve PaymentIntent ${intentId}:`, msg)
+    console.error(`[CHECKOUT verify] Failed to verify payment for ${orderNumber}:`, msg)
     return errorResponse(`Could not verify payment: ${msg}`, 502)
   }
 
-  if (piStatus !== 'succeeded') {
-    console.log(`[CHECKOUT verify] Payment not yet succeeded (${piStatus}) for ${orderNumber}`)
+  if (!verification.isPaid) {
+    console.log(`[CHECKOUT verify] Payment not yet paid (${verification.status}) for ${orderNumber}`)
     return successResponse({
       orderNumber,
       paymentStatus: 'PENDING',
-      piStatus,
+      piStatus: verification.status,
       alreadyFinalized: false,
-      message: piStatus === 'processing' ? 'Payment is still processing.' : `Payment status: ${piStatus}`,
+      message: verification.status === 'processing' ? 'Payment is still processing.' : `Payment status: ${verification.status}`,
     })
   }
 
-  // Payment is confirmed succeeded — finalize the order
+  // Payment is confirmed paid/succeeded — finalize the order
   console.log(`[CHECKOUT verify] Payment succeeded — finalizing order ${orderNumber}`)
 
   try {
     await finalizePaidOrder(orderNumber)
-    const current = await prisma.order.findUniqueOrThrow({where: {orderNumber}})
+    if (verification.paymentId && !order.paymentReference) {
+      await prisma.order.update({
+        where: { orderNumber },
+        data: { paymentReference: verification.paymentId },
+      }).catch(() => {})
+    }
+    const current = await prisma.order.findUniqueOrThrow({ where: { orderNumber } })
     if (current.paymentStatus !== 'PAID') return errorResponse('Order cannot be finalized', 409)
     console.log(`[CHECKOUT verify] Order finalized: ${orderNumber}`)
   } catch (err) {

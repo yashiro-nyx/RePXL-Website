@@ -11,8 +11,9 @@ import { getCurrentUser, getCurrentAdmin } from '@/lib/auth-helpers'
 import { updateOrderStatusSchema } from '@/lib/validations'
 import { emitNotification } from '@/lib/notifications'
 import { buildOrderStatusUpdate } from '@/lib/order-status'
-import { canAdminEditOrderStatus, isPaymentExpired } from '@/lib/order-payment-expiry'
+import { canAdminEditOrderStatus, isPaymentExpired, canCustomerCancelOrder } from '@/lib/order-payment-expiry'
 import { finalizePaidOrder, InsufficientStockError } from '@/lib/purchase-finalization'
+import { checkPaymongoPaymentStatus } from '@/lib/paymongo'
 import type { OrderStatus } from '@prisma/client'
 
 // This route reads cookies / session state and must run per-request.
@@ -55,22 +56,60 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       return notFoundResponse('Order not found')
     }
 
-    // Auto-expire overdue pending orders on read
-    if (isPaymentExpired(order)) {
+    let activeOrder = order
+
+    // If order has pending payment and a gateway identifier, auto-reconcile with PayMongo
+    if (
+      activeOrder.paymentStatus === 'PENDING' &&
+      activeOrder.status === 'PROCESSING' &&
+      (activeOrder.paymentIntentId || activeOrder.paymentSessionId)
+    ) {
+      try {
+        const statusResult = await checkPaymongoPaymentStatus({
+          paymentIntentId: activeOrder.paymentIntentId,
+          paymentSessionId: activeOrder.paymentSessionId,
+        })
+        if (statusResult.isPaid) {
+          console.log(`[GET order] Auto-reconciling paid order from PayMongo: ${params.orderNumber}`)
+          await finalizePaidOrder(params.orderNumber)
+          if (statusResult.paymentId && !activeOrder.paymentReference) {
+            await prisma.order.update({
+              where: { orderNumber: params.orderNumber },
+              data: { paymentReference: statusResult.paymentId },
+            }).catch(() => {})
+          }
+          const refreshed = await prisma.order.findUnique({
+            where: { orderNumber: params.orderNumber },
+            include: {
+              items: { include: { product: true } },
+              user: { select: { id: true, email: true, firstName: true, lastName: true } },
+            },
+          })
+          if (refreshed) {
+            activeOrder = refreshed
+          }
+        }
+      } catch (err) {
+        console.warn(`[GET order] PayMongo auto-reconciliation failed for ${params.orderNumber}:`, err)
+      }
+    }
+
+    // Auto-expire overdue pending orders on read (only if still PENDING after PayMongo check)
+    if (isPaymentExpired(activeOrder)) {
       await prisma.order.update({
         where: { orderNumber: params.orderNumber },
         data: { paymentStatus: 'FAILED', status: 'CANCELLED', updatedAt: new Date() },
       })
-      order.paymentStatus = 'FAILED'
-      order.status = 'CANCELLED'
+      activeOrder.paymentStatus = 'FAILED'
+      activeOrder.status = 'CANCELLED'
     }
 
     // Non-admin users can only see their own orders
-    if (!admin && user && order.userId !== user.id) {
+    if (!admin && user && activeOrder.userId !== user.id) {
       return notFoundResponse('Order not found')
     }
 
-    return successResponse(order)
+    return successResponse(activeOrder)
   } catch (error) {
     console.error('Get order error:', error)
     return errorResponse('Internal server error', 500)
@@ -81,7 +120,9 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 export async function PATCH(request: NextRequest, { params }: RouteParams) {
   try {
     const admin = await getCurrentAdmin()
-    if (!admin) {
+    const user = !admin ? await getCurrentUser() : null
+
+    if (!admin && !user) {
       return unauthorizedResponse('Admin access required')
     }
 
@@ -104,6 +145,76 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 
     if (!order) {
       return notFoundResponse('Order not found')
+    }
+
+    // Customer cancellation: allow authenticated order owner to cancel without admin access
+    if (!admin && user) {
+      if (order.userId !== user.id) {
+        return notFoundResponse('Order not found')
+      }
+      if (status !== 'CANCELLED') {
+        return unauthorizedResponse('Admin access required')
+      }
+
+      const cancelCheck = canCustomerCancelOrder(order)
+      if (!cancelCheck.allowed) {
+        return errorResponse(
+          cancelCheck.reason || 'Order cannot be cancelled at this stage.',
+          409
+        )
+      }
+
+      if (order.status !== 'PROCESSING') {
+        return errorResponse(
+          `Order cannot be cancelled (current status: ${order.status}). Only orders in Processing status can be cancelled.`,
+          409
+        )
+      }
+
+      await prisma.$transaction(async (tx) => {
+        await tx.order.update({
+          where: { id: order.id },
+          data: { status: 'CANCELLED', updatedAt: new Date() },
+        })
+        if (order.paymentStatus === 'PAID') {
+          for (const item of order.items) {
+            await tx.product.update({
+              where: { id: item.productId },
+              data: { stock: { increment: item.quantity } },
+            })
+          }
+        }
+      })
+
+      emitNotification({
+        userId: user.id,
+        event: 'ORDER_STATUS_CHANGE',
+        subject: `Order ${order.orderNumber} Cancelled`,
+        body: `Your order ${order.orderNumber} has been cancelled as requested.`,
+        channel: 'BOTH',
+        recipientEmail: user.email,
+        context: {
+          orderNumber: order.orderNumber,
+          customerName: `${user.firstName ?? ''} ${user.lastName ?? ''}`.trim() || user.email || 'Customer',
+          status: 'CANCELLED',
+          orderStatus: 'CANCELLED',
+          orderTotal: order.total != null ? `₱${order.total.toLocaleString()}` : '',
+          orderDate: order.createdAt ? new Date(order.createdAt).toLocaleDateString('en-US', { dateStyle: 'medium' }) : '',
+        },
+      }).catch(() => {})
+
+      const updated = await prisma.order.findUniqueOrThrow({
+        where: { orderNumber: params.orderNumber },
+        include: {
+          items: { include: { product: true } },
+          user: { select: { id: true, email: true, firstName: true, lastName: true } },
+        },
+      })
+      return successResponse(updated)
+    }
+
+    if (!admin) {
+      return unauthorizedResponse('Admin access required')
     }
 
     // If order is overdue for payment, expire it immediately

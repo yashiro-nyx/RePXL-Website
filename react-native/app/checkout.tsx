@@ -14,6 +14,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import * as WebBrowser from 'expo-web-browser';
 import { useApp } from '../context/AppContext';
 import { api } from '../src/services/api';
 import type { Address } from '../types';
@@ -209,6 +210,41 @@ export default function CheckoutScreen() {
           : 'Cash on Delivery';
 
     try {
+      if (payMethod === 'card' || payMethod === 'gcash') {
+        try {
+          const session = await api.checkout(
+            selectedAddress,
+            checkoutItems.map((item) => item.product.slug),
+            payMethod,
+            voucherCode,
+            selectedCourier.price,
+            selectedCourier.name,
+            selectedCourier.estimate
+          );
+
+          if (session?.checkoutUrl) {
+            // Open PayMongo Hosted Checkout in in-app browser
+            await WebBrowser.openBrowserAsync(session.checkoutUrl);
+
+            // Reconcile payment status upon returning
+            try {
+              await api.verifyCheckout(session.orderNumber);
+            } catch {
+              // Non-fatal, order detail fetch will also auto-reconcile
+            }
+
+            await refreshAccount();
+            router.replace({
+              pathname: '/order-confirm',
+              params: { orderNumber: session.orderNumber },
+            });
+            return;
+          }
+        } catch (err) {
+          console.warn('PayMongo hosted checkout session failed, falling back to direct order:', err);
+        }
+      }
+
       const order = await api.createOrder({
         fullName: selectedAddress.fullName,
         address: selectedAddress.address,

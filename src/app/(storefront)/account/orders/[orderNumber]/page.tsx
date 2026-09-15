@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import dynamic from 'next/dynamic'
 import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
@@ -8,6 +8,7 @@ import { createPortal } from 'react-dom'
 import { Button, BackButton, PageLoader, ImageUploader, type UploadedImage } from '@/components/ui'
 import { useAuthStore } from '@/stores/authStore'
 import { useOrderHistoryStore, type Order } from '@/stores/orderHistoryStore'
+import { computeStepperState } from '@/lib/order-tracking'
 import { computeLifecycleStepperState } from '@/lib/order-tracking'
 import { TrackingTimeline } from '@/components/tracking/TrackingTimeline'
 import { formatPrice } from '@/lib/format'
@@ -17,6 +18,13 @@ const TrackingMap = dynamic(
   () => import('@/components/tracking/TrackingMap').then((m) => ({ default: m.TrackingMap })),
   { ssr: false, loading: () => <div className="mt-4 h-[300px] animate-pulse rounded-2xl bg-repixl-charcoal/40" /> }
 )
+
+const STEP_LABELS: Record<string, string> = {
+  PROCESSING: 'Order Placed',
+  SHIPPED: 'Shipped',
+  DELIVERED: 'Delivered',
+  COMPLETED: 'Completed',
+}
 
 import {
   normalizeOrderStatus,
@@ -76,6 +84,7 @@ export default function OrderDetailPage() {
   const [hydrated, setHydrated] = useState(false)
   const [order, setOrder] = useState<Order | null>(null)
   const [notFound, setNotFound] = useState(false)
+  const [checkingPayment, setCheckingPayment] = useState(false)
 
   // ── Cancel order state ──
   const [cancelModalOpen, setCancelModalOpen] = useState(false)
@@ -96,11 +105,76 @@ export default function OrderDetailPage() {
   const [feedbackSuccess, setFeedbackSuccess] = useState(false)
   const [now, setNow] = useState(() => Date.now())
 
+  const fetchOrder = useCallback(async () => {
+    if (!orderNumber) return
+    setNotFound(false)
+
+    try {
+      const res = await fetch(`/api/orders/${encodeURIComponent(orderNumber)}`, {
+        credentials: 'include',
+        cache: 'no-store',
+      })
+      if (res.status === 401 || res.status === 403) {
+        router.push('/login')
+        return
+      }
+      if (res.status === 404) {
+        setNotFound(true)
+        return
+      }
+      if (!res.ok) {
+        setNotFound(true)
+        return
+      }
+      const json = await res.json().catch(() => null)
+      if (!json?.success || !json?.data) {
+        setNotFound(true)
+        return
+      }
+
+      const { apiToClientOrder } = await import('@/lib/mappers')
+      const mapped = apiToClientOrder(json.data)
+
+      if (mapped.userEmail && userEmail && mapped.userEmail !== userEmail) {
+        setNotFound(true)
+        return
+      }
+
+      setOrder(mapped)
+    } catch {
+      setNotFound(true)
+    }
+  }, [orderNumber, userEmail, router])
+
+  const handleCheckPayment = async () => {
+    setCheckingPayment(true)
+    try {
+      await fetchOrder()
+    } finally {
+      setCheckingPayment(false)
+    }
+  }
+
   useEffect(() => {
     if (order?.paymentStatus !== 'PENDING') return
     const interval = setInterval(() => setNow(Date.now()), 30000)
     return () => clearInterval(interval)
   }, [order?.paymentStatus])
+
+  // Polling when order is PENDING to detect external PayMongo payment completion
+  useEffect(() => {
+    if (order?.paymentStatus !== 'PENDING') return
+    let count = 0
+    const poll = setInterval(() => {
+      count += 1
+      if (count > 20) {
+        clearInterval(poll)
+        return
+      }
+      void fetchOrder()
+    }, 6000)
+    return () => clearInterval(poll)
+  }, [order?.paymentStatus, fetchOrder])
 
   useEffect(() => {
     hydrate().then(() => {
@@ -112,63 +186,10 @@ export default function OrderDetailPage() {
   useEffect(() => {
     if (!hydrated) return
     if (!isLoggedIn) { router.push('/login'); return }
-    // Don't attempt to fetch until auth has resolved the user's email.
-    // userEmail starts as '' and is populated after auth hydration.
-    // Fetching before it's populated causes a false ownership-check failure.
     if (!userEmail) return
 
-    // Fetch the specific order directly from the API so we always get the
-    // latest tracking fields (deliveryStatus, trackingProgress, etc.)
-    // rather than relying on the potentially-stale store list.
-    const fetchOrder = async () => {
-      // Reset notFound so a retry (e.g. after userEmail populates) doesn't
-      // stay stuck showing the not-found screen.
-      setNotFound(false)
-
-      try {
-        const res = await fetch(`/api/orders/${encodeURIComponent(orderNumber ?? '')}`, {
-          credentials: 'include',
-          cache: 'no-store',
-        })
-        if (res.status === 401 || res.status === 403) {
-          router.push('/login')
-          return
-        }
-        if (res.status === 404) {
-          setNotFound(true)
-          return
-        }
-        if (!res.ok) {
-          setNotFound(true)
-          return
-        }
-        const json = await res.json().catch(() => null)
-        if (!json?.success || !json?.data) {
-          setNotFound(true)
-          return
-        }
-
-        // Map the raw API order to the client Order shape using the existing mapper
-        const { apiToClientOrder } = await import('@/lib/mappers')
-        const mapped = apiToClientOrder(json.data)
-
-        // Ownership check — the server already scopes GET /api/orders/[orderNumber]
-        // to the authenticated user, so a 404 means it's not theirs. The client
-        // check here is a secondary guard using the email field. Only reject if
-        // userEmail is populated AND it doesn't match — never reject on empty string.
-        if (mapped.userEmail && userEmail && mapped.userEmail !== userEmail) {
-          setNotFound(true)
-          return
-        }
-
-        setOrder(mapped)
-      } catch {
-        setNotFound(true)
-      }
-    }
-
     void fetchOrder()
-  }, [hydrated, isLoggedIn, orderNumber, userEmail, router])
+  }, [hydrated, isLoggedIn, userEmail, router, fetchOrder])
 
   // ── Cancel order handler ──
   const handleCancelConfirm = async () => {
@@ -425,6 +446,28 @@ export default function OrderDetailPage() {
                     </p>
                   </div>
                 </div>
+                <div className="flex items-center gap-3 self-end sm:self-center">
+                  <button
+                    type="button"
+                    disabled={checkingPayment}
+                    onClick={() => void handleCheckPayment()}
+                    className="flex items-center gap-2 rounded-xl border border-amber-500/40 bg-amber-500/20 px-3.5 py-2 font-mono text-xs font-semibold uppercase tracking-wider text-amber-200 transition-all hover:bg-amber-500/30 hover:text-white disabled:opacity-50"
+                  >
+                    {checkingPayment ? (
+                      <>
+                        <Spinner />
+                        Checking...
+                      </>
+                    ) : (
+                      <>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                          <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67" />
+                        </svg>
+                        Check Payment Status
+                      </>
+                    )}
+                  </button>
+                </div>
               </div>
             </div>
           )}
@@ -471,6 +514,7 @@ export default function OrderDetailPage() {
               <div className="rounded-2xl border border-repixl-muted/10 bg-repixl-charcoal p-5">
                 <div className="mb-5">
                   <p className="font-mono text-[10px] uppercase tracking-widest text-repixl-muted">Order Status</p>
+                  <p className="mt-0.5 text-xs text-repixl-muted/60">Overall order lifecycle — Processing → Shipped → Delivered → Completed</p>
                   <p className="mt-0.5 text-xs text-repixl-muted/60">Overall order lifecycle — Order Placed → Payment Processed → Shipped → Delivered → Completed</p>
                 </div>
                 {stepper.cancelled ? (

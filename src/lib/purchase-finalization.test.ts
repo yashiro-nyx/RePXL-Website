@@ -32,6 +32,11 @@ vi.mock('@/lib/paymongo', () => ({
   retrieveCheckoutSession: vi.fn().mockResolvedValue({
     attributes: { payment_intent: { attributes: { status: 'succeeded' } } },
   }),
+  checkPaymongoPaymentStatus: vi.fn().mockResolvedValue({
+    isPaid: true,
+    status: 'succeeded',
+    paymentId: 'pay_test_succ',
+  }),
 }))
 import { prisma } from '@/lib/prisma'
 import { emitNotification } from '@/lib/notifications'

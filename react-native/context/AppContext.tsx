@@ -62,6 +62,8 @@ interface AppContextType {
   setDefaultAddress: (id: string) => Promise<void>;
   submitReview: (productId: string, rating: number, comment: string) => Promise<AccountReview>;
   removeReview: (reviewId: string) => Promise<void>;
+  cancelOrder: (orderNumber: string) => Promise<Order>;
+  confirmReceipt: (orderNumber: string, rating?: number, comment?: string) => Promise<Order>;
   updateOrderStatus: (orderNumber: string, status: string) => Promise<Order>;
   validateVoucher: (code: string, cartTotal: number) => Promise<{
     valid: boolean;
@@ -334,6 +336,22 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  const cancelOrder = useCallback(async (orderNumber: string) => {
+    const updated = await api.cancelOrder(orderNumber);
+    setOrders((current) =>
+      current.map((order) => (order.orderNumber === orderNumber ? updated : order))
+    );
+    return updated;
+  }, []);
+
+  const confirmReceipt = useCallback(async (orderNumber: string, rating?: number, comment?: string) => {
+    const updated = await api.confirmReceipt(orderNumber, rating, comment);
+    setOrders((current) =>
+      current.map((order) => (order.orderNumber === orderNumber ? updated : order))
+    );
+    return updated;
+  }, []);
+
   const updateOrderStatus = useCallback(async (orderNumber: string, status: string) => {
     const updated = await api.updateOrderStatus(orderNumber, status);
     setOrders((current) =>
@@ -454,6 +472,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setDefaultAddress,
     submitReview,
     removeReview,
+    cancelOrder,
+    confirmReceipt,
     updateOrderStatus,
     validateVoucher,
   }), [
@@ -462,7 +482,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     refreshProducts, refreshAccount, refreshNotifications, addToCart, removeFromCart, updateQty,
     toggleWishlist, toggleCompare, clearCart, saveProfile, markNotificationRead, markAllNotificationsRead,
     addAddress, updateAddress, deleteAddress, setDefaultAddress, submitReview,
-    removeReview, updateOrderStatus, validateVoucher,
+    removeReview, cancelOrder, confirmReceipt, updateOrderStatus, validateVoucher,
   ]);
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

@@ -286,7 +286,34 @@ export const api = {
     return orders.map(mapOrder);
   },
   order: async (orderNumber: string) => mapOrder(await authorized<RawOrder>(`/api/orders/${encodeURIComponent(orderNumber)}`)),
+  cancelOrder: async (orderNumber: string): Promise<Order> => {
+    await authorized<{ orderNumber: string; status: string }>(
+      `/api/orders/${encodeURIComponent(orderNumber)}/cancel`,
+      { method: 'POST' }
+    );
+    return api.order(orderNumber);
+  },
+  confirmReceipt: async (
+    orderNumber: string,
+    rating: number = 5,
+    comment: string = 'Order received in good condition.'
+  ): Promise<Order> => {
+    await authorized<{ orderNumber: string; status: string }>(
+      `/api/orders/${encodeURIComponent(orderNumber)}/confirm-receipt`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ rating, comment }),
+      }
+    );
+    return api.order(orderNumber);
+  },
   updateOrderStatus: async (orderNumber: string, status: string): Promise<Order> => {
+    if (status === 'CANCELLED') {
+      return api.cancelOrder(orderNumber);
+    }
+    if (status === 'COMPLETED') {
+      return api.confirmReceipt(orderNumber);
+    }
     const raw = await authorized<RawOrder>(`/api/orders/${encodeURIComponent(orderNumber)}`, {
       method: 'PATCH',
       body: JSON.stringify({ status }),
@@ -340,6 +367,8 @@ export const api = {
     paymentMethod: 'card' | 'gcash',
     voucherCode: string | null = null,
     shippingCost: number = 0,
+    courierName: string = 'Standard delivery',
+    courierEstimate: string = '3-5 business days',
   ) => authorized<{ checkoutUrl: string; orderNumber: string; sessionId: string }>('/api/checkout/session', {
     method: 'POST',
     body: JSON.stringify({
@@ -349,14 +378,25 @@ export const api = {
       city: address.city,
       province: address.province,
       postalCode: address.postalCode,
-      courierName: 'Standard delivery',
-      courierEstimate: '3-5 business days',
+      courierName,
+      courierEstimate,
       paymentMethod,
       voucherCode,
       shippingCost,
       selectedProductIds,
     }),
   }),
+  verifyCheckout: (orderNumber: string) =>
+    authorized<{
+      orderNumber: string;
+      status: string;
+      paymentStatus: string;
+      alreadyFinalized: boolean;
+      message?: string;
+    }>('/api/checkout/verify', {
+      method: 'POST',
+      body: JSON.stringify({ orderNumber }),
+    }),
   health: () => request<{ status: string; uptimeSeconds: number; database: { status: string; latencyMs: number } }>('/api/health'),
 };
 

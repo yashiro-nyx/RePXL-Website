@@ -201,6 +201,123 @@ export async function retrieveCheckoutSession(id: string): Promise<CheckoutSessi
   return res.data
 }
 
+// ─── Payment status verification helper ──────────────────────────────────────────
+
+export interface PaymongoStatusResult {
+  isPaid: boolean
+  status: string
+  paymentId?: string
+}
+
+/**
+ * Robustly verify payment status with PayMongo across both Payment Intents and
+ * Checkout Sessions.
+ *
+ * Checks:
+ * 1. Checkout Session:
+ *    - session.attributes.payments: any payment with status === 'paid' (case-insensitive)
+ *    - session.attributes.payment_intent: attributes.status === 'succeeded'
+ *    - if payment_intent exists by ID without status, attempts retrievePaymentIntent
+ * 2. Payment Intent:
+ *    - intent.attributes.status === 'succeeded'
+ *    - intent.attributes.payments: any payment with status === 'paid'
+ */
+export async function checkPaymongoPaymentStatus(ids: {
+  paymentIntentId?: string | null
+  paymentSessionId?: string | null
+}): Promise<PaymongoStatusResult> {
+  if (!isPaymongoConfigured()) {
+    return { isPaid: false, status: 'unconfigured' }
+  }
+
+  const { paymentSessionId, paymentIntentId } = ids
+
+  // 1. Check Checkout Session first if present
+  if (paymentSessionId) {
+    try {
+      const session = await retrieveCheckoutSession(paymentSessionId)
+      const attrs = session.attributes || {}
+
+      // Check payments array (PayMongo returns payments: [{ id, attributes: { status: 'paid' } }])
+      const payments = attrs.payments
+      if (Array.isArray(payments) && payments.length > 0) {
+        const paidPayment = payments.find((p) => {
+          const s = (p.attributes?.status || (p as any).status || '').toLowerCase()
+          return s === 'paid'
+        })
+        if (paidPayment) {
+          return { isPaid: true, status: 'paid', paymentId: paidPayment.id }
+        }
+      }
+
+      // Check nested payment_intent
+      const pi = attrs.payment_intent
+      const piStatus = (pi?.attributes?.status || (pi as any)?.status || '').toLowerCase()
+      if (piStatus === 'succeeded') {
+        return { isPaid: true, status: 'succeeded', paymentId: pi?.id }
+      }
+
+      // If session attributes didn't have payments/status, but we have payment_intent ID, check that PI directly
+      const nestedPiId = pi?.id
+      if (nestedPiId && typeof nestedPiId === 'string') {
+        try {
+          const intent = await retrievePaymentIntent(nestedPiId)
+          const iStatus = (intent.attributes?.status || '').toLowerCase()
+          if (iStatus === 'succeeded') {
+            const firstPayment = intent.attributes?.payments?.[0]?.id
+            return { isPaid: true, status: 'succeeded', paymentId: firstPayment || nestedPiId }
+          }
+          const hasPaidPayment = intent.attributes?.payments?.some(
+            (p) => (p.attributes?.status || '').toLowerCase() === 'paid'
+          )
+          if (hasPaidPayment) {
+            return { isPaid: true, status: 'paid', paymentId: intent.attributes?.payments?.[0]?.id }
+          }
+        } catch {
+          // If retrieving nested PI fails, continue to intent check or fallback
+        }
+      }
+
+      const sessionStatus = (piStatus || attrs.status || 'pending') as string
+      return { isPaid: false, status: sessionStatus }
+    } catch (err) {
+      console.warn(`[paymongo] Failed to retrieve session ${paymentSessionId}:`, err)
+      // If session lookup failed, fall through to paymentIntentId check if provided
+    }
+  }
+
+  // 2. Check Payment Intent directly if present
+  if (paymentIntentId) {
+    try {
+      const intent = await retrievePaymentIntent(paymentIntentId)
+      const iStatus = (intent.attributes?.status || '').toLowerCase()
+      if (iStatus === 'succeeded') {
+        const firstPayment = intent.attributes?.payments?.[0]?.id
+        return { isPaid: true, status: 'succeeded', paymentId: firstPayment || intent.id }
+      }
+
+      const payments = intent.attributes?.payments
+      if (Array.isArray(payments) && payments.length > 0) {
+        const paidPayment = payments.find((p) => {
+          const s = (p.attributes?.status || (p as any).status || '').toLowerCase()
+          return s === 'paid'
+        })
+        if (paidPayment) {
+          return { isPaid: true, status: 'paid', paymentId: paidPayment.id }
+        }
+      }
+
+      return { isPaid: false, status: intent.attributes?.status || 'pending' }
+    } catch (err) {
+      console.warn(`[paymongo] Failed to retrieve intent ${paymentIntentId}:`, err)
+      return { isPaid: false, status: 'error' }
+    }
+  }
+
+  return { isPaid: false, status: 'none' }
+}
+
+
 // ─── Webhook signature verification ──────────────────────────────────────────────
 // PayMongo signs each webhook. The `Paymongo-Signature` header looks like:
 //   t=<unix_ts>,te=<test_sig>,li=<live_sig>

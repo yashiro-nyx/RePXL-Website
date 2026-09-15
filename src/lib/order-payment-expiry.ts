@@ -1,4 +1,6 @@
 import { prisma } from '@/lib/prisma'
+import { checkPaymongoPaymentStatus } from '@/lib/paymongo'
+import { finalizePaidOrder } from '@/lib/purchase-finalization'
 import type { PrismaClient, Prisma } from '@prisma/client'
 
 export const DEFAULT_PAYMENT_EXPIRY_HOURS = 24
@@ -119,6 +121,30 @@ export async function expireOverduePendingOrders(
 
     for (const order of overdueOrders) {
       try {
+        // If order has PayMongo gateway ID, check upstream before cancelling
+        if (order.paymentIntentId || order.paymentSessionId) {
+          try {
+            const statusResult = await checkPaymongoPaymentStatus({
+              paymentIntentId: order.paymentIntentId,
+              paymentSessionId: order.paymentSessionId,
+            })
+            if (statusResult.isPaid) {
+              console.log(`[expireOverduePendingOrders] Found paid order during expiry check: ${order.orderNumber}`)
+              await finalizePaidOrder(order.orderNumber)
+              if (statusResult.paymentId && !order.paymentReference) {
+                await client.order.update({
+                  where: { orderNumber: order.orderNumber },
+                  data: { paymentReference: statusResult.paymentId },
+                }).catch(() => {})
+              }
+              // Do not cancel this order as it was paid!
+              continue
+            }
+          } catch (err) {
+            console.warn(`[expireOverduePendingOrders] PayMongo check failed for ${order.orderNumber}:`, err)
+          }
+        }
+
         await client.$transaction(async (tx: Prisma.TransactionClient) => {
           // If inventory was deducted at creation (direct orders without gateway IDs), restore it
           const isDirectOrder = !order.paymentIntentId && !order.paymentSessionId
