@@ -55,7 +55,17 @@ function SuccessInner() {
   const [order, setOrder] = useState<OrderData | null>(null)
   const [fetchStatus, setFetchStatus] = useState<'loading' | 'found' | 'pending' | 'error'>('loading')
 
+  const isMobile = params.get('mobile') === 'true'
+  const redirectScheme = params.get('redirect_scheme') || 'repxl://checkout/callback'
+  const mobileRedirectUrl = `${redirectScheme}${redirectScheme.includes('?') ? '&' : '?'}order=${encodeURIComponent(initialOrderNumber || paymentIntentId || '')}`
+
   useEffect(() => {
+    if (isMobile) {
+      // Immediately redirect back to the mobile app
+      window.location.replace(mobileRedirectUrl)
+      return
+    }
+
     // Clear the cart on return from PayMongo.
     useCartStore.getState().hydrate()
     // Re-hydrate product store so the listing immediately shows updated stock.
@@ -169,6 +179,28 @@ function SuccessInner() {
         day: 'numeric',
       })
     : ''
+
+  if (isMobile) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center bg-[#0d0d0d] px-6 text-center text-white">
+        <div className="w-full max-w-sm rounded-2xl border border-white/10 bg-[#161618] p-8 shadow-2xl">
+          <div className="mx-auto mb-5 flex h-12 w-12 items-center justify-center">
+            <div className="h-8 w-8 animate-spin rounded-full border-2 border-white/20 border-t-[#c62828]" />
+          </div>
+          <h2 className="font-display text-lg font-bold text-white">Returning to RePXL App</h2>
+          <p className="mt-2 text-xs text-neutral-400">Payment completed. Securing your order details…</p>
+          <div className="mt-6 border-t border-white/10 pt-4">
+            <a
+              href={mobileRedirectUrl}
+              className="inline-block w-full rounded-xl bg-[#c62828] py-3 text-xs font-bold text-white transition hover:bg-[#b71c1c]"
+            >
+              Tap here to return to app
+            </a>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   // ── Loading state ──────────────────────────────────────────────────────────────
   if (fetchStatus === 'loading') {

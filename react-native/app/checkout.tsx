@@ -15,8 +15,9 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as WebBrowser from 'expo-web-browser';
+import * as Linking from 'expo-linking';
 import { useApp } from '../context/AppContext';
-import { api } from '../src/services/api';
+import { api, API_BASE_URL } from '../src/services/api';
 import type { Address } from '../types';
 
 interface CourierOption {
@@ -256,6 +257,9 @@ export default function CheckoutScreen() {
       const rawYear = parseInt(yearStr ?? '30', 10);
       const expYear = rawYear < 100 ? rawYear + 2000 : rawYear;
 
+      const callbackScheme = Linking.createURL('checkout/callback');
+      const returnUrl = `${API_BASE_URL}/checkout/success?mobile=true&redirect_scheme=${encodeURIComponent(callbackScheme)}`;
+
       const res = await api.processPayment({
         fullName: selectedAddress.fullName,
         address: selectedAddress.address,
@@ -270,6 +274,7 @@ export default function CheckoutScreen() {
         voucherCode,
         shippingCost: selectedCourier.price,
         selectedProductIds: checkoutItems.map((item) => item.product.slug),
+        returnUrl,
         card:
           payMethod === 'card'
             ? {
@@ -290,7 +295,7 @@ export default function CheckoutScreen() {
 
       if (res.isPaid || res.status === 'PROCESSING' || res.status === 'PAID') {
         // Direct order completion (card paid, COD placed, or demo flow)
-        await refreshAccount();
+        await refreshAccount().catch(() => undefined);
         router.replace({
           pathname: '/order-confirm',
           params: { orderNumber: res.orderNumber },
@@ -300,7 +305,11 @@ export default function CheckoutScreen() {
 
       if (res.status === 'AWAITING_NEXT_ACTION' && res.nextActionUrl) {
         // 3DS OTP verification or GCash authorization prompt
-        await WebBrowser.openBrowserAsync(res.nextActionUrl);
+        try {
+          await WebBrowser.openAuthSessionAsync(res.nextActionUrl, callbackScheme);
+        } catch {
+          await WebBrowser.openBrowserAsync(res.nextActionUrl);
+        }
 
         try {
           await api.verifyCheckout(res.orderNumber);
@@ -308,7 +317,7 @@ export default function CheckoutScreen() {
           // Non-fatal, order detail fetch also auto-reconciles
         }
 
-        await refreshAccount();
+        await refreshAccount().catch(() => undefined);
         router.replace({
           pathname: '/order-confirm',
           params: { orderNumber: res.orderNumber },
@@ -317,7 +326,7 @@ export default function CheckoutScreen() {
       }
 
       // Default fallback
-      await refreshAccount();
+      await refreshAccount().catch(() => undefined);
       router.replace({
         pathname: '/order-confirm',
         params: { orderNumber: res.orderNumber },

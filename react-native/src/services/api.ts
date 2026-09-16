@@ -106,7 +106,7 @@ function mapOrder(order: RawOrder): Order {
   };
 }
 
-const DEFAULT_TIMEOUT_MS = 15000;
+const DEFAULT_TIMEOUT_MS = 30000;
 
 async function request<T>(path: string, init: RequestInit = {}, timeoutMs = DEFAULT_TIMEOUT_MS): Promise<T> {
   const controller = new AbortController();
@@ -130,8 +130,14 @@ async function request<T>(path: string, init: RequestInit = {}, timeoutMs = DEFA
     return body.data;
   } catch (error: any) {
     clearTimeout(timer);
-    if (error?.name === 'AbortError' || error?.message?.includes('aborted')) {
-      throw new ApiError('Request timed out. Please check your connection and try again.', 408);
+    const errText = String(error?.message || error || '');
+    const isCancelOrTimeout =
+      error?.name === 'AbortError' ||
+      error?.name === 'FetchRequestCanceledException' ||
+      /cancel|abort/i.test(errText);
+
+    if (isCancelOrTimeout) {
+      throw new ApiError('Request timed out or was cancelled. Please check your connection and try again.', 408);
     }
     throw error;
   }
@@ -157,13 +163,13 @@ async function refreshSession(): Promise<MobileSession> {
   return refreshPromise;
 }
 
-async function authorized<T>(path: string, init: RequestInit = {}): Promise<T> {
+async function authorized<T>(path: string, init: RequestInit = {}, timeoutMs = DEFAULT_TIMEOUT_MS): Promise<T> {
   const current = await loadSession();
   if (!current) throw new ApiError('Sign in required.', 401);
   const send = (token: string) => request<T>(path, {
     ...init,
     headers: { Authorization: `Bearer ${token}`, ...init.headers },
-  });
+  }, timeoutMs);
   try {
     return await send(current.tokens.accessToken);
   } catch (error) {
@@ -430,21 +436,29 @@ export const api = {
       nextActionUrl?: string;
       intentId?: string;
       message?: string;
-    }>('/api/checkout/process-payment', {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    }),
-    verifyCheckout: (orderNumber: string) =>
+    }>(
+      '/api/checkout/process-payment',
+      {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      },
+      60000
+    ),
+  verifyCheckout: (orderNumber: string) =>
     authorized<{
       orderNumber: string;
       status: string;
       paymentStatus: string;
       alreadyFinalized: boolean;
       message?: string;
-    }>('/api/checkout/verify', {
-      method: 'POST',
-      body: JSON.stringify({ orderNumber }),
-    }),
+    }>(
+      '/api/checkout/verify',
+      {
+        method: 'POST',
+        body: JSON.stringify({ orderNumber }),
+      },
+      45000
+    ),
   getCheckoutConfig: () =>
     request<{
       isConfigured: boolean;
