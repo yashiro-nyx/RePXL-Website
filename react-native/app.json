@@ -18,12 +18,20 @@
       "package": "com.repxl.mobile"
     },
     "scheme": "repxl",
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0d0d0d"
+    },
     "plugins": [
       "expo-router",
       "expo-notifications",
       [
         "expo-splash-screen",
         {
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 200,
+          "resizeMode": "contain",
           "backgroundColor": "#0d0d0d"
         }
       ],
