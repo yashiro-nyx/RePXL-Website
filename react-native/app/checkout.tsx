@@ -36,24 +36,6 @@ const COURIERS: CourierOption[] = [
 
 type PayMethod = 'card' | 'gcash' | 'cod';
 
-const DEFAULT_TEST_CARD = {
-  number: '4111 1111 1111 1111',
-  expiry: '12/28',
-  cvc: '123',
-  cardholderName: 'Test Buyer',
-};
-
-const DEFAULT_TEST_3DS_CARD = {
-  number: '4000 0000 0000 0002',
-  expiry: '12/28',
-  cvc: '123',
-  cardholderName: 'Test 3DS Buyer',
-};
-
-const DEFAULT_TEST_GCASH = {
-  phone: '09171234567',
-};
-
 export default function CheckoutScreen() {
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams<{
@@ -93,28 +75,6 @@ export default function CheckoutScreen() {
   // In-app GCash State
   const [gcashPhone, setGcashPhone] = useState(defaultAddress?.phone ?? '');
 
-  // PayMongo Sandbox Config
-  const [isTestMode, setIsTestMode] = useState(true);
-  const [testCard, setTestCard] = useState(DEFAULT_TEST_CARD);
-  const [testCard3DS, setTestCard3DS] = useState(DEFAULT_TEST_3DS_CARD);
-  const [testGcash, setTestGcash] = useState(DEFAULT_TEST_GCASH);
-
-  useEffect(() => {
-    let mounted = true;
-    api
-      .getCheckoutConfig()
-      .then((cfg) => {
-        if (!mounted) return;
-        setIsTestMode(cfg.isTestMode ?? true);
-        if (cfg.testCard) setTestCard(cfg.testCard);
-        if (cfg.testCard3DS) setTestCard3DS(cfg.testCard3DS);
-        if (cfg.testGcash) setTestGcash(cfg.testGcash);
-      })
-      .catch(() => {});
-    return () => {
-      mounted = false;
-    };
-  }, []);
 
   // Add Address Modal state
   const [showAddressModal, setShowAddressModal] = useState(false);
@@ -447,26 +407,13 @@ export default function CheckoutScreen() {
           </TouchableOpacity>
         ))}
 
-        {/* PayMongo Test Mode Banner */}
-        {isTestMode && (
-          <View style={styles.testModeBanner}>
-            <View style={styles.testModeHeader}>
-              <Feather name="shield" size={14} color="#f59e0b" />
-              <Text style={styles.testModeBannerTitle}>PAYMONGO SANDBOX TEST MODE</Text>
-            </View>
-            <Text style={styles.testModeBannerText}>
-              Payments are currently in sandbox mode. No real cards or funds will be charged. Tap the test buttons below to auto-fill valid PayMongo credentials.
-            </Text>
-          </View>
-        )}
-
         {/* Payment Method Selection */}
         <Text style={styles.sectionTitle}>Payment Method</Text>
         {(
           [
             { id: 'card' as const, label: 'Credit / Debit Card', icon: 'credit-card', subtitle: 'Visa, Mastercard, JCB' },
             { id: 'gcash' as const, label: 'GCash', icon: 'smartphone', subtitle: 'Philippine e-wallet' },
-            { id: 'cod' as const, label: 'Cash on Delivery', icon: 'truck', subtitle: 'Pay when delivered' },
+            { id: 'cod' as const, label: 'Cash on Delivery', icon: 'truck', subtitle: 'Requires store approval · Pay when delivered' },
           ] as const
         ).map((method) => (
           <TouchableOpacity
@@ -493,45 +440,7 @@ export default function CheckoutScreen() {
           <View style={styles.paymentFieldsCard}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
               <Text style={styles.paymentCardTitle}>Card Details</Text>
-              {isTestMode && (
-                <View style={styles.testModeBadge}>
-                  <Text style={styles.testModeBadgeText}>TEST MODE</Text>
-                </View>
-              )}
             </View>
-
-            {isTestMode && (
-              <View style={styles.testCardActionRow}>
-                <TouchableOpacity
-                  style={styles.autofillBtn}
-                  onPress={() => {
-                    setCardNumber(testCard.number);
-                    setCardExpiry(testCard.expiry);
-                    setCardCvc(testCard.cvc);
-                    setCardholderName(testCard.cardholderName);
-                    setError('');
-                  }}
-                  activeOpacity={0.7}
-                >
-                  <Feather name="zap" size={12} color="#fbbf24" />
-                  <Text style={styles.autofillBtnText}>Auto-Fill Test Card</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.autofillSecondaryBtn}
-                  onPress={() => {
-                    setCardNumber(testCard3DS.number);
-                    setCardExpiry(testCard3DS.expiry);
-                    setCardCvc(testCard3DS.cvc);
-                    setCardholderName(testCard3DS.cardholderName);
-                    setError('');
-                  }}
-                  activeOpacity={0.7}
-                >
-                  <Feather name="external-link" size={11} color="#aaa" />
-                  <Text style={styles.autofillSecondaryBtnText}>3DS Card</Text>
-                </TouchableOpacity>
-              </View>
-            )}
 
             <Text style={styles.fieldLabel}>CARDHOLDER NAME</Text>
             <TextInput
@@ -588,28 +497,7 @@ export default function CheckoutScreen() {
           <View style={styles.paymentFieldsCard}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
               <Text style={styles.paymentCardTitle}>GCash Details</Text>
-              {isTestMode && (
-                <View style={styles.testModeBadge}>
-                  <Text style={styles.testModeBadgeText}>TEST MODE</Text>
-                </View>
-              )}
             </View>
-
-            {isTestMode && (
-              <View style={styles.testCardActionRow}>
-                <TouchableOpacity
-                  style={styles.autofillBtn}
-                  onPress={() => {
-                    setGcashPhone(testGcash.phone);
-                    setError('');
-                  }}
-                  activeOpacity={0.7}
-                >
-                  <Feather name="zap" size={12} color="#fbbf24" />
-                  <Text style={styles.autofillBtnText}>Auto-Fill Test GCash ({testGcash.phone})</Text>
-                </TouchableOpacity>
-              </View>
-            )}
 
             <Text style={styles.fieldLabel}>GCASH MOBILE NUMBER</Text>
             <TextInput
@@ -631,7 +519,7 @@ export default function CheckoutScreen() {
           <View style={styles.paymentFieldsCard}>
             <Text style={styles.paymentCardTitle}>Cash on Delivery</Text>
             <Text style={styles.helperText}>
-              Please prepare the exact cash amount upon courier delivery.
+              Please prepare the exact cash amount upon courier delivery. Note: Cash on Delivery orders require store administrator confirmation before being officially placed and dispatched.
             </Text>
           </View>
         )}
@@ -939,85 +827,6 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter_700Bold',
     fontSize: 12,
     color: '#fff',
-  },
-  testModeBanner: {
-    backgroundColor: '#1f1608',
-    borderColor: '#784a0d',
-    borderWidth: 1,
-    borderRadius: 12,
-    padding: 12,
-    marginTop: 4,
-    marginBottom: 8,
-    gap: 4,
-  },
-  testModeHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  testModeBannerTitle: {
-    fontFamily: 'Inter_700Bold',
-    fontSize: 11,
-    color: '#f59e0b',
-    letterSpacing: 0.8,
-  },
-  testModeBannerText: {
-    fontFamily: 'Inter_400Regular',
-    fontSize: 11,
-    color: '#d97706',
-    lineHeight: 16,
-  },
-  testModeBadge: {
-    backgroundColor: '#3b2505',
-    borderColor: '#b45309',
-    borderWidth: 1,
-    borderRadius: 4,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-  },
-  testModeBadgeText: {
-    fontFamily: 'Inter_700Bold',
-    fontSize: 9,
-    color: '#fbbf24',
-    letterSpacing: 0.5,
-  },
-  testCardActionRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    marginBottom: 8,
-  },
-  autofillBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    backgroundColor: '#2b1b05',
-    borderColor: '#b45309',
-    borderWidth: 1,
-    borderRadius: 8,
-    paddingVertical: 7,
-    paddingHorizontal: 10,
-  },
-  autofillBtnText: {
-    fontFamily: 'Inter_600SemiBold',
-    fontSize: 11,
-    color: '#fbbf24',
-  },
-  autofillSecondaryBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    backgroundColor: '#1c1c1e',
-    borderColor: '#3a3a3c',
-    borderWidth: 1,
-    borderRadius: 8,
-    paddingVertical: 7,
-    paddingHorizontal: 10,
-  },
-  autofillSecondaryBtnText: {
-    fontFamily: 'Inter_500Medium',
-    fontSize: 11,
-    color: '#aaa',
   },
   paymentFieldsCard: {
     backgroundColor: '#161618',

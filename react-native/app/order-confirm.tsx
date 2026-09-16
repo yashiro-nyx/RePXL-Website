@@ -35,6 +35,13 @@ export default function OrderConfirmScreen() {
     }
   }, [order, orderNumber]);
 
+  const isCod =
+    typeof order?.paymentMethod === 'string' &&
+    (order.paymentMethod.toLowerCase().includes('cash on delivery') || order.paymentMethod.toLowerCase() === 'cod');
+  const isCodPending =
+    isCod &&
+    (order?.deliveryStatus === 'Pending COD Approval' || order?.deliveryStatus === 'COD Approval Requested');
+
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <ScrollView
@@ -45,14 +52,22 @@ export default function OrderConfirmScreen() {
         }}
         showsVerticalScrollIndicator={false}
       >
-        {/* Confirmed Header */}
+        {/* Animated Confirmation Header */}
         <View style={styles.headerArea}>
-          <View style={styles.iconCircle}>
-            <Feather name="check" size={36} color="#4caf50" />
+          <View style={[styles.iconCircle, isCodPending && { backgroundColor: 'rgba(245, 158, 11, 0.15)' }]}>
+            <Feather
+              name={isCodPending ? 'clock' : 'check'}
+              size={36}
+              color={isCodPending ? '#fbbf24' : '#4caf50'}
+            />
           </View>
-          <Text style={styles.heading}>Order Confirmed!</Text>
+          <Text style={styles.heading}>
+            {isCodPending ? 'COD Request Received!' : 'Order Confirmed!'}
+          </Text>
           <Text style={styles.sub}>
-            Thank you for your purchase. We&apos;re getting your camera gear ready for dispatch.
+            {isCodPending
+              ? 'Thank you for your order. Your Cash on Delivery request is awaiting administrator confirmation before being officially placed.'
+              : "Thank you for your purchase. We're getting your camera gear ready for dispatch."}
           </Text>
         </View>
 
@@ -91,18 +106,40 @@ export default function OrderConfirmScreen() {
                 style={[
                   styles.statusBadge,
                   {
-                    backgroundColor: getOrderStatusColors(order?.status).bg,
-                    borderColor: getOrderStatusColors(order?.status).border,
+                    backgroundColor: getOrderStatusColors(
+                      order?.status,
+                      order?.paymentStatus,
+                      order?.deliveryStatus,
+                      order?.paymentMethod
+                    ).bg,
+                    borderColor: getOrderStatusColors(
+                      order?.status,
+                      order?.paymentStatus,
+                      order?.deliveryStatus,
+                      order?.paymentMethod
+                    ).border,
                   },
                 ]}
               >
                 <Text
                   style={[
                     styles.statusBadgeText,
-                    { color: getOrderStatusColors(order?.status).text },
+                    {
+                      color: getOrderStatusColors(
+                        order?.status,
+                        order?.paymentStatus,
+                        order?.deliveryStatus,
+                        order?.paymentMethod
+                      ).text,
+                    },
                   ]}
                 >
-                  {getOrderStatusLabel(order?.status).toUpperCase()}
+                  {getOrderStatusLabel(
+                    order?.status,
+                    order?.paymentStatus,
+                    order?.deliveryStatus,
+                    order?.paymentMethod
+                  ).toUpperCase()}
                 </Text>
               </View>
             </View>

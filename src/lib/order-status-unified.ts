@@ -62,17 +62,38 @@ export function normalizeOrderStatus(status: unknown): CanonicalOrderStatus {
 }
 
 /**
- * Returns human-readable label for any status string (e.g. "Processing", "Payment Processed").
- * When in PROCESSING status and paymentStatus is provided:
+ * Returns human-readable label for any status string (e.g. "Processing", "Payment Processed", "Awaiting COD Approval").
+ * When in PROCESSING status:
+ * - COD pending approval → "Awaiting COD Approval"
+ * - COD approved → "Order Placed"
  * - PAID → "Payment Processed"
  * - PENDING → "Order Placed"
  */
-export function getOrderStatusLabel(status: unknown, paymentStatus?: unknown): string {
+export function getOrderStatusLabel(
+  status: unknown,
+  paymentStatus?: unknown,
+  deliveryStatus?: unknown,
+  paymentMethod?: unknown
+): string {
+  const isCod =
+    typeof paymentMethod === 'string' &&
+    (paymentMethod.toLowerCase().includes('cash on delivery') || paymentMethod.toLowerCase() === 'cod')
+  const isCodPending =
+    isCod &&
+    (deliveryStatus === 'Pending COD Approval' || deliveryStatus === 'COD Approval Requested')
+
+  if (isCodPending) {
+    return 'Awaiting COD Approval'
+  }
+
   const norm = normalizeOrderStatus(status)
-  if (norm === 'PROCESSING' && typeof paymentStatus === 'string') {
-    const pUpper = paymentStatus.trim().toUpperCase()
-    if (pUpper === 'PAID') return 'Payment Processed'
-    if (pUpper === 'PENDING') return 'Order Placed'
+  if (norm === 'PROCESSING') {
+    if (isCod) return 'Order Placed'
+    if (typeof paymentStatus === 'string') {
+      const pUpper = paymentStatus.trim().toUpperCase()
+      if (pUpper === 'PAID') return 'Payment Processed'
+      if (pUpper === 'PENDING') return 'Order Placed'
+    }
   }
   return ORDER_STATUS_LABELS[norm] ?? 'Processing'
 }
@@ -80,12 +101,31 @@ export function getOrderStatusLabel(status: unknown, paymentStatus?: unknown): s
 /**
  * Returns Tailwind badge class string for any status string.
  */
-export function getOrderStatusBadgeClass(status: unknown, paymentStatus?: unknown): string {
+export function getOrderStatusBadgeClass(
+  status: unknown,
+  paymentStatus?: unknown,
+  deliveryStatus?: unknown,
+  paymentMethod?: unknown
+): string {
+  const isCod =
+    typeof paymentMethod === 'string' &&
+    (paymentMethod.toLowerCase().includes('cash on delivery') || paymentMethod.toLowerCase() === 'cod')
+  const isCodPending =
+    isCod &&
+    (deliveryStatus === 'Pending COD Approval' || deliveryStatus === 'COD Approval Requested')
+
+  if (isCodPending) {
+    return 'bg-amber-500/20 text-amber-300 border-amber-500/40'
+  }
+
   const norm = normalizeOrderStatus(status)
-  if (norm === 'PROCESSING' && typeof paymentStatus === 'string') {
-    const pUpper = paymentStatus.trim().toUpperCase()
-    if (pUpper === 'PAID') return 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
-    if (pUpper === 'PENDING') return 'bg-amber-500/15 text-amber-400 border-amber-500/30'
+  if (norm === 'PROCESSING') {
+    if (isCod) return 'bg-blue-500/15 text-blue-400 border-blue-500/30'
+    if (typeof paymentStatus === 'string') {
+      const pUpper = paymentStatus.trim().toUpperCase()
+      if (pUpper === 'PAID') return 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
+      if (pUpper === 'PENDING') return 'bg-amber-500/15 text-amber-400 border-amber-500/30'
+    }
   }
   return ORDER_STATUS_BADGE_CLASSES[norm] ?? ORDER_STATUS_BADGE_CLASSES.PROCESSING
 }

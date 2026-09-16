@@ -29,6 +29,7 @@ interface OrderData {
   status: string
   paymentStatus: string
   paymentMethod: string
+  deliveryStatus?: string
   subtotal: number
   shippingCost: number
   discount: number
@@ -264,6 +265,12 @@ function SuccessInner() {
 
   // ── Order found — full receipt ─────────────────────────────────────────────────
   const isPaid = order.paymentStatus === 'PAID'
+  const isCod =
+    typeof order.paymentMethod === 'string' &&
+    (order.paymentMethod.toLowerCase().includes('cash on delivery') || order.paymentMethod.toLowerCase() === 'cod')
+  const isCodPending =
+    isCod &&
+    (order.deliveryStatus === 'Pending COD Approval' || order.deliveryStatus === 'COD Approval Requested')
 
   return (
     <div className="burn-subtle min-h-screen pb-16 pt-24">
@@ -278,10 +285,12 @@ function SuccessInner() {
               </svg>
             </div>
             <h1 className="mt-4 font-display text-display-md text-repixl-text-light">
-              {isPaid ? 'Payment Successful' : 'Order Confirmed'}
+              {isCodPending ? 'COD Request Received' : isPaid ? 'Payment Successful' : 'Order Confirmed'}
             </h1>
             <p className="mt-2 text-sm text-repixl-text-light/70">
-              Thank you, {order.fullName.split(' ')[0]}. Your order has been placed.
+              {isCodPending
+                ? `Thank you, ${order.fullName.split(' ')[0]}. Your Cash on Delivery order is awaiting administrator confirmation.`
+                : `Thank you, ${order.fullName.split(' ')[0]}. Your order has been placed.`}
             </p>
           </div>
 
@@ -307,12 +316,14 @@ function SuccessInner() {
               <div>
                 <p className="font-mono text-[9px] uppercase tracking-widest text-repixl-muted print-muted">Payment Status</p>
                 <p className={`mt-1 text-sm font-medium ${isPaid ? 'text-repixl-success' : 'text-repixl-warning'}`}>
-                  {isPaid ? 'Paid' : order.paymentStatus}
+                  {isPaid ? 'Paid' : isCod ? 'Pending (Pay on Delivery)' : order.paymentStatus}
                 </p>
               </div>
               <div>
                 <p className="font-mono text-[9px] uppercase tracking-widest text-repixl-muted print-muted">Order Status</p>
-                <p className="mt-1 text-sm text-repixl-text-light">{order.status.charAt(0) + order.status.slice(1).toLowerCase()}</p>
+                <p className="mt-1 text-sm text-repixl-text-light">
+                  {isCodPending ? 'Awaiting COD Approval' : (order.status.charAt(0) + order.status.slice(1).toLowerCase())}
+                </p>
               </div>
               <div>
                 <p className="font-mono text-[9px] uppercase tracking-widest text-repixl-muted print-muted">Payment Method</p>

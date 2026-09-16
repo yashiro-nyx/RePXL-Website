@@ -17,11 +17,19 @@ export function getPaymentExpiryMs(): number {
 
 /**
  * Checks whether an order is in an active payment-processing (pending) state.
+ * COD orders are not considered in-flight gateway processing sessions.
  */
 export function isPaymentProcessing(order: {
   paymentStatus: string
   status?: string
+  paymentMethod?: string
 }): boolean {
+  if (
+    order.paymentMethod?.toLowerCase().includes('cash on delivery') ||
+    order.paymentMethod?.toLowerCase() === 'cod'
+  ) {
+    return false
+  }
   if (order.paymentStatus !== 'PENDING') return false
   if (order.status && order.status !== 'PROCESSING') return false
   return true
@@ -39,16 +47,24 @@ export function getPaymentExpiryDate(
 
 /**
  * Returns true if the order is in PENDING payment state and the expiry window has lapsed.
+ * Cash on Delivery orders never expire under the gateway payment processing window.
  */
 export function isPaymentExpired(
   order: {
     createdAt: Date | string
     paymentStatus: string
     status?: string
+    paymentMethod?: string
   },
   now: number = Date.now(),
   expiryMs: number = getPaymentExpiryMs()
 ): boolean {
+  if (
+    order.paymentMethod?.toLowerCase().includes('cash on delivery') ||
+    order.paymentMethod?.toLowerCase() === 'cod'
+  ) {
+    return false
+  }
   if (!isPaymentProcessing(order)) return false
   const createdTime = new Date(order.createdAt).getTime()
   return now - createdTime >= expiryMs
@@ -56,19 +72,38 @@ export function isPaymentExpired(
 
 /**
  * Validates whether an administrator is permitted to edit an order's status.
- * Order status can only be edited when payment has been completed (paymentStatus === 'PAID').
+ * - Online payment orders require paymentStatus === 'PAID'.
+ * - Cash on Delivery orders require administrator approval (deliveryStatus !== 'Pending COD Approval').
  */
 export function canAdminEditOrderStatus(order: {
   paymentStatus: string
   status?: string
   createdAt?: Date | string
+  paymentMethod?: string
+  deliveryStatus?: string
 }): { allowed: boolean; reason?: string } {
+  const isCod =
+    order.paymentMethod?.toLowerCase().includes('cash on delivery') ||
+    order.paymentMethod?.toLowerCase() === 'cod'
+
+  if (isCod) {
+    if (order.deliveryStatus === 'Pending COD Approval') {
+      return {
+        allowed: false,
+        reason:
+          'Cash on Delivery order request must be approved by an administrator before updating status.',
+      }
+    }
+    return { allowed: true }
+  }
+
   if (
     order.createdAt &&
     isPaymentExpired({
       createdAt: order.createdAt,
       paymentStatus: order.paymentStatus,
       status: order.status,
+      paymentMethod: order.paymentMethod,
     })
   ) {
     return {

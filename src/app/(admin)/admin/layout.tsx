@@ -197,9 +197,41 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                   <div className="flex items-center justify-between"><p className="text-sm font-semibold text-repixl-text-light">Notifications</p><button onClick={() => setNotifOpen(false)} className="text-xs text-repixl-muted hover:text-repixl-text-light">Close</button></div>
                   {pendingOrders === 0 ? <p className="mt-3 text-center text-xs text-repixl-muted">No new notifications.</p> : (
                     <div className="mt-3 max-h-60 space-y-2 overflow-y-auto">
-                      {orders.filter((o) => o.status === 'Processing').slice(0, 5).map((o) => (
-                        <div key={o.orderNumber} className="rounded-xl bg-repixl-bg p-3"><p className="text-xs text-repixl-text-light">New order <span className="font-semibold text-repixl-red">{o.orderNumber}</span></p><p className="text-[10px] text-repixl-muted">{o.fullName} · {formatPrice(o.total)}</p></div>
-                      ))}
+                      {orders
+                        .filter((o) => normalizeOrderStatus(o.status) === 'PROCESSING')
+                        .slice(0, 6)
+                        .map((o) => {
+                          const isCodPending =
+                            (o.paymentMethod === 'Cash on Delivery' ||
+                              o.paymentMethod?.toLowerCase().includes('cash on delivery')) &&
+                            (o.deliveryStatus === 'Pending COD Approval' ||
+                              o.deliveryStatus === 'COD Approval Requested')
+
+                          return (
+                            <Link
+                              key={o.orderNumber}
+                              href="/admin/orders"
+                              onClick={() => setNotifOpen(false)}
+                              className="block rounded-xl bg-repixl-bg p-3 transition-colors hover:bg-repixl-muted/10"
+                            >
+                              <div className="flex items-center justify-between gap-1">
+                                <p className="text-xs text-repixl-text-light font-medium">
+                                  {isCodPending ? (
+                                    <>COD Request <span className="font-semibold text-amber-400">#{o.orderNumber.replace('RPX-', '')}</span></>
+                                  ) : (
+                                    <>New order <span className="font-semibold text-repixl-red">#{o.orderNumber.replace('RPX-', '')}</span></>
+                                  )}
+                                </p>
+                                {isCodPending && (
+                                  <span className="rounded bg-amber-500/20 px-1.5 py-0.5 font-mono text-[9px] font-bold text-amber-300">
+                                    Approval Needed
+                                  </span>
+                                )}
+                              </div>
+                              <p className="mt-0.5 text-[10px] text-repixl-muted">{o.fullName} · {formatPrice(o.total)}</p>
+                            </Link>
+                          )
+                        })}
                     </div>
                   )}
                 </div>
