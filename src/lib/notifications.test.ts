@@ -16,7 +16,7 @@ import {
   type ReadableNotification,
 } from './notifications'
 
-const NUM_RUNS = 200
+const NUM_RUNS = { numRuns: 200 }
 
 /** Arbitrary picking any defined notification event. */
 const eventArb: fc.Arbitrary<NotificationEvent> = fc.constantFrom(
@@ -39,12 +39,11 @@ function buildList(flags: boolean[]): ReadableNotification[] {
 // Validates: Requirements 8.6
 // ---------------------------------------------------------------------------
 describe('Property 30: Disabled templates suppress notifications', () => {
-  fcTest.prop({ isEnabled: fc.boolean() })(
+  fcTest.prop({ isEnabled: fc.boolean() }, NUM_RUNS)(
     'suppresses if and only if the template is disabled',
     ({ isEnabled }) => {
       expect(shouldSuppressForDisabledTemplate(isEnabled)).toBe(!isEnabled)
-    },
-    NUM_RUNS
+    }
   )
 
   it('disabled → suppressed, enabled → not suppressed', () => {
@@ -60,7 +59,7 @@ describe('Property 30: Disabled templates suppress notifications', () => {
 // Validates: Requirements 9.3
 // ---------------------------------------------------------------------------
 describe('Property 31: Displayed notification message is bounded', () => {
-  fcTest.prop({ message: fc.string({ maxLength: 2000 }) })(
+  fcTest.prop({ message: fc.string({ maxLength: 2000 }) }, NUM_RUNS)(
     'truncated message never exceeds the 500-char display bound',
     ({ message }) => {
       const shown = truncateForDisplay(message)
@@ -71,19 +70,20 @@ describe('Property 31: Displayed notification message is bounded', () => {
       } else {
         expect(shown).toBe(message.slice(0, MAX_DISPLAY_MESSAGE_LENGTH))
       }
-    },
-    NUM_RUNS
+    }
   )
 
-  fcTest.prop({
-    message: fc.string({ maxLength: 500 }),
-    max: fc.integer({ min: 0, max: 500 }),
-  })(
+  fcTest.prop(
+    {
+      message: fc.string({ maxLength: 500 }),
+      max: fc.integer({ min: 0, max: 500 }),
+    },
+    NUM_RUNS
+  )(
     'respects a custom max bound',
     ({ message, max }) => {
       expect(truncateForDisplay(message, max).length).toBeLessThanOrEqual(max)
-    },
-    NUM_RUNS
+    }
   )
 })
 
@@ -94,7 +94,7 @@ describe('Property 31: Displayed notification message is bounded', () => {
 // Validates: Requirements 9.4
 // ---------------------------------------------------------------------------
 describe('Property 32: Unread count display rule', () => {
-  fcTest.prop({ count: fc.integer({ min: 0, max: 100000 }) })(
+  fcTest.prop({ count: fc.integer({ min: 0, max: 100000 }) }, NUM_RUNS)(
     'shows exact count for 0–99 and "99+" beyond 99',
     ({ count }) => {
       const shown = displayUnreadCount(count)
@@ -103,8 +103,7 @@ describe('Property 32: Unread count display rule', () => {
       } else {
         expect(shown).toBe(String(count))
       }
-    },
-    NUM_RUNS
+    }
   )
 
   it('handles exact boundaries and non-normal inputs', () => {
@@ -123,13 +122,16 @@ describe('Property 32: Unread count display rule', () => {
 // Validates: Requirements 9.5
 // ---------------------------------------------------------------------------
 describe('Property 33: Marking a notification read decrements the unread count by one', () => {
-  fcTest.prop({
-    flags: fc
-      .array(fc.boolean(), { minLength: 1, maxLength: 40 })
-      // Ensure at least one unread notification exists to mark.
-      .map((arr) => (arr.some((r) => !r) ? arr : [...arr, false])),
-    pick: fc.nat(),
-  })(
+  fcTest.prop(
+    {
+      flags: fc
+        .array(fc.boolean(), { minLength: 1, maxLength: 40 })
+        // Ensure at least one unread notification exists to mark.
+        .map((arr) => (arr.some((r) => !r) ? arr : [...arr, false])),
+      pick: fc.nat(),
+    },
+    NUM_RUNS
+  )(
     'sets the chosen unread notification to read and decrements unread by exactly one',
     ({ flags, pick }) => {
       const list = buildList(flags)
@@ -144,8 +146,7 @@ describe('Property 33: Marking a notification read decrements the unread count b
       expect(unreadCount(after)).toBe(before - 1)
       // Original list is not mutated.
       expect(unreadCount(list)).toBe(before)
-    },
-    NUM_RUNS
+    }
   )
 
   it('is a no-op when the target is already read or absent', () => {
@@ -162,7 +163,7 @@ describe('Property 33: Marking a notification read decrements the unread count b
 // Validates: Requirements 9.6
 // ---------------------------------------------------------------------------
 describe('Property 34: Mark-all-read clears unread and is idempotent', () => {
-  fcTest.prop({ flags: fc.array(fc.boolean(), { maxLength: 40 }) })(
+  fcTest.prop({ flags: fc.array(fc.boolean(), { maxLength: 40 }) }, NUM_RUNS)(
     'clears every unread notification and is idempotent',
     ({ flags }) => {
       const list = buildList(flags)
@@ -177,8 +178,7 @@ describe('Property 34: Mark-all-read clears unread and is idempotent', () => {
 
       // Original list is not mutated.
       expect(unreadCount(list)).toBe(flags.filter((r) => !r).length)
-    },
-    NUM_RUNS
+    }
   )
 })
 
@@ -189,12 +189,11 @@ describe('Property 34: Mark-all-read clears unread and is idempotent', () => {
 // Validates: Requirements 9.7
 // ---------------------------------------------------------------------------
 describe('Property 35: In-app notification is retained regardless of email outcome', () => {
-  fcTest.prop({ emailSucceeded: fc.boolean() })(
+  fcTest.prop({ emailSucceeded: fc.boolean() }, NUM_RUNS)(
     'in-app notification is always retained',
     ({ emailSucceeded }) => {
       expect(isInAppRetained(emailSucceeded)).toBe(true)
-    },
-    NUM_RUNS
+    }
   )
 })
 
@@ -205,7 +204,7 @@ describe('Property 35: In-app notification is retained regardless of email outco
 // Validates: Requirements 9.9
 // ---------------------------------------------------------------------------
 describe('Property 36: Promotional opt-out excludes only promotions', () => {
-  fcTest.prop({ event: eventArb, promoOptOut: fc.boolean() })(
+  fcTest.prop({ event: eventArb, promoOptOut: fc.boolean() }, NUM_RUNS)(
     'promotions gated by opt-out; order-related always sent',
     ({ event, promoOptOut }) => {
       const send = shouldSendNotification(event, promoOptOut)
@@ -214,8 +213,7 @@ describe('Property 36: Promotional opt-out excludes only promotions', () => {
       } else {
         expect(send).toBe(true)
       }
-    },
-    NUM_RUNS
+    }
   )
 
   it('only PROMOTION is promotional; opt-out never blocks order events', () => {

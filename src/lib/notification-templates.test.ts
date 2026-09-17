@@ -12,7 +12,7 @@ import {
   type NotificationEvent,
 } from './notification-templates'
 
-const NUM_RUNS = 200
+const NUM_RUNS = { numRuns: 200 }
 
 /** Arbitrary picking any defined notification event. */
 const eventArb: fc.Arbitrary<NotificationEvent> = fc.constantFrom(
@@ -31,10 +31,13 @@ const tokenNameArb = fc
 // Validates: Requirements 8.2, 8.3
 // ---------------------------------------------------------------------------
 describe('Property 27: Notification template validation', () => {
-  fcTest.prop({
-    subject: fc.string({ maxLength: 260 }),
-    body: fc.string({ maxLength: 10100 }),
-  })(
+  fcTest.prop(
+    {
+      subject: fc.string({ maxLength: 260 }),
+      body: fc.string({ maxLength: 10100 }),
+    },
+    NUM_RUNS
+  )(
     'accepts iff subject and body are within bounds, and reports each invalid field',
     ({ subject, body }) => {
       const result = validateTemplate({ subject, body })
@@ -51,8 +54,7 @@ describe('Property 27: Notification template validation', () => {
       const fields = new Set(result.errors.map((e) => e.field))
       expect(fields.has('subject')).toBe(!subjectOk)
       expect(fields.has('body')).toBe(!bodyOk)
-    },
-    NUM_RUNS
+    }
   )
 
   it('accepts exact boundary lengths (1, 200, 10000)', () => {
@@ -80,13 +82,16 @@ describe('Property 27: Notification template validation', () => {
 // Validates: Requirements 8.4
 // ---------------------------------------------------------------------------
 describe('Property 28: Defined placeholder tokens are fully resolved', () => {
-  fcTest.prop({
-    event: eventArb,
-    // literal text segments interleaved between tokens (no braces of their own)
-    segments: fc.array(fc.stringMatching(/^[^{}]*$/), { minLength: 1, maxLength: 6 }),
-    tokenPicks: fc.array(fc.nat(), { maxLength: 6 }),
-    values: fc.array(fc.stringMatching(/^[^{}]*$/), { minLength: 6, maxLength: 6 }),
-  })(
+  fcTest.prop(
+    {
+      event: eventArb,
+      // literal text segments interleaved between tokens (no braces of their own)
+      segments: fc.array(fc.stringMatching(/^[^{}]*$/), { minLength: 1, maxLength: 6 }),
+      tokenPicks: fc.array(fc.nat(), { maxLength: 6 }),
+      values: fc.array(fc.stringMatching(/^[^{}]*$/), { minLength: 6, maxLength: 6 }),
+    },
+    NUM_RUNS
+  )(
     'replaces every defined token with its context value, leaving none unresolved',
     ({ event, segments, tokenPicks, values }) => {
       const allowed = ALLOWED_TOKENS[event]
@@ -114,8 +119,7 @@ describe('Property 28: Defined placeholder tokens are fully resolved', () => {
       // resolution there are no leftover placeholders at all.
       expect(findUnknownTokens(body, event)).toEqual([])
       expect(/\{\{\s*[A-Za-z0-9_]+\s*\}\}/.test(resolved)).toBe(false)
-    },
-    NUM_RUNS
+    }
   )
 })
 
@@ -127,11 +131,14 @@ describe('Property 28: Defined placeholder tokens are fully resolved', () => {
 // Validates: Requirements 8.5
 // ---------------------------------------------------------------------------
 describe('Property 29: Unknown placeholder tokens are detected', () => {
-  fcTest.prop({
-    event: eventArb,
-    usedTokens: fc.array(tokenNameArb, { minLength: 1, maxLength: 8 }),
-    filler: fc.stringMatching(/^[^{}]*$/),
-  })(
+  fcTest.prop(
+    {
+      event: eventArb,
+      usedTokens: fc.array(tokenNameArb, { minLength: 1, maxLength: 8 }),
+      filler: fc.stringMatching(/^[^{}]*$/),
+    },
+    NUM_RUNS
+  )(
     'returns exactly the used tokens not defined for the event (deduped)',
     ({ event, usedTokens, filler }) => {
       const allowed = new Set(ALLOWED_TOKENS[event])
@@ -153,8 +160,7 @@ describe('Property 29: Unknown placeholder tokens are detected', () => {
       // Save-rejection contract: non-empty unknown set => must reject.
       const shouldReject = unknown.length > 0
       expect(shouldReject).toBe(expected.length > 0)
-    },
-    NUM_RUNS
+    }
   )
 
   it('returns empty for a body using only allowed tokens', () => {
