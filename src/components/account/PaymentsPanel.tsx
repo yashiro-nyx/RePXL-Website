@@ -14,7 +14,7 @@
  * and explains how payment works, rather than showing fake saved cards.
  *
  * SECURITY BOUNDARY: Full card numbers (PAN), CVV, and PIN are NEVER stored
- * in Neon, localStorage, sessionStorage, cookies, or Zustand persistence.
+ * in the database, localStorage, sessionStorage, cookies, or Zustand persistence.
  * Do not add any capability that would break this boundary.
  */
 

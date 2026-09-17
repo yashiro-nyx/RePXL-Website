@@ -63,7 +63,7 @@ Live at: **https://repxlph.vercel.app**
 | Styling | Tailwind CSS + custom design tokens |
 | Animation | Framer Motion |
 | Client state | Zustand (API-first, localStorage fallback) |
-| Database | PostgreSQL via **Prisma ORM** (Neon) |
+| Database | PostgreSQL via **Prisma ORM** (Supabase) |
 | Auth | Custom HTTP-only cookie sessions + NextAuth (Google) |
 | Email | Nodemailer + Gmail SMTP |
 | Payments | PayMongo Hosted Checkout |
@@ -76,7 +76,7 @@ Live at: **https://repxlph.vercel.app**
 
 - Node.js 18+
 - npm 9+
-- PostgreSQL database (Neon recommended)
+- PostgreSQL database (Supabase recommended)
 - PayMongo account (for real payments)
 - Gmail account with App Password (for email)
 - Google Cloud project (for Google OAuth, optional)
@@ -112,8 +112,8 @@ cp .env.local.example .env.local
 
 | Variable | Required | Purpose |
 |---|---|---|
-| `DATABASE_URL` | ✅ | Pooled PostgreSQL connection (Neon pooler endpoint) |
-| `DIRECT_URL` | ✅ | Direct PostgreSQL connection (for Prisma migrations) |
+| `DATABASE_URL` | ✅ | Pooled PostgreSQL connection (Supabase Transaction pooler, port 6543) |
+| `DIRECT_URL` | ✅ | Direct PostgreSQL connection (Supabase Session pooler / direct, port 5432) |
 | `NEXTAUTH_SECRET` | ✅ | 32-byte random string for session signing and NextAuth JWT |
 | `NEXTAUTH_URL` | ✅ | Base URL (`http://localhost:3000` local, `https://...` production) |
 | `NEXT_PUBLIC_SITE_URL` | ✅ | Same as `NEXTAUTH_URL`. Used in emails and PayMongo redirects. No trailing slash |

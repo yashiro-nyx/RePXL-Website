@@ -49,19 +49,20 @@ pooling**, so every provider gives you two strings:
 | `DATABASE_URL` | **Pooled** (host has `-pooler`, or Supabase port `6543`) | App at runtime |
 | `DIRECT_URL` | **Direct** (no pooler, port `5432`) | Migrations |
 
-### 2.1 Create a database (Neon — recommended)
+### 2.1 Create a database (Supabase — recommended)
 
-1. Sign up at **https://neon.tech** → **Create project** named `repixl`, region
-   near your users (e.g. Singapore for PH).
+1. Sign up at **https://supabase.com** → **New Project** named `repixl`, region
+   closest to your users (e.g. Singapore or Sydney).
+2. Go to **Project Settings** → **Database** → **Connection string**:
+   - **Transaction** pooler (port `6543`) + `?pgbouncer=true` → `DATABASE_URL`
+   - **Session** pooler / direct (port `5432`) → `DIRECT_URL`
+
+<details><summary>Using Neon instead?</summary>
+
+1. Sign up at **https://neon.tech** → **Create project**.
 2. Open **Connection Details** and copy BOTH strings:
-   - the one containing `-pooler` → `DATABASE_URL`
-   - the one WITHOUT `-pooler` → `DIRECT_URL`
-
-<details><summary>Prefer Supabase?</summary>
-
-Project Settings → Database → Connection string:
-- **Transaction** pooler (port `6543`) + `?pgbouncer=true&connection_limit=1` → `DATABASE_URL`
-- **Direct connection** (port `5432`) → `DIRECT_URL`
+   - Pooled (contains `-pooler`) → `DATABASE_URL`
+   - Direct (without `-pooler`) → `DIRECT_URL`
 </details>
 
 ### 2.2 Configure and initialize

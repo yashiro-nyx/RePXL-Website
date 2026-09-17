@@ -7,10 +7,10 @@ const globalForPrisma = globalThis as unknown as {
 /**
  * Build the runtime DATABASE_URL with a conservative connection_limit.
  *
- * Neon pgBouncer pools and Vercel serverless functions both benefit from a
+ * Supabase Supavisor/pgBouncer pools and Vercel serverless functions both benefit from a
  * shallow per-instance pool. The default Prisma limit (num_cpus * 2 + 1, which
  * resolves to 21 on many environments) is far too high when many short-lived
- * function instances run concurrently — they collectively exhaust Neon's
+ * function instances run concurrently — they collectively exhaust the pooler's
  * per-project connection cap and trigger P2024 timeouts.
  *
  * connection_limit=5 keeps each instance's pool at 5 connections maximum.
