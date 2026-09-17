@@ -2,7 +2,7 @@
 
 import { motion } from 'framer-motion'
 import { Container } from '@/components/layout/Container'
-import { ConditionBadge, CornerBracket, RevealText, type Condition } from '@/components/ui'
+import { ConditionBadge, CornerBracket, SectionHeader, type Condition } from '@/components/ui'
 import { useReducedMotion } from '@/hooks/useReducedMotion'
 
 interface GradeInfo {
@@ -63,20 +63,13 @@ export function ConditionExplainer() {
           transition={{ duration: reducedMotion ? 0 : 0.6, ease: 'easeOut' }}
         >
           {/* Section header */}
-          <div className="mb-12 text-center md:mb-16">
-            <span className="font-mono text-xs uppercase tracking-widest text-repixl-muted">
-              — Transparency first
-            </span>
-            <RevealText
-              as="h2"
-              text="What our grades mean"
-              className="mt-3 font-display text-display-md text-repixl-text-light md:text-display-lg"
-            />
-            <p className="mx-auto mt-3 max-w-lg text-sm text-repixl-text-light/60">
-              Every camera is inspected, graded, and photographed before listing.
-              No guesswork — you know exactly what you&apos;re getting.
-            </p>
-          </div>
+          <SectionHeader
+            eyebrow="Transparency First"
+            title="What Our Grades Mean"
+            highlightWord="Grades"
+            description="Every camera is inspected, graded, and photographed before listing. No guesswork — you know exactly what you're getting."
+            className="mb-12 md:mb-16"
+          />
 
           {/* Grade cards */}
           <CornerBracket

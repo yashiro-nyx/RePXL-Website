@@ -92,16 +92,16 @@ export async function GET(request: NextRequest) {
     const sortOrder = (searchParams.get('sortOrder') || 'desc') as 'asc' | 'desc'
     const orderBy: Prisma.ProductOrderByWithRelationInput = { [sortBy]: sortOrder }
 
-    // Execute query
-    const [products, total] = await Promise.all([
-      prisma.product.findMany({
-        where,
-        orderBy,
-        skip: pagination.skip,
-        take: pagination.limit,
-      }),
-      prisma.product.count({ where }),
-    ])
+    // Execute count first to release connection quickly, then fetch products (avoids holding 2 pool connections concurrently)
+    const total = await prisma.product.count({ where })
+    const products = total > 0
+      ? await prisma.product.findMany({
+          where,
+          orderBy,
+          skip: pagination.skip,
+          take: pagination.limit,
+        })
+      : []
 
     return paginatedResponse(products, total, pagination)
   } catch (error) {

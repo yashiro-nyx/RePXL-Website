@@ -11,6 +11,8 @@ interface WishlistState {
   hydrate: () => Promise<void>
 }
 const email = () => useAuthStore.getState().userEmail || null
+let wishlistHydrateInFlight: Promise<void> | null = null
+
 export const useWishlistStore = create<WishlistState>((set, get) => {
   const mutate = async (action: (owner: string | null) => Promise<void>) => {
     const owner = email()
@@ -25,22 +27,29 @@ export const useWishlistStore = create<WishlistState>((set, get) => {
     removeFromWishlist: (slug) =>
       mutate((owner) => wishlistService.remove(owner, slug)),
     isInWishlist: (slug) => get().slugs.includes(slug),
-    hydrate: async () => {
+    hydrate: () => {
+      if (wishlistHydrateInFlight) return wishlistHydrateInFlight
       const owner = email()
-      try {
-        const slugs = await wishlistService.list(owner)
-        if (owner === email()) set({ slugs })
-      } catch {
-        if (owner === email()) {
-          set({ slugs: [] })
-          useToastStore
-            .getState()
-            .addToast(
-              'Unable to load your wishlist. Please try again.',
-              'error'
-            )
-        }
-      }
+      wishlistHydrateInFlight = wishlistService
+        .list(owner)
+        .then((slugs) => {
+          if (owner === email()) set({ slugs })
+        })
+        .catch(() => {
+          if (owner === email()) {
+            set({ slugs: [] })
+            useToastStore
+              .getState()
+              .addToast(
+                'Unable to load your wishlist. Please try again.',
+                'error'
+              )
+          }
+        })
+        .finally(() => {
+          wishlistHydrateInFlight = null
+        })
+      return wishlistHydrateInFlight
     },
   }
 })

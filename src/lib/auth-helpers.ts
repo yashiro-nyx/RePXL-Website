@@ -57,20 +57,20 @@ function createToken(userId: string, proof: CustomerSessionProof = {}): string {
  * missing/invalid or the payload cannot be parsed.
  */
 function decodeToken(token: string): ({ userId: string; iat: number } & CustomerSessionProof) | null {
-  const parts = token.split('.')
-  if (parts.length !== 2) return null
-
-  const [payload, signature] = parts
-  const expected = sign(payload)
-
-  // Constant-time comparison to avoid signature timing leaks.
-  const sigBuf = Buffer.from(signature)
-  const expBuf = Buffer.from(expected)
-  if (sigBuf.length !== expBuf.length || !timingSafeEqual(sigBuf, expBuf)) {
-    return null
-  }
-
   try {
+    const parts = token.split('.')
+    if (parts.length !== 2) return null
+
+    const [payload, signature] = parts
+    const expected = sign(payload)
+
+    // Constant-time comparison to avoid signature timing leaks.
+    const sigBuf = Buffer.from(signature)
+    const expBuf = Buffer.from(expected)
+    if (sigBuf.length !== expBuf.length || !timingSafeEqual(sigBuf, expBuf)) {
+      return null
+    }
+
     const decoded = Buffer.from(payload, 'base64url').toString('utf-8')
     const parsed = JSON.parse(decoded)
     if (typeof parsed?.userId !== 'string' || typeof parsed?.iat !== 'number') return null
@@ -133,8 +133,13 @@ export async function getCurrentUser(): Promise<SessionUser | null> {
   const bearer = authorization?.match(/^Bearer\s+([^\s]+)$/i)?.[1]
   if (bearer) return getMobileUserFromAccessToken(bearer)
 
-  const cookieStore = cookies()
-  const token = cookieStore.get(SESSION_COOKIE)?.value
+  let token: string | undefined
+  try {
+    const cookieStore = cookies()
+    token = cookieStore.get(SESSION_COOKIE)?.value
+  } catch {
+    return null
+  }
 
   if (!token) return null
 
@@ -178,8 +183,13 @@ export async function getCurrentUser(): Promise<SessionUser | null> {
  * Get current authenticated admin from admin session cookie
  */
 export async function getCurrentAdmin(): Promise<SessionUser | null> {
-  const cookieStore = cookies()
-  const token = cookieStore.get(ADMIN_SESSION_COOKIE)?.value
+  let token: string | undefined
+  try {
+    const cookieStore = cookies()
+    token = cookieStore.get(ADMIN_SESSION_COOKIE)?.value
+  } catch {
+    return null
+  }
 
   if (!token) return null
 

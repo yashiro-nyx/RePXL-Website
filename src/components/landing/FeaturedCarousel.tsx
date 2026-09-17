@@ -1,17 +1,14 @@
 'use client'
 
-import { reportActionFailure } from '@/lib/action-error'
 import { formatPrice } from '@/lib/format'
 import { useState, useMemo, useEffect } from 'react'
 import Link from 'next/link'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Container } from '@/components/layout/Container'
-import { ConditionBadge, RevealText } from '@/components/ui'
+import { SectionHeader } from '@/components/ui'
+import { ProductCard } from '@/components/product/ProductCard'
 import { useProductStore } from '@/stores/productStore'
 import { useReviewStore } from '@/stores/reviewStore'
-import { useCartStore } from '@/stores/cartStore'
-import { useAuthStore } from '@/stores/authStore'
-import { useToastStore } from '@/stores/toastStore'
 import { useReducedMotion } from '@/hooks/useReducedMotion'
 
 export function FeaturedCarousel() {
@@ -42,22 +39,12 @@ export function FeaturedCarousel() {
     <section className="pb-24 pt-12 md:pb-36 md:pt-16">
       <Container>
         {/* Header */}
-        <motion.div
-          initial={reducedMotion ? { opacity: 1 } : { opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: false, margin: '-60px' }}
-          transition={{ duration: reducedMotion ? 0 : 0.6, ease: 'easeOut' }}
-          className="mb-12 text-center"
-        >
-          <span className="font-mono text-xs uppercase tracking-widest text-repixl-muted">
-            — New arrivals
-          </span>
-          <RevealText
-            as="h2"
-            text="Featured cameras"
-            className="mt-2 font-display text-display-md text-repixl-text-light md:text-display-lg"
-          />
-        </motion.div>
+        <SectionHeader
+          eyebrow="New Arrivals"
+          title="Featured Cameras"
+          highlightWord="Cameras"
+          className="mb-12"
+        />
       </Container>
 
       {/* Carousel */}
@@ -100,7 +87,7 @@ export function FeaturedCarousel() {
                 exit={reducedMotion ? {} : { opacity: 0, scale: 0.95 }}
                 transition={{ duration: reducedMotion ? 0 : 0.3, ease: 'easeOut' }}
               >
-                <CenterCard product={centerItem} />
+                <ProductCard product={centerItem} />
               </motion.div>
             </AnimatePresence>
           </div>
@@ -177,92 +164,7 @@ export function FeaturedCarousel() {
   )
 }
 
-/* Center card — enlarged, full detail, add-to-cart */
-function CenterCard({ product }: { product: any }) {
-  const allReviews = useReviewStore((s) => s.reviews)
-  const reviews = allReviews.filter((r) => r.productSlug === product.slug)
-  const avgRating = reviews.length > 0 ? reviews.reduce((s, r) => s + r.rating, 0) / reviews.length : 0
-  const addToCart = useCartStore((s) => s.addToCart)
-  const isLoggedIn = useAuthStore((s) => s.isLoggedIn)
-  const addToast = useToastStore((s) => s.addToast)
 
-  const handleAddToCart = async () => {
-    try {
-      if (!isLoggedIn) {
-        addToast('Please log in to add items to cart', 'info')
-        return
-      }
-      await addToCart(product.slug, 1)
-      addToast(
-        `${product.name} added to cart`,
-        'success',
-        { label: 'View Cart', href: '/cart' },
-        5000,
-        product.image
-      )
-    } catch {
-      reportActionFailure()
-    }
-  }
-
-  return (
-    <div className="overflow-hidden rounded-lg border border-repixl-muted/15 bg-repixl-charcoal shadow-2xl">
-      {/* Image area with sample photo accent */}
-      <div className="relative aspect-square bg-repixl-bg p-8">
-        <Link href={`/products/${product.slug}`}>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={product.image} alt={product.name} className="h-full w-full object-contain" />
-        </Link>
-        {/* Condition badge — top right */}
-        <div className="absolute right-4 top-4">
-          <ConditionBadge condition={product.condition} />
-        </div>
-        {/* Small polaroid accent — bottom left */}
-        <div className="absolute bottom-3 left-3 rounded-sm bg-white p-1 shadow-lg" style={{ transform: 'rotate(-3deg)' }}>
-          <div className="h-10 w-10 bg-repixl-muted/20" />
-          <p className="mt-0.5 text-center font-mono text-[6px] text-repixl-text-dark/40">sample</p>
-        </div>
-      </div>
-
-      {/* Info */}
-      <div className="p-5">
-        <p className="font-mono text-[9px] uppercase tracking-widest text-repixl-muted">{product.brand} · {product.series}</p>
-        <Link href={`/products/${product.slug}`}>
-          <h3 className="mt-1 font-display text-lg font-semibold text-repixl-text-light hover:underline">{product.name}</h3>
-        </Link>
-
-        {/* Rating */}
-        {reviews.length > 0 && (
-          <div className="mt-2 flex items-center gap-1.5">
-            <div className="flex gap-0.5">
-              {Array.from({ length: 5 }, (_, i) => (
-                <svg key={i} xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill={i < Math.round(avgRating) ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="1.5" className={i < Math.round(avgRating) ? 'text-repixl-warning' : 'text-repixl-muted/30'}>
-                  <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
-                </svg>
-              ))}
-            </div>
-            <span className="font-mono text-[9px] text-repixl-muted">{reviews.length} review{reviews.length !== 1 ? 's' : ''}</span>
-          </div>
-        )}
-
-        {/* Price + stock */}
-        <div className="mt-3 flex items-center justify-between">
-          <span className="font-display text-xl font-bold text-repixl-text-light">{formatPrice(product.price)}</span>
-          <span className="font-mono text-[9px] text-repixl-success">{product.stock} in stock</span>
-        </div>
-
-        {/* Add to Cart */}
-        <button
-          type="button"
-          onClick={handleAddToCart}
-          className="mt-4 w-full rounded bg-repixl-red py-2.5 text-sm font-medium text-white transition-colors hover:bg-red-700"
-        >
-          Add to Cart
-        </button>
-      </div>
-    </div>
-  )
-}
 
 /* Side card — compact, reduced opacity applied by parent */
 function SideCard({ product }: { product: any }) {

@@ -3,7 +3,7 @@
 import { useRef, useState, useEffect, useCallback } from 'react'
 import { AnimatePresence, motion, useScroll, useTransform } from 'framer-motion'
 import { Container } from '@/components/layout/Container'
-import { RevealText } from '@/components/ui'
+import { SectionHeader } from '@/components/ui'
 import { useReducedMotion } from '@/hooks/useReducedMotion'
 
 interface Testimonial {
@@ -129,14 +129,11 @@ export function Testimonials() {
       </motion.div>
 
       <Container>
-        <motion.div style={{ y: headerY }} className="mb-12 text-center md:mb-16">
-          <span className="font-mono text-xs uppercase tracking-widest text-repixl-muted">
-            — From our collectors
-          </span>
-          <RevealText
-            as="h2"
-            text="Trusted by shooters"
-            className="mt-3 font-display text-display-md text-repixl-text-light md:text-display-lg"
+        <motion.div style={{ y: headerY }} className="mb-12 md:mb-16">
+          <SectionHeader
+            eyebrow="From Our Collectors"
+            title="Trusted by Shooters"
+            highlightWord="Shooters"
           />
         </motion.div>
 

@@ -6,6 +6,7 @@ import { motion } from 'framer-motion'
 import { Container } from '@/components/layout/Container'
 import { RevealText } from '@/components/ui'
 import { useReducedMotion } from '@/hooks/useReducedMotion'
+import { fetchBannersByPlacement } from '@/lib/banner-client'
 
 interface ActiveBanner {
   id: string
@@ -20,8 +21,7 @@ export function DealBanner() {
 
   useEffect(() => {
     let isMounted = true
-    fetch('/api/banners?placement=HOMEPAGE_STRIP')
-      .then((res) => (res.ok ? res.json() : null))
+    fetchBannersByPlacement('HOMEPAGE_STRIP')
       .then((body) => {
         if (isMounted && body?.data && Array.isArray(body.data) && body.data.length > 0) {
           setBanner(body.data[0])

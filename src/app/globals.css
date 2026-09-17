@@ -124,6 +124,9 @@ html:has(.burn-minimal) {
 [data-theme="light"]:has(.burn-minimal) {
   --burn-opacity: 0;
 }
+[data-theme="light"] .burn-minimal {
+  background-color: transparent !important;
+}
 
 /* Diagonal section breaks */
 .section-clip-bottom {
@@ -708,6 +711,10 @@ body.scroll-locked {
 [data-theme="light"] .bg-repixl-red\/10 { background-color: rgba(181, 42, 42, 0.1) !important; }
 [data-theme="light"] .bg-repixl-red\/5 { background-color: rgba(181, 42, 42, 0.05) !important; }
 [data-theme="light"] .hover\:bg-repixl-red\/10:hover { background-color: rgba(181, 42, 42, 0.1) !important; }
+
+/* Red accent tokens in light mode */
+[data-theme="light"] .text-\[\#EF4444\] { color: #b52a2a !important; }
+[data-theme="light"] .text-\[\#FF5252\] { color: #b52a2a !important; }
 
 /* Rose text for light mode */
 [data-theme="light"] .text-repixl-rose { color: #8b3a3a !important; }

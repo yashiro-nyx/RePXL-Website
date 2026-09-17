@@ -40,12 +40,12 @@ export default function CartPage() {
   const router = useRouter()
 
   useEffect(() => {
-    const init = async () => {
-      await useAuthStore.getState().hydrate()
-      await useCartStore.getState().hydrate()
+    if (useCartStore.getState().items.length === 0) {
+      useCartStore.getState().hydrate()
+    }
+    if (useProductStore.getState().products.length === 0) {
       useProductStore.getState().hydrate()
     }
-    void init()
   }, [])
 
   const resolvedItems = cartItems.map((item) => {

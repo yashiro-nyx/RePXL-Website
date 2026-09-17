@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { motion } from 'framer-motion'
 import { useReducedMotion } from '@/hooks/useReducedMotion'
 import { useThemeStore } from '@/stores/themeStore'
+import { fetchBannersByPlacement } from '@/lib/banner-client'
 
 interface HeroBannerData {
   id: string
@@ -35,8 +36,7 @@ export function Hero() {
 
   useEffect(() => {
     let isMounted = true
-    fetch('/api/banners?placement=HOMEPAGE_HERO')
-      .then((res) => (res.ok ? res.json() : null))
+    fetchBannersByPlacement('HOMEPAGE_HERO')
       .then((body) => {
         if (isMounted && body?.data && Array.isArray(body.data) && body.data.length > 0) {
           setBanner(body.data[0])

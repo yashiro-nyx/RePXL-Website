@@ -4,6 +4,7 @@ import { useRef, useState, useEffect } from 'react'
 import { motion, useScroll, useTransform } from 'framer-motion'
 import { Container } from '@/components/layout/Container'
 import { useReducedMotion } from '@/hooks/useReducedMotion'
+import { fetchHomepageCmsBlocks } from '@/lib/cms-client'
 
 interface EditorialContent {
   eyebrow?: string
@@ -18,8 +19,7 @@ export function EditorialSection() {
 
   useEffect(() => {
     let isMounted = true
-    fetch('/api/cms/homepage')
-      .then((res) => (res.ok ? res.json() : null))
+    fetchHomepageCmsBlocks()
       .then((body) => {
         if (isMounted && body?.data && Array.isArray(body.data)) {
           const ed = body.data.find((b: any) => b.type === 'editorial' && b.isPublished)

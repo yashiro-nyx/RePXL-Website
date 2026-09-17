@@ -24,6 +24,8 @@ export interface RevealTextProps {
   /** Element to render as. Defaults to 'span'. */
   as?: RevealTag
   className?: string
+  /** Optional word to highlight with accent color (text-repixl-red). */
+  highlightWord?: string
   /** Delay, in seconds, before the stagger starts. */
   delay?: number
   /** Delay, in seconds, between each word's animation start. */
@@ -41,15 +43,12 @@ export interface RevealTextProps {
 /**
  * Splits `text` into words and reveals them with a staggered
  * fade-up-through-a-mask animation, triggered by scroll position.
- *
- * For headings that need inline formatting (colored spans, <br/>, italics),
- * don't use this — hand-roll the same word/segment-span pattern directly
- * in the component so the markup stays intact.
  */
 export function RevealText({
   text,
   as = 'span',
   className = '',
+  highlightWord,
   delay = 0,
   stagger = 0.035,
   once = false,
@@ -86,15 +85,28 @@ export function RevealText({
       whileInView="show"
       viewport={{ once, margin: viewportMargin }}
     >
-      {words.map((w, i) => (
-        <span key={i} className="inline-block overflow-hidden pb-[0.1em]" style={{ verticalAlign: 'bottom' }}>
-          {/* eslint-disable-next-line react/jsx-no-comment-textnodes */}
-          <motion.span variants={word} className="inline-block">
-            {w}
-            {i !== words.length - 1 ? '\u00A0' : ''}
-          </motion.span>
-        </span>
-      ))}
+      {words.map((w, i) => {
+        const isHighlight =
+          Boolean(highlightWord) &&
+          w.toLowerCase().replace(/[^\w]/g, '') ===
+            (highlightWord ?? '').toLowerCase().replace(/[^\w]/g, '')
+        return (
+          <span
+            key={i}
+            className="inline-block overflow-hidden pb-[0.1em]"
+            style={{ verticalAlign: 'bottom' }}
+          >
+            {/* eslint-disable-next-line react/jsx-no-comment-textnodes */}
+            <motion.span
+              variants={word}
+              className={`inline-block ${isHighlight ? 'text-[#FF5252]' : ''}`}
+            >
+              {w}
+              {i !== words.length - 1 ? '\u00A0' : ''}
+            </motion.span>
+          </span>
+        )
+      })}
     </MotionTag>
   )
 }

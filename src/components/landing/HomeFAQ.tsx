@@ -4,7 +4,7 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Container } from '@/components/layout/Container'
-import { RevealText } from '@/components/ui'
+import { SectionHeader } from '@/components/ui'
 import { useReducedMotion } from '@/hooks/useReducedMotion'
 import { homeFaqs } from '@/data/faqs'
 
@@ -27,19 +27,12 @@ export function HomeFAQ() {
           className="mx-auto max-w-2xl"
         >
           {/* Section header */}
-          <div className="text-center">
-            <span className="font-mono text-[10px] uppercase tracking-widest text-repixl-muted">
-              — Got Questions
-            </span>
-            <RevealText
-              as="h2"
-              text="Questions, answered."
-              className="mt-3 font-display text-display-md text-repixl-text-light md:text-display-lg"
-            />
-            <p className="mx-auto mt-3 max-w-md text-sm text-repixl-text-light/60">
-              The most common things buyers ask before their first purchase.
-            </p>
-          </div>
+          <SectionHeader
+            eyebrow="Got Questions"
+            title="Questions, Answered."
+            highlightWord="Answered."
+            description="The most common things buyers ask before their first purchase."
+          />
 
           {/* Accordion */}
           <div className="mt-12 divide-y divide-repixl-muted/10">

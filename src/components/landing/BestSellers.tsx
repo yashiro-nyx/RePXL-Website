@@ -4,14 +4,17 @@ import { useEffect, useMemo } from 'react'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
 import { Container } from '@/components/layout/Container'
-import { ConditionBadge, RevealText } from '@/components/ui'
+import { SectionHeader } from '@/components/ui'
+import { ProductCard } from '@/components/product/ProductCard'
 import { useProductStore } from '@/stores/productStore'
 import { useReviewStore } from '@/stores/reviewStore'
+import { useThemeStore } from '@/stores/themeStore'
 import { useReducedMotion } from '@/hooks/useReducedMotion'
-import { formatPrice } from '@/lib/format'
 
 export function BestSellers() {
   const reducedMotion = useReducedMotion()
+  const theme = useThemeStore((s) => s.theme)
+  const isLight = theme === 'light'
   const allProducts = useProductStore((s) => s.products)
   const allReviews = useReviewStore((s) => s.reviews)
 
@@ -37,76 +40,53 @@ export function BestSellers() {
   }
   const item = {
     hidden: reducedMotion ? { opacity: 1, y: 0 } : { opacity: 0, y: 24 },
-    show: { opacity: 1, y: 0, transition: { duration: reducedMotion ? 0 : 0.5, ease: [0.22, 1, 0.36, 1] } },
+    show: {
+      opacity: 1,
+      y: 0,
+      transition: { duration: reducedMotion ? 0 : 0.5, ease: [0.22, 1, 0.36, 1] },
+    },
   }
 
   if (bestSellers.length === 0) return null
 
   return (
-    <section className="py-16 md:py-20">
+    <section className="py-20 md:py-28">
       <Container>
-        <motion.div
-          initial={reducedMotion ? { opacity: 1 } : { opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: false, margin: '-60px' }}
-          transition={{ duration: reducedMotion ? 0 : 0.6, ease: 'easeOut' }}
-          className="mb-10 flex flex-col items-center gap-3 text-center"
-        >
-          <span className="font-mono text-xs uppercase tracking-widest text-repixl-muted">
-            — Fan favorites
-          </span>
-          <RevealText
-            as="h2"
-            text="Best Sellers"
-            className="font-display text-display-md text-repixl-text-light md:text-display-lg"
-          />
-        </motion.div>
+        {/* Editorial Section Header with original typography + reference color split */}
+        <SectionHeader
+          eyebrow="Fan Favorites"
+          title="Best Sellers"
+          highlightWord="Sellers"
+          className="mb-12 md:mb-16"
+        />
 
+        {/* Product Cards Grid — 4 substantial cards with equal height */}
         <motion.div
           variants={container}
           initial="hidden"
           whileInView="show"
           viewport={{ once: false, margin: '-60px' }}
-          className="grid grid-cols-2 gap-4 md:grid-cols-4"
+          className="mx-auto grid max-w-7xl grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4"
         >
-          {bestSellers.map((product) => {
-            const reviewCount = allReviews.filter((r) => r.productSlug === product.slug).length
-            return (
-              <motion.div key={product.slug} variants={item}>
-                <Link href={`/products/${product.slug}`} className="group block">
-                  <div className="relative aspect-square overflow-hidden rounded-lg border border-repixl-muted/15 bg-repixl-charcoal">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={product.image}
-                      alt={product.name}
-                      className="h-full w-full object-contain p-6 transition-transform duration-500 group-hover:scale-105"
-                    />
-                    <div className="absolute left-3 top-3">
-                      <ConditionBadge condition={product.condition} />
-                    </div>
-                  </div>
-                  <div className="mt-3">
-                    <p className="font-mono text-[9px] uppercase tracking-widest text-repixl-muted">{product.brand}</p>
-                    <h3 className="mt-0.5 text-sm font-medium text-repixl-text-light line-clamp-1">{product.name}</h3>
-                    <div className="mt-1 flex items-center justify-between">
-                      <span className="font-display text-base font-bold text-repixl-text-light">{formatPrice(product.price)}</span>
-                      {reviewCount > 0 && (
-                        <span className="font-mono text-[9px] text-repixl-muted">{reviewCount} review{reviewCount !== 1 ? 's' : ''}</span>
-                      )}
-                    </div>
-                  </div>
-                </Link>
-              </motion.div>
-            )
-          })}
+          {bestSellers.map((product, index) => (
+            <motion.div key={product.slug} variants={item} className="h-full">
+              <ProductCard product={product} variant={index} />
+            </motion.div>
+          ))}
         </motion.div>
 
-        <div className="mt-8 flex justify-center">
+        {/* View All Callout — Wide intentional pill outline: neutral default, red on hover */}
+        <div className="mt-14 flex justify-center">
           <Link
             href="/products"
-            className="rounded-full border border-repixl-muted/25 px-6 py-2.5 font-mono text-[11px] uppercase tracking-wider text-repixl-text-light/80 transition-colors hover:border-repixl-red/50 hover:text-repixl-text-light"
+            className={`group inline-flex items-center gap-2.5 rounded-full border px-9 py-3 font-mono text-xs uppercase tracking-widest transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#EF4444] focus-visible:ring-offset-2 ${
+              isLight
+                ? 'border-neutral-300 bg-white text-neutral-900 hover:border-[#B91C1C] hover:bg-[#B91C1C]/5 hover:text-[#B91C1C] hover:shadow-[0_0_16px_rgba(185,28,28,0.15)] focus-visible:border-[#B91C1C] focus-visible:text-[#B91C1C] focus-visible:ring-offset-white'
+                : 'border-white/20 bg-transparent text-white hover:border-[#EF4444] hover:bg-[#B91C1C]/10 hover:text-[#EF4444] hover:shadow-[0_0_20px_rgba(239,68,68,0.25)] focus-visible:border-[#EF4444] focus-visible:text-[#EF4444] focus-visible:ring-offset-black'
+            }`}
           >
-            View All
+            <span>VIEW ALL CAMERAS</span>
+            <span className="transition-transform duration-200 group-hover:translate-x-1" aria-hidden="true">→</span>
           </Link>
         </div>
       </Container>

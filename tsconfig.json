@@ -45,5 +45,6 @@
     "react-native/android",
     "react-native/ios",
     "vitest.config.ts"
-  ]
+  ],
+  "extends": "expo/tsconfig.base"
 }

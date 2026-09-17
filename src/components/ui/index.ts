@@ -19,4 +19,5 @@ export { ReviewImageThumbnails } from './ReviewImageThumbnails'
 //   import { PhoneInput } from '@/components/ui/PhoneInput'
 // or lazy-load via next/dynamic for even better bundle splitting.
 export { RevealText, type RevealTextProps } from './RevealText'
+export { SectionHeader, type SectionHeaderProps } from './SectionHeader'
 export { Skeleton, type SkeletonProps } from './Skeleton'

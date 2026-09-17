@@ -27,8 +27,8 @@ function buildDatabaseUrl(): string | undefined {
   // Do not double-set if already present in the env value
   if (raw.includes('connection_limit=')) return raw
 
-  const connectionLimit = process.env.PRISMA_CONNECTION_LIMIT ?? '10'
-  const poolTimeout = process.env.PRISMA_POOL_TIMEOUT ?? '20'
+  const connectionLimit = process.env.PRISMA_CONNECTION_LIMIT ?? '5'
+  const poolTimeout = process.env.PRISMA_POOL_TIMEOUT ?? '15'
 
   const sep = raw.includes('?') ? '&' : '?'
   return `${raw}${sep}connection_limit=${connectionLimit}&pool_timeout=${poolTimeout}`

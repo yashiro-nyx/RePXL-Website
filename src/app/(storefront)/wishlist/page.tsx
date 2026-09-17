@@ -19,10 +19,12 @@ export default function WishlistPage() {
   const { fadeUp, staggerContainer, staggerItem, viewport, reducedMotion } = useRevealAnimation()
 
   useEffect(() => {
-    useWishlistStore.getState().hydrate()
-    useProductStore.getState().hydrate()
-    useCartStore.getState().hydrate()
-    useAuthStore.getState().hydrate()
+    if (useWishlistStore.getState().slugs.length === 0) {
+      useWishlistStore.getState().hydrate()
+    }
+    if (useProductStore.getState().products.length === 0) {
+      useProductStore.getState().hydrate()
+    }
   }, [])
 
   const items = wishlistSlugs

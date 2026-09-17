@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { forwardRef, useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { AnimatePresence, motion } from 'framer-motion'
 import { useToastStore, type Toast } from '@/stores/toastStore'
@@ -43,7 +43,15 @@ const config = {
 } as const
 
 // ─── Single toast ──────────────────────────────────────────────────────────────
-function ToastItem({ toast, onRemove }: { toast: Toast; onRemove: (id: string) => void }) {
+interface ToastItemProps {
+  toast: Toast
+  onRemove: (id: string) => void
+}
+
+const ToastItem = forwardRef<HTMLDivElement, ToastItemProps>(function ToastItem(
+  { toast, onRemove },
+  ref
+) {
   const [progress, setProgress] = useState(100)
   const rafRef = useRef<number | null>(null)
   const c = config[toast.type]
@@ -62,6 +70,7 @@ function ToastItem({ toast, onRemove }: { toast: Toast; onRemove: (id: string) =
 
   return (
     <motion.div
+      ref={ref}
       layout
       initial={{ opacity: 0, x: 56, scale: 0.96 }}
       animate={{ opacity: 1, x: 0, scale: 1 }}
@@ -130,7 +139,9 @@ function ToastItem({ toast, onRemove }: { toast: Toast; onRemove: (id: string) =
       </div>
     </motion.div>
   )
-}
+})
+
+ToastItem.displayName = 'ToastItem'
 
 // ─── Container ─────────────────────────────────────────────────────────────────
 export function GlobalToast() {
