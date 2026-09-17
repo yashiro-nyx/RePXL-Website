@@ -11,7 +11,7 @@ import { getMobileUserFromAccessToken } from './mobile-auth'
 const SESSION_COOKIE = 'repixl-session-token'
 const ADMIN_SESSION_COOKIE = 'repixl-admin-session-token'
 const SESSION_MAX_AGE = 7 * 24 * 60 * 60 // 7 days for customers
-const ADMIN_SESSION_MAX_AGE = 60 * 60 // 1 hour for admin
+const ADMIN_SESSION_MAX_AGE = 7 * 24 * 60 * 60 // 7 days for admin (matches customer session)
 
 export interface SessionUser {
   id: string
@@ -191,37 +191,44 @@ export async function getCurrentAdmin(): Promise<SessionUser | null> {
     return null
   }
 
-  if (!token) return null
+  if (token) {
+    const decoded = decodeToken(token)
+    if (decoded && Date.now() - decoded.iat <= ADMIN_SESSION_MAX_AGE * 1000) {
+      const user = await prisma.user.findUnique({
+        where: { id: decoded.userId },
+        select: {
+          id: true,
+          email: true,
+          firstName: true,
+          lastName: true,
+          role: true,
+          isSuperAdmin: true,
+          isArchived: true,
+        },
+      })
 
-  const decoded = decodeToken(token)
-  if (!decoded) return null
-
-  // Check admin session expiry (1 hour)
-  if (Date.now() - decoded.iat > ADMIN_SESSION_MAX_AGE * 1000) return null
-
-  const user = await prisma.user.findUnique({
-    where: { id: decoded.userId },
-    select: {
-      id: true,
-      email: true,
-      firstName: true,
-      lastName: true,
-      role: true,
-      isSuperAdmin: true,
-      isArchived: true,
-    },
-  })
-
-  if (!user || user.role !== 'ADMIN' || user.isArchived) return null
-
-  return {
-    id: user.id,
-    email: user.email,
-    firstName: user.firstName,
-    lastName: user.lastName,
-    role: user.role,
-    isSuperAdmin: user.isSuperAdmin,
+      if (user && user.role === 'ADMIN' && !user.isArchived) {
+        return {
+          id: user.id,
+          email: user.email,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          role: user.role,
+          isSuperAdmin: user.isSuperAdmin,
+        }
+      }
+    }
   }
+
+  // Fallback: If ADMIN_SESSION_COOKIE is expired or missing, check customer session cookie
+  // for an authenticated user with role === 'ADMIN'. This prevents desynchronization where
+  // /api/auth/me recognizes the admin session, but /api/admin/* endpoints reject them with 401.
+  const sessionUser = await getCurrentUser()
+  if (sessionUser && sessionUser.role === 'ADMIN') {
+    return sessionUser
+  }
+
+  return null
 }
 
 /**
