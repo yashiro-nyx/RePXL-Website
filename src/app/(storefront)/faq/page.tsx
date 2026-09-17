@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import Link from 'next/link'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Container } from '@/components/layout/Container'
@@ -8,6 +8,8 @@ import { Button, BackButton, CornerBracket } from '@/components/ui'
 import { RevealText } from '@/components/ui/RevealText'
 import { useReducedMotion } from '@/hooks/useReducedMotion'
 import { faqs, type FAQItem } from '@/data/faqs'
+import { CmsPageLayout } from '@/components/layout/CmsPageLayout'
+import { DEFAULT_FAQ_BODY } from '@/lib/cms-defaults'
 
 const categories = Array.from(new Set(faqs.map((f) => f.category)))
 
@@ -16,6 +18,40 @@ export default function FAQPage() {
   const [openIndex, setOpenIndex] = useState<string | null>(null)
   const [query, setQuery] = useState('')
   const [activeCategory, setActiveCategory] = useState<FAQItem['category'] | 'All'>('All')
+  const [customPage, setCustomPage] = useState<{
+    title: string
+    body: string
+    updatedAt: string
+    status: string
+  } | null>(null)
+
+  useEffect(() => {
+    let isMounted = true
+    fetch('/api/pages/faq')
+      .then((res) => (res.ok ? res.json() : null))
+      .then((res) => {
+        if (!isMounted) return
+        const page = res?.data
+        if (page?.body && page.body.trim() !== DEFAULT_FAQ_BODY.trim()) {
+          setCustomPage(page)
+        }
+      })
+      .catch(() => {})
+    return () => {
+      isMounted = false
+    }
+  }, [])
+
+  if (customPage) {
+    return (
+      <CmsPageLayout
+        title={customPage.title}
+        body={customPage.body}
+        updatedAt={customPage.updatedAt}
+        isDraft={customPage.status === 'DRAFT'}
+      />
+    )
+  }
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()

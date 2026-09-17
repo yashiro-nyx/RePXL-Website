@@ -9,6 +9,8 @@ import { Button, CornerBracket, ConditionBadge } from '@/components/ui'
 import { RevealText } from '@/components/ui/RevealText'
 import { useReducedMotion } from '@/hooks/useReducedMotion'
 import { products } from '@/data/products'
+import { CmsPageLayout } from '@/components/layout/CmsPageLayout'
+import { DEFAULT_ABOUT_BODY } from '@/lib/cms-defaults'
 
 const totalCameras = products.filter((p) => p.stock > 0).length
 const totalBrands = new Set(products.map((p) => p.brand)).size
@@ -44,6 +46,40 @@ function useVariants(reducedMotion: boolean) {
 export default function AboutPage() {
   const reducedMotion = useReducedMotion()
   const { container, item } = useVariants(reducedMotion)
+  const [customPage, setCustomPage] = useState<{
+    title: string
+    body: string
+    updatedAt: string
+    status: string
+  } | null>(null)
+
+  useEffect(() => {
+    let isMounted = true
+    fetch('/api/pages/about')
+      .then((res) => (res.ok ? res.json() : null))
+      .then((res) => {
+        if (!isMounted) return
+        const page = res?.data
+        if (page?.body && page.body.trim() !== DEFAULT_ABOUT_BODY.trim()) {
+          setCustomPage(page)
+        }
+      })
+      .catch(() => {})
+    return () => {
+      isMounted = false
+    }
+  }, [])
+
+  if (customPage) {
+    return (
+      <CmsPageLayout
+        title={customPage.title}
+        body={customPage.body}
+        updatedAt={customPage.updatedAt}
+        isDraft={customPage.status === 'DRAFT'}
+      />
+    )
+  }
 
   return (
     <div>

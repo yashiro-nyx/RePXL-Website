@@ -92,9 +92,9 @@ export function DealBanner() {
           <div className="deal-banner-phone-frame pointer-events-none absolute inset-x-0 bottom-0 z-10 h-[22rem] overflow-hidden md:bottom-0 md:left-auto md:right-0 md:top-[-2.5rem] md:h-auto md:w-[58%] md:overflow-visible">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src="/images/dealbanner.png"
-              alt="RePXL storefront displaying a blue Kodak compact camera"
-              className="deal-banner-phone absolute left-1/2 top-0 w-[min(100vw,21rem)] max-w-none -translate-x-[42%] md:left-auto md:right-[clamp(2rem,5vw,4rem)] md:top-0 md:w-[clamp(31rem,40vw,34rem)] md:translate-x-0"
+              src={banner?.imageRef || '/images/dealbanner.png'}
+              alt={title}
+              className="deal-banner-phone absolute left-1/2 top-0 w-[min(100vw,21rem)] max-w-none -translate-x-[42%] md:left-auto md:right-[clamp(2rem,5vw,4rem)] md:top-0 md:w-[clamp(31rem,40vw,34rem)] md:translate-x-0 object-contain"
             />
           </div>
           <div className="deal-banner-copy relative z-30 max-w-md px-6 py-12 sm:px-8 md:flex md:min-h-[34rem] md:w-1/2 md:flex-col md:justify-center md:px-12 md:py-14 lg:px-14">

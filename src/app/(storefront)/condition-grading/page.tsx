@@ -6,6 +6,8 @@ import { Container } from '@/components/layout/Container'
 import { ConditionBadge, BackButton, type Condition } from '@/components/ui'
 import { RevealText } from '@/components/ui/RevealText'
 import { useReducedMotion } from '@/hooks/useReducedMotion'
+import { CmsPageLayout } from '@/components/layout/CmsPageLayout'
+import { DEFAULT_CONDITION_GRADING_BODY } from '@/lib/cms-defaults'
 
 interface GradeSection {
   condition: Condition
@@ -141,6 +143,41 @@ function StatBlock({
 export default function ConditionGradingPage() {
   const reducedMotion = useReducedMotion()
   const [activeGrade, setActiveGrade] = useState<Condition>('mint')
+  const [customPage, setCustomPage] = useState<{
+    title: string
+    body: string
+    updatedAt: string
+    status: string
+  } | null>(null)
+
+  useEffect(() => {
+    let isMounted = true
+    fetch('/api/pages/condition-grading')
+      .then((res) => (res.ok ? res.json() : null))
+      .then((res) => {
+        if (!isMounted) return
+        const page = res?.data
+        if (page?.body && page.body.trim() !== DEFAULT_CONDITION_GRADING_BODY.trim()) {
+          setCustomPage(page)
+        }
+      })
+      .catch(() => {})
+    return () => {
+      isMounted = false
+    }
+  }, [])
+
+  if (customPage) {
+    return (
+      <CmsPageLayout
+        title={customPage.title}
+        body={customPage.body}
+        updatedAt={customPage.updatedAt}
+        isDraft={customPage.status === 'DRAFT'}
+      />
+    )
+  }
+
   const active = grades.find((g) => g.condition === activeGrade)!
 
   return (
