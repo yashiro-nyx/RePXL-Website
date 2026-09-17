@@ -24,7 +24,9 @@ export const dynamic = 'force-dynamic'
  */
 export async function GET(request: NextRequest) {
   try {
-    const admin = request.nextUrl.searchParams.get('scope') === 'customer'
+    const url = request.nextUrl ?? new URL(request.url, 'http://localhost:3000')
+    const scope = url.searchParams.get('scope')
+    const admin = scope === 'customer'
       ? null
       : await getCurrentAdmin()
     const user  = admin ?? (await getCurrentUser())
@@ -96,7 +98,9 @@ export async function GET(request: NextRequest) {
  */
 export async function PUT(request: NextRequest) {
   try {
-    const admin = request.nextUrl.searchParams.get('scope') === 'customer'
+    const url = request.nextUrl ?? new URL(request.url, 'http://localhost:3000')
+    const scope = url.searchParams.get('scope')
+    const admin = scope === 'customer'
       ? null
       : await getCurrentAdmin()
     const user  = admin ?? (await getCurrentUser())

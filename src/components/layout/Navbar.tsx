@@ -41,25 +41,25 @@ export function Navbar() {
 
   // Await auth hydration before revealing auth-dependent UI
   useEffect(() => {
+    let isMounted = true
     const init = async () => {
-      await hydrate()
-      useCartStore.getState().hydrate()
-      useWishlistStore.getState().hydrate()
-      setAuthHydrated(true)
+      if (useAuthStore.getState().authStatus === 'idle') {
+        await hydrate()
+      }
+      if (isMounted) setAuthHydrated(true)
     }
     void init()
+    return () => {
+      isMounted = false
+    }
   }, [hydrate])
 
-  // Re-hydrate per-user stores when login state changes
+  // Re-hydrate per-user stores once auth settles or login state changes
   useEffect(() => {
-    if (isLoggedIn) {
-      useCartStore.getState().hydrate()
-      useWishlistStore.getState().hydrate()
-    } else {
-      useCartStore.setState({ items: [] })
-      useWishlistStore.setState({ slugs: [] })
-    }
-  }, [isLoggedIn])
+    if (!authHydrated) return
+    useCartStore.getState().hydrate()
+    useWishlistStore.getState().hydrate()
+  }, [authHydrated, isLoggedIn])
 
   // Close profile dropdown on outside click
   useEffect(() => {

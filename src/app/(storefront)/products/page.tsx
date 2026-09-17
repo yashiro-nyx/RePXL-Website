@@ -8,6 +8,7 @@ import { ProductCard } from '@/components/product/ProductCard'
 import { ConditionBadge, Skeleton } from '@/components/ui'
 import { Footer } from '@/components/layout/Footer'
 import { useProductStore } from '@/stores/productStore'
+import { useThemeStore } from '@/stores/themeStore'
 import { useRevealAnimation } from '@/hooks/useRevealAnimation'
 import { useReducedMotion } from '@/hooks/useReducedMotion'
 import type { ConditionGrade } from '@/types'
@@ -109,6 +110,10 @@ function ProductsContent() {
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false)
 
   useEffect(() => {
+    if (useProductStore.getState().products.length > 0) {
+      setHydrated(true)
+      return
+    }
     useProductStore.getState().hydrate().finally(() => setHydrated(true))
   }, [])
 
@@ -158,9 +163,22 @@ function ProductsContent() {
 
   const filterProps = { brands, selectedBrands, toggleBrand, selectedConditions, toggleCondition, priceRange, setPriceRange, inStockOnly, setInStockOnly, hasFilters, clearAll }
 
+  const theme = useThemeStore((s) => s.theme)
+  const isLight = theme === 'light'
+
   return (
-    <div className="burn-subtle min-h-screen pb-20 pt-24">
-      <Container>
+    <div className={`burn-minimal relative min-h-screen overflow-hidden ${isLight ? 'bg-transparent' : 'bg-[#080709]'} pb-20 pt-24`}>
+      {/* Restrained cinematic red atmospheric illumination at extreme edges only */}
+      <div
+        className={`pointer-events-none absolute -left-72 top-1/3 h-[700px] w-[500px] -translate-y-1/2 rounded-full ${isLight ? 'bg-repixl-red/[0.03]' : 'bg-repixl-red/[0.08]'} blur-[150px]`}
+        aria-hidden="true"
+      />
+      <div
+        className={`pointer-events-none absolute -right-72 top-2/3 h-[700px] w-[500px] -translate-y-1/2 rounded-full ${isLight ? 'bg-repixl-red/[0.03]' : 'bg-repixl-red/[0.08]'} blur-[150px]`}
+        aria-hidden="true"
+      />
+
+      <Container className="relative z-10">
         {/* Page header */}
         <motion.div variants={fadeUp} initial="hidden" animate="show"
           className="mb-8 border-b border-repixl-muted/10 pb-6">
@@ -187,9 +205,9 @@ function ProductsContent() {
             <label htmlFor="sort-mobile" className="font-mono text-[10px] uppercase tracking-wider text-repixl-muted">Sort</label>
             <select id="sort-mobile" value={sort} onChange={(e) => setSort(e.target.value as SortOption)}
               className="rounded border border-repixl-muted/20 bg-repixl-charcoal px-3 py-1.5 font-mono text-xs text-repixl-text-light focus:border-repixl-muted/50 focus:outline-none">
-              <option value="newest">Newest</option>
-              <option value="price-asc">Price ↑</option>
-              <option value="price-desc">Price ↓</option>
+              <option value="newest" className="bg-repixl-charcoal text-repixl-text-light">Newest</option>
+              <option value="price-asc" className="bg-repixl-charcoal text-repixl-text-light">Price ↑</option>
+              <option value="price-desc" className="bg-repixl-charcoal text-repixl-text-light">Price ↓</option>
             </select>
           </div>
         </div>
@@ -264,9 +282,9 @@ function ProductsContent() {
                 <label htmlFor="sort-desktop" className="font-mono text-[10px] uppercase tracking-wider text-repixl-muted">Sort</label>
                 <select id="sort-desktop" value={sort} onChange={(e) => setSort(e.target.value as SortOption)}
                   className="rounded border border-repixl-muted/20 bg-repixl-charcoal px-3 py-1.5 font-mono text-xs text-repixl-text-light focus:border-repixl-muted/50 focus:outline-none">
-                  <option value="newest">Newest first</option>
-                  <option value="price-asc">Price: low → high</option>
-                  <option value="price-desc">Price: high → low</option>
+                  <option value="newest" className="bg-repixl-charcoal text-repixl-text-light">Newest first</option>
+                  <option value="price-asc" className="bg-repixl-charcoal text-repixl-text-light">Price: low → high</option>
+                  <option value="price-desc" className="bg-repixl-charcoal text-repixl-text-light">Price: high → low</option>
                 </select>
               </div>
             </div>
@@ -296,9 +314,9 @@ function ProductsContent() {
                 key={`${selectedBrands.join()}-${selectedConditions.join()}-${priceRange.join()}-${sort}`}
                 className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3"
               >
-                {filtered.map((product) => (
+                {filtered.map((product, index) => (
                   <motion.div key={product.slug} variants={{ hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0, transition: { duration: 0.4, ease: [0.22, 1, 0.36, 1] } } }} className="h-full">
-                    <ProductCard product={product} />
+                    <ProductCard product={product} variant={index} />
                   </motion.div>
                 ))}
               </motion.div>

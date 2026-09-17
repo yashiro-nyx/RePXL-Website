@@ -17,6 +17,8 @@ interface CartState {
   hydrate: () => Promise<void>
 }
 const email = () => useAuthStore.getState().userEmail || null
+let cartHydrateInFlight: Promise<void> | null = null
+
 export const useCartStore = create<CartState>((set, get) => {
   const mutate = async (action: (owner: string | null) => Promise<void>) => {
     const owner = email()
@@ -43,22 +45,29 @@ export const useCartStore = create<CartState>((set, get) => {
     isInCart: (slug) => get().items.some((item) => item.slug === slug),
     getQuantity: (slug) =>
       get().items.find((item) => item.slug === slug)?.quantity ?? 0,
-    hydrate: async () => {
+    hydrate: () => {
+      if (cartHydrateInFlight) return cartHydrateInFlight
       const owner = email()
-      try {
-        const items = await cartService.list(owner)
-        if (owner === email()) set({ items, error: null })
-      } catch {
-        if (owner === email()) {
-          set({
-            items: [],
-            error: 'Unable to load your cart. Please try again.',
-          })
-          useToastStore
-            .getState()
-            .addToast('Unable to load your cart. Please try again.', 'error')
-        }
-      }
+      cartHydrateInFlight = cartService
+        .list(owner)
+        .then((items) => {
+          if (owner === email()) set({ items, error: null })
+        })
+        .catch(() => {
+          if (owner === email()) {
+            set({
+              items: [],
+              error: 'Unable to load your cart. Please try again.',
+            })
+            useToastStore
+              .getState()
+              .addToast('Unable to load your cart. Please try again.', 'error')
+          }
+        })
+        .finally(() => {
+          cartHydrateInFlight = null
+        })
+      return cartHydrateInFlight
     },
   }
 })

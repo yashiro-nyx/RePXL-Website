@@ -39,11 +39,15 @@ export function maskEmail(email: string | null | undefined): string {
  */
 export function maskPhone(phone: string | null | undefined): string {
   if (!phone) return '—'
-  const digits = phone.replace(/\D/g, '')
-  if (digits.length < 4) return '—'
-  const visible = digits.slice(-4)
-  const hidden  = '*'.repeat(digits.length - 4)
-  return `${hidden}${visible}`
+  try {
+    const digits = String(phone).replace(/\D/g, '')
+    if (digits.length < 4) return '—'
+    const visible = digits.slice(-4)
+    const hidden  = '*'.repeat(digits.length - 4)
+    return `${hidden}${visible}`
+  } catch {
+    return '—'
+  }
 }
 
 /**
@@ -56,8 +60,12 @@ export function maskPhone(phone: string | null | undefined): string {
  */
 export function maskDob(dob: string | Date | null | undefined): string {
   if (!dob) return '—'
-  const str = typeof dob === 'string' ? dob : dob.toISOString()
-  const match = str.match(/^(\d{4})/)
-  if (!match) return '—'
-  return `**/**/${match[1]}`
+  try {
+    const str = typeof dob === 'string' ? dob : (dob instanceof Date ? (isNaN(dob.getTime()) ? '' : dob.toISOString()) : String(dob))
+    const match = str.match(/^(\d{4})/)
+    if (!match) return '—'
+    return `**/**/${match[1]}`
+  } catch {
+    return '—'
+  }
 }

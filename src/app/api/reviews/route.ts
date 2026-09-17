@@ -43,20 +43,21 @@ export async function GET(request: NextRequest) {
       where.product = { slug: productSlug }
     }
 
-    const [reviews, total] = await Promise.all([
-      prisma.review.findMany({
-        where,
-        include: {
-          product: { select: { slug: true, name: true, image: true } },
-          user: { select: { firstName: true, lastName: true, email: true } },
-          images: { orderBy: { sortOrder: 'asc' }, select: { id: true, secureUrl: true, sortOrder: true } },
-        },
-        orderBy: { createdAt: 'desc' },
-        skip: pagination.skip,
-        take: pagination.limit,
-      }),
-      prisma.review.count({ where }),
-    ])
+    // Execute count first to release connection quickly, then fetch reviews (avoids holding 2 pool connections concurrently)
+    const total = await prisma.review.count({ where })
+    const reviews = total > 0
+      ? await prisma.review.findMany({
+          where,
+          include: {
+            product: { select: { slug: true, name: true, image: true } },
+            user: { select: { firstName: true, lastName: true, email: true } },
+            images: { orderBy: { sortOrder: 'asc' }, select: { id: true, secureUrl: true, sortOrder: true } },
+          },
+          orderBy: { createdAt: 'desc' },
+          skip: pagination.skip,
+          take: pagination.limit,
+        })
+      : []
 
     // Calculate average rating if filtered by product
     let averageRating = 0

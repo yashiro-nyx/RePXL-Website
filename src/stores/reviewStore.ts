@@ -34,6 +34,10 @@ interface ReviewState {
   hydrate: () => Promise<void>
 }
 
+let hydrateInFlight: Promise<void> | null = null
+let lastHydrated = 0
+const REVIEWS_FRESHNESS_MS = 30_000
+
 export const useReviewStore = create<ReviewState>((set, get) => ({
   // Empty initial state — no seed/fake reviews. Real data loads via hydrate()
   // or the API-backed components (Account Reviews, Product Details).
@@ -83,18 +87,36 @@ export const useReviewStore = create<ReviewState>((set, get) => ({
   getReviewCount: (slug) =>
     get().reviews.filter((r) => r.productSlug === slug).length,
 
-  hydrate: async () => {
-    const commit = scopedAccountUpdate<Partial<ReviewState>>(set)
-    try {
-      commit({ reviews: await reviewService.listAll([]) })
-    } catch {
-      commit({ reviews: [] })
-      reportActionFailure()
+  hydrate: () => {
+    // If reviews are already loaded and within freshness TTL, skip refetching
+    if (get().reviews.length > 0 && Date.now() - lastHydrated < REVIEWS_FRESHNESS_MS) {
+      return Promise.resolve()
     }
+    // Share identical in-flight fetch across concurrent component mounts (e.g. FeaturedCarousel + BestSellers)
+    if (hydrateInFlight) return hydrateInFlight
+
+    const commit = scopedAccountUpdate<Partial<ReviewState>>(set)
+    hydrateInFlight = reviewService
+      .listAll([])
+      .then((reviews) => {
+        lastHydrated = Date.now()
+        commit({ reviews })
+      })
+      .catch(() => {
+        commit({ reviews: [] })
+        reportActionFailure()
+      })
+      .finally(() => {
+        hydrateInFlight = null
+      })
+
+    return hydrateInFlight
   },
 }))
 
 useAuthStore.subscribe((state, previous) => {
-  if (state.userEmail !== previous.userEmail || state.role !== previous.role)
+  if (state.userEmail !== previous.userEmail || state.role !== previous.role) {
+    lastHydrated = 0
     useReviewStore.setState({ reviews: [] })
+  }
 })
