@@ -93,7 +93,8 @@
 - [ ] 9\. Notification Management  
       - [ ] Configure and send automated notifications (e.g., order confirmation emails).  
 - [x] ~~9\. Notification Management~~  
-      - [x] ~~Configure and send automated notifications (e.g., order confirmation emails).~~  
+      - [x] ~~Configure and
+      - [ ]  send automated notifications (e.g., order confirmation emails).~~  
 - [x] ~~10\. Audit Trail~~
 
 ## IV. Mobile Application (Customer Side) 
