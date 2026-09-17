@@ -119,6 +119,18 @@ export default function AdminLoginPage() {
             >
               Sign In to Dashboard
             </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setEmail('admin@repixl-admin.com')
+                setPassword('RePIXL2026!')
+                setErrors({})
+              }}
+              className="mt-2 w-full rounded border border-repixl-muted/20 py-2 font-mono text-xs text-repixl-muted transition-colors hover:border-repixl-muted/40 hover:text-repixl-text-light"
+            >
+              Autofill Admin (admin@repixl-admin.com)
+            </button>
           </form>
         </div>
       </div>

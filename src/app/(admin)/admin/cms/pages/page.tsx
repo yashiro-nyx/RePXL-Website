@@ -70,6 +70,10 @@ export default function CmsPagesPage() {
   const load = async () => {
     try {
       const res = await fetch('/api/admin/cms/pages', { credentials: 'include' })
+      if (res.status === 401) {
+        setMsg({ type: 'error', text: 'Admin session expired. Please sign in at /admin/login.' })
+        return
+      }
       const body = await res.json()
       setPages(body.data ?? [])
     } catch {
