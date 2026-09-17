@@ -34,9 +34,9 @@
     "cloudinary": "^2.11.0",
     "framer-motion": "11.11.1",
     "leaflet": "1.9.4",
-    "next": "14.2.15",
-    "next-auth": "^4.24.8",
-    "nodemailer": "^6.10.1",
+    "next": "15.5.25",
+    "next-auth": "^4.24.15",
+    "nodemailer": "^10.0.10",
     "otpauth": "^9.5.2",
     "qrcode": "^1.5.4",
     "react": "18.3.1",
@@ -49,27 +49,28 @@
   "devDependencies": {
     "@fast-check/vitest": "^0.2.4",
     "@types/bcryptjs": "^2.4.6",
-    "@types/node": "22.7.5",
+    "@types/node": "^22.12.0",
     "@types/nodemailer": "^8.0.1",
     "@types/qrcode": "^1.5.6",
     "@types/react": "18.3.11",
     "@types/react-dom": "18.3.1",
     "autoprefixer": "10.4.20",
     "eslint": "8.57.1",
-    "eslint-config-next": "14.2.15",
+    "eslint-config-next": "15.5.25",
     "fast-check": "^3.23.2",
-    "postcss": "8.4.47",
+    "postcss": "^8.5.28",
     "prettier": "3.3.3",
     "prettier-plugin-tailwindcss": "0.6.8",
     "prisma": "5.22.0",
     "tailwindcss": "3.4.13",
     "tsx": "^4.19.2",
     "typescript": "5.6.3",
-    "vitest": "^2.1.9"
+    "vitest": "^4.1.11"
   },
   "overrides": {
     "next-auth": {
       "nodemailer": "$nodemailer"
-    }
+    },
+    "postcss": "^8.5.28"
   }
 }
