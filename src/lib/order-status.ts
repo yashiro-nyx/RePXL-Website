@@ -77,7 +77,6 @@ export function buildOrderStatusUpdate(
   const data: Pick<OrderStatusSnapshot, 'status'> & {
     deliveredAt?: Date | null
     completedAt?: Date | null
-  } = { status: nextStatus }
     deliveryStatus: string
     trackingProgress: number
     trackingDescription: string

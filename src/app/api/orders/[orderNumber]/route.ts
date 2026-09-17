@@ -465,7 +465,6 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 
       const updated = await prisma.order.update({
         where: { orderNumber: params.orderNumber },
-        data: updateData,
         data: {
           ...updateData,
           ...(isCod && order.paymentReference !== 'COD_APPROVED' ? { paymentReference: 'COD_APPROVED' } : {}),

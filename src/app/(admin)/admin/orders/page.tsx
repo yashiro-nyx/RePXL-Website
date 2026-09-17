@@ -144,7 +144,6 @@ export default function AdminOrdersPage() {
 
     // Optimistic UI update
     setOrders((prev) =>
-      prev.map((o) => (o.orderNumber === orderNumber ? { ...o, status: canonical } : o))
       prev.map((o) =>
         o.orderNumber === orderNumber
           ? { ...o, status: canonical, deliveryStatus: getDeliveryStatusForOrderStatus(canonical, o.deliveryStatus) }
@@ -152,7 +151,6 @@ export default function AdminOrdersPage() {
       )
     )
     if (viewOrder?.orderNumber === orderNumber) {
-      setViewOrder((o) => (o ? { ...o, status: canonical } : o))
       setViewOrder((o) => (o ? { ...o, status: canonical, deliveryStatus: nextDeliveryStatus } : o))
     }
 
@@ -301,7 +299,6 @@ export default function AdminOrdersPage() {
                 isCod &&
                 (order.deliveryStatus === 'Pending COD Approval' ||
                   order.deliveryStatus === 'COD Approval Requested')
-              const canEditStatus = isPaid || (isCod && !isCodPending)
               const canEditStatus = isPaid || isCod
 
               return (
@@ -415,7 +412,6 @@ export default function AdminOrdersPage() {
           onClose={() => setViewOrder(null)}
           onStatusChange={(newStatus) => {
             void handleStatusUpdate(viewOrder.orderNumber, newStatus)
-            setViewOrder((o) => o ? { ...o, status: newStatus } : o)
             const nextDeliveryStatus = getDeliveryStatusForOrderStatus(newStatus, viewOrder.deliveryStatus)
             setViewOrder((o) => o ? { ...o, status: newStatus, deliveryStatus: nextDeliveryStatus } : o)
           }}
@@ -461,8 +457,6 @@ function OrderDetailModal({
     (currentDeliveryStatus === 'Pending COD Approval' ||
       currentDeliveryStatus === 'COD Approval Requested')
   const isPaid = order.paymentStatus === 'PAID'
-  const isLocked = !isPaid && (!isCod || isCodPending)
-  const isDeliveryLocked = !isPaid && (!isCod || isCodPending)
   const isLocked = !isPaid && !isCod
   const isDeliveryLocked = !isPaid && !isCod
 
@@ -773,11 +767,9 @@ function OrderDetailModal({
             </div>
             {isDeliveryLocked ? (
               <p className="mb-3 text-xs text-amber-400/90 font-medium">
-                🔒 {isCodPending ? 'Delivery tracking updates require COD approval.' : 'Delivery tracking updates require completed payment.'}
                 🔒 Delivery tracking updates require completed payment.
               </p>
             ) : (
-              <p className="mb-3 text-xs text-repixl-muted/70">Updating delivery status notifies the customer in real time.</p>
               <p className="mb-3 text-xs text-repixl-muted/70">
                 {isCod && !isPaid
                   ? 'Cash on Delivery: delivery tracking can be updated while payment is pending collection upon delivery.'

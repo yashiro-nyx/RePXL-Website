@@ -97,7 +97,6 @@ export async function POST(request: NextRequest) {
     )
   }
 
-  if (existingOrder.paymentStatus !== 'PAID') {
   if (!isCod && existingOrder.paymentStatus !== 'PAID') {
     return errorResponse(
       `Cannot update delivery tracking for an unpaid or pending order (payment status: ${existingOrder.paymentStatus}). Payment must be marked completed first.`,
