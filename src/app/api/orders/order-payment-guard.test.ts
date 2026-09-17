@@ -194,5 +194,32 @@ describe('Order Payment Guard — Admin Status Editing Restrictions', () => {
     expect(json.error).toContain('Cannot update delivery tracking for an unpaid or pending order')
     expect(prisma.order.updateMany).not.toHaveBeenCalled()
   })
+
+  it('allows delivery tracking update for Cash on Delivery orders even when paymentStatus is PENDING', async () => {
+    vi.mocked(prisma.order.findUnique).mockResolvedValue({
+      id: 'ord_1',
+      orderNumber: 'RPX-1234',
+      status: 'PROCESSING',
+      paymentStatus: 'PENDING',
+      paymentMethod: 'Cash on Delivery',
+      createdAt: new Date(),
+    } as any)
+
+    vi.mocked(prisma.order.updateMany).mockResolvedValue({ count: 1 } as any)
+
+    const req = new NextRequest('http://localhost/api/admin/update-tracking', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ orderNumber: 'RPX-1234', step: 'transit' }),
+    })
+
+    const res = await updateTracking(req)
+    const json = await res.json()
+
+    expect(res.status).toBe(200)
+    expect(json.success).toBe(true)
+    expect(json.data.deliveryStatus).toBe('In Transit')
+    expect(prisma.order.updateMany).toHaveBeenCalled()
+  })
 })
 

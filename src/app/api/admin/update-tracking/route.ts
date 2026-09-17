@@ -82,6 +82,10 @@ export async function POST(request: NextRequest) {
     return errorResponse('Order not found', 404)
   }
 
+  const isCod =
+    existingOrder.paymentMethod?.toLowerCase().includes('cash on delivery') ||
+    existingOrder.paymentMethod?.toLowerCase() === 'cod'
+
   if (isPaymentExpired(existingOrder)) {
     await prisma.order.update({
       where: { orderNumber: orderNumber.trim() },
@@ -94,6 +98,7 @@ export async function POST(request: NextRequest) {
   }
 
   if (existingOrder.paymentStatus !== 'PAID') {
+  if (!isCod && existingOrder.paymentStatus !== 'PAID') {
     return errorResponse(
       `Cannot update delivery tracking for an unpaid or pending order (payment status: ${existingOrder.paymentStatus}). Payment must be marked completed first.`,
       409
@@ -115,6 +120,7 @@ export async function POST(request: NextRequest) {
         status: tracking.orderStatus,
         updatedAt: new Date(),
         ...(step === 'delivered' ? { deliveredAt: new Date() } : {}),
+        ...(isCod && existingOrder.paymentReference !== 'COD_APPROVED' ? { paymentReference: 'COD_APPROVED' } : {}),
       },
     })
   } catch (dbErr) {

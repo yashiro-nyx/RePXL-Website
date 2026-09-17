@@ -32,4 +32,36 @@ describe('buildOrderStatusUpdate', () => {
 
     expect(result.deliveredAt).toEqual(existing)
   })
+
+  it('automatically sets deliveryStatus to In Transit and progress to 50 when marked SHIPPED', () => {
+    const result = buildOrderStatusUpdate(
+      { status: OrderStatus.PROCESSING, deliveredAt: null, completedAt: null, orderNumber: 'RPX-1001' },
+      OrderStatus.SHIPPED
+    )
+
+    expect(result.status).toBe(OrderStatus.SHIPPED)
+    expect(result.deliveryStatus).toBe('In Transit')
+    expect(result.trackingProgress).toBe(50)
+    expect(result.trackingNumber).toBe('RPX-1001')
+  })
+
+  it('automatically sets deliveryStatus to Delivered and progress to 100 when marked DELIVERED', () => {
+    const result = buildOrderStatusUpdate(
+      { status: OrderStatus.SHIPPED, deliveredAt: null, completedAt: null },
+      OrderStatus.DELIVERED
+    )
+
+    expect(result.deliveryStatus).toBe('Delivered')
+    expect(result.trackingProgress).toBe(100)
+  })
+
+  it('automatically sets deliveryStatus to Cancelled and progress to 0 when marked CANCELLED', () => {
+    const result = buildOrderStatusUpdate(
+      { status: OrderStatus.PROCESSING, deliveredAt: null, completedAt: null },
+      OrderStatus.CANCELLED
+    )
+
+    expect(result.deliveryStatus).toBe('Cancelled')
+    expect(result.trackingProgress).toBe(0)
+  })
 })

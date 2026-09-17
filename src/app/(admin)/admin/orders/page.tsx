@@ -58,6 +58,25 @@ const deliveryStatusColor: Record<string, string> = {
   'In Transit': 'text-blue-400',
   'Out for Delivery': 'text-amber-400',
   'Delivered': 'text-repixl-success',
+  'Cancelled': 'text-red-400',
+  'COD Request Declined': 'text-red-400',
+}
+
+function getDeliveryStatusForOrderStatus(status: string, currentDeliveryStatus?: string): string {
+  switch (status) {
+    case 'SHIPPED':
+      return currentDeliveryStatus === 'Out for Delivery' ? 'Out for Delivery' : 'In Transit'
+    case 'DELIVERED':
+    case 'COMPLETED':
+      return 'Delivered'
+    case 'CANCELLED':
+      return currentDeliveryStatus === 'COD Request Declined' ? 'COD Request Declined' : 'Cancelled'
+    case 'PROCESSING':
+    default:
+      return currentDeliveryStatus === 'Pending COD Approval' || currentDeliveryStatus === 'COD Approval Requested'
+        ? currentDeliveryStatus
+        : 'Order Placed'
+  }
 }
 
 export default function AdminOrdersPage() {
@@ -121,13 +140,20 @@ export default function AdminOrdersPage() {
   const handleStatusUpdate = async (orderNumber: string, newStatus: string) => {
     if (newStatus === 'COMPLETED') return // blocked — customer only
     const canonical = normalizeOrderStatus(newStatus)
+    const nextDeliveryStatus = getDeliveryStatusForOrderStatus(canonical, viewOrder?.deliveryStatus)
 
     // Optimistic UI update
     setOrders((prev) =>
       prev.map((o) => (o.orderNumber === orderNumber ? { ...o, status: canonical } : o))
+      prev.map((o) =>
+        o.orderNumber === orderNumber
+          ? { ...o, status: canonical, deliveryStatus: getDeliveryStatusForOrderStatus(canonical, o.deliveryStatus) }
+          : o
+      )
     )
     if (viewOrder?.orderNumber === orderNumber) {
       setViewOrder((o) => (o ? { ...o, status: canonical } : o))
+      setViewOrder((o) => (o ? { ...o, status: canonical, deliveryStatus: nextDeliveryStatus } : o))
     }
 
     try {
@@ -142,6 +168,14 @@ export default function AdminOrdersPage() {
         alert(data.error ?? 'Failed to update order status')
         void load(currentPage, statusFilter, searchQuery, false)
         return
+      }
+      if (data.data) {
+        setOrders((prev) =>
+          prev.map((o) => (o.orderNumber === orderNumber ? { ...o, ...data.data } : o))
+        )
+        if (viewOrder?.orderNumber === orderNumber) {
+          setViewOrder((o) => (o ? { ...o, ...data.data } : o))
+        }
       }
       void load(currentPage, statusFilter, searchQuery, false)
     } catch (err) {
@@ -268,6 +302,7 @@ export default function AdminOrdersPage() {
                 (order.deliveryStatus === 'Pending COD Approval' ||
                   order.deliveryStatus === 'COD Approval Requested')
               const canEditStatus = isPaid || (isCod && !isCodPending)
+              const canEditStatus = isPaid || isCod
 
               return (
                 <tr key={order.id} className="transition-colors hover:bg-repixl-bg/60">
@@ -381,6 +416,8 @@ export default function AdminOrdersPage() {
           onStatusChange={(newStatus) => {
             void handleStatusUpdate(viewOrder.orderNumber, newStatus)
             setViewOrder((o) => o ? { ...o, status: newStatus } : o)
+            const nextDeliveryStatus = getDeliveryStatusForOrderStatus(newStatus, viewOrder.deliveryStatus)
+            setViewOrder((o) => o ? { ...o, status: newStatus, deliveryStatus: nextDeliveryStatus } : o)
           }}
           onPaymentCompleted={() => {
             void load(currentPage, statusFilter, searchQuery)
@@ -412,6 +449,10 @@ function OrderDetailModal({
   const [feedback, setFeedback] = useState<{ ok: boolean; message: string } | null>(null)
   const [currentDeliveryStatus, setCurrentDeliveryStatus] = useState(order.deliveryStatus ?? 'Order Placed')
 
+  useEffect(() => {
+    setCurrentDeliveryStatus(order.deliveryStatus ?? 'Order Placed')
+  }, [order.deliveryStatus])
+
   const isCod =
     order.paymentMethod === 'Cash on Delivery' ||
     order.paymentMethod?.toLowerCase().includes('cash on delivery')
@@ -422,6 +463,8 @@ function OrderDetailModal({
   const isPaid = order.paymentStatus === 'PAID'
   const isLocked = !isPaid && (!isCod || isCodPending)
   const isDeliveryLocked = !isPaid && (!isCod || isCodPending)
+  const isLocked = !isPaid && !isCod
+  const isDeliveryLocked = !isPaid && !isCod
 
   const handleApproveCodModal = async () => {
     if (!confirm(`Approve Cash on Delivery order #${order.orderNumber}? This will officially place the order.`)) return
@@ -731,9 +774,15 @@ function OrderDetailModal({
             {isDeliveryLocked ? (
               <p className="mb-3 text-xs text-amber-400/90 font-medium">
                 🔒 {isCodPending ? 'Delivery tracking updates require COD approval.' : 'Delivery tracking updates require completed payment.'}
+                🔒 Delivery tracking updates require completed payment.
               </p>
             ) : (
               <p className="mb-3 text-xs text-repixl-muted/70">Updating delivery status notifies the customer in real time.</p>
+              <p className="mb-3 text-xs text-repixl-muted/70">
+                {isCod && !isPaid
+                  ? 'Cash on Delivery: delivery tracking can be updated while payment is pending collection upon delivery.'
+                  : 'Updating delivery status notifies the customer in real time.'}
+              </p>
             )}
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
               {DELIVERY_STEPS.map((step) => {

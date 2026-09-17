@@ -445,11 +445,20 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         )
       }
 
+      const isCod =
+        order.paymentMethod?.toLowerCase().includes('cash on delivery') ||
+        order.paymentMethod?.toLowerCase() === 'cod'
+
       const updateData = buildOrderStatusUpdate(
         {
           status: order.status,
           deliveredAt: order.deliveredAt,
           completedAt: order.completedAt,
+          deliveryStatus: order.deliveryStatus,
+          trackingProgress: order.trackingProgress,
+          trackingDescription: order.trackingDescription,
+          trackingNumber: order.trackingNumber,
+          orderNumber: order.orderNumber,
         },
         status
       )
@@ -457,6 +466,11 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       const updated = await prisma.order.update({
         where: { orderNumber: params.orderNumber },
         data: updateData,
+        data: {
+          ...updateData,
+          ...(isCod && order.paymentReference !== 'COD_APPROVED' ? { paymentReference: 'COD_APPROVED' } : {}),
+          updatedAt: new Date(),
+        },
         include: {
           items: { include: { product: true } },
           user: { select: { id: true, email: true, firstName: true, lastName: true } },
