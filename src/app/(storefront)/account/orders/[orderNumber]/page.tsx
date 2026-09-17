@@ -354,6 +354,13 @@ export default function OrderDetailPage() {
   const completed = enumStatus === 'COMPLETED'
   const cancelled = enumStatus === 'CANCELLED'
 
+  const isCod =
+    typeof order.paymentMethod === 'string' &&
+    (order.paymentMethod.toLowerCase().includes('cash on delivery') || order.paymentMethod.toLowerCase() === 'cod')
+  const isCodPending =
+    isCod &&
+    (order.deliveryStatus === 'Pending COD Approval' || order.deliveryStatus === 'COD Approval Requested')
+
   const paymentTime = (order.createdAt || order.date)
     ? getPaymentTimeRemaining(order.createdAt || order.date, undefined, now)
     : { expired: false, remainingMs: 0, hours: 0, minutes: 0, text: '' }
@@ -375,8 +382,8 @@ export default function OrderDetailPage() {
               <span className="text-repixl-text-light/50">{order.orderNumber}</span>
             </nav>
             <div className="flex items-center gap-3">
-              <span className={`rounded-full border px-2.5 py-1 font-mono text-[10px] uppercase tracking-wider ${getOrderStatusBadgeClass(order.status, order.paymentStatus)}`}>
-                {getOrderStatusLabel(order.status, order.paymentStatus)}
+              <span className={`rounded-full border px-2.5 py-1 font-mono text-[10px] uppercase tracking-wider ${getOrderStatusBadgeClass(order.status, order.paymentStatus, order.deliveryStatus, order.paymentMethod)}`}>
+                {getOrderStatusLabel(order.status, order.paymentStatus, order.deliveryStatus, order.paymentMethod)}
               </span>
               <button
                 type="button"
@@ -392,8 +399,61 @@ export default function OrderDetailPage() {
             </div>
           </div>
 
-          {/* Payment Processing Expiration Banner */}
-          {order.paymentStatus === 'PENDING' && !cancelled && (
+          {/* Cash on Delivery Pending Store Approval Banner */}
+          {isCod && isCodPending && !cancelled && (
+            <div className="mb-6 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-5 text-amber-300">
+              <div className="flex items-start gap-3.5">
+                <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-amber-500/20 text-amber-400">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <circle cx="12" cy="12" r="10" />
+                    <polyline points="12 6 12 12 16 14" />
+                  </svg>
+                </div>
+                <div>
+                  <div className="flex flex-wrap items-center gap-2.5">
+                    <p className="font-display text-sm font-semibold text-repixl-text-light">
+                      Cash on Delivery · Awaiting Store Confirmation
+                    </p>
+                    <span className="rounded-md border border-amber-500/40 bg-amber-500/20 px-2 py-0.5 font-mono text-[11px] font-bold uppercase tracking-wider text-amber-300">
+                      PENDING APPROVAL
+                    </span>
+                  </div>
+                  <p className="mt-1 text-xs text-repixl-text-light/70">
+                    Your Cash on Delivery request has been submitted and is currently awaiting administrator review before the order is officially placed. We will notify you as soon as it is confirmed.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Cash on Delivery Approved Banner */}
+          {isCod && !isCodPending && !cancelled && order.paymentStatus !== 'PAID' && (
+            <div className="mb-6 rounded-2xl border border-blue-500/30 bg-blue-500/10 p-5 text-blue-300">
+              <div className="flex items-start gap-3.5">
+                <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-blue-500/20 text-blue-400">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <path d="M20 6 9 17l-5-5" />
+                  </svg>
+                </div>
+                <div>
+                  <div className="flex flex-wrap items-center gap-2.5">
+                    <p className="font-display text-sm font-semibold text-repixl-text-light">
+                      Cash on Delivery · Order Confirmed
+                    </p>
+                    <span className="rounded-md border border-blue-500/40 bg-blue-500/20 px-2 py-0.5 font-mono text-[11px] font-bold uppercase tracking-wider text-blue-300">
+                      ORDER CONFIRMED
+                    </span>
+                  </div>
+                  <p className="mt-1 text-xs text-repixl-text-light/70">
+                    Your Cash on Delivery order is confirmed and being prepared for fulfillment. Please prepare {formatPrice(order.total)} in exact cash for our courier upon delivery.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Payment Processing Expiration Banner (Online Payments Only) */}
+          {order.paymentStatus === 'PENDING' && !cancelled && !isCod && (
             <div
               className={`mb-6 rounded-2xl border p-5 transition-all ${
                 paymentTime.expired

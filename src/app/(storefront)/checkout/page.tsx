@@ -157,37 +157,6 @@ export default function CheckoutPage() {
   const [cardCvc, setCardCvc] = useState('')        // raw digits
   const [cardholderName, setCardholderName] = useState('')
 
-  // PayMongo Sandbox Config
-  const [isTestMode, setIsTestMode] = useState(true)
-  const [testCard, setTestCard] = useState({
-    number: '4111 1111 1111 1111',
-    expiry: '12/28',
-    cvc: '123',
-    cardholderName: 'Test Buyer',
-  })
-  const [testCard3DS, setTestCard3DS] = useState({
-    number: '4000 0000 0000 0002',
-    expiry: '12/28',
-    cvc: '123',
-    cardholderName: 'Test 3DS Buyer',
-  })
-  const [testGcash, setTestGcash] = useState({
-    phone: '09171234567',
-  })
-
-  useEffect(() => {
-    fetch('/api/checkout/config')
-      .then((r) => r.json())
-      .then((res) => {
-        if (res?.success && res.data) {
-          setIsTestMode(res.data.isTestMode ?? true)
-          if (res.data.testCard) setTestCard(res.data.testCard)
-          if (res.data.testCard3DS) setTestCard3DS(res.data.testCard3DS)
-          if (res.data.testGcash) setTestGcash(res.data.testGcash)
-        }
-      })
-      .catch(() => {})
-  }, [])
 
   const [hydrated, setHydrated] = useState(false)
   const [confirmation, setConfirmation] = useState<OrderConfirmation | null>(null)
@@ -744,7 +713,7 @@ export default function CheckoutPage() {
 
             <div className="mt-4 flex items-center justify-center gap-1.5">
               <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-repixl-muted/50" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-              <span className="font-mono text-[9px] text-repixl-muted/50">Secure · Encrypted · PayMongo test mode</span>
+              <span className="font-mono text-[9px] text-repixl-muted/50">Secure · 256-bit SSL Encrypted Payment</span>
             </div>
           </motion.div>
         </Container>
@@ -977,27 +946,7 @@ export default function CheckoutPage() {
                   <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-repixl-red/15 font-mono text-xs font-bold text-repixl-red">3</div>
                   <h2 className="font-display text-base font-semibold text-repixl-text-light">Payment Method</h2>
                 </div>
-                {isTestMode && (
-                  <span className="rounded-full border border-amber-500/40 bg-amber-500/15 px-2.5 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-wide text-amber-300">
-                    Sandbox Test Mode
-                  </span>
-                )}
               </div>
-
-              {/* PayMongo Test Mode Notice */}
-              {isTestMode && (
-                <div className="mb-5 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3.5 text-xs text-amber-200">
-                  <div className="flex items-center gap-2 font-mono font-bold text-amber-400">
-                    <svg className="h-4 w-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                    </svg>
-                    PayMongo Sandbox Testing Environment
-                  </div>
-                  <p className="mt-1 text-amber-300/85">
-                    No real cards or funds will be charged. Use the 1-tap test buttons below to test without personal credentials. Real credit cards will be declined by PayMongo in test mode.
-                  </p>
-                </div>
-              )}
 
               {/* Saved card picker — shown when user has saved cards */}
               {savedCards.length > 0 && (
@@ -1070,38 +1019,6 @@ export default function CheckoutPage() {
               </fieldset>
               {paymentMethod === 'card' && (
                 <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-3">
-                  {/* Sandbox test card autofill buttons */}
-                  {isTestMode && (
-                    <div className="flex flex-wrap items-center gap-2 rounded-xl border border-amber-500/25 bg-amber-500/5 p-3 sm:col-span-3">
-                      <span className="font-mono text-[10px] font-bold uppercase tracking-wider text-amber-400">Sandbox Quick Fill:</span>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setCardNumber(testCard.number.replace(/\s/g, ''))
-                          setCardExpiry(testCard.expiry)
-                          setCardCvc(testCard.cvc)
-                          setCardholderName(testCard.cardholderName)
-                          setErrors((prev) => ({ ...prev, cardNumber: undefined, cardExpiry: undefined, cardCvc: undefined }))
-                        }}
-                        className="inline-flex items-center gap-1.5 rounded-lg border border-amber-500/50 bg-amber-500/20 px-2.5 py-1 font-mono text-xs font-medium text-amber-300 transition-colors hover:bg-amber-500/30"
-                      >
-                        ⚡ Auto-Fill Test Card (Direct)
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setCardNumber(testCard3DS.number.replace(/\s/g, ''))
-                          setCardExpiry(testCard3DS.expiry)
-                          setCardCvc(testCard3DS.cvc)
-                          setCardholderName(testCard3DS.cardholderName)
-                          setErrors((prev) => ({ ...prev, cardNumber: undefined, cardExpiry: undefined, cardCvc: undefined }))
-                        }}
-                        className="inline-flex items-center gap-1.5 rounded-lg border border-repixl-muted/20 bg-repixl-charcoal px-2.5 py-1 font-mono text-xs font-medium text-repixl-text-light/80 transition-colors hover:border-repixl-muted/40"
-                      >
-                        3DS Simulation Card
-                      </button>
-                    </div>
-                  )}
 
                   {/* Cardholder name */}
                   <FieldWrapper id="cardholder-name" label="Cardholder Name" error={undefined} className="sm:col-span-3">
@@ -1166,29 +1083,8 @@ export default function CheckoutPage() {
               )}
               {paymentMethod === 'gcash' && (
                 <div className="mt-5 rounded-xl border border-repixl-muted/10 bg-repixl-charcoal p-4">
-                  <div className="flex items-center justify-between">
-                    <p className="text-sm font-medium text-repixl-text-light">GCash</p>
-                    {isTestMode && (
-                      <span className="rounded border border-amber-500/40 bg-amber-500/15 px-2 py-0.5 font-mono text-[9px] font-semibold text-amber-300">
-                        TEST MODE
-                      </span>
-                    )}
-                  </div>
+                  <p className="text-sm font-medium text-repixl-text-light">GCash</p>
                   <p className="mt-1 text-xs text-repixl-muted">After placing your order, you&apos;ll authorize the GCash payment in a secure window on this page — no full redirect needed.</p>
-                  {isTestMode && (
-                    <div className="mt-3">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setPhone(testGcash.phone)
-                          setErrors((prev) => ({ ...prev, phone: undefined }))
-                        }}
-                        className="inline-flex items-center gap-1.5 rounded-lg border border-amber-500/50 bg-amber-500/20 px-2.5 py-1 font-mono text-xs font-medium text-amber-300 transition-colors hover:bg-amber-500/30"
-                      >
-                        ⚡ Auto-Fill Test GCash ({testGcash.phone})
-                      </button>
-                    </div>
-                  )}
                 </div>
               )}
               {paymentMethod === 'paypal' && (
@@ -1199,7 +1095,7 @@ export default function CheckoutPage() {
               {paymentMethod === 'cod' && (
                 <div className="mt-5 rounded-xl border border-repixl-muted/10 bg-repixl-charcoal p-4">
                   <p className="text-sm font-medium text-repixl-text-light">Cash on Delivery</p>
-                  <p className="mt-1 text-xs text-repixl-muted">Pay in cash directly to your courier upon delivery of your gear. Please prepare the exact amount if possible.</p>
+                  <p className="mt-1 text-xs text-repixl-muted">Pay in cash directly to your courier upon delivery of your gear. Note: Cash on Delivery orders require store administrator confirmation before being officially placed and dispatched.</p>
                 </div>
               )}
               </>

@@ -19,6 +19,7 @@ export async function expireOverduePendingOrders(
         paymentStatus: 'PENDING',
         status: 'PROCESSING',
         createdAt: { lte: cutoff },
+        paymentMethod: { not: 'Cash on Delivery' },
       },
       include: {
         items: true,

@@ -26,7 +26,6 @@ import {
 import { TrackingMapCard } from '../components/TrackingMapCard';
 
 const TRACKING_STEPS = [
-  { label: 'Order Placed & Processing', key: 'PROCESSING' },
   { label: 'Order Placed', key: 'ORDER_PLACED' },
   { label: 'Payment Processed', key: 'PAYMENT_PROCESSED' },
   { label: 'Shipped & In Transit', key: 'SHIPPED' },
@@ -66,12 +65,27 @@ export default function OrderScreen() {
 
   const cancelCheck = useMemo(() => canCustomerCancelOrder(order), [order]);
   const isCancellable = cancelCheck.allowed;
-  const isPendingPayment = order?.paymentStatus === 'PENDING' && !isCancelled;
+
+  const isCod = useMemo(() => {
+    if (!order?.paymentMethod) return false;
+    const pm = order.paymentMethod.toLowerCase();
+    return pm.includes('cash on delivery') || pm === 'cod';
+  }, [order?.paymentMethod]);
+
+  const isCodPending = useMemo(() => {
+    return (
+      isCod &&
+      (order?.deliveryStatus === 'Pending COD Approval' ||
+        order?.deliveryStatus === 'COD Approval Requested')
+    );
+  }, [isCod, order?.deliveryStatus]);
+
+  const isPendingPayment = order?.paymentStatus === 'PENDING' && !isCancelled && !isCod;
 
   const paymentTime = useMemo(() => {
-    if (!order?.createdAt) return null;
+    if (!order?.createdAt || isCod) return null;
     return getPaymentTimeRemaining(order.createdAt);
-  }, [order?.createdAt]);
+  }, [order?.createdAt, isCod]);
 
   const currentStepIndex = useMemo(() => {
     if (!order) return 0;
@@ -79,10 +93,13 @@ export default function OrderScreen() {
     if (normStatus === 'DELIVERED') return 3;
     if (normStatus === 'SHIPPED') return 2;
     // PROCESSING:
+    if (isCod) {
+      return isCodPending ? 0 : 1;
+    }
     const isPaid = order.paymentStatus?.toUpperCase() === 'PAID';
     if (isPaid) return 1;
     return 0;
-  }, [order, normStatus]);
+  }, [order, normStatus, isCod, isCodPending]);
 
   // Auto-poll when order is pending payment to detect external PayMongo completion
   useEffect(() => {
@@ -203,18 +220,40 @@ export default function OrderScreen() {
                   style={[
                     styles.statusBadge,
                     {
-                      backgroundColor: getOrderStatusColors(order.status, order.paymentStatus).bg,
-                      borderColor: getOrderStatusColors(order.status, order.paymentStatus).border,
+                      backgroundColor: getOrderStatusColors(
+                        order.status,
+                        order.paymentStatus,
+                        order.deliveryStatus,
+                        order.paymentMethod
+                      ).bg,
+                      borderColor: getOrderStatusColors(
+                        order.status,
+                        order.paymentStatus,
+                        order.deliveryStatus,
+                        order.paymentMethod
+                      ).border,
                     },
                   ]}
                 >
                   <Text
                     style={[
                       styles.statusBadgeText,
-                      { color: getOrderStatusColors(order.status, order.paymentStatus).text },
+                      {
+                        color: getOrderStatusColors(
+                          order.status,
+                          order.paymentStatus,
+                          order.deliveryStatus,
+                          order.paymentMethod
+                        ).text,
+                      },
                     ]}
                   >
-                    {getOrderStatusLabel(order.status, order.paymentStatus).toUpperCase()}
+                    {getOrderStatusLabel(
+                      order.status,
+                      order.paymentStatus,
+                      order.deliveryStatus,
+                      order.paymentMethod
+                    ).toUpperCase()}
                   </Text>
                 </View>
 
@@ -244,6 +283,71 @@ export default function OrderScreen() {
               {new Date(order.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
             </Text>
           </View>
+
+          {/* COD Pending Store Approval Banner */}
+          {isCod && isCodPending && !isCancelled && (
+            <View style={[styles.card, styles.paymentPendingCard]}>
+              <View style={styles.bannerHeaderRow}>
+                <Feather name="clock" size={15} color="#fbbf24" />
+                <Text style={[styles.bannerTitle, { color: '#fbbf24' }]}>
+                  Cash on Delivery · Awaiting Confirmation
+                </Text>
+                <View
+                  style={[
+                    styles.expiryBadge,
+                    {
+                      backgroundColor: 'rgba(245, 158, 11, 0.2)',
+                      borderColor: 'rgba(245, 158, 11, 0.4)',
+                    },
+                  ]}
+                >
+                  <Text style={[styles.expiryBadgeText, { color: '#fbbf24' }]}>
+                    PENDING APPROVAL
+                  </Text>
+                </View>
+              </View>
+              <Text style={styles.bannerDescription}>
+                Your Cash on Delivery request has been submitted and is awaiting administrator confirmation before the order is officially placed.
+              </Text>
+            </View>
+          )}
+
+          {/* COD Approved Banner */}
+          {isCod && !isCodPending && !isCancelled && order.paymentStatus !== 'PAID' && (
+            <View
+              style={[
+                styles.card,
+                {
+                  backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                  borderWidth: 1,
+                  borderColor: 'rgba(59, 130, 246, 0.3)',
+                },
+              ]}
+            >
+              <View style={styles.bannerHeaderRow}>
+                <Feather name="check-circle" size={15} color="#60a5fa" />
+                <Text style={[styles.bannerTitle, { color: '#60a5fa' }]}>
+                  Cash on Delivery · Order Confirmed
+                </Text>
+                <View
+                  style={[
+                    styles.expiryBadge,
+                    {
+                      backgroundColor: 'rgba(59, 130, 246, 0.2)',
+                      borderColor: 'rgba(59, 130, 246, 0.4)',
+                    },
+                  ]}
+                >
+                  <Text style={[styles.expiryBadgeText, { color: '#60a5fa' }]}>
+                    CONFIRMED
+                  </Text>
+                </View>
+              </View>
+              <Text style={styles.bannerDescription}>
+                Your Cash on Delivery order is confirmed and being prepared for fulfillment. Please prepare ₱{order.total.toLocaleString()} in exact cash for your courier upon delivery.
+              </Text>
+            </View>
+          )}
 
           {/* Payment Expiration Notice */}
           {isPendingPayment && paymentTime && (
@@ -359,6 +463,8 @@ export default function OrderScreen() {
                   {TRACKING_STEPS.map((step, idx) => {
                     const isPassed = idx <= currentStepIndex;
                     const isCurrent = idx === currentStepIndex;
+                    const stepLabel =
+                      idx === 1 && isCod ? 'Order Confirmed' : step.label;
                     return (
                       <View key={step.key} style={styles.timelineRow}>
                         <View style={styles.timelineIconCol}>
@@ -388,7 +494,7 @@ export default function OrderScreen() {
                               isCurrent && styles.timelineLabelCurrent,
                             ]}
                           >
-                            {step.label}
+                            {stepLabel}
                           </Text>
                         </View>
                       </View>

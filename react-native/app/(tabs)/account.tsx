@@ -221,7 +221,12 @@ function PurchasesView({ onBack }: { onBack: () => void }) {
           <Empty icon="shopping-bag" text={filter === 'All' ? 'No orders yet.' : `No ${filter.toLowerCase()} purchases.`} />
         )}
         {filteredOrders.map((order) => {
-          const statusColors = getOrderStatusColors(order.status);
+          const statusColors = getOrderStatusColors(
+            order.status,
+            order.paymentStatus,
+            order.deliveryStatus,
+            order.paymentMethod
+          );
           const paymentColors = getPaymentStatusColors(order.paymentStatus);
           return (
             <TouchableOpacity
@@ -250,7 +255,12 @@ function PurchasesView({ onBack }: { onBack: () => void }) {
                     ]}
                   >
                     <Text style={[styles.inlineBadgeText, { color: statusColors.text }]}>
-                      {getOrderStatusLabel(order.status).toUpperCase()}
+                      {getOrderStatusLabel(
+                        order.status,
+                        order.paymentStatus,
+                        order.deliveryStatus,
+                        order.paymentMethod
+                      ).toUpperCase()}
                     </Text>
                   </View>
                   <View

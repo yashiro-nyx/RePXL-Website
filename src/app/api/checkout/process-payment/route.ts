@@ -127,6 +127,11 @@ export async function POST(request: NextRequest) {
             courierEstimate: data.courierEstimate,
             paymentMethod: 'Cash on Delivery',
             paymentStatus: 'PENDING',
+            deliveryStatus: 'Pending COD Approval',
+            trackingDescription:
+              'Your Cash on Delivery order has been submitted and is awaiting administrator confirmation before being officially placed.',
+            trackingProgress: 10,
+            paymentReference: 'COD_PENDING_APPROVAL',
             voucherCode,
             fullName: data.fullName,
             address: data.address,
@@ -161,38 +166,53 @@ export async function POST(request: NextRequest) {
         return newOrder
       })
 
-      // Non-blocking notification
+      // Non-blocking acknowledgement notification to customer
       emitNotification({
         userId: user.id,
-        event: 'ORDER_CONFIRMATION',
-        subject: `Order Confirmed — ${order.orderNumber}`,
-        body: `Your order ${order.orderNumber} has been placed via Cash on Delivery.`,
+        event: 'ORDER_STATUS_CHANGE',
+        subject: `COD Order Request Received — ${order.orderNumber}`,
+        body: `Thank you for your order! Your Cash on Delivery request for order ${order.orderNumber} (₱${total.toLocaleString()}) has been received and is awaiting administrator confirmation before the order is officially placed.`,
         channel: 'BOTH',
         recipientEmail: user.email,
+        orderNumber: order.orderNumber,
+        context: {
+          orderNumber: order.orderNumber,
+          customerName: `${user.firstName} ${user.lastName}`.trim() || user.email,
+          status: 'Awaiting COD Approval',
+          orderStatus: 'Awaiting COD Approval',
+          orderTotal: `₱${total.toLocaleString()}`,
+          orderDate: new Date(order.createdAt).toLocaleDateString('en-US', { dateStyle: 'medium' }),
+          courierName: order.courierName,
+          trackingNumber: 'Awaiting store approval',
+        },
       }).catch(() => {})
 
-      sendOrderConfirmationEmail({
-        orderNumber: order.orderNumber,
-        createdAt: order.createdAt,
-        fullName: order.fullName,
-        address: order.address,
-        barangay: order.barangay,
-        city: order.city,
-        province: order.province,
-        postalCode: order.postalCode,
-        paymentMethod: order.paymentMethod,
-        courierName: order.courierName,
-        subtotal: order.subtotal,
-        shippingCost: order.shippingCost,
-        discount: order.discount,
-        total: order.total,
-        items: order.items.map((i) => ({
-          product: { name: i.product.name },
-          quantity: i.quantity,
-          price: i.price,
-        })),
-        userEmail: user.email,
-      }).catch(() => {})
+      // Notify Store Administrators via AdminLog and in-app/email notifications
+      prisma.adminLog?.create({
+        data: {
+          action: 'COD_REQUEST_RECEIVED',
+          details: `New Cash on Delivery order request ${order.orderNumber} (₱${total.toLocaleString()}) submitted by ${data.fullName}. Requires administrator approval before order is officially placed.`,
+          adminId: user.id,
+          adminName: `${user.firstName} ${user.lastName} (Customer)`,
+        },
+      })?.catch(() => {})
+
+      prisma.user?.findMany({
+        where: { role: 'ADMIN' },
+        select: { id: true, email: true },
+      })?.then((admins) => {
+        for (const adminUser of admins) {
+          emitNotification({
+            userId: adminUser.id,
+            event: 'REPIXL_UPDATE',
+            subject: `COD Approval Needed: ${order.orderNumber}`,
+            body: `Customer ${data.fullName} placed a Cash on Delivery request for order ${order.orderNumber} (₱${total.toLocaleString()}). Please review and approve in Admin Orders.`,
+            channel: 'BOTH',
+            recipientEmail: adminUser.email,
+            orderNumber: order.orderNumber,
+          }).catch(() => {})
+        }
+      })?.catch(() => {})
 
       return successResponse(
         {
@@ -200,7 +220,9 @@ export async function POST(request: NextRequest) {
           orderNumber: order.orderNumber,
           isPaid: false,
           status: 'PROCESSING',
-          message: 'Order placed with Cash on Delivery',
+          deliveryStatus: 'Pending COD Approval',
+          isCodPendingApproval: true,
+          message: 'Cash on Delivery request submitted. Awaiting administrator approval.',
         },
         201
       )

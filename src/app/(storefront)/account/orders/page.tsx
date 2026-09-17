@@ -155,10 +155,17 @@ export default function OrderHistoryPage() {
         <span
           className={`rounded-full border px-2 py-0.5 font-mono text-[9px] uppercase tracking-wider ${getOrderStatusBadgeClass(
             order.status,
-            order.paymentStatus
+            order.paymentStatus,
+            order.deliveryStatus,
+            order.paymentMethod
           )}`}
         >
-          {getOrderStatusLabel(order.status, order.paymentStatus)}
+          {getOrderStatusLabel(
+            order.status,
+            order.paymentStatus,
+            order.deliveryStatus,
+            order.paymentMethod
+          )}
         </span>
       </div>
 

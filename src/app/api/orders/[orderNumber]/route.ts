@@ -14,6 +14,7 @@ import { buildOrderStatusUpdate } from '@/lib/order-status'
 import { canAdminEditOrderStatus, isPaymentExpired, canCustomerCancelOrder } from '@/lib/order-payment-expiry'
 import { finalizePaidOrder, InsufficientStockError } from '@/lib/purchase-finalization'
 import { checkPaymongoPaymentStatus } from '@/lib/paymongo'
+import { sendOrderConfirmationEmail } from '@/lib/order-email'
 import type { OrderStatus } from '@prisma/client'
 
 // This route reads cookies / session state and must run per-request.
@@ -133,7 +134,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       return validationError(parsed.error)
     }
 
-    const { status, paymentStatus, markPaymentCompleted } = parsed.data
+    const { status, paymentStatus, markPaymentCompleted, approveCod, rejectCod } = parsed.data
 
     const order = await prisma.order.findUnique({
       where: { orderNumber: params.orderNumber },
@@ -215,6 +216,145 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 
     if (!admin) {
       return unauthorizedResponse('Admin access required')
+    }
+
+    // Handle Admin COD Approval
+    if (approveCod) {
+      if (order.status === 'CANCELLED') {
+        return errorResponse('Cannot approve a cancelled order.', 409)
+      }
+      const isCod =
+        order.paymentMethod?.toLowerCase().includes('cash on delivery') ||
+        order.paymentMethod?.toLowerCase() === 'cod'
+      if (!isCod) {
+        return errorResponse('Only Cash on Delivery orders can be approved via COD approval.', 400)
+      }
+
+      const updated = await prisma.order.update({
+        where: { orderNumber: params.orderNumber },
+        data: {
+          deliveryStatus: 'Order Placed',
+          trackingDescription:
+            'Your Cash on Delivery order has been approved by the store administrator. We are preparing your camera gear.',
+          trackingProgress: 25,
+          paymentReference: 'COD_APPROVED',
+          updatedAt: new Date(),
+        },
+        include: {
+          items: { include: { product: true } },
+          user: { select: { id: true, email: true, firstName: true, lastName: true } },
+        },
+      })
+
+      // Send official order confirmation to customer now that COD is approved
+      emitNotification({
+        userId: updated.user.id,
+        event: 'ORDER_CONFIRMATION',
+        subject: `Order Confirmed & Placed — ${updated.orderNumber}`,
+        body: `Great news! Your Cash on Delivery order ${updated.orderNumber} has been approved by our team and is officially placed. We are now preparing your camera gear for shipment.`,
+        channel: 'BOTH',
+        recipientEmail: updated.user.email,
+        orderNumber: updated.orderNumber,
+        context: {
+          orderNumber: updated.orderNumber,
+          customerName: `${updated.user?.firstName ?? ''} ${updated.user?.lastName ?? ''}`.trim() || updated.user?.email || 'Customer',
+          orderTotal: updated.total != null ? `₱${updated.total.toLocaleString()}` : '',
+          orderDate: updated.createdAt ? new Date(updated.createdAt).toLocaleDateString('en-US', { dateStyle: 'medium' }) : '',
+        },
+      }).catch(() => {})
+
+      sendOrderConfirmationEmail({
+        orderNumber: updated.orderNumber,
+        createdAt: updated.createdAt,
+        fullName: updated.fullName,
+        address: updated.address,
+        barangay: updated.barangay,
+        city: updated.city,
+        province: updated.province,
+        postalCode: updated.postalCode,
+        paymentMethod: updated.paymentMethod,
+        courierName: updated.courierName,
+        subtotal: updated.subtotal,
+        shippingCost: updated.shippingCost,
+        discount: updated.discount,
+        total: updated.total,
+        items: updated.items.map((i) => ({
+          product: { name: i.product.name },
+          quantity: i.quantity,
+          price: i.price,
+        })),
+        userEmail: updated.user.email,
+      }).catch(() => {})
+
+      await prisma.adminLog.create({
+        data: {
+          action: 'COD_ORDER_APPROVED',
+          details: `Order ${params.orderNumber} Cash on Delivery request approved by ${admin.firstName} ${admin.lastName}. Order is officially placed.`,
+          adminId: admin.id,
+          adminName: `${admin.firstName} ${admin.lastName}`,
+        },
+      })
+
+      return successResponse(updated)
+    }
+
+    // Handle Admin COD Rejection
+    if (rejectCod) {
+      if (order.status === 'CANCELLED') {
+        return errorResponse('Order is already cancelled.', 409)
+      }
+
+      await prisma.$transaction(async (tx) => {
+        await tx.order.update({
+          where: { orderNumber: params.orderNumber },
+          data: {
+            status: 'CANCELLED',
+            paymentStatus: 'FAILED',
+            deliveryStatus: 'COD Request Declined',
+            trackingDescription:
+              'Cash on Delivery request was declined by the store administrator.',
+            trackingProgress: 0,
+            updatedAt: new Date(),
+          },
+        })
+
+        // Restore reserved inventory
+        for (const item of order.items) {
+          await tx.product.update({
+            where: { id: item.productId },
+            data: { stock: { increment: item.quantity } },
+          })
+        }
+      })
+
+      const updated = await prisma.order.findUniqueOrThrow({
+        where: { orderNumber: params.orderNumber },
+        include: {
+          items: { include: { product: true } },
+          user: { select: { id: true, email: true, firstName: true, lastName: true } },
+        },
+      })
+
+      emitNotification({
+        userId: updated.user.id,
+        event: 'ORDER_STATUS_CHANGE',
+        subject: `Order ${updated.orderNumber} COD Request Declined`,
+        body: `Your Cash on Delivery request for order ${updated.orderNumber} could not be approved at this time. The order has been cancelled and reserved items have been returned to inventory.`,
+        channel: 'BOTH',
+        recipientEmail: updated.user.email,
+        orderNumber: updated.orderNumber,
+      }).catch(() => {})
+
+      await prisma.adminLog.create({
+        data: {
+          action: 'COD_ORDER_REJECTED',
+          details: `Order ${params.orderNumber} Cash on Delivery request declined by ${admin.firstName} ${admin.lastName}. Reserved stock restored.`,
+          adminId: admin.id,
+          adminName: `${admin.firstName} ${admin.lastName}`,
+        },
+      })
+
+      return successResponse(updated)
     }
 
     // If order is overdue for payment, expire it immediately

@@ -204,6 +204,7 @@ export interface EmitNotificationOptions {
   channel: 'IN_APP' | 'EMAIL' | 'BOTH'
   recipientEmail?: string
   context?: Record<string, string>
+  orderNumber?: string
 }
 
 /**
@@ -257,7 +258,7 @@ export async function emitNotification(
     : resolvePlaceholders(body, mergedContext)
 
   const activeChannel = template ? (template.channel as 'IN_APP' | 'EMAIL' | 'BOTH') : channel
-  const orderNumber = mergedContext.orderNumber
+  const orderNumber = options.orderNumber || mergedContext.orderNumber
 
   // Determine per-category suppression (unless this is a mandatory event)
   const mandatory = isMandatoryEvent(event)

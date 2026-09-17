@@ -121,13 +121,17 @@ export const updateOrderStatusSchema = z
       .enum(['PENDING', 'PAID', 'FAILED', 'REFUNDED'])
       .optional(),
     markPaymentCompleted: z.boolean().optional(),
+    approveCod: z.boolean().optional(),
+    rejectCod: z.boolean().optional(),
   })
   .refine(
     (data) =>
       data.status !== undefined ||
       data.paymentStatus !== undefined ||
-      data.markPaymentCompleted !== undefined,
-    { message: 'At least one of status, paymentStatus, or markPaymentCompleted must be provided' }
+      data.markPaymentCompleted !== undefined ||
+      data.approveCod !== undefined ||
+      data.rejectCod !== undefined,
+    { message: 'At least one update action must be provided' }
   )
 
 // ─── Review Validations ─────────────────────────────────────────────────────────

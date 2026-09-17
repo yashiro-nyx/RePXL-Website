@@ -131,8 +131,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
     setRefreshing(true);
     try {
-      const [nextCart, nextWishlist, nextProfile, nextAddresses, nextOrders, nextNotifications, nextReviews] =
-        await Promise.all([
+      const [cartRes, wishlistRes, profileRes, addressesRes, ordersRes, notificationsRes, reviewsRes] =
+        await Promise.allSettled([
           api.cart(),
           api.wishlist(),
           api.profile(),
@@ -141,20 +141,34 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           api.notifications(),
           api.reviews(),
         ]);
-      setCart(nextCart);
-      setWishlist(nextWishlist.map((item) => item.product.id));
-      setProfile(nextProfile);
-      setUser(nextProfile);
-      setAddresses(nextAddresses);
-      setOrders(nextOrders);
-      setNotifications(nextNotifications);
-      setReviews(nextReviews);
-      setError('');
+
+      if (cartRes.status === 'fulfilled') setCart(cartRes.value);
+      if (wishlistRes.status === 'fulfilled') setWishlist(wishlistRes.value.map((item) => item.product.id));
+      if (profileRes.status === 'fulfilled') {
+        setProfile(profileRes.value);
+        setUser(profileRes.value);
+      }
+      if (addressesRes.status === 'fulfilled') setAddresses(addressesRes.value);
+      if (ordersRes.status === 'fulfilled') setOrders(ordersRes.value);
+      if (notificationsRes.status === 'fulfilled') setNotifications(notificationsRes.value);
+      if (reviewsRes.status === 'fulfilled') setReviews(reviewsRes.value);
+
+      const rejectedAuth = [cartRes, profileRes, ordersRes].find(
+        (r) =>
+          r.status === 'rejected' &&
+          r.reason instanceof ApiError &&
+          (r.reason.status === 401 || r.reason.status === 403)
+      );
+      if (rejectedAuth) {
+        const remaining = await loadSession();
+        if (!remaining) resetAccount();
+      } else {
+        setError('');
+      }
     } catch (reason) {
       const remaining = await loadSession();
       if (!remaining) resetAccount();
       setError(message(reason));
-      throw reason;
     } finally {
       setRefreshing(false);
     }

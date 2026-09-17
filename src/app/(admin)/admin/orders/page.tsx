@@ -150,6 +150,32 @@ export default function AdminOrdersPage() {
     }
   }
 
+  const handleApproveCod = async (orderNumber: string) => {
+    if (!confirm(`Approve Cash on Delivery request for order #${orderNumber}? This will officially place the order.`)) return
+    try {
+      const res = await fetch(`/api/orders/${orderNumber}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ approveCod: true }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        alert(data.error ?? 'Failed to approve COD order')
+        return
+      }
+      setOrders((prev) =>
+        prev.map((o) => (o.orderNumber === orderNumber ? { ...o, deliveryStatus: 'Order Placed' } : o))
+      )
+      if (viewOrder?.orderNumber === orderNumber) {
+        setViewOrder((o) => (o ? { ...o, deliveryStatus: 'Order Placed' } : o))
+      }
+      void load(currentPage, statusFilter, searchQuery, false)
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Network error')
+    }
+  }
+
   const handleArchive = async (orderNumber: string) => {
     try {
       await fetch(`/api/orders/${orderNumber}/archive`, { method: 'POST', credentials: 'include' })
@@ -234,6 +260,15 @@ export default function AdminOrdersPage() {
             )}
             {!loading && orders.map((order) => {
               const isPaid = order.paymentStatus === 'PAID'
+              const isCod =
+                order.paymentMethod === 'Cash on Delivery' ||
+                order.paymentMethod?.toLowerCase().includes('cash on delivery')
+              const isCodPending =
+                isCod &&
+                (order.deliveryStatus === 'Pending COD Approval' ||
+                  order.deliveryStatus === 'COD Approval Requested')
+              const canEditStatus = isPaid || (isCod && !isCodPending)
+
               return (
                 <tr key={order.id} className="transition-colors hover:bg-repixl-bg/60">
                   <td className="px-5 py-3.5 font-mono text-sm font-semibold text-repixl-red">#{order.orderNumber.replace('RPX-', '')}</td>
@@ -249,7 +284,21 @@ export default function AdminOrdersPage() {
                     </span>
                   </td>
                   <td className="px-5 py-3.5">
-                    {!isPaid ? (
+                    {isCodPending ? (
+                      <div className="flex items-center gap-2">
+                        <span className="inline-flex items-center rounded-full border border-amber-500/40 bg-amber-500/15 px-2.5 py-0.5 font-mono text-[10px] font-semibold text-amber-300">
+                          Awaiting COD Approval
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => void handleApproveCod(order.orderNumber)}
+                          className="inline-flex items-center gap-1 rounded-lg border border-emerald-500/40 bg-emerald-500/20 px-2 py-0.5 font-mono text-[10px] font-bold text-emerald-300 hover:bg-emerald-500/30 transition-colors shadow-sm"
+                          title="Approve Cash on Delivery Order"
+                        >
+                          ✓ Approve
+                        </button>
+                      </div>
+                    ) : !canEditStatus ? (
                       <div className="group relative inline-block">
                         <select
                           disabled
@@ -273,7 +322,7 @@ export default function AdminOrdersPage() {
                           }
                           void handleStatusUpdate(order.orderNumber, e.target.value)
                         }}
-                        className={`rounded-full border px-2.5 py-1 text-[11px] font-semibold cursor-pointer appearance-none pr-6 bg-no-repeat bg-[length:10px] bg-[right_8px_center] ${getOrderStatusBadgeClass(order.status)}`}
+                        className={`rounded-full border px-2.5 py-1 text-[11px] font-semibold cursor-pointer appearance-none pr-6 bg-no-repeat bg-[length:10px] bg-[right_8px_center] ${getOrderStatusBadgeClass(order.status, order.paymentStatus, order.deliveryStatus, order.paymentMethod)}`}
                         style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='3'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")` }}
                       >
                         {allStatuses.map((s) => <option key={s} value={s}>{statusLabels[s]}</option>)}
@@ -358,8 +407,73 @@ function OrderDetailModal({
 }) {
   const [firing, setFiring] = useState<string | null>(null)
   const [markingPaid, setMarkingPaid] = useState(false)
+  const [approvingCod, setApprovingCod] = useState(false)
+  const [rejectingCod, setRejectingCod] = useState(false)
   const [feedback, setFeedback] = useState<{ ok: boolean; message: string } | null>(null)
   const [currentDeliveryStatus, setCurrentDeliveryStatus] = useState(order.deliveryStatus ?? 'Order Placed')
+
+  const isCod =
+    order.paymentMethod === 'Cash on Delivery' ||
+    order.paymentMethod?.toLowerCase().includes('cash on delivery')
+  const isCodPending =
+    isCod &&
+    (currentDeliveryStatus === 'Pending COD Approval' ||
+      currentDeliveryStatus === 'COD Approval Requested')
+  const isPaid = order.paymentStatus === 'PAID'
+  const isLocked = !isPaid && (!isCod || isCodPending)
+  const isDeliveryLocked = !isPaid && (!isCod || isCodPending)
+
+  const handleApproveCodModal = async () => {
+    if (!confirm(`Approve Cash on Delivery order #${order.orderNumber}? This will officially place the order.`)) return
+    setApprovingCod(true)
+    setFeedback(null)
+    try {
+      const res = await fetch(`/api/orders/${order.orderNumber}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ approveCod: true }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (res.ok) {
+        setCurrentDeliveryStatus('Order Placed')
+        onPaymentCompleted()
+        setFeedback({ ok: true, message: '✓ Cash on Delivery approved! Order is now officially placed.' })
+      } else {
+        setFeedback({ ok: false, message: `✗ Failed to approve COD: ${data.error ?? 'Unknown error'}` })
+      }
+    } catch (err) {
+      setFeedback({ ok: false, message: `✗ Network error: ${err instanceof Error ? err.message : 'Unknown error'}` })
+    } finally {
+      setApprovingCod(false)
+    }
+  }
+
+  const handleRejectCodModal = async () => {
+    if (!confirm(`Decline Cash on Delivery request for order #${order.orderNumber}? The order will be cancelled and items returned to stock.`)) return
+    setRejectingCod(true)
+    setFeedback(null)
+    try {
+      const res = await fetch(`/api/orders/${order.orderNumber}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ rejectCod: true }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (res.ok) {
+        setCurrentDeliveryStatus('COD Request Declined')
+        onStatusChange('CANCELLED')
+        setFeedback({ ok: true, message: '✓ COD request declined and order cancelled.' })
+      } else {
+        setFeedback({ ok: false, message: `✗ Failed to decline COD: ${data.error ?? 'Unknown error'}` })
+      }
+    } catch (err) {
+      setFeedback({ ok: false, message: `✗ Network error: ${err instanceof Error ? err.message : 'Unknown error'}` })
+    } finally {
+      setRejectingCod(false)
+    }
+  }
 
   const handleMarkPaid = async () => {
     if (!confirm(`Mark payment as completed for order #${order.orderNumber}?`)) return
@@ -426,6 +540,45 @@ function OrderDetailModal({
         </div>
 
         <div className="space-y-6 p-6">
+          {/* COD Approval Request Card */}
+          {isCodPending && (
+            <div className="rounded-xl border border-amber-500/40 bg-amber-500/10 p-4 shadow-sm">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="flex h-6 w-6 items-center justify-center rounded-full bg-amber-500/25 font-mono text-xs font-bold text-amber-300">
+                      ⏳
+                    </span>
+                    <h3 className="font-display text-sm font-bold text-amber-200">
+                      Cash on Delivery Request — Approval Required
+                    </h3>
+                  </div>
+                  <p className="mt-1 text-xs text-amber-300/80">
+                    This order was submitted via Cash on Delivery and is awaiting store approval before being officially placed and dispatched.
+                  </p>
+                </div>
+                <div className="flex items-center gap-2 self-end sm:self-center">
+                  <button
+                    type="button"
+                    disabled={approvingCod || rejectingCod}
+                    onClick={() => void handleApproveCodModal()}
+                    className="flex items-center gap-1.5 rounded-xl bg-emerald-600 px-4 py-2 text-xs font-bold text-white hover:bg-emerald-500 transition-colors disabled:opacity-50 shadow-md"
+                  >
+                    {approvingCod ? 'Approving…' : '✓ Approve COD'}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={approvingCod || rejectingCod}
+                    onClick={() => void handleRejectCodModal()}
+                    className="rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs font-medium text-red-400 hover:bg-red-500/20 transition-colors disabled:opacity-50"
+                  >
+                    {rejectingCod ? 'Declining…' : 'Decline'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Order summary */}
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
             {[
@@ -460,6 +613,10 @@ function OrderDetailModal({
                     <span className="text-xs text-amber-400 font-medium">
                       {order.paymentStatus === 'FAILED'
                         ? '• Payment processing expired / failed'
+                        : isCod
+                        ? isCodPending
+                          ? '• Awaiting COD Approval'
+                          : '• Cash collection due on delivery'
                         : '• Status editing locked until paid'}
                     </span>
                   )}
@@ -486,7 +643,13 @@ function OrderDetailModal({
                 </button>
               )}
             </div>
-            {(!order.paymentStatus || order.paymentStatus === 'PENDING') && (
+            {isCod ? (
+              <p className="mt-2 text-[11px] text-repixl-muted/80">
+                {isCodPending
+                  ? 'Cash on Delivery request is awaiting administrator approval. Once approved, the order will be prepared for courier pickup.'
+                  : 'Cash on Delivery order is approved. Collect total amount in cash upon courier delivery, then click Mark Payment Completed.'}
+              </p>
+            ) : (!order.paymentStatus || order.paymentStatus === 'PENDING') && (
               <p className="mt-2 text-[11px] text-repixl-muted/80">
                 Payment processing expires within 24 hours of order placement. Unpaid orders will auto-cancel and release stock.
               </p>
@@ -497,24 +660,27 @@ function OrderDetailModal({
           <div className="rounded-xl border border-repixl-muted/10 bg-repixl-bg/30 p-4">
             <div className="mb-3 flex items-center justify-between">
               <p className="font-mono text-[10px] uppercase tracking-wider text-repixl-muted">Order Status</p>
-              {order.paymentStatus !== 'PAID' && (
+              {isLocked && (
                 <span className="text-[11px] font-semibold text-amber-400 flex items-center gap-1">
-                  <span>🔒</span> Locked (Payment Pending)
+                  <span>🔒</span> {isCodPending ? 'Locked (Awaiting COD Approval)' : 'Locked (Payment Pending)'}
                 </span>
               )}
             </div>
 
-            {order.paymentStatus !== 'PAID' && (
+            {isLocked && (
               <div className="mb-3 rounded-lg border border-amber-500/20 bg-amber-500/10 p-2.5 text-xs text-amber-400 flex items-center gap-2">
                 <span>🔒</span>
-                <span>Order status cannot be updated until payment has been marked completed.</span>
+                <span>
+                  {isCodPending
+                    ? 'Order status cannot be updated until the Cash on Delivery request is approved.'
+                    : 'Order status cannot be updated until payment has been marked completed.'}
+                </span>
               </div>
             )}
 
             <div className="flex flex-wrap gap-2">
               {allStatuses.map((s) => {
                 const isBlockedTransition = s === 'COMPLETED' && order.status === 'DELIVERED'
-                const isLocked = order.paymentStatus !== 'PAID'
                 return (
                   <button
                     key={s}
@@ -529,7 +695,9 @@ function OrderDetailModal({
                     }}
                     title={
                       isLocked
-                        ? 'Payment must be marked completed first'
+                        ? isCodPending
+                          ? 'Approve COD request first'
+                          : 'Payment must be marked completed first'
                         : isBlockedTransition
                         ? 'Customer must confirm receipt to complete this order'
                         : undefined
@@ -560,20 +728,21 @@ function OrderDetailModal({
                 <span className={`font-mono text-[9px] ${deliveryStatusColor[currentDeliveryStatus] ?? 'text-repixl-muted'}`}>{currentDeliveryStatus}</span>
               </div>
             </div>
-            {order.paymentStatus !== 'PAID' ? (
-              <p className="mb-3 text-xs text-amber-400/90 font-medium">🔒 Delivery tracking updates require completed payment.</p>
+            {isDeliveryLocked ? (
+              <p className="mb-3 text-xs text-amber-400/90 font-medium">
+                🔒 {isCodPending ? 'Delivery tracking updates require COD approval.' : 'Delivery tracking updates require completed payment.'}
+              </p>
             ) : (
               <p className="mb-3 text-xs text-repixl-muted/70">Updating delivery status notifies the customer in real time.</p>
             )}
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
               {DELIVERY_STEPS.map((step) => {
-                const isLocked = order.paymentStatus !== 'PAID'
                 return (
                   <button
                     key={step.step}
                     type="button"
                     onClick={() => void fireStep(step)}
-                    disabled={isLocked || !!firing}
+                    disabled={isDeliveryLocked || !!firing}
                     className="flex items-center gap-3 rounded-xl border border-repixl-muted/15 bg-repixl-charcoal px-4 py-3 text-left transition-all hover:border-repixl-red/30 hover:bg-repixl-red/5 disabled:cursor-not-allowed disabled:opacity-40"
                   >
                     <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg bg-repixl-red/10">

@@ -101,12 +101,31 @@ export function normalizeOrderStatus(status: unknown): CanonicalOrderStatus {
   return 'PROCESSING';
 }
 
-export function getOrderStatusLabel(status: unknown, paymentStatus?: unknown): string {
+export function getOrderStatusLabel(
+  status: unknown,
+  paymentStatus?: unknown,
+  deliveryStatus?: unknown,
+  paymentMethod?: unknown
+): string {
+  const isCod =
+    typeof paymentMethod === 'string' &&
+    (paymentMethod.toLowerCase().includes('cash on delivery') || paymentMethod.toLowerCase() === 'cod');
+  const isCodPending =
+    isCod &&
+    (deliveryStatus === 'Pending COD Approval' || deliveryStatus === 'COD Approval Requested');
+
+  if (isCodPending) {
+    return 'Awaiting COD Approval';
+  }
+
   const norm = normalizeOrderStatus(status);
-  if (norm === 'PROCESSING' && typeof paymentStatus === 'string') {
-    const pUpper = paymentStatus.trim().toUpperCase();
-    if (pUpper === 'PAID') return 'Payment Processed';
-    if (pUpper === 'PENDING') return 'Order Placed';
+  if (norm === 'PROCESSING') {
+    if (isCod) return 'Order Placed';
+    if (typeof paymentStatus === 'string') {
+      const pUpper = paymentStatus.trim().toUpperCase();
+      if (pUpper === 'PAID') return 'Payment Processed';
+      if (pUpper === 'PENDING') return 'Order Placed';
+    }
   }
   switch (norm) {
     case 'PROCESSING':
@@ -124,13 +143,31 @@ export function getOrderStatusLabel(status: unknown, paymentStatus?: unknown): s
 
 export function getOrderStatusColors(
   status: unknown,
-  paymentStatus?: unknown
+  paymentStatus?: unknown,
+  deliveryStatus?: unknown,
+  paymentMethod?: unknown
 ): { bg: string; text: string; border: string } {
+  const isCod =
+    typeof paymentMethod === 'string' &&
+    (paymentMethod.toLowerCase().includes('cash on delivery') || paymentMethod.toLowerCase() === 'cod');
+  const isCodPending =
+    isCod &&
+    (deliveryStatus === 'Pending COD Approval' || deliveryStatus === 'COD Approval Requested');
+
+  if (isCodPending) {
+    return { bg: 'rgba(245, 158, 11, 0.2)', text: '#fbbf24', border: 'rgba(245, 158, 11, 0.4)' };
+  }
+
   const norm = normalizeOrderStatus(status);
-  if (norm === 'PROCESSING' && typeof paymentStatus === 'string') {
-    const pUpper = paymentStatus.trim().toUpperCase();
-    if (pUpper === 'PAID') {
-      return { bg: 'rgba(16, 185, 129, 0.15)', text: '#34d399', border: 'rgba(16, 185, 129, 0.3)' };
+  if (norm === 'PROCESSING') {
+    if (isCod) {
+      return { bg: 'rgba(59, 130, 246, 0.15)', text: '#60a5fa', border: 'rgba(59, 130, 246, 0.3)' };
+    }
+    if (typeof paymentStatus === 'string') {
+      const pUpper = paymentStatus.trim().toUpperCase();
+      if (pUpper === 'PAID') {
+        return { bg: 'rgba(16, 185, 129, 0.15)', text: '#34d399', border: 'rgba(16, 185, 129, 0.3)' };
+      }
     }
   }
   switch (norm) {
