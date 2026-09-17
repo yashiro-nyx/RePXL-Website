@@ -1,5 +1,7 @@
 import { NextRequest } from 'next/server'
+
 import { prisma } from '@/lib/prisma'
+
 import {
   successResponse,
   errorResponse,
@@ -7,26 +9,39 @@ import {
   unauthorizedResponse,
   validationError,
 } from '@/lib/api'
+
 import { getCurrentUser } from '@/lib/auth-helpers'
+
 import { addressSchema } from '@/lib/validations'
 
 // This route reads cookies / session state and must run per-request.
 export const dynamic = 'force-dynamic'
 
 interface RouteParams {
-  params: { addressId: string }
+  params: Promise<{
+    addressId: string
+  }>
 }
 
 // PUT /api/addresses/[addressId] — Update an address
-export async function PUT(request: NextRequest, { params }: RouteParams) {
+export async function PUT(
+  request: NextRequest,
+  { params }: RouteParams
+) {
   try {
     const user = await getCurrentUser()
+
     if (!user) {
       return unauthorizedResponse()
     }
 
+    const { addressId } = await params
+
     const address = await prisma.address.findFirst({
-      where: { id: params.addressId, userId: user.id },
+      where: {
+        id: addressId,
+        userId: user.id,
+      },
     })
 
     if (!address) {
@@ -45,13 +60,22 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     // If setting as default, unset other defaults
     if (data.isDefault) {
       await prisma.address.updateMany({
-        where: { userId: user.id, id: { not: params.addressId } },
-        data: { isDefault: false },
+        where: {
+          userId: user.id,
+          id: {
+            not: addressId,
+          },
+        },
+        data: {
+          isDefault: false,
+        },
       })
     }
 
     const updated = await prisma.address.update({
-      where: { id: params.addressId },
+      where: {
+        id: addressId,
+      },
       data: {
         fullName: data.fullName,
         address: data.address,
@@ -70,45 +94,71 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     return successResponse(updated)
   } catch (error) {
     console.error('Update address error:', error)
+
     return errorResponse('Internal server error', 500)
   }
 }
 
 // DELETE /api/addresses/[addressId] — Delete an address
-export async function DELETE(request: NextRequest, { params }: RouteParams) {
+export async function DELETE(
+  request: NextRequest,
+  { params }: RouteParams
+) {
   try {
     const user = await getCurrentUser()
+
     if (!user) {
       return unauthorizedResponse()
     }
 
+    const { addressId } = await params
+
     const address = await prisma.address.findFirst({
-      where: { id: params.addressId, userId: user.id },
+      where: {
+        id: addressId,
+        userId: user.id,
+      },
     })
 
     if (!address) {
       return notFoundResponse('Address not found')
     }
 
-    await prisma.address.delete({ where: { id: params.addressId } })
+    await prisma.address.delete({
+      where: {
+        id: addressId,
+      },
+    })
 
     // If deleted address was default, set the first remaining as default
     if (address.isDefault) {
       const remaining = await prisma.address.findFirst({
-        where: { userId: user.id },
-        orderBy: { createdAt: 'asc' },
+        where: {
+          userId: user.id,
+        },
+        orderBy: {
+          createdAt: 'asc',
+        },
       })
+
       if (remaining) {
         await prisma.address.update({
-          where: { id: remaining.id },
-          data: { isDefault: true },
+          where: {
+            id: remaining.id,
+          },
+          data: {
+            isDefault: true,
+          },
         })
       }
     }
 
-    return successResponse({ message: 'Address deleted' })
+    return successResponse({
+      message: 'Address deleted',
+    })
   } catch (error) {
     console.error('Delete address error:', error)
+
     return errorResponse('Internal server error', 500)
   }
 }
