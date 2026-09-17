@@ -9,12 +9,15 @@ const REASON_MESSAGES: Record<string, string> = {
   malformed: 'This confirmation link appears to be incomplete or malformed.',
 }
 
-export default function NewsletterInvalidPage({
+interface PageProps {
+  searchParams: Promise<{ reason?: string }>
+}
+
+export default async function NewsletterInvalidPage({
   searchParams,
-}: {
-  searchParams: { reason?: string }
-}) {
-  const reason = searchParams?.reason ?? 'invalid'
+}: PageProps) {
+  const resolvedParams = await searchParams
+  const reason = resolvedParams?.reason ?? 'invalid'
   const message = REASON_MESSAGES[reason] ?? REASON_MESSAGES.invalid
 
   return (
