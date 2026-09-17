@@ -7,7 +7,7 @@ import { getCurrentAdmin } from '@/lib/auth-helpers'
 export const dynamic = 'force-dynamic'
 
 interface RouteParams {
-  params: { voucherId: string }
+  params: Promise<{ voucherId: string }>
 }
 
 // DELETE /api/vouchers/[voucherId] — Delete a voucher (admin only)
@@ -18,12 +18,14 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
       return unauthorizedResponse('Admin access required')
     }
 
-    const voucher = await prisma.voucher.findUnique({ where: { id: params.voucherId } })
+    const { voucherId } = await params
+
+    const voucher = await prisma.voucher.findUnique({ where: { id: voucherId } })
     if (!voucher) {
       return notFoundResponse('Voucher not found')
     }
 
-    await prisma.voucher.delete({ where: { id: params.voucherId } })
+    await prisma.voucher.delete({ where: { id: voucherId } })
 
     await prisma.adminLog.create({
       data: {
@@ -49,7 +51,9 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       return unauthorizedResponse('Admin access required')
     }
 
-    const voucher = await prisma.voucher.findUnique({ where: { id: params.voucherId } })
+    const { voucherId } = await params
+
+    const voucher = await prisma.voucher.findUnique({ where: { id: voucherId } })
     if (!voucher) {
       return notFoundResponse('Voucher not found')
     }
@@ -62,7 +66,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     }
 
     const updated = await prisma.voucher.update({
-      where: { id: params.voucherId },
+      where: { id: voucherId },
       data: { status },
     })
 

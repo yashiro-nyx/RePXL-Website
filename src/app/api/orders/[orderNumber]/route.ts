@@ -21,7 +21,7 @@ import type { OrderStatus } from '@prisma/client'
 export const dynamic = 'force-dynamic'
 
 interface RouteParams {
-  params: { orderNumber: string }
+  params: Promise<{ orderNumber: string }>
 }
 
 // Valid admin-driven status transitions.
@@ -45,8 +45,10 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       return unauthorizedResponse()
     }
 
+    const { orderNumber } = await params
+
     const order = await prisma.order.findUnique({
-      where: { orderNumber: params.orderNumber },
+      where: { orderNumber },
       include: {
         items: { include: { product: true } },
         user: { select: { id: true, email: true, firstName: true, lastName: true } },
@@ -71,16 +73,16 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
           paymentSessionId: activeOrder.paymentSessionId,
         })
         if (statusResult.isPaid) {
-          console.log(`[GET order] Auto-reconciling paid order from PayMongo: ${params.orderNumber}`)
-          await finalizePaidOrder(params.orderNumber)
+          console.log(`[GET order] Auto-reconciling paid order from PayMongo: ${orderNumber}`)
+          await finalizePaidOrder(orderNumber)
           if (statusResult.paymentId && !activeOrder.paymentReference) {
             await prisma.order.update({
-              where: { orderNumber: params.orderNumber },
+              where: { orderNumber },
               data: { paymentReference: statusResult.paymentId },
             }).catch(() => {})
           }
           const refreshed = await prisma.order.findUnique({
-            where: { orderNumber: params.orderNumber },
+            where: { orderNumber },
             include: {
               items: { include: { product: true } },
               user: { select: { id: true, email: true, firstName: true, lastName: true } },
@@ -91,14 +93,14 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
           }
         }
       } catch (err) {
-        console.warn(`[GET order] PayMongo auto-reconciliation failed for ${params.orderNumber}:`, err)
+        console.warn(`[GET order] PayMongo auto-reconciliation failed for ${orderNumber}:`, err)
       }
     }
 
     // Auto-expire overdue pending orders on read (only if still PENDING after PayMongo check)
     if (isPaymentExpired(activeOrder)) {
       await prisma.order.update({
-        where: { orderNumber: params.orderNumber },
+        where: { orderNumber },
         data: { paymentStatus: 'FAILED', status: 'CANCELLED', updatedAt: new Date() },
       })
       activeOrder.paymentStatus = 'FAILED'
@@ -127,6 +129,8 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       return unauthorizedResponse('Admin access required')
     }
 
+    const { orderNumber } = await params
+
     const body = await request.json()
     const parsed = updateOrderStatusSchema.safeParse(body)
 
@@ -137,7 +141,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     const { status, paymentStatus, markPaymentCompleted, approveCod, rejectCod } = parsed.data
 
     const order = await prisma.order.findUnique({
-      where: { orderNumber: params.orderNumber },
+      where: { orderNumber },
       include: {
         items: { include: { product: true } },
         user: { select: { id: true, email: true, firstName: true, lastName: true } },
@@ -205,7 +209,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       }).catch(() => {})
 
       const updated = await prisma.order.findUniqueOrThrow({
-        where: { orderNumber: params.orderNumber },
+        where: { orderNumber },
         include: {
           items: { include: { product: true } },
           user: { select: { id: true, email: true, firstName: true, lastName: true } },
@@ -231,7 +235,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       }
 
       const updated = await prisma.order.update({
-        where: { orderNumber: params.orderNumber },
+        where: { orderNumber },
         data: {
           deliveryStatus: 'Order Placed',
           trackingDescription:
@@ -289,7 +293,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       await prisma.adminLog.create({
         data: {
           action: 'COD_ORDER_APPROVED',
-          details: `Order ${params.orderNumber} Cash on Delivery request approved by ${admin.firstName} ${admin.lastName}. Order is officially placed.`,
+          details: `Order ${orderNumber} Cash on Delivery request approved by ${admin.firstName} ${admin.lastName}. Order is officially placed.`,
           adminId: admin.id,
           adminName: `${admin.firstName} ${admin.lastName}`,
         },
@@ -306,7 +310,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 
       await prisma.$transaction(async (tx) => {
         await tx.order.update({
-          where: { orderNumber: params.orderNumber },
+          where: { orderNumber },
           data: {
             status: 'CANCELLED',
             paymentStatus: 'FAILED',
@@ -328,7 +332,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       })
 
       const updated = await prisma.order.findUniqueOrThrow({
-        where: { orderNumber: params.orderNumber },
+        where: { orderNumber },
         include: {
           items: { include: { product: true } },
           user: { select: { id: true, email: true, firstName: true, lastName: true } },
@@ -348,7 +352,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       await prisma.adminLog.create({
         data: {
           action: 'COD_ORDER_REJECTED',
-          details: `Order ${params.orderNumber} Cash on Delivery request declined by ${admin.firstName} ${admin.lastName}. Reserved stock restored.`,
+          details: `Order ${orderNumber} Cash on Delivery request declined by ${admin.firstName} ${admin.lastName}. Reserved stock restored.`,
           adminId: admin.id,
           adminName: `${admin.firstName} ${admin.lastName}`,
         },
@@ -360,7 +364,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     // If order is overdue for payment, expire it immediately
     if (isPaymentExpired(order)) {
       await prisma.order.update({
-        where: { orderNumber: params.orderNumber },
+        where: { orderNumber },
         data: { paymentStatus: 'FAILED', status: 'CANCELLED', updatedAt: new Date() },
       })
       order.paymentStatus = 'FAILED'
@@ -382,7 +386,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         try {
           const finalized = await finalizePaidOrder(order.orderNumber)
           if (!finalized) {
-            const recheck = await prisma.order.findUnique({ where: { orderNumber: params.orderNumber } })
+            const recheck = await prisma.order.findUnique({ where: { orderNumber } })
             if (recheck?.paymentStatus !== 'PAID') {
               return errorResponse('Failed to finalize payment. Check stock availability.', 409)
             }
@@ -399,7 +403,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         await prisma.adminLog.create({
           data: {
             action: 'MARK_PAYMENT_COMPLETED',
-            details: `Order ${params.orderNumber} payment marked as completed`,
+            details: `Order ${orderNumber} payment marked as completed`,
             adminId: admin.id,
             adminName: `${admin.firstName} ${admin.lastName}`,
           },
@@ -409,7 +413,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       // If only marking payment completed without changing order status, return now
       if (!status) {
         const updated = await prisma.order.findUniqueOrThrow({
-          where: { orderNumber: params.orderNumber },
+          where: { orderNumber },
           include: {
             items: { include: { product: true } },
             user: { select: { id: true, email: true, firstName: true, lastName: true } },
@@ -464,7 +468,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       )
 
       const updated = await prisma.order.update({
-        where: { orderNumber: params.orderNumber },
+        where: { orderNumber },
         data: {
           ...updateData,
           ...(isCod && order.paymentReference !== 'COD_APPROVED' ? { paymentReference: 'COD_APPROVED' } : {}),
@@ -509,7 +513,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       await prisma.adminLog.create({
         data: {
           action: 'UPDATE_ORDER_STATUS',
-          details: `Order ${params.orderNumber} status changed to ${status}`,
+          details: `Order ${orderNumber} status changed to ${status}`,
           adminId: admin.id,
           adminName: `${admin.firstName} ${admin.lastName}`,
         },

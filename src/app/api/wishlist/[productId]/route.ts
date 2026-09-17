@@ -7,7 +7,7 @@ import { getCurrentUser } from '@/lib/auth-helpers'
 export const dynamic = 'force-dynamic'
 
 interface RouteParams {
-  params: { productId: string }
+  params: Promise<{ productId: string }>
 }
 
 // DELETE /api/wishlist/[productId] — Remove product from wishlist
@@ -18,11 +18,13 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
       return unauthorizedResponse()
     }
 
+    const { productId } = await params
+
     // Support both ID and slug resolution
-    let targetProductId = params.productId
+    let targetProductId = productId
     const product = await prisma.product.findFirst({
       where: {
-        OR: [{ id: params.productId }, { slug: params.productId }],
+        OR: [{ id: productId }, { slug: productId }],
       },
       select: { id: true },
     })

@@ -15,9 +15,13 @@ export const dynamic = 'force-dynamic'
  * Returns only the fields the frontend needs — never exposes the
  * secret key or full PI object to the client.
  */
+interface RouteParams {
+  params: Promise<{ id: string }>
+}
+
 export async function GET(
   _request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: RouteParams
 ) {
   try {
     if (!isPaymongoConfigured()) {
@@ -27,7 +31,9 @@ export async function GET(
     const user = await getCurrentUser()
     if (!user) return unauthorizedResponse()
 
-    const intent = await retrievePaymentIntent(params.id)
+    const { id } = await params
+
+    const intent = await retrievePaymentIntent(id)
 
     return successResponse({
       intentId: intent.id,

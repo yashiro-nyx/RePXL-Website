@@ -14,7 +14,7 @@ import { updateReviewSchema } from '@/lib/validations'
 export const dynamic = 'force-dynamic'
 
 interface RouteParams {
-  params: { reviewId: string }
+  params: Promise<{ reviewId: string }>
 }
 
 // PUT /api/reviews/[reviewId] — Update a review (own review only)
@@ -25,7 +25,9 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       return unauthorizedResponse()
     }
 
-    const review = await prisma.review.findUnique({ where: { id: params.reviewId } })
+    const { reviewId } = await params
+
+    const review = await prisma.review.findUnique({ where: { id: reviewId } })
     if (!review) {
       return notFoundResponse('Review not found')
     }
@@ -43,7 +45,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     }
 
     const updated = await prisma.review.update({
-      where: { id: params.reviewId },
+      where: { id: reviewId },
       data: parsed.data,
       include: {
         product: { select: { slug: true, name: true } },
@@ -67,7 +69,9 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
       return unauthorizedResponse()
     }
 
-    const review = await prisma.review.findUnique({ where: { id: params.reviewId } })
+    const { reviewId } = await params
+
+    const review = await prisma.review.findUnique({ where: { id: reviewId } })
     if (!review) {
       return notFoundResponse('Review not found')
     }
@@ -77,7 +81,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
       return unauthorizedResponse('You can only delete your own reviews')
     }
 
-    await prisma.review.delete({ where: { id: params.reviewId } })
+    await prisma.review.delete({ where: { id: reviewId } })
 
     return successResponse({ message: 'Review deleted' })
   } catch (error) {

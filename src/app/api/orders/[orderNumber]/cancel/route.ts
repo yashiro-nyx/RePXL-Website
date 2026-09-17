@@ -12,18 +12,24 @@ import { canCustomerCancelOrder } from '@/lib/order-payment-expiry'
 
 export const dynamic = 'force-dynamic'
 
+interface RouteParams {
+  params: Promise<{ orderNumber: string }>
+}
+
 // POST /api/orders/[orderNumber]/cancel
 // Customer-facing: cancel an order that belongs to the authenticated user.
 // Server enforces: authenticated, owner, and order is not yet picked up by courier or shipped.
 export async function POST(
   _request: NextRequest,
-  { params }: { params: { orderNumber: string } }
+  { params }: RouteParams
 ) {
   const user = await getCurrentUser()
   if (!user) return unauthorizedResponse()
 
+  const { orderNumber } = await params
+
   const order = await prisma.order.findUnique({
-    where: { orderNumber: params.orderNumber },
+    where: { orderNumber },
     select: {
       id: true,
       userId: true,

@@ -14,14 +14,15 @@ import { productUpdateSchema } from '@/lib/validations'
 export const dynamic = 'force-dynamic'
 
 interface RouteParams {
-  params: { slug: string }
+  params: Promise<{ slug: string }>
 }
 
 // GET /api/products/[slug] — Get single product by slug
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
+    const { slug } = await params
     const product = await prisma.product.findUnique({
-      where: { slug: params.slug },
+      where: { slug },
     })
 
     if (!product) {
@@ -43,7 +44,9 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       return unauthorizedResponse('Admin access required')
     }
 
-    const existing = await prisma.product.findUnique({ where: { slug: params.slug } })
+    const { slug } = await params
+
+    const existing = await prisma.product.findUnique({ where: { slug } })
     if (!existing) {
       return notFoundResponse('Product not found')
     }
@@ -58,7 +61,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     const data = parsed.data
 
     // If slug is being changed, check uniqueness
-    if (data.slug && data.slug !== params.slug) {
+    if (data.slug && data.slug !== slug) {
       const slugExists = await prisma.product.findUnique({ where: { slug: data.slug } })
       if (slugExists) {
         return errorResponse('A product with this slug already exists', 409)
@@ -66,7 +69,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     }
 
     const product = await prisma.product.update({
-      where: { slug: params.slug },
+      where: { slug },
       data: {
         ...(data.slug && { slug: data.slug }),
         ...(data.name && { name: data.name }),
@@ -112,7 +115,9 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       return unauthorizedResponse('Admin access required')
     }
 
-    const existing = await prisma.product.findUnique({ where: { slug: params.slug } })
+    const { slug } = await params
+
+    const existing = await prisma.product.findUnique({ where: { slug } })
     if (!existing) {
       return notFoundResponse('Product not found')
     }
@@ -133,7 +138,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     }
 
     const product = await prisma.product.update({
-      where: { slug: params.slug },
+      where: { slug },
       data: allowedFields,
     })
 
@@ -160,12 +165,14 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
       return unauthorizedResponse('Admin access required')
     }
 
-    const existing = await prisma.product.findUnique({ where: { slug: params.slug } })
+    const { slug } = await params
+
+    const existing = await prisma.product.findUnique({ where: { slug } })
     if (!existing) {
       return notFoundResponse('Product not found')
     }
 
-    await prisma.product.delete({ where: { slug: params.slug } })
+    await prisma.product.delete({ where: { slug } })
 
     // Log admin action
     await prisma.adminLog.create({
