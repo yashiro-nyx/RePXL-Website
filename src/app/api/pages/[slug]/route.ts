@@ -13,9 +13,30 @@ export async function GET(
 ) {
   try {
     const { slug } = await params
-    const page = await prisma.staticPage.findUnique({
+    let page = await prisma.staticPage.findUnique({
       where: { slug: slug.toLowerCase() },
     })
+
+    if (!page) {
+      const totalCount = await prisma.staticPage.count()
+      if (totalCount === 0) {
+        const { DEFAULT_STATIC_PAGES } = await import('@/lib/cms-defaults')
+        for (const p of DEFAULT_STATIC_PAGES) {
+          await prisma.staticPage.create({ data: p })
+        }
+        page = await prisma.staticPage.findUnique({
+          where: { slug: slug.toLowerCase() },
+        })
+      } else {
+        const { DEFAULT_STATIC_PAGES } = await import('@/lib/cms-defaults')
+        const defaultPage = DEFAULT_STATIC_PAGES.find(
+          (p) => p.slug.toLowerCase() === slug.toLowerCase()
+        )
+        if (defaultPage) {
+          page = await prisma.staticPage.create({ data: defaultPage })
+        }
+      }
+    }
 
     if (!page) {
       return errorResponse('Page not found', 404)

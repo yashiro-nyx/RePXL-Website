@@ -80,12 +80,16 @@ export async function PATCH(
       return unauthorizedResponse('Authentication required')
     }
 
-    const { id } = await params
+    const { searchParams } = new URL(request.url)
+    const queryId = searchParams.get('id')
+    const body = await request.json()
+    const { id: paramId } = (await params) || {}
+    const id = paramId || queryId || body.id
+
     if (!id) {
       return errorResponse('Notification ID is required', 400)
     }
 
-    const body = await request.json()
     const { isRead } = markReadSchema.parse(body)
 
     // Verify notification belongs to customer

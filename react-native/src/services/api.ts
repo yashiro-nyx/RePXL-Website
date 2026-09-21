@@ -507,6 +507,17 @@ export const api = {
         phone: string;
       };
     }>('/api/checkout/config'),
+  banners: (placement?: string) =>
+    request<
+      Array<{
+        id: string;
+        title: string;
+        imageRef: string;
+        placement: string;
+        linkTarget: string;
+        isActive: boolean;
+      }>
+    >(`/api/banners${placement ? `?placement=${encodeURIComponent(placement)}` : ''}`),
   health: () => request<{ status: string; uptimeSeconds: number; database: { status: string; latencyMs: number } }>('/api/health'),
 };
 

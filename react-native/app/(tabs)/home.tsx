@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import {
   View,
   Text,
@@ -14,6 +14,7 @@ import { Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CONDITION_COLORS } from '../../data/products';
 import { useApp } from '../../context/AppContext';
+import { api } from '../../src/services/api';
 import type { Product } from '../../types';
 
 const CATEGORIES = ['Popular', 'New Arrival', 'Canon', 'Fujifilm', 'Kodak', 'Nikon'];
@@ -75,6 +76,27 @@ export default function HomeScreen() {
   const { user, products, error, unreadNotificationsCount } = useApp();
   const [activeCategory, setActiveCategory] = useState('Popular');
   const [homeSearch, setHomeSearch] = useState('');
+  const [promoBanner, setPromoBanner] = useState<{
+    id: string;
+    title: string;
+    imageRef: string;
+    linkTarget: string;
+  } | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+    api
+      .banners()
+      .then((data) => {
+        if (isMounted && Array.isArray(data) && data.length > 0) {
+          setPromoBanner(data[0]);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const handleSearchSubmit = () => {
     if (!homeSearch.trim()) return;
@@ -203,6 +225,45 @@ export default function HomeScreen() {
             </TouchableOpacity>
           ))}
         </ScrollView>
+
+        {/* Promo Spotlight Banner */}
+        {promoBanner && (
+          <TouchableOpacity
+            style={styles.promoCard}
+            activeOpacity={0.88}
+            onPress={() => {
+              if (promoBanner.linkTarget?.includes('brand=')) {
+                const brand = promoBanner.linkTarget.split('brand=')[1]?.split('&')[0];
+                if (brand) router.push({ pathname: '/(tabs)/search', params: { brand } });
+              } else {
+                router.push('/(tabs)/search');
+              }
+            }}
+          >
+            <LinearGradient
+              colors={['#3b0a0a', '#180404']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.promoCardGradient}
+            >
+              <View style={styles.promoContent}>
+                <View style={styles.promoBadge}>
+                  <Text style={styles.promoBadgeText}>FEATURED CAMPAIGN</Text>
+                </View>
+                <Text style={styles.promoTitle} numberOfLines={2}>
+                  {promoBanner.title}
+                </Text>
+                <Text style={styles.promoSubtitle}>
+                  Curated selections & verified digicams
+                </Text>
+                <View style={styles.promoCtaRow}>
+                  <Text style={styles.promoCtaText}>Explore Deals</Text>
+                  <Feather name="arrow-right" size={12} color="#f87171" />
+                </View>
+              </View>
+            </LinearGradient>
+          </TouchableOpacity>
+        )}
 
         {/* Products */}
         <View style={styles.sectionRow}>
@@ -345,4 +406,51 @@ const styles = StyleSheet.create({
   stockRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   stockDot: { width: 6, height: 6, borderRadius: 3 },
   stockText: { fontSize: 10, fontFamily: 'Inter_500Medium' },
+  promoCard: {
+    marginHorizontal: 20,
+    marginBottom: 20,
+    borderRadius: 14,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(198, 40, 40, 0.3)',
+  },
+  promoCardGradient: { padding: 16 },
+  promoContent: { gap: 6 },
+  promoBadge: {
+    alignSelf: 'flex-start',
+    backgroundColor: 'rgba(198, 40, 40, 0.25)',
+    borderWidth: 1,
+    borderColor: 'rgba(198, 40, 40, 0.5)',
+    borderRadius: 4,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+  },
+  promoBadgeText: {
+    fontFamily: 'Inter_700Bold',
+    fontSize: 9,
+    color: '#f87171',
+    letterSpacing: 0.8,
+  },
+  promoTitle: {
+    fontFamily: 'Inter_700Bold',
+    fontSize: 16,
+    color: '#fff',
+    lineHeight: 22,
+  },
+  promoSubtitle: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 12,
+    color: '#aaa',
+  },
+  promoCtaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 4,
+  },
+  promoCtaText: {
+    fontFamily: 'Inter_600SemiBold',
+    fontSize: 12,
+    color: '#f87171',
+  },
 });

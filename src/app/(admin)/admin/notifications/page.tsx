@@ -62,6 +62,8 @@ export default function NotificationTemplatesPage() {
   const [previewChannel, setPreviewChannel] = useState<'EMAIL' | 'IN_APP'>('EMAIL')
   const [msg, setMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
   const [submitting, setSubmitting] = useState<string | null>(null)
+  const [broadcastTarget, setBroadcastTarget] = useState<Template | null>(null)
+  const [broadcasting, setBroadcasting] = useState(false)
 
   // Track focused field for token insertion ('subject' or 'body')
   const [lastFocusedField, setLastFocusedField] = useState<Record<string, 'subject' | 'body'>>({})
@@ -226,6 +228,35 @@ export default function NotificationTemplatesPage() {
       }
     } catch {
       setMsg({ type: 'error', text: 'Network error updating template status.' })
+    }
+  }
+
+  const handleBroadcast = async (t: Template) => {
+    setBroadcasting(true)
+    try {
+      const res = await fetch('/api/admin/notifications/broadcast', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          event: t.event,
+        }),
+      })
+      const body = await res.json()
+      if (res.ok && body.data) {
+        const { targeted, inAppCreated, emailsSent, suppressed } = body.data
+        setMsg({
+          type: 'success',
+          text: `Broadcast sent to ${targeted} customer(s)! (${inAppCreated} in-app created, ${emailsSent} emails sent, ${suppressed} opted-out/suppressed)`,
+        })
+        setBroadcastTarget(null)
+      } else {
+        setMsg({ type: 'error', text: body.error || 'Failed to dispatch broadcast.' })
+      }
+    } catch {
+      setMsg({ type: 'error', text: 'Network error dispatching broadcast.' })
+    } finally {
+      setBroadcasting(false)
     }
   }
 
@@ -441,12 +472,25 @@ export default function NotificationTemplatesPage() {
                   </button>
 
                   {!isEditing ? (
-                    <button
-                      onClick={() => startEdit(t)}
-                      className="rounded-lg bg-repixl-red/10 border border-repixl-red/30 px-3 py-1 text-xs font-medium text-repixl-red hover:bg-repixl-red hover:text-white transition"
-                    >
-                      Edit
-                    </button>
+                    <div className="flex items-center gap-2">
+                      {(t.event === 'PROMOTION' || t.event === 'REPIXL_UPDATE') && (
+                        <button
+                          type="button"
+                          onClick={() => setBroadcastTarget(t)}
+                          className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-2.5 py-1 text-xs font-medium text-amber-300 hover:bg-amber-500/20 transition flex items-center gap-1"
+                          title="Broadcast this notification to all active customers"
+                        >
+                          <span>📢</span>
+                          <span>Broadcast</span>
+                        </button>
+                      )}
+                      <button
+                        onClick={() => startEdit(t)}
+                        className="rounded-lg bg-repixl-red/10 border border-repixl-red/30 px-3 py-1 text-xs font-medium text-repixl-red hover:bg-repixl-red hover:text-white transition"
+                      >
+                        Edit
+                      </button>
+                    </div>
                   ) : (
                     <button
                       onClick={() => cancelEdit(t.event)}
@@ -859,6 +903,75 @@ export default function NotificationTemplatesPage() {
                 className="rounded-xl border border-repixl-muted/20 px-4 py-1.5 text-xs text-repixl-text-light hover:bg-white/5 transition"
               >
                 Close Preview
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Broadcast Modal */}
+      {broadcastTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 overflow-y-auto">
+          <div className="relative w-full max-w-lg rounded-2xl border border-repixl-muted/30 bg-repixl-charcoal shadow-2xl p-6 space-y-4">
+            <div className="flex items-start justify-between border-b border-repixl-muted/15 pb-3">
+              <div>
+                <h3 className="text-base font-bold text-repixl-text-light flex items-center gap-2">
+                  <span>📢 Broadcast Notification</span>
+                </h3>
+                <p className="text-xs text-repixl-muted mt-1">
+                  Dispatch &quot;{formatEventName(broadcastTarget.event)}&quot; to all active customer inboxes.
+                </p>
+              </div>
+              <button
+                onClick={() => setBroadcastTarget(null)}
+                className="text-repixl-muted hover:text-repixl-text-light text-lg font-mono leading-none"
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="rounded-xl border border-repixl-muted/20 bg-repixl-bg/70 p-4 space-y-2.5 text-xs">
+              <div>
+                <span className="font-mono text-repixl-muted uppercase text-[10px]">Subject: </span>
+                <span className="text-repixl-text-light font-medium">{broadcastTarget.subject}</span>
+              </div>
+              <div>
+                <span className="font-mono text-repixl-muted uppercase text-[10px]">Channel: </span>
+                <span className="text-purple-300 font-mono font-medium">
+                  {broadcastTarget.channel === 'BOTH'
+                    ? 'Email & In-App'
+                    : broadcastTarget.channel === 'EMAIL'
+                    ? 'Email Only'
+                    : 'In-App Only'}
+                </span>
+              </div>
+              <div>
+                <span className="font-mono text-repixl-muted uppercase text-[10px] block mb-1">Preview Message: </span>
+                <p className="font-mono text-repixl-text-light/80 whitespace-pre-line bg-repixl-charcoal p-3 rounded-lg border border-repixl-muted/15 max-h-36 overflow-y-auto text-[11px] leading-relaxed">
+                  {resolvePlaceholders(broadcastTarget.body, SAMPLE_TEMPLATE_CONTEXT)}
+                </p>
+              </div>
+            </div>
+
+            <div className="rounded-xl border border-amber-500/20 bg-amber-500/10 p-3 text-xs text-amber-300/90 leading-relaxed">
+              ℹ️ This will dispatch in-app notifications to customer inboxes and send emails to customer email addresses, strictly honoring each customer&apos;s notification and promotional opt-out preferences.
+            </div>
+
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setBroadcastTarget(null)}
+                className="rounded-xl border border-repixl-muted/20 px-4 py-2 text-xs text-repixl-muted hover:text-repixl-text-light transition"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={broadcasting}
+                onClick={() => handleBroadcast(broadcastTarget)}
+                className="rounded-xl bg-repixl-red px-5 py-2 text-xs font-semibold text-white hover:bg-red-700 disabled:opacity-50 transition shadow-sm"
+              >
+                {broadcasting ? 'Sending Broadcast…' : 'Confirm & Dispatch'}
               </button>
             </div>
           </div>

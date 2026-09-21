@@ -11,16 +11,28 @@ import { ProductCard } from '@/components/product/ProductCard'
 import { useProductStore } from '@/stores/productStore'
 import { useReviewStore } from '@/stores/reviewStore'
 import { useReducedMotion } from '@/hooks/useReducedMotion'
+import { fetchHomepageCmsBlocks } from '@/lib/cms-client'
 
 export function FeaturedCarousel() {
   const allProducts = useProductStore((s) => s.products)
   const featured = useMemo(() => allProducts.filter((p) => p.status === 'active' && p.stock > 0), [allProducts])
   const [centerIndex, setCenterIndex] = useState(0)
+  const [featuredCms, setFeaturedCms] = useState<{ title?: string; eyebrow?: string } | null>(null)
   const reducedMotion = useReducedMotion()
 
   useEffect(() => {
     useProductStore.getState().hydrate()
     useReviewStore.getState().hydrate()
+    fetchHomepageCmsBlocks()
+      .then((body) => {
+        if (body?.data && Array.isArray(body.data)) {
+          const block = body.data.find((b: any) => b.type === 'featured' && b.isPublished)
+          if (block?.content && typeof block.content === 'object') {
+            setFeaturedCms(block.content)
+          }
+        }
+      })
+      .catch(() => {})
   }, [])
 
   const canPrev = centerIndex > 0
@@ -41,8 +53,8 @@ export function FeaturedCarousel() {
       <Container>
         {/* Header */}
         <SectionHeader
-          eyebrow="New Arrivals"
-          title="Featured Cameras"
+          eyebrow={featuredCms?.eyebrow || 'New Arrivals'}
+          title={featuredCms?.title || 'Featured Cameras'}
           highlightWord="Cameras"
           className="mb-12"
         />

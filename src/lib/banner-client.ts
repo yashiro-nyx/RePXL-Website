@@ -8,17 +8,33 @@
  * when React Strict Mode runs effects twice in development.
  */
 
-const inFlight = new Map<string, Promise<any>>()
-const cache = new Map<string, any>()
+export const BANNER_CACHE_TTL_MS = 30_000 // 30 seconds
 
-export async function fetchBannersByPlacement(placement: string): Promise<any> {
-  if (cache.has(placement)) return cache.get(placement)
+interface CacheEntry {
+  data: any
+  timestamp: number
+}
+
+const inFlight = new Map<string, Promise<any>>()
+const cache = new Map<string, CacheEntry>()
+
+export async function fetchBannersByPlacement(placement: string, forceFresh = false): Promise<any> {
+  const now = Date.now()
+  if (!forceFresh && cache.has(placement)) {
+    const entry = cache.get(placement)!
+    if (now - entry.timestamp < BANNER_CACHE_TTL_MS) {
+      return entry.data
+    }
+  }
+
   if (inFlight.has(placement)) return inFlight.get(placement)
 
   const promise = fetch(`/api/banners?placement=${encodeURIComponent(placement)}`)
     .then((res) => (res.ok ? res.json() : null))
     .then((body) => {
-      if (body) cache.set(placement, body)
+      if (body) {
+        cache.set(placement, { data: body, timestamp: Date.now() })
+      }
       return body
     })
     .catch(() => null)
