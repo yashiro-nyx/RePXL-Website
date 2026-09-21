@@ -25,27 +25,26 @@ Prisma. Vercel runs your API as serverless functions, so the database needs
 
 ---
 
-## Part A — Create the database (Neon, recommended)
+## Part A — Create the database (Supabase, recommended)
 
-1. Go to **https://neon.tech** and sign up (free tier is plenty).
-2. **Create a project**. Name it `repixl`, pick the region closest to your Vercel
-   region (e.g. `US East`).
-3. On the project dashboard, open **Connection Details**. You'll see a connection
-   string. Toggle **"Pooled connection"** on and off to get BOTH forms:
-   - Pooled (host contains `-pooler`) → this is your **`DATABASE_URL`**
-   - Direct (no `-pooler`) → this is your **`DIRECT_URL`**
+1. Go to **https://supabase.com** and sign up (free tier is plenty).
+2. **Create a project**. Name it `repixl`, pick the region closest to your users / Vercel region.
+3. On the project dashboard, go to **Project Settings** → **Database** → **Connection string**:
+   - **Transaction** pooler (port `6543`), append `?pgbouncer=true` → this is your **`DATABASE_URL`**
+   - **Session** pooler or direct connection (port `5432`) → this is your **`DIRECT_URL`**
 4. Keep both handy. They look like:
    ```
-   postgresql://repixl_owner:npg_xxx@ep-cool-name-pooler.us-east-2.aws.neon.tech/repixl?sslmode=require
-   postgresql://repixl_owner:npg_xxx@ep-cool-name.us-east-2.aws.neon.tech/repixl?sslmode=require
+   postgresql://postgres.[project-ref]:[password]@aws-0-[region].pooler.supabase.com:6543/postgres?pgbouncer=true
+   postgresql://postgres.[project-ref]:[password]@aws-0-[region].pooler.supabase.com:5432/postgres
    ```
 
 <details>
-<summary>Using Supabase instead?</summary>
+<summary>Using Neon instead?</summary>
 
-Project Settings → Database → **Connection string**:
-- **Transaction** pooler (port `6543`), then append `?pgbouncer=true&connection_limit=1` → `DATABASE_URL`
-- **Direct connection** (port `5432`) → `DIRECT_URL`
+1. Go to **https://neon.tech** and create a project.
+2. Toggle "Pooled connection" to get:
+   - Pooled (host contains `-pooler`) → `DATABASE_URL`
+   - Direct (no `-pooler`) → `DIRECT_URL`
 </details>
 
 ---

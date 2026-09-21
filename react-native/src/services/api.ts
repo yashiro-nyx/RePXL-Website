@@ -119,15 +119,21 @@ async function request<T>(path: string, init: RequestInit = {}, timeoutMs = DEFA
       headers: { Accept: 'application/json', 'Content-Type': 'application/json', ...init.headers },
     });
     clearTimeout(timer);
-    const body = (await response.json().catch(() => null)) as ApiEnvelope<T> | null;
-    if (!response.ok || !body?.success || body.data === undefined) {
+    const body = (await response.json().catch(() => null)) as any;
+    if (!response.ok) {
       const fallback =
         response.status === 404
           ? `Server route not found (${response.status}: ${path}). Please ensure the server has the latest deployment.`
           : `Request failed (${response.status})`;
-      throw new ApiError(body?.error ?? fallback, response.status);
+      throw new ApiError(body?.error || body?.message || fallback, response.status);
     }
-    return body.data;
+    if (body && typeof body === 'object' && 'success' in body) {
+      if (!body.success) {
+        throw new ApiError(body.error || 'Request failed', response.status);
+      }
+      return body.data as T;
+    }
+    return body as T;
   } catch (error: any) {
     clearTimeout(timer);
     const errText = String(error?.message || error || '');
@@ -225,6 +231,26 @@ export const api = {
     method: 'POST',
     body: JSON.stringify({ refreshToken }),
   }),
+  forgotPassword: (email: string) =>
+    request<{ message: string }>('/api/auth/forgot-password', {
+      method: 'POST',
+      body: JSON.stringify({ email }),
+    }),
+  resetPassword: (token: string, newPassword: string) =>
+    request<{ message: string }>('/api/auth/reset-password', {
+      method: 'POST',
+      body: JSON.stringify({ token, newPassword }),
+    }),
+  changePassword: (oldPassword: string, newPassword: string) =>
+    authorized<{ message: string }>('/api/auth/change-password', {
+      method: 'POST',
+      body: JSON.stringify({ oldPassword, newPassword }),
+    }),
+  contactSupport: (input: { name: string; email: string; subject: string; message: string }) =>
+    request<{ message: string }>('/api/contact', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    }),
   products: async (query = '') => (
     await request<RawProduct[]>(`/api/products?limit=100${query ? `&q=${encodeURIComponent(query)}` : ''}`)
   ).map(mapProduct),
@@ -233,11 +259,12 @@ export const api = {
     const reviews = await request<Array<{ id: string; reviewerName: string; rating: number; comment: string; createdAt: string }>>(
       `/api/reviews?productSlug=${encodeURIComponent(slug)}&limit=50`,
     );
-    return reviews.map<ProductReview>((review) => ({
+    const list = Array.isArray(reviews) ? reviews : [];
+    return list.map<ProductReview>((review) => ({
       id: review.id,
-      author: review.reviewerName,
-      rating: review.rating,
-      body: review.comment,
+      author: review.reviewerName || 'Anonymous',
+      rating: review.rating || 5,
+      body: review.comment || '',
       date: review.createdAt,
     }));
   },

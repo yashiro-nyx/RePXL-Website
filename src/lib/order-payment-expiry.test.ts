@@ -153,6 +153,16 @@ describe('order-payment-expiry', () => {
       expect(result.allowed).toBe(false)
       expect(result.reason).toContain('Order payment processing has expired')
     })
+
+    it('allows editing order status for Cash on Delivery orders even when payment is PENDING', () => {
+      const result = canAdminEditOrderStatus({
+        paymentStatus: 'PENDING',
+        status: 'PROCESSING',
+        paymentMethod: 'Cash on Delivery',
+      })
+      expect(result.allowed).toBe(true)
+      expect(result.reason).toBeUndefined()
+    })
   })
 
   describe('expireOverduePendingOrders', () => {

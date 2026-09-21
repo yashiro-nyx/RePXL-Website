@@ -20,7 +20,7 @@ RePXL is a curated, admin-managed marketplace for buying vintage digital cameras
 | Styling | Tailwind CSS + custom design tokens |
 | Animation | Framer Motion |
 | Client state | Zustand (cartStore, wishlistStore, productStore, authStore, etc.) |
-| Database | PostgreSQL via **Prisma ORM** (hosted on Neon) |
+| Database | PostgreSQL via **Prisma ORM** (hosted on Supabase) |
 | Authentication | Custom HTTP-only cookie sessions (bcrypt passwords) + NextAuth for Google OAuth |
 | Email | Gmail SMTP via Nodemailer |
 | Payments | PayMongo Hosted Checkout (Live mode active) |
@@ -64,7 +64,7 @@ Browser (React / Zustand)
 
 ## 4. Database (Prisma + PostgreSQL)
 
-**Provider:** Neon (serverless PostgreSQL)  
+**Provider:** Supabase (PostgreSQL with Supavisor pooler)  
 **ORM:** Prisma 5.22
 
 ### Schema models
@@ -367,8 +367,8 @@ Never commit values. Set in Vercel Dashboard → Project Settings → Environmen
 
 ```
 # Database
-DATABASE_URL         # Pooled connection string (Neon pooler endpoint)
-DIRECT_URL           # Direct connection string (Neon direct endpoint, for migrations)
+DATABASE_URL         # Pooled connection string (Supabase Transaction pooler, port 6543)
+DIRECT_URL           # Direct connection string (Supabase Session pooler / direct, port 5432)
 
 # Auth
 NEXTAUTH_SECRET      # 32-byte random string (openssl rand -base64 32)

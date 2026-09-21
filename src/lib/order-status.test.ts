@@ -32,4 +32,74 @@ describe('buildOrderStatusUpdate', () => {
 
     expect(result.deliveredAt).toEqual(existing)
   })
+
+  it('automatically sets deliveryStatus to In Transit and progress to 50 when marked SHIPPED', () => {
+    const result = buildOrderStatusUpdate(
+      { status: OrderStatus.PROCESSING, deliveredAt: null, completedAt: null, orderNumber: 'RPX-1001' },
+      OrderStatus.SHIPPED
+    )
+
+    expect(result.status).toBe(OrderStatus.SHIPPED)
+    expect(result.deliveryStatus).toBe('In Transit')
+    expect(result.trackingProgress).toBe(50)
+    expect(result.trackingNumber).toBe('RPX-1001')
+  })
+
+  it('automatically sets deliveryStatus to Delivered and progress to 100 when marked DELIVERED', () => {
+    const result = buildOrderStatusUpdate(
+      { status: OrderStatus.SHIPPED, deliveredAt: null, completedAt: null },
+      OrderStatus.DELIVERED
+    )
+
+    expect(result.deliveryStatus).toBe('Delivered')
+    expect(result.trackingProgress).toBe(100)
+  })
+
+  it('automatically sets deliveryStatus to Cancelled and progress to 0 when marked CANCELLED', () => {
+    const result = buildOrderStatusUpdate(
+      { status: OrderStatus.PROCESSING, deliveredAt: null, completedAt: null },
+      OrderStatus.CANCELLED
+    )
+
+    expect(result.deliveryStatus).toBe('Cancelled')
+    expect(result.trackingProgress).toBe(0)
+  })
+
+  it('handles unified IN_TRANSIT status string synchronously', () => {
+    const result = buildOrderStatusUpdate(
+      { status: OrderStatus.PROCESSING, deliveredAt: null, completedAt: null, orderNumber: 'RPX-2001' },
+      'IN_TRANSIT'
+    )
+
+    expect(result.status).toBe(OrderStatus.SHIPPED)
+    expect(result.deliveryStatus).toBe('In Transit')
+    expect(result.trackingProgress).toBe(50)
+    expect(result.trackingDescription).toBe('Your camera has left the warehouse and is on its way to you.')
+    expect(result.trackingNumber).toBe('RPX-2001')
+  })
+
+  it('handles unified OUT_FOR_DELIVERY status string synchronously', () => {
+    const result = buildOrderStatusUpdate(
+      { status: OrderStatus.SHIPPED, deliveredAt: null, completedAt: null, deliveryStatus: 'In Transit', orderNumber: 'RPX-2002' },
+      'OUT_FOR_DELIVERY'
+    )
+
+    expect(result.status).toBe(OrderStatus.SHIPPED)
+    expect(result.deliveryStatus).toBe('Out for Delivery')
+    expect(result.trackingProgress).toBe(75)
+    expect(result.trackingDescription).toBe('Your package is out for delivery and will arrive today.')
+    expect(result.trackingNumber).toBe('RPX-2002')
+  })
+
+  it('handles SHIPPED with targetDeliveryStatus "Out for Delivery"', () => {
+    const result = buildOrderStatusUpdate(
+      { status: OrderStatus.PROCESSING, deliveredAt: null, completedAt: null },
+      OrderStatus.SHIPPED,
+      'Out for Delivery'
+    )
+
+    expect(result.status).toBe(OrderStatus.SHIPPED)
+    expect(result.deliveryStatus).toBe('Out for Delivery')
+    expect(result.trackingProgress).toBe(75)
+  })
 })

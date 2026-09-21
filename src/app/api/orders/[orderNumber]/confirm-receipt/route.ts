@@ -45,9 +45,13 @@ const schema = z.object({
  *  - comment is required (5–2000 chars)
  *  - prevents duplicate review per user+product per order
  */
+interface RouteParams {
+  params: Promise<{ orderNumber: string }>
+}
+
 export async function POST(
   request: NextRequest,
-  { params }: { params: Promise<{ orderNumber: string }> }
+  { params }: RouteParams
 ) {
   const { orderNumber } = await params
   const user = await getCurrentUser()
@@ -73,7 +77,7 @@ export async function POST(
 
   // Load order with items so we can create reviews per purchased product
   const order = await prisma.order.findUnique({
-    where: { orderNumber: orderNumber },
+    where: { orderNumber },
     include: {
       items: { include: { product: { select: { id: true, name: true } } } },
     },

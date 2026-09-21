@@ -1,6 +1,11 @@
 import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { successResponse, errorResponse, notFoundResponse, unauthorizedResponse } from '@/lib/api'
+import {
+  successResponse,
+  errorResponse,
+  notFoundResponse,
+  unauthorizedResponse,
+} from '@/lib/api'
 import { getCurrentUser } from '@/lib/auth-helpers'
 
 // This route reads cookies / session state and must run per-request.
@@ -11,16 +16,23 @@ interface RouteParams {
 }
 
 // PUT /api/addresses/[addressId]/default — Set address as default
-export async function PUT(request: NextRequest, { params }: RouteParams) {
+export async function PUT(
+  request: NextRequest,
+  { params }: RouteParams
+) {
   try {
     const { addressId } = await params
     const user = await getCurrentUser()
+
     if (!user) {
       return unauthorizedResponse()
     }
 
     const address = await prisma.address.findFirst({
-      where: { id: addressId, userId: user.id },
+      where: {
+        id: addressId,
+        userId: user.id,
+      },
     })
 
     if (!address) {
@@ -29,13 +41,21 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
 
     // Unset all defaults, then set this one
     await prisma.address.updateMany({
-      where: { userId: user.id },
-      data: { isDefault: false },
+      where: {
+        userId: user.id,
+      },
+      data: {
+        isDefault: false,
+      },
     })
 
     const updated = await prisma.address.update({
-      where: { id: addressId },
-      data: { isDefault: true },
+      where: {
+        id: addressId,
+      },
+      data: {
+        isDefault: true,
+      },
     })
 
     return successResponse(updated)

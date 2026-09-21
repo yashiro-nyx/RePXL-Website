@@ -22,7 +22,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
     const { slug } = await params
     const product = await prisma.product.findUnique({
-      where: { slug: slug },
+      where: { slug },
     })
 
     if (!product) {
@@ -45,7 +45,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       return unauthorizedResponse('Admin access required')
     }
 
-    const existing = await prisma.product.findUnique({ where: { slug: slug } })
+    const existing = await prisma.product.findUnique({ where: { slug } })
     if (!existing) {
       return notFoundResponse('Product not found')
     }
@@ -68,7 +68,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     }
 
     const product = await prisma.product.update({
-      where: { slug: slug },
+      where: { slug },
       data: {
         ...(data.slug && { slug: data.slug }),
         ...(data.name && { name: data.name }),
@@ -115,7 +115,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       return unauthorizedResponse('Admin access required')
     }
 
-    const existing = await prisma.product.findUnique({ where: { slug: slug } })
+    const existing = await prisma.product.findUnique({ where: { slug } })
     if (!existing) {
       return notFoundResponse('Product not found')
     }
@@ -136,7 +136,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     }
 
     const product = await prisma.product.update({
-      where: { slug: slug },
+      where: { slug },
       data: allowedFields,
     })
 
@@ -164,12 +164,12 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
       return unauthorizedResponse('Admin access required')
     }
 
-    const existing = await prisma.product.findUnique({ where: { slug: slug } })
+    const existing = await prisma.product.findUnique({ where: { slug } })
     if (!existing) {
       return notFoundResponse('Product not found')
     }
 
-    await prisma.product.delete({ where: { slug: slug } })
+    await prisma.product.delete({ where: { slug } })
 
     // Log admin action
     await prisma.adminLog.create({

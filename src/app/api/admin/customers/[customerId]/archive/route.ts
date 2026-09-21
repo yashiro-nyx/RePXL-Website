@@ -1,6 +1,14 @@
 import { NextRequest } from 'next/server'
+
 import { prisma } from '@/lib/prisma'
-import { successResponse, errorResponse, notFoundResponse, unauthorizedResponse } from '@/lib/api'
+
+import {
+  successResponse,
+  errorResponse,
+  notFoundResponse,
+  unauthorizedResponse,
+} from '@/lib/api'
+
 import { getCurrentAdmin } from '@/lib/auth-helpers'
 
 // This route reads cookies / session state and must run per-request.
@@ -11,15 +19,24 @@ interface RouteParams {
 }
 
 // POST /api/admin/customers/[customerId]/archive — Archive a customer
-export async function POST(request: NextRequest, { params }: RouteParams) {
+export async function POST(
+  request: NextRequest,
+  { params }: RouteParams
+) {
   try {
     const { customerId } = await params
     const admin = await getCurrentAdmin()
+
     if (!admin) {
       return unauthorizedResponse('Admin access required')
     }
 
-    const customer = await prisma.user.findUnique({ where: { id: customerId } })
+    const customer = await prisma.user.findUnique({
+      where: {
+        id: customerId,
+      },
+    })
+
     if (!customer) {
       return notFoundResponse('Customer not found')
     }
@@ -35,8 +52,13 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     }
 
     const updated = await prisma.user.update({
-      where: { id: customerId },
-      data: { isArchived: true, archivedAt: new Date() },
+      where: {
+        id: customerId,
+      },
+      data: {
+        isArchived: true,
+        archivedAt: new Date(),
+      },
       select: {
         id: true,
         email: true,
@@ -60,27 +82,42 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     return successResponse(updated)
   } catch (error) {
     console.error('Archive customer error:', error)
+
     return errorResponse('Internal server error', 500)
   }
 }
 
 // DELETE /api/admin/customers/[customerId]/archive — Restore an archived customer
-export async function DELETE(request: NextRequest, { params }: RouteParams) {
+export async function DELETE(
+  request: NextRequest,
+  { params }: RouteParams
+) {
   try {
     const { customerId } = await params
     const admin = await getCurrentAdmin()
+
     if (!admin) {
       return unauthorizedResponse('Admin access required')
     }
 
-    const customer = await prisma.user.findUnique({ where: { id: customerId } })
+    const customer = await prisma.user.findUnique({
+      where: {
+        id: customerId,
+      },
+    })
+
     if (!customer) {
       return notFoundResponse('Customer not found')
     }
 
     const updated = await prisma.user.update({
-      where: { id: customerId },
-      data: { isArchived: false, archivedAt: null },
+      where: {
+        id: customerId,
+      },
+      data: {
+        isArchived: false,
+        archivedAt: null,
+      },
       select: {
         id: true,
         email: true,
@@ -103,6 +140,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     return successResponse(updated)
   } catch (error) {
     console.error('Restore customer error:', error)
+
     return errorResponse('Internal server error', 500)
   }
 }

@@ -327,6 +327,17 @@ export async function clearRecentAuthCookie(): Promise<void> {
  */
 export async function checkRecentAuth(userId: string): Promise<boolean> {
   try {
+    let authorization: string | null = null
+    try {
+      const headerStore = await headers()
+      authorization = headerStore.get('authorization')
+    } catch {}
+    const bearer = authorization?.match(/^Bearer\s+([^\s]+)$/i)?.[1]
+    if (bearer) {
+      const mobileUser = await getMobileUserFromAccessToken(bearer)
+      if (mobileUser && mobileUser.id === userId) return true
+    }
+
     const cookieStore = await cookies()
     const raw = cookieStore.get(RECENT_AUTH_COOKIE)?.value
     if (!raw) return false

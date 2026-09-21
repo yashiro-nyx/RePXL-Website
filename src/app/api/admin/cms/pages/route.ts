@@ -50,7 +50,24 @@ export async function GET(request: NextRequest) {
       return unauthorizedResponse('Admin access required')
     }
 
-    const pages = await prisma.staticPage.findMany()
+    const { searchParams } = new URL(request.url)
+    const slugQuery = searchParams.get('slug')
+
+    let pages = await prisma.staticPage.findMany(
+      slugQuery ? { where: { slug: slugQuery.toLowerCase() } } : undefined
+    )
+
+    if (pages.length === 0 && !slugQuery) {
+      const totalCount = await prisma.staticPage.count()
+      if (totalCount === 0) {
+        const { DEFAULT_STATIC_PAGES } = await import('@/lib/cms-defaults')
+        for (const p of DEFAULT_STATIC_PAGES) {
+          await prisma.staticPage.create({ data: p })
+        }
+        pages = await prisma.staticPage.findMany()
+      }
+    }
+
     const sorted = sortByUpdatedDesc(pages)
 
     return successResponse(sorted)

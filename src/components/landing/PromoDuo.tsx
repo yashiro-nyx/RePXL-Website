@@ -76,8 +76,12 @@ export function PromoDuo() {
   const dealBadge = announcement?.discount || announcement?.badge || '30% OFF'
   const dealSub = announcement?.subtitle || 'Selected Brands'
   const dealHref = announcement?.linkTarget || '/products'
+  const dealImage = (announcement as Record<string, any>)?.image || (announcement as Record<string, any>)?.imageRef || '/images/banner1.png'
+  const dealTitle = announcement?.title || 'TOP DEALS'
 
   // Card 2: Staff Pick dynamic values
+  const staffTitle = sidebarBanner?.title || 'Sony Cyber-shot W800'
+  const staffImage = sidebarBanner?.imageRef || '/images/banner2.png'
   let staffHref = '/products?brand=sony'
   if (sidebarBanner?.linkTarget) {
     try {
@@ -212,8 +216,8 @@ export function PromoDuo() {
               <div className="absolute inset-0 flex items-center justify-end p-2 sm:p-4">
                 <div className="relative h-60 sm:h-72 md:h-80 w-full max-w-[380px] transition-transform duration-500 ease-out group-hover:scale-[1.03]">
                   <Image
-                    src="/images/banner1.png"
-                    alt="Top vintage cameras: Canon, Nikon, Fujifilm cluster"
+                    src={dealImage}
+                    alt={dealTitle}
                     fill
                     sizes="(max-width: 640px) 90vw, (max-width: 1024px) 45vw, 380px"
                     quality={90}
@@ -229,7 +233,7 @@ export function PromoDuo() {
               <div>
                 {/* Eyebrow */}
                 <span className="inline-block font-mono text-xs uppercase tracking-widest text-repixl-red">
-                  — TOP DEALS
+                  — {dealTitle.toUpperCase()}
                 </span>
 
                 {/* Main Promotional Text */}
@@ -414,8 +418,8 @@ export function PromoDuo() {
               <div className="absolute inset-0 flex items-center justify-end p-2 sm:p-4">
                 <div className="relative h-60 sm:h-72 md:h-80 w-full max-w-[380px] transition-transform duration-500 ease-out group-hover:scale-[1.03]">
                   <Image
-                    src="/images/banner2.png"
-                    alt="Sony Cyber-shot W800 on dark stone pedestal"
+                    src={staffImage}
+                    alt={staffTitle}
                     fill
                     sizes="(max-width: 640px) 90vw, (max-width: 1024px) 45vw, 380px"
                     quality={90}
@@ -441,11 +445,7 @@ export function PromoDuo() {
                       isLight ? 'text-neutral-950' : 'text-white'
                     }`}
                   >
-                    Sony{' '}
-                    <span className={isLight ? 'text-[#B91C1C]' : 'text-[#EF4444]'}>
-                      Cyber-shot
-                    </span>{' '}
-                    W800
+                    {staffTitle}
                   </h3>
                 </div>
 

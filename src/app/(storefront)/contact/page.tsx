@@ -1,12 +1,14 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Container } from '@/components/layout/Container'
 import { BackButton } from '@/components/ui'
 import { RevealText } from '@/components/ui/RevealText'
 import { useReducedMotion } from '@/hooks/useReducedMotion'
 import { useToastStore } from '@/stores/toastStore'
+import { CmsPageLayout } from '@/components/layout/CmsPageLayout'
+import { DEFAULT_CONTACT_BODY } from '@/lib/cms-defaults'
 
 interface ContactFormData {
   name: string
@@ -56,6 +58,41 @@ const infoItems = [
 
 export default function ContactPage() {
   const reducedMotion = useReducedMotion()
+  const [customPage, setCustomPage] = useState<{
+    title: string
+    body: string
+    updatedAt: string
+    status: string
+  } | null>(null)
+
+  useEffect(() => {
+    let isMounted = true
+    fetch('/api/pages/contact')
+      .then((res) => (res.ok ? res.json() : null))
+      .then((res) => {
+        if (!isMounted) return
+        const page = res?.data
+        if (page?.body && page.body.trim() !== DEFAULT_CONTACT_BODY.trim()) {
+          setCustomPage(page)
+        }
+      })
+      .catch(() => {})
+    return () => {
+      isMounted = false
+    }
+  }, [])
+
+  if (customPage) {
+    return (
+      <CmsPageLayout
+        title={customPage.title}
+        body={customPage.body}
+        updatedAt={customPage.updatedAt}
+        isDraft={customPage.status === 'DRAFT'}
+      />
+    )
+  }
+
   const [formData, setFormData] = useState<ContactFormData>({
     name: '',
     email: '',

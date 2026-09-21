@@ -58,7 +58,16 @@ export async function GET(request: NextRequest) {
     }
 
     if (statusFilter) {
-      where.status = statusFilter.toUpperCase()
+      const upper = statusFilter.toUpperCase()
+      if (upper === 'IN_TRANSIT') {
+        where.status = 'SHIPPED'
+        where.deliveryStatus = 'In Transit'
+      } else if (upper === 'OUT_FOR_DELIVERY') {
+        where.status = 'SHIPPED'
+        where.deliveryStatus = 'Out for Delivery'
+      } else {
+        where.status = upper
+      }
     }
 
     // Search by order number

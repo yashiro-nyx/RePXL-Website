@@ -20,7 +20,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     }
 
     const order = await prisma.order.findUnique({
-      where: { orderNumber: orderNumber },
+      where: { orderNumber },
     })
 
     if (!order) {
@@ -28,7 +28,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     }
 
     const updated = await prisma.order.update({
-      where: { orderNumber: orderNumber },
+      where: { orderNumber },
       data: { isArchived: true },
     })
 
@@ -58,7 +58,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     }
 
     const order = await prisma.order.findUnique({
-      where: { orderNumber: orderNumber },
+      where: { orderNumber },
     })
 
     if (!order) {
@@ -66,7 +66,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     }
 
     const updated = await prisma.order.update({
-      where: { orderNumber: orderNumber },
+      where: { orderNumber },
       data: { isArchived: false },
     })
 

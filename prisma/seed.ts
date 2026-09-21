@@ -1,6 +1,7 @@
 import { PrismaClient } from '@prisma/client'
 import bcrypt from 'bcryptjs'
 import { MODERN_DEFAULT_TEMPLATES } from '../src/lib/notification-templates'
+import { DEFAULT_LANDING_BANNERS, DEFAULT_STATIC_PAGES } from '../src/lib/cms-defaults'
 
 const prisma = new PrismaClient()
 
@@ -514,33 +515,19 @@ async function main() {
   // ─── Seed Landing Banners ───────────────────────────────────────────────────
   const bannerCount = await prisma.banner.count()
   if (bannerCount === 0) {
-    const defaultBanners = [
-      {
-        title: 'More than just a photo.',
-        imageRef: '/images/camherosec.png',
-        placement: 'HOMEPAGE_HERO' as const,
-        linkTarget: 'https://repxl.com/products',
-        isActive: true,
-      },
-      {
-        title: 'Hottest Deals',
-        imageRef: '/images/editorial-2.svg',
-        placement: 'HOMEPAGE_STRIP' as const,
-        linkTarget: 'https://repxl.com/products',
-        isActive: true,
-      },
-      {
-        title: 'Our Staff Pick — Sony Cyber-shot W800',
-        imageRef: '/images/product-sony-w800.svg',
-        placement: 'SIDEBAR' as const,
-        linkTarget: 'https://repxl.com/products?brand=sony',
-        isActive: true,
-      },
-    ]
-    for (const b of defaultBanners) {
+    for (const b of DEFAULT_LANDING_BANNERS) {
       await prisma.banner.create({ data: b })
     }
-    console.log(`  ✓ ${defaultBanners.length} landing banners seeded`)
+    console.log(`  ✓ ${DEFAULT_LANDING_BANNERS.length} landing banners seeded`)
+  }
+
+  // ─── Seed Static Pages ──────────────────────────────────────────────────────
+  const staticPageCount = await prisma.staticPage.count()
+  if (staticPageCount === 0) {
+    for (const p of DEFAULT_STATIC_PAGES) {
+      await prisma.staticPage.create({ data: p })
+    }
+    console.log(`  ✓ ${DEFAULT_STATIC_PAGES.length} static pages seeded`)
   }
 
   // ─── Seed Homepage Content Blocks ───────────────────────────────────────────

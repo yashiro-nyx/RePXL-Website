@@ -1,6 +1,14 @@
 import { NextRequest } from 'next/server'
+
 import { prisma } from '@/lib/prisma'
-import { successResponse, errorResponse, notFoundResponse, unauthorizedResponse } from '@/lib/api'
+
+import {
+  successResponse,
+  errorResponse,
+  notFoundResponse,
+  unauthorizedResponse,
+} from '@/lib/api'
+
 import { getCurrentAdmin } from '@/lib/auth-helpers'
 
 // This route reads cookies / session state and must run per-request.
@@ -11,16 +19,22 @@ interface RouteParams {
 }
 
 // GET /api/admin/customers/[customerId] — Get customer details
-export async function GET(request: NextRequest, { params }: RouteParams) {
+export async function GET(
+  request: NextRequest,
+  { params }: RouteParams
+) {
   try {
     const { customerId } = await params
     const admin = await getCurrentAdmin()
+
     if (!admin) {
       return unauthorizedResponse('Admin access required')
     }
 
     const customer = await prisma.user.findUnique({
-      where: { id: customerId },
+      where: {
+        id: customerId,
+      },
       select: {
         id: true,
         email: true,
@@ -33,16 +47,35 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
         archivedAt: true,
         createdAt: true,
         orders: {
-          select: { orderNumber: true, total: true, status: true, createdAt: true },
-          orderBy: { createdAt: 'desc' },
+          select: {
+            orderNumber: true,
+            total: true,
+            status: true,
+            createdAt: true,
+          },
+          orderBy: {
+            createdAt: 'desc',
+          },
           take: 10,
         },
         reviews: {
-          select: { id: true, rating: true, comment: true, createdAt: true },
-          orderBy: { createdAt: 'desc' },
+          select: {
+            id: true,
+            rating: true,
+            comment: true,
+            createdAt: true,
+          },
+          orderBy: {
+            createdAt: 'desc',
+          },
           take: 5,
         },
-        _count: { select: { orders: true, reviews: true } },
+        _count: {
+          select: {
+            orders: true,
+            reviews: true,
+          },
+        },
       },
     })
 
@@ -53,6 +86,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     return successResponse(customer)
   } catch (error) {
     console.error('Get customer error:', error)
+
     return errorResponse('Internal server error', 500)
   }
 }

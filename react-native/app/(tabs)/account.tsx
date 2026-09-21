@@ -28,7 +28,7 @@ import {
   type Product,
 } from '../../types';
 
-type Section = 'main' | 'profile' | 'purchases' | 'addresses' | 'reviews' | 'notifications' | 'wishlist';
+type Section = 'main' | 'profile' | 'password' | 'purchases' | 'addresses' | 'reviews' | 'notifications' | 'wishlist';
 
 function SignedOut() {
   return (
@@ -167,6 +167,139 @@ function ProfileView({ onBack }: { onBack: () => void }) {
             <ActivityIndicator color="#fff" />
           ) : (
             <Text style={styles.primaryBtnText}>Save Changes</Text>
+          )}
+        </TouchableOpacity>
+      </ScrollView>
+    </SubPage>
+  );
+}
+
+function PasswordView({ onBack }: { onBack: () => void }) {
+  const { changePassword } = useApp();
+  const [oldPassword, setOldPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showOld, setShowOld] = useState(false);
+  const [showNew, setShowNew] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+
+  const handleUpdatePassword = async () => {
+    if (!oldPassword) {
+      setError('Please enter your current password.');
+      return;
+    }
+    if (!newPassword || newPassword.length < 8) {
+      setError('New password must be at least 8 characters.');
+      return;
+    }
+    if (!/[A-Z]/.test(newPassword)) {
+      setError('New password must contain at least one uppercase letter.');
+      return;
+    }
+    if (!/\d/.test(newPassword)) {
+      setError('New password must contain at least one number.');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setError('New passwords do not match.');
+      return;
+    }
+
+    setLoading(true);
+    setError('');
+    setSuccess('');
+
+    try {
+      await changePassword(oldPassword, newPassword);
+      setSuccess('Your password has been changed successfully.');
+      setOldPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unable to change password.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <SubPage title="Change Password" onBack={onBack}>
+      <ScrollView contentContainerStyle={styles.pageContent} keyboardShouldPersistTaps="handled">
+        <View style={styles.avatarLarge}>
+          <Feather name="lock" size={32} color="#fff" />
+        </View>
+
+        <Text style={styles.fieldLabel}>CURRENT PASSWORD</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#1c1c1e', borderWidth: 1, borderColor: '#2c2c2e', borderRadius: 10 }}>
+          <TextInput
+            value={oldPassword}
+            onChangeText={(t) => {
+              setOldPassword(t);
+              setError('');
+            }}
+            placeholder="••••••••"
+            placeholderTextColor="#444"
+            style={[styles.input, { flex: 1, borderWidth: 0 }]}
+            secureTextEntry={!showOld}
+          />
+          <TouchableOpacity onPress={() => setShowOld((v) => !v)} style={{ paddingRight: 14 }}>
+            <Feather name={showOld ? 'eye-off' : 'eye'} size={17} color="#666" />
+          </TouchableOpacity>
+        </View>
+
+        <Text style={styles.fieldLabel}>NEW PASSWORD</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#1c1c1e', borderWidth: 1, borderColor: '#2c2c2e', borderRadius: 10 }}>
+          <TextInput
+            value={newPassword}
+            onChangeText={(t) => {
+              setNewPassword(t);
+              setError('');
+            }}
+            placeholder="Min. 8 chars, 1 uppercase, 1 digit"
+            placeholderTextColor="#444"
+            style={[styles.input, { flex: 1, borderWidth: 0 }]}
+            secureTextEntry={!showNew}
+          />
+          <TouchableOpacity onPress={() => setShowNew((v) => !v)} style={{ paddingRight: 14 }}>
+            <Feather name={showNew ? 'eye-off' : 'eye'} size={17} color="#666" />
+          </TouchableOpacity>
+        </View>
+
+        <Text style={styles.fieldLabel}>CONFIRM NEW PASSWORD</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#1c1c1e', borderWidth: 1, borderColor: '#2c2c2e', borderRadius: 10 }}>
+          <TextInput
+            value={confirmPassword}
+            onChangeText={(t) => {
+              setConfirmPassword(t);
+              setError('');
+            }}
+            placeholder="Repeat new password"
+            placeholderTextColor="#444"
+            style={[styles.input, { flex: 1, borderWidth: 0 }]}
+            secureTextEntry={!showNew}
+          />
+        </View>
+
+        {!!error && <Text style={{ fontFamily: 'Inter_400Regular', fontSize: 13, color: '#f44336', textAlign: 'center', marginVertical: 4 }}>{error}</Text>}
+        {!!success && (
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: 'rgba(76, 175, 80, 0.12)', borderWidth: 1, borderColor: 'rgba(76, 175, 80, 0.3)', borderRadius: 10, padding: 12, marginVertical: 4 }}>
+            <Feather name="check-circle" size={16} color="#4caf50" />
+            <Text style={{ fontFamily: 'Inter_400Regular', fontSize: 13, color: '#81c784' }}>{success}</Text>
+          </View>
+        )}
+
+        <TouchableOpacity
+          style={[styles.primaryBtn, loading && { opacity: 0.6 }]}
+          onPress={handleUpdatePassword}
+          disabled={loading}
+          activeOpacity={0.85}
+        >
+          {loading ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <Text style={styles.primaryBtnText}>Update Password</Text>
           )}
         </TouchableOpacity>
       </ScrollView>
@@ -893,6 +1026,7 @@ export default function AccountScreen() {
   if (loading && !user) return <AccountSkeleton insetsTop={insets.top} />;
   if (!user) return <SignedOut />;
   if (section === 'profile') return <ProfileView onBack={() => setSection('main')} />;
+  if (section === 'password') return <PasswordView onBack={() => setSection('main')} />;
   if (section === 'purchases') return <PurchasesView onBack={() => setSection('main')} />;
   if (section === 'addresses') return <AddressesView onBack={() => setSection('main')} />;
   if (section === 'reviews') return <ReviewsView onBack={() => setSection('main')} />;
@@ -967,6 +1101,7 @@ export default function AccountScreen() {
         <Text style={styles.sectionLabel}>ACCOUNT</Text>
         <View style={styles.navGroup}>
           <NavRow icon="user" label="Profile" onPress={() => setSection('profile')} />
+          <NavRow icon="lock" label="Change Password" onPress={() => setSection('password')} />
           <NavRow icon="map-pin" label="Addresses" onPress={() => setSection('addresses')} />
           <NavRow
             icon="heart"
@@ -991,6 +1126,15 @@ export default function AccountScreen() {
             label="Notifications"
             badge={unreadNotificationsCount}
             onPress={() => router.push('/notifications')}
+          />
+        </View>
+
+        <Text style={styles.sectionLabel}>HELP & SUPPORT</Text>
+        <View style={styles.navGroup}>
+          <NavRow
+            icon="help-circle"
+            label="Customer Support & FAQs"
+            onPress={() => router.push('/support')}
           />
         </View>
 

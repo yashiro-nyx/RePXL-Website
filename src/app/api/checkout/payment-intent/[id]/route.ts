@@ -15,9 +15,13 @@ export const dynamic = 'force-dynamic'
  * Returns only the fields the frontend needs — never exposes the
  * secret key or full PI object to the client.
  */
+interface RouteParams {
+  params: Promise<{ id: string }>
+}
+
 export async function GET(
   _request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: RouteParams
 ) {
   try {
     const { id } = await params

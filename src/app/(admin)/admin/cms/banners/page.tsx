@@ -14,15 +14,18 @@ interface Banner {
 }
 
 const PLACEMENTS = [
-  { value: 'HOMEPAGE_STRIP', label: 'Homepage Strip (Deals Banner)' },
-  { value: 'HOMEPAGE_HERO', label: 'Homepage Hero' },
-  { value: 'SIDEBAR', label: 'Sidebar Promo' },
+  { value: 'HOMEPAGE_HERO', label: 'Homepage Hero Banner (Top of Home)', description: 'Main hero camera & headline on customer homepage' },
+  { value: 'HOMEPAGE_STRIP', label: 'Homepage Deals Banner (Strip)', description: 'Wide mountain atmosphere banner with featured deals camera' },
+  { value: 'SIDEBAR', label: 'Curated Promo / Staff Pick (Promo Duo)', description: 'Curated promotional camera card on homepage' },
 ]
 
 const IMAGE_PRESETS = [
+  { label: 'Hero Camera Focus', url: '/images/camherosec.png' },
+  { label: 'Deals Phone Frame (Kodak)', url: '/images/dealbanner.png' },
+  { label: 'Top Deals 3-Camera Cluster', url: '/images/banner1.png' },
+  { label: 'Staff Pick (Sony on Pedestal)', url: '/images/banner2.png' },
   { label: 'Editorial Deals (Dark)', url: '/images/editorial-2.svg' },
   { label: 'Editorial PowerShot (Warm)', url: '/images/editorial-1.svg' },
-  { label: 'Hero Camera Focus', url: '/images/camherosec.png' },
   { label: 'Canon PowerShot A520', url: '/images/product-canon-a520.svg' },
   { label: 'Nikon Coolpix 3200', url: '/images/product-nikon-coolpix.svg' },
   { label: 'Sony Cyber-shot W800', url: '/images/product-sony-w800.svg' },
@@ -31,12 +34,15 @@ const IMAGE_PRESETS = [
 const LINK_PRESETS = [
   { label: 'Shop Cameras', url: 'https://repxl.com/products' },
   { label: 'Weekly Deals', url: 'https://repxl.com/products?sort=deals' },
+  { label: 'Sony Brand', url: 'https://repxl.com/products?brand=sony' },
+  { label: 'Canon Brand', url: 'https://repxl.com/products?brand=canon' },
   { label: 'About RePXL', url: 'https://repxl.com/about' },
+  { label: 'Shipping & Returns', url: 'https://repxl.com/shipping-returns' },
 ]
 
 const EMPTY = {
   title: '',
-  imageRef: '/images/editorial-2.svg',
+  imageRef: '/images/dealbanner.png',
   placement: 'HOMEPAGE_STRIP',
   linkTarget: 'https://repxl.com/products',
   isActive: true,
@@ -59,6 +65,10 @@ export default function CmsBannersPage() {
   const load = async () => {
     try {
       const res = await fetch('/api/admin/cms/banners', { credentials: 'include' })
+      if (res.status === 401) {
+        setMsg({ type: 'error', text: 'Admin session expired. Please sign in at /admin/login.' })
+        return
+      }
       const body = await res.json()
       setBanners(body.data ?? [])
     } catch {
@@ -445,8 +455,14 @@ export default function CmsBannersPage() {
                   </div>
                 </td>
                 <td className="px-5 py-3.5">
-                  <span className="font-mono text-xs text-repixl-muted">
-                    {b.placement.replace('_', ' ')}
+                  <span className="inline-flex items-center rounded-md border border-repixl-muted/20 bg-repixl-bg px-2 py-0.5 font-mono text-[11px] text-repixl-text-light/90">
+                    {b.placement === 'HOMEPAGE_HERO'
+                      ? 'Hero Banner'
+                      : b.placement === 'HOMEPAGE_STRIP'
+                        ? 'Deals Strip'
+                        : b.placement === 'SIDEBAR'
+                          ? 'Promo Duo Pick'
+                          : b.placement.replace('_', ' ')}
                   </span>
                 </td>
                 <td className="px-5 py-3.5">

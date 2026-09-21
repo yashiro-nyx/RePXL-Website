@@ -18,7 +18,7 @@ import { CONDITION_COLORS, SPEC_LABELS } from '../data/products';
 import { getColorProfile, type ColorProfile } from '../data/colorProfiles';
 import { useApp } from '../context/AppContext';
 import { api } from '../src/services/api';
-import type { Product, Specs } from '../types';
+import type { Product, ProductReview, Specs } from '../types';
 
 type Tab = 'overview' | 'specs' | 'reviews';
 
@@ -101,26 +101,30 @@ export default function ProductScreen() {
   const refreshProductReviews = async (productSlug: string) => {
     try {
       const reviews = await api.productReviews(productSlug);
-      setRemoteProduct((prev) =>
-        prev
-          ? {
-              ...prev,
-              reviewList: reviews,
-              reviews: reviews.length,
-              rating: reviews.length
-                ? reviews.reduce((sum, review) => sum + review.rating, 0) / reviews.length
-                : 0,
-            }
-          : prev
-      );
+      setRemoteProduct((prev) => {
+        const base = prev ?? listedProduct;
+        if (!base) return prev;
+        return {
+          ...base,
+          reviewList: reviews,
+          reviews: reviews.length,
+          rating: reviews.length
+            ? reviews.reduce((sum, review) => sum + review.rating, 0) / reviews.length
+            : 0,
+        };
+      });
     } catch {}
   };
 
   useEffect(() => {
     if (!slug) return;
     let active = true;
-    Promise.all([api.product(slug), api.productReviews(slug)])
-      .then(([product, reviews]) => {
+    api.product(slug)
+      .then(async (product) => {
+        let reviews: ProductReview[] = [];
+        try {
+          reviews = await api.productReviews(slug);
+        } catch {}
         if (active) {
           setRemoteProduct({
             ...product,
@@ -128,7 +132,7 @@ export default function ProductScreen() {
             reviews: reviews.length,
             rating: reviews.length
               ? reviews.reduce((sum, review) => sum + review.rating, 0) / reviews.length
-              : 0,
+              : (product.rating ?? 0),
           });
         }
       })

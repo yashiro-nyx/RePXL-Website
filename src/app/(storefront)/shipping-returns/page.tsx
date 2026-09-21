@@ -1,10 +1,13 @@
 'use client'
 
+import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { Container } from '@/components/layout/Container'
 import { BackButton, CornerBracket } from '@/components/ui'
 import { RevealText } from '@/components/ui/RevealText'
 import { useReducedMotion } from '@/hooks/useReducedMotion'
+import { CmsPageLayout } from '@/components/layout/CmsPageLayout'
+import { DEFAULT_SHIPPING_RETURNS_BODY } from '@/lib/cms-defaults'
 
 const quickFacts = [
   { icon: 'truck', label: 'Free shipping ₱5,000+' },
@@ -216,6 +219,40 @@ const icons: Record<string, React.ReactNode> = {
 
 export default function ShippingReturnsPage() {
   const reducedMotion = useReducedMotion()
+  const [customPage, setCustomPage] = useState<{
+    title: string
+    body: string
+    updatedAt: string
+    status: string
+  } | null>(null)
+
+  useEffect(() => {
+    let isMounted = true
+    fetch('/api/pages/shipping-returns')
+      .then((res) => (res.ok ? res.json() : null))
+      .then((res) => {
+        if (!isMounted) return
+        const page = res?.data
+        if (page?.body && page.body.trim() !== DEFAULT_SHIPPING_RETURNS_BODY.trim()) {
+          setCustomPage(page)
+        }
+      })
+      .catch(() => {})
+    return () => {
+      isMounted = false
+    }
+  }, [])
+
+  if (customPage) {
+    return (
+      <CmsPageLayout
+        title={customPage.title}
+        body={customPage.body}
+        updatedAt={customPage.updatedAt}
+        isDraft={customPage.status === 'DRAFT'}
+      />
+    )
+  }
 
   const container = {
     hidden: {},
