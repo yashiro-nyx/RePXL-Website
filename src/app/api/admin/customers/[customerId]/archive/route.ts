@@ -15,9 +15,7 @@ import { getCurrentAdmin } from '@/lib/auth-helpers'
 export const dynamic = 'force-dynamic'
 
 interface RouteParams {
-  params: Promise<{
-    customerId: string
-  }>
+  params: Promise<{ customerId: string }>
 }
 
 // POST /api/admin/customers/[customerId]/archive — Archive a customer
@@ -26,13 +24,12 @@ export async function POST(
   { params }: RouteParams
 ) {
   try {
+    const { customerId } = await params
     const admin = await getCurrentAdmin()
 
     if (!admin) {
       return unauthorizedResponse('Admin access required')
     }
-
-    const { customerId } = await params
 
     const customer = await prisma.user.findUnique({
       where: {
@@ -96,13 +93,12 @@ export async function DELETE(
   { params }: RouteParams
 ) {
   try {
+    const { customerId } = await params
     const admin = await getCurrentAdmin()
 
     if (!admin) {
       return unauthorizedResponse('Admin access required')
     }
-
-    const { customerId } = await params
 
     const customer = await prisma.user.findUnique({
       where: {

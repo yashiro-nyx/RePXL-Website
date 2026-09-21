@@ -219,7 +219,8 @@ export function PromoDuo() {
                     src={dealImage}
                     alt={dealTitle}
                     fill
-                    sizes="(max-width: 768px) 100vw, 50vw"
+                    sizes="(max-width: 640px) 90vw, (max-width: 1024px) 45vw, 380px"
+                    quality={90}
                     className="object-contain object-right-bottom drop-shadow-[0_16px_28px_rgba(0,0,0,0.35)]"
                     priority={false}
                   />
@@ -420,7 +421,8 @@ export function PromoDuo() {
                     src={staffImage}
                     alt={staffTitle}
                     fill
-                    sizes="(max-width: 768px) 100vw, 50vw"
+                    sizes="(max-width: 640px) 90vw, (max-width: 1024px) 45vw, 380px"
+                    quality={90}
                     className="object-contain object-right-bottom drop-shadow-[0_16px_28px_rgba(0,0,0,0.35)]"
                     priority={false}
                   />

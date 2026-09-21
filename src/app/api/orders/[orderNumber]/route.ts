@@ -38,14 +38,13 @@ const ALLOWED_ADMIN_TRANSITIONS: Partial<Record<OrderStatus, OrderStatus[]>> = {
 // GET /api/orders/[orderNumber] — Get single order
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
+    const { orderNumber } = await params
     const user = await getCurrentUser()
     const admin = await getCurrentAdmin()
 
     if (!user && !admin) {
       return unauthorizedResponse()
     }
-
-    const { orderNumber } = await params
 
     const order = await prisma.order.findUnique({
       where: { orderNumber },
@@ -122,14 +121,13 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 // PATCH /api/orders/[orderNumber] — Update order status or mark payment completed (admin only)
 export async function PATCH(request: NextRequest, { params }: RouteParams) {
   try {
+    const { orderNumber } = await params
     const admin = await getCurrentAdmin()
     const user = !admin ? await getCurrentUser() : null
 
     if (!admin && !user) {
       return unauthorizedResponse('Admin access required')
     }
-
-    const { orderNumber } = await params
 
     const body = await request.json()
     const parsed = updateOrderStatusSchema.safeParse(body)

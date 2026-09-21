@@ -13,12 +13,11 @@ interface RouteParams {
 // DELETE /api/wishlist/[productId] — Remove product from wishlist
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
   try {
+    const { productId } = await params
     const user = await getCurrentUser()
     if (!user) {
       return unauthorizedResponse()
     }
-
-    const { productId } = await params
 
     // Support both ID and slug resolution
     let targetProductId = productId

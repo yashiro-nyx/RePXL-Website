@@ -42,9 +42,9 @@ export async function POST(request: NextRequest) {
     // Admin gets the admin HTTP-only cookie (read by getCurrentAdmin).
     // All users also get the customer cookie so /api/auth/me works for hydration.
     if (user.role === 'ADMIN') {
-      setAdminSessionCookie(user.id)
+      await setAdminSessionCookie(user.id)
     }
-    setSessionCookie(user.id)
+    await setSessionCookie(user.id)
 
     return successResponse({
       id: user.id,

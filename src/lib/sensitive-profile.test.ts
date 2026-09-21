@@ -70,7 +70,7 @@ async function fixture(password = 'hash') {
       dateOfBirth: new Date('1990-06-15'),
     },
   })
-  setSessionCookie(user.id)
+  await setSessionCookie(user.id)
   return user
 }
 async function verifyType(

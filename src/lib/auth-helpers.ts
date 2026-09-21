@@ -11,7 +11,7 @@ import { getMobileUserFromAccessToken } from './mobile-auth'
 const SESSION_COOKIE = 'repixl-session-token'
 const ADMIN_SESSION_COOKIE = 'repixl-admin-session-token'
 const SESSION_MAX_AGE = 7 * 24 * 60 * 60 // 7 days for customers
-const ADMIN_SESSION_MAX_AGE = 7 * 24 * 60 * 60 // 7 days for admin (matches customer session)
+const ADMIN_SESSION_MAX_AGE = 60 * 60 // 1 hour for admin
 
 export interface SessionUser {
   id: string
@@ -83,9 +83,10 @@ function decodeToken(token: string): ({ userId: string; iat: number } & Customer
 /**
  * Set session cookie for customer
  */
-export function setSessionCookie(userId: string, proof: CustomerSessionProof = {}) {
+export async function setSessionCookie(userId: string, proof: CustomerSessionProof = {}): Promise<void> {
   const token = createToken(userId, { primaryAt: Date.now(), ...proof })
-  cookies().set(SESSION_COOKIE, token, {
+  const cookieStore = await cookies()
+  cookieStore.set(SESSION_COOKIE, token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'lax',
@@ -97,9 +98,10 @@ export function setSessionCookie(userId: string, proof: CustomerSessionProof = {
 /**
  * Set session cookie for admin
  */
-export function setAdminSessionCookie(userId: string) {
+export async function setAdminSessionCookie(userId: string): Promise<void> {
   const token = createToken(userId)
-  cookies().set(ADMIN_SESSION_COOKIE, token, {
+  const cookieStore = await cookies()
+  cookieStore.set(ADMIN_SESSION_COOKIE, token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'lax',
@@ -111,15 +113,17 @@ export function setAdminSessionCookie(userId: string) {
 /**
  * Clear customer session
  */
-export function clearSessionCookie() {
-  cookies().set(SESSION_COOKIE, '', { maxAge: 0, path: '/' })
+export async function clearSessionCookie(): Promise<void> {
+  const cookieStore = await cookies()
+  cookieStore.set(SESSION_COOKIE, '', { maxAge: 0, path: '/' })
 }
 
 /**
  * Clear admin session
  */
-export function clearAdminSessionCookie() {
-  cookies().set(ADMIN_SESSION_COOKIE, '', { maxAge: 0, path: '/' })
+export async function clearAdminSessionCookie(): Promise<void> {
+  const cookieStore = await cookies()
+  cookieStore.set(ADMIN_SESSION_COOKIE, '', { maxAge: 0, path: '/' })
 }
 
 /**
@@ -128,14 +132,15 @@ export function clearAdminSessionCookie() {
 export async function getCurrentUser(): Promise<SessionUser | null> {
   let authorization: string | null = null
   try {
-    authorization = headers().get('authorization')
+    const headerStore = await headers()
+    authorization = headerStore.get('authorization')
   } catch {}
   const bearer = authorization?.match(/^Bearer\s+([^\s]+)$/i)?.[1]
   if (bearer) return getMobileUserFromAccessToken(bearer)
 
   let token: string | undefined
   try {
-    const cookieStore = cookies()
+    const cookieStore = await cookies()
     token = cookieStore.get(SESSION_COOKIE)?.value
   } catch {
     return null
@@ -185,50 +190,43 @@ export async function getCurrentUser(): Promise<SessionUser | null> {
 export async function getCurrentAdmin(): Promise<SessionUser | null> {
   let token: string | undefined
   try {
-    const cookieStore = cookies()
+    const cookieStore = await cookies()
     token = cookieStore.get(ADMIN_SESSION_COOKIE)?.value
   } catch {
     return null
   }
 
-  if (token) {
-    const decoded = decodeToken(token)
-    if (decoded && Date.now() - decoded.iat <= ADMIN_SESSION_MAX_AGE * 1000) {
-      const user = await prisma.user.findUnique({
-        where: { id: decoded.userId },
-        select: {
-          id: true,
-          email: true,
-          firstName: true,
-          lastName: true,
-          role: true,
-          isSuperAdmin: true,
-          isArchived: true,
-        },
-      })
+  if (!token) return null
 
-      if (user && user.role === 'ADMIN' && !user.isArchived) {
-        return {
-          id: user.id,
-          email: user.email,
-          firstName: user.firstName,
-          lastName: user.lastName,
-          role: user.role,
-          isSuperAdmin: user.isSuperAdmin,
-        }
-      }
-    }
+  const decoded = decodeToken(token)
+  if (!decoded) return null
+
+  // Check admin session expiry (1 hour)
+  if (Date.now() - decoded.iat > ADMIN_SESSION_MAX_AGE * 1000) return null
+
+  const user = await prisma.user.findUnique({
+    where: { id: decoded.userId },
+    select: {
+      id: true,
+      email: true,
+      firstName: true,
+      lastName: true,
+      role: true,
+      isSuperAdmin: true,
+      isArchived: true,
+    },
+  })
+
+  if (!user || user.role !== 'ADMIN' || user.isArchived) return null
+
+  return {
+    id: user.id,
+    email: user.email,
+    firstName: user.firstName,
+    lastName: user.lastName,
+    role: user.role,
+    isSuperAdmin: user.isSuperAdmin,
   }
-
-  // Fallback: If ADMIN_SESSION_COOKIE is expired or missing, check customer session cookie
-  // for an authenticated user with role === 'ADMIN'. This prevents desynchronization where
-  // /api/auth/me recognizes the admin session, but /api/admin/* endpoints reject them with 401.
-  const sessionUser = await getCurrentUser()
-  if (sessionUser && sessionUser.role === 'ADMIN') {
-    return sessionUser
-  }
-
-  return null
 }
 
 /**
@@ -246,15 +244,25 @@ export async function requireAdmin(): Promise<SessionUser | null> {
 }
 
 /** Signed time of the primary factor, never extended by hydration or MFA setup. */
-export function customerPrimaryAuthTime(): number {
-  const token = cookies().get(SESSION_COOKIE)?.value
-  const decoded = token ? decodeToken(token) : null
-  return decoded?.primaryAt ?? 0
+export async function customerPrimaryAuthTime(): Promise<number> {
+  try {
+    const cookieStore = await cookies()
+    const token = cookieStore.get(SESSION_COOKIE)?.value
+    const decoded = token ? decodeToken(token) : null
+    return decoded?.primaryAt ?? 0
+  } catch {
+    return 0
+  }
 }
 
-export function customerMfaSessionVersion(): number {
-  const token = cookies().get(SESSION_COOKIE)?.value
-  return (token ? decodeToken(token)?.mfaVersion : undefined) ?? 0
+export async function customerMfaSessionVersion(): Promise<number> {
+  try {
+    const cookieStore = await cookies()
+    const token = cookieStore.get(SESSION_COOKIE)?.value
+    return (token ? decodeToken(token)?.mfaVersion : undefined) ?? 0
+  } catch {
+    return 0
+  }
 }
 
 // ─── Recent Re-Authentication ───────────────────────────────────────────────────
@@ -286,7 +294,8 @@ export async function setRecentAuthCookie(userId: string): Promise<void> {
 
   // Issue signed cookie
   const token = createRecentAuthToken(userId)
-  cookies().set(RECENT_AUTH_COOKIE, token, {
+  const cookieStore = await cookies()
+  cookieStore.set(RECENT_AUTH_COOKIE, token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'strict',
@@ -298,8 +307,9 @@ export async function setRecentAuthCookie(userId: string): Promise<void> {
 /**
  * Clear the recent-auth cookie (called on logout).
  */
-export function clearRecentAuthCookie(): void {
-  cookies().set(RECENT_AUTH_COOKIE, '', {
+export async function clearRecentAuthCookie(): Promise<void> {
+  const cookieStore = await cookies()
+  cookieStore.set(RECENT_AUTH_COOKIE, '', {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'strict',
@@ -319,7 +329,8 @@ export async function checkRecentAuth(userId: string): Promise<boolean> {
   try {
     let authorization: string | null = null
     try {
-      authorization = headers().get('authorization')
+      const headerStore = await headers()
+      authorization = headerStore.get('authorization')
     } catch {}
     const bearer = authorization?.match(/^Bearer\s+([^\s]+)$/i)?.[1]
     if (bearer) {
@@ -327,7 +338,7 @@ export async function checkRecentAuth(userId: string): Promise<boolean> {
       if (mobileUser && mobileUser.id === userId) return true
     }
 
-    const cookieStore = cookies()
+    const cookieStore = await cookies()
     const raw = cookieStore.get(RECENT_AUTH_COOKIE)?.value
     if (!raw) return false
 

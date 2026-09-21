@@ -13,12 +13,11 @@ interface RouteParams {
 // DELETE /api/vouchers/[voucherId] — Delete a voucher (admin only)
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
   try {
+    const { voucherId } = await params
     const admin = await getCurrentAdmin()
     if (!admin) {
       return unauthorizedResponse('Admin access required')
     }
-
-    const { voucherId } = await params
 
     const voucher = await prisma.voucher.findUnique({ where: { id: voucherId } })
     if (!voucher) {
@@ -46,12 +45,11 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
 // PATCH /api/vouchers/[voucherId] — Update voucher status (admin only)
 export async function PATCH(request: NextRequest, { params }: RouteParams) {
   try {
+    const { voucherId } = await params
     const admin = await getCurrentAdmin()
     if (!admin) {
       return unauthorizedResponse('Admin access required')
     }
-
-    const { voucherId } = await params
 
     const voucher = await prisma.voucher.findUnique({ where: { id: voucherId } })
     if (!voucher) {

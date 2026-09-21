@@ -79,7 +79,7 @@ async function customer(oauth = false) {
       lastName: 'Customer',
     },
   })
-  setSessionCookie(user.id)
+  await setSessionCookie(user.id)
   const reauth = await recentAuth(request({method: oauth ? 'google' : 'password', password}))
   expect(reauth.status).toBe(200)
   return user
@@ -324,12 +324,12 @@ describe.skipIf(!databaseUrl)('customer MFA security with PostgreSQL', () => {
   })
   it('invalidates pre-enrollment cookies and rejects first-factor-only cookies', async () => {
     const { user } = await enroll()
-    setSessionCookie(user.id)
+    await setSessionCookie(user.id)
     expect(await getCurrentUser()).toBeNull()
     const row = await prisma.customerMfa.findUniqueOrThrow({
       where: { userId: user.id },
     })
-    setSessionCookie(user.id, { mfaVersion: row.version })
+    await setSessionCookie(user.id, { mfaVersion: row.version })
     expect(await getCurrentUser()).toBeNull()
   })
   it('enforces an account-wide attempt budget that new challenges cannot reset', async () => {
@@ -346,9 +346,9 @@ describe.skipIf(!databaseUrl)('customer MFA security with PostgreSQL', () => {
   })
   it('requires recent Google authentication for Google-only enrollment', async () => {
     const user = await customer(true)
-    setSessionCookie(user.id, { primaryAt: Date.now() - 6 * 60000 })
+    await setSessionCookie(user.id, { primaryAt: Date.now() - 6 * 60000 })
     expect((await manage(request({ action: 'begin' }))).status).toBe(401)
-    setSessionCookie(user.id, { primaryAt: Date.now() })
+    await setSessionCookie(user.id, { primaryAt: Date.now() })
     expect((await manage(request({ action: 'begin' }))).status).toBe(200)
   })
   it('rejects expired setup and expired challenges', async () => {
@@ -362,7 +362,7 @@ describe.skipIf(!databaseUrl)('customer MFA security with PostgreSQL', () => {
       where: { userId: user.id },
       data: { enabledAt: null, pendingExpiresAt: new Date(0) },
     })
-    setSessionCookie(user.id, { mfaVersion: 1 })
+    await setSessionCookie(user.id, { mfaVersion: 1 })
     expect(
       (await manage(request({ action: 'confirm', code: '123456' }))).status
     ).toBe(401)
@@ -389,7 +389,7 @@ describe.skipIf(!databaseUrl)('customer MFA security with PostgreSQL', () => {
   it('customer login survives an existing admin cookie, refresh, and then logout', async () => {
     const user = await customer()
     const admin = await prisma.user.create({data: {email: 'admin-session@example.test', password: 'unused', firstName: 'Admin', lastName: 'Test', role: 'ADMIN'}})
-    setAdminSessionCookie(admin.id)
+    await setAdminSessionCookie(admin.id)
     expect((await passwordLogin()).status).toBe(200)
     const customerRequest = new NextRequest('http://localhost/api/auth/me?scope=customer')
     for (let refresh = 0; refresh < 2; refresh++) {

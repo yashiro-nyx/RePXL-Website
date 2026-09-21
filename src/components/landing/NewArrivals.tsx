@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo } from 'react'
 import Link from 'next/link'
+import Image from 'next/image'
 import { motion } from 'framer-motion'
 import { Container } from '@/components/layout/Container'
 import { useProductStore } from '@/stores/productStore'
@@ -62,11 +63,14 @@ export function NewArrivals() {
                     New
                   </span>
                 )}
-                <div className="aspect-[4/3] p-10">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
+                <div className="relative aspect-[4/3] p-10 flex items-center justify-center">
+                  <Image
                     src={product.image}
                     alt={product.name}
+                    width={400}
+                    height={300}
+                    sizes="(max-width: 768px) 100vw, 50vw"
+                    quality={90}
                     className="h-full w-full object-contain transition-transform duration-500 group-hover:scale-105"
                   />
                 </div>

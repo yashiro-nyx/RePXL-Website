@@ -53,10 +53,9 @@ export async function POST(
   request: NextRequest,
   { params }: RouteParams
 ) {
+  const { orderNumber } = await params
   const user = await getCurrentUser()
   if (!user) return unauthorizedResponse()
-
-  const { orderNumber } = await params
 
   // Parse and validate body
   let rawBody: unknown

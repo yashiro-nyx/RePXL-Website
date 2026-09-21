@@ -7,10 +7,10 @@ export const dynamic = 'force-dynamic'
 
 export async function POST() {
   try {
-    clearChallenge()
-    clearSessionCookie()
-    clearAdminSessionCookie()
-    clearRecentAuthCookie()
+    await clearChallenge()
+    await clearSessionCookie()
+    await clearAdminSessionCookie()
+    await clearRecentAuthCookie()
     return successResponse({ message: 'Logged out successfully' })
   } catch (error) {
     console.error('Logout error:', error)

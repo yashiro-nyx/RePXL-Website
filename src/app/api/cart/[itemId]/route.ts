@@ -14,12 +14,11 @@ interface RouteParams {
 // PUT /api/cart/[itemId] — Update cart item quantity
 export async function PUT(request: NextRequest, { params }: RouteParams) {
   try {
+    const { itemId } = await params
     const user = await getCurrentUser()
     if (!user) {
       return unauthorizedResponse()
     }
-
-    const { itemId } = await params
 
     const body = await request.json()
     const parsed = updateCartSchema.safeParse(body)
@@ -59,12 +58,11 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
 // DELETE /api/cart/[itemId] — Remove item from cart
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
   try {
+    const { itemId } = await params
     const user = await getCurrentUser()
     if (!user) {
       return unauthorizedResponse()
     }
-
-    const { itemId } = await params
 
     // Verify the item belongs to this user
     const cartItem = await prisma.cartItem.findFirst({

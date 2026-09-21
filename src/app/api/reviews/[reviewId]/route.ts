@@ -20,12 +20,11 @@ interface RouteParams {
 // PUT /api/reviews/[reviewId] — Update a review (own review only)
 export async function PUT(request: NextRequest, { params }: RouteParams) {
   try {
+    const { reviewId } = await params
     const user = await getCurrentUser()
     if (!user) {
       return unauthorizedResponse()
     }
-
-    const { reviewId } = await params
 
     const review = await prisma.review.findUnique({ where: { id: reviewId } })
     if (!review) {
@@ -62,14 +61,13 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
 // DELETE /api/reviews/[reviewId] — Delete a review (own or admin)
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
   try {
+    const { reviewId } = await params
     const user = await getCurrentUser()
     const admin = await getCurrentAdmin()
 
     if (!user && !admin) {
       return unauthorizedResponse()
     }
-
-    const { reviewId } = await params
 
     const review = await prisma.review.findUnique({ where: { id: reviewId } })
     if (!review) {

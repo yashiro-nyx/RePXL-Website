@@ -1,6 +1,11 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   images: {
+    formats: ['image/avif', 'image/webp'],
+    qualities: [75, 90],
+    dangerouslyAllowSVG: true,
+    contentDispositionType: 'attachment',
+    contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
     // Product images are local SVGs today; these patterns allow moving to a
     // CDN (Cloudinary / S3+CloudFront) without further config changes.
     remotePatterns: [

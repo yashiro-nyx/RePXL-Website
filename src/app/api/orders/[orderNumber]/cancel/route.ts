@@ -23,10 +23,9 @@ export async function POST(
   _request: NextRequest,
   { params }: RouteParams
 ) {
+  const { orderNumber } = await params
   const user = await getCurrentUser()
   if (!user) return unauthorizedResponse()
-
-  const { orderNumber } = await params
 
   const order = await prisma.order.findUnique({
     where: { orderNumber },

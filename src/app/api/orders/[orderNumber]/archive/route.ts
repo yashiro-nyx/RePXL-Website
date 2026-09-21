@@ -13,12 +13,11 @@ interface RouteParams {
 // POST /api/orders/[orderNumber]/archive — Archive an order
 export async function POST(request: NextRequest, { params }: RouteParams) {
   try {
+    const { orderNumber } = await params
     const admin = await getCurrentAdmin()
     if (!admin) {
       return unauthorizedResponse('Admin access required')
     }
-
-    const { orderNumber } = await params
 
     const order = await prisma.order.findUnique({
       where: { orderNumber },
@@ -52,12 +51,11 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 // DELETE /api/orders/[orderNumber]/archive — Restore an archived order
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
   try {
+    const { orderNumber } = await params
     const admin = await getCurrentAdmin()
     if (!admin) {
       return unauthorizedResponse('Admin access required')
     }
-
-    const { orderNumber } = await params
 
     const order = await prisma.order.findUnique({
       where: { orderNumber },

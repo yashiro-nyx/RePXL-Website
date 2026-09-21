@@ -1,23 +1,18 @@
 import { NextRequest } from 'next/server'
-
 import { prisma } from '@/lib/prisma'
-
 import {
   successResponse,
   errorResponse,
   notFoundResponse,
   unauthorizedResponse,
 } from '@/lib/api'
-
 import { getCurrentUser } from '@/lib/auth-helpers'
 
 // This route reads cookies / session state and must run per-request.
 export const dynamic = 'force-dynamic'
 
 interface RouteParams {
-  params: Promise<{
-    addressId: string
-  }>
+  params: Promise<{ addressId: string }>
 }
 
 // PUT /api/addresses/[addressId]/default — Set address as default
@@ -26,13 +21,12 @@ export async function PUT(
   { params }: RouteParams
 ) {
   try {
+    const { addressId } = await params
     const user = await getCurrentUser()
 
     if (!user) {
       return unauthorizedResponse()
     }
-
-    const { addressId } = await params
 
     const address = await prisma.address.findFirst({
       where: {
@@ -67,7 +61,6 @@ export async function PUT(
     return successResponse(updated)
   } catch (error) {
     console.error('Set default address error:', error)
-
     return errorResponse('Internal server error', 500)
   }
 }

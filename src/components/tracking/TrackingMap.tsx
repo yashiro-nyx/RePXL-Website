@@ -5,8 +5,9 @@
  * Displays real-time SSE delivery progress, ETA, and route trajectory without clutter.
  */
 
-import { useEffect, useMemo, useState } from 'react'
-import { MapContainer, TileLayer, Polyline, Marker, Tooltip, useMap } from 'react-leaflet'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { TileLayer, Polyline, Marker, Tooltip, useMap } from 'react-leaflet'
+import { LeafletProvider, createLeafletContext, type LeafletContextInterface } from '@react-leaflet/core'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import {
@@ -105,6 +106,75 @@ const destinationIcon = L.divIcon({
     <div style="transform:rotate(45deg);width:8px;height:8px;background:#fff;border-radius:50%;"></div>
   </div>`,
 })
+
+// ── Stable Leaflet Map Container for React 18 / Next.js 15 ──────────────────
+
+interface StableMapContainerProps {
+  center: LatLngTuple
+  zoom?: number
+  scrollWheelZoom?: boolean
+  zoomControl?: boolean
+  style?: React.CSSProperties
+  className?: string
+  children?: React.ReactNode
+}
+
+function StableMapContainer({
+  center,
+  zoom = 12,
+  scrollWheelZoom = false,
+  zoomControl = true,
+  style,
+  className,
+  children,
+}: StableMapContainerProps) {
+  const containerRef = useRef<HTMLDivElement | null>(null)
+  const mapRef = useRef<L.Map | null>(null)
+  const [context, setContext] = useState<LeafletContextInterface | null>(null)
+
+  useEffect(() => {
+    const node = containerRef.current
+    if (!node) return
+
+    if (mapRef.current) {
+      mapRef.current.remove()
+      mapRef.current = null
+    }
+
+    const mapInstance = new L.Map(node, {
+      center,
+      zoom,
+      scrollWheelZoom,
+      zoomControl,
+    })
+
+    mapRef.current = mapInstance
+    setContext(createLeafletContext(mapInstance))
+
+    const resizeObserver =
+      typeof ResizeObserver !== 'undefined'
+        ? new ResizeObserver(() => {
+            mapInstance.invalidateSize()
+          })
+        : null
+    resizeObserver?.observe(node)
+
+    return () => {
+      resizeObserver?.disconnect()
+      if (mapRef.current) {
+        mapRef.current.remove()
+        mapRef.current = null
+      }
+      setContext(null)
+    }
+  }, []) // Mount-only effect; cleanly destroys map instance on unmount
+
+  return (
+    <div ref={containerRef} style={style} className={className}>
+      {context ? <LeafletProvider value={context}>{children}</LeafletProvider> : null}
+    </div>
+  )
+}
 
 function MapController({
   route,
@@ -313,7 +383,7 @@ export function TrackingMap({ status, progress, order, initialState }: TrackingM
 
       {/* ── Interactive Delivery Route Map ── */}
       <div style={{ height: 280, width: '100%', position: 'relative' }}>
-        <MapContainer
+        <StableMapContainer
           center={vehiclePosition}
           zoom={12}
           style={{ height: '100%', width: '100%' }}
@@ -381,7 +451,7 @@ export function TrackingMap({ status, progress, order, initialState }: TrackingM
             targetAction={targetAction}
             resetAction={() => setTargetAction(null)}
           />
-        </MapContainer>
+        </StableMapContainer>
       </div>
     </div>
   )

@@ -18,8 +18,9 @@ export function sameOrigin(request: NextRequest) {
     request.headers.get('sec-fetch-site') !== 'cross-site'
   )
 }
-export function clearChallenge() {
-  cookies().set(CHALLENGE_COOKIE, '', {
+export async function clearChallenge(): Promise<void> {
+  const cookieStore = await cookies()
+  cookieStore.set(CHALLENGE_COOKIE, '', {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'strict',
@@ -48,8 +49,9 @@ export async function customerLoginResponse(
   if (!result.ok)
     return mfaResponse({ success: false, error: result.error }, result.status)
   if (result.challenge) {
-    clearSessionCookie()
-    cookies().set(CHALLENGE_COOKIE, result.challenge, {
+    await clearSessionCookie()
+    const cookieStore = await cookies()
+    cookieStore.set(CHALLENGE_COOKIE, result.challenge, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'strict',
@@ -58,8 +60,8 @@ export async function customerLoginResponse(
     })
     return mfaResponse({ success: true, data: { mfaRequired: true } })
   }
-  clearChallenge()
-  setSessionCookie(result.user.id, result.proof!)
+  await clearChallenge()
+  await setSessionCookie(result.user.id, result.proof!)
   const { id, email, firstName, lastName, role, isSuperAdmin } =
     result.user
   return mfaResponse({

@@ -23,14 +23,15 @@ export async function POST(request: NextRequest) {
         { success: false, error: 'Authentication could not be verified.' },
         400
       )
+    const cookieStore = await cookies()
     const result = await completeChallenge(
-      cookies().get(CHALLENGE_COOKIE)?.value ?? '',
+      cookieStore.get(CHALLENGE_COOKIE)?.value ?? '',
       parsed.data.code.trim()
     )
     if (!result.ok)
       return mfaResponse({ success: false, error: result.error }, result.status)
-    clearChallenge()
-    setSessionCookie(result.user.id, result.proof)
+    await clearChallenge()
+    await setSessionCookie(result.user.id, result.proof)
     if (result.recoveryUsed)
       await securityEmail(result.user.email, 'Recovery code used')
     return mfaResponse({ success: true, data: { authenticated: true } })

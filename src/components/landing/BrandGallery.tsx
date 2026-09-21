@@ -10,6 +10,7 @@ import { useReducedMotion } from '@/hooks/useReducedMotion'
 import { useThemeStore } from '@/stores/themeStore'
 import { useProductStore } from '@/stores/productStore'
 import type { Product } from '@/types'
+import { ERA_CAMERA_DATA_URIS } from '@/data/eraCameras'
 
 const brands = [
   {
@@ -22,7 +23,7 @@ const brands = [
     yearRange: '2000–2008',
     accentColor: '#EF4444',
     sampleImage: '/images/era-samples/canon-era.jpg',
-    fallbackCamera: '/images/era-cameras/canon-powershot-a520.webp',
+    fallbackCamera: ERA_CAMERA_DATA_URIS.canon || '/images/era-cameras/canon-powershot-a520.webp',
     sampleLabel: 'Direct Flash Snapshot',
     geomVariant: 3,
   },
@@ -36,7 +37,7 @@ const brands = [
     yearRange: '2001–2009',
     accentColor: '#F59E0B',
     sampleImage: '/images/era-samples/nikon-era.jpg',
-    fallbackCamera: '/images/era-cameras/nikon-coolpix-3200.webp',
+    fallbackCamera: ERA_CAMERA_DATA_URIS.nikon || '/images/era-cameras/nikon-coolpix-3200.webp',
     sampleLabel: 'Warm Daylight Documentary',
     geomVariant: 0,
   },
@@ -50,7 +51,7 @@ const brands = [
     yearRange: '2000–2010',
     accentColor: '#38BDF8',
     sampleImage: '/images/era-samples/sony-era.jpg',
-    fallbackCamera: '/images/era-cameras/sony-cybershot-w800.webp',
+    fallbackCamera: ERA_CAMERA_DATA_URIS.sony || '/images/era-cameras/sony-cybershot-w800.webp',
     sampleLabel: 'Rainy Shibuya Neon',
     geomVariant: 2,
   },
@@ -64,7 +65,7 @@ const brands = [
     yearRange: '2001–2007',
     accentColor: '#F97316',
     sampleImage: '/images/era-samples/kodak-era.jpg',
-    fallbackCamera: '/images/era-cameras/kodak-easyshare-c300.webp',
+    fallbackCamera: ERA_CAMERA_DATA_URIS.kodak || '/images/era-cameras/kodak-easyshare-c300.webp',
     sampleLabel: 'Kodachrome Sunset Field',
     geomVariant: 1,
   },
@@ -78,7 +79,7 @@ const brands = [
     yearRange: '2002–2010',
     accentColor: '#14B8A6',
     sampleImage: '/images/era-samples/panasonic-era.jpg',
-    fallbackCamera: '/images/era-cameras/panasonic-lumix-dmc-fz7.webp',
+    fallbackCamera: ERA_CAMERA_DATA_URIS.panasonic || '/images/era-cameras/panasonic-lumix-dmc-fz7.webp',
     sampleLabel: 'Aegean Coastal Travel',
     geomVariant: 0,
   },
@@ -92,7 +93,7 @@ const brands = [
     yearRange: '2001–2009',
     accentColor: '#22C55E',
     sampleImage: '/images/era-samples/fujifilm-era.jpg',
-    fallbackCamera: '/images/era-cameras/fujifilm-finepix-f30.webp',
+    fallbackCamera: ERA_CAMERA_DATA_URIS.fujifilm || '/images/era-cameras/fujifilm-finepix-f30.webp',
     sampleLabel: 'Misty Velvia Forest Tone',
     geomVariant: 1,
   },
@@ -280,7 +281,7 @@ function CanonSpotlight({ spotlight }: { spotlight: (typeof spotlights)[number] 
         <div className="mt-8 pt-1">
           <Link
             href={`/products?brand=${spotlight.slug}`}
-            className={`group/btn inline-flex items-center justify-between gap-3.5 rounded-full border px-6 py-3 font-mono text-xs font-semibold uppercase tracking-wider transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#EF4444] focus-visible:ring-offset-2 ${
+            className={`group/btn inline-flex items-center justify-between gap-3.5 rounded-full border px-6 py-3 text-xs font-semibold uppercase tracking-wider transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#EF4444] focus-visible:ring-offset-2 ${
               isLight
                 ? 'border-neutral-300 bg-white text-neutral-900 shadow-sm hover:border-[#B91C1C] hover:bg-[#B91C1C] hover:text-white hover:shadow-[0_0_20px_rgba(185,28,28,0.25)] focus-visible:border-[#B91C1C] focus-visible:bg-[#B91C1C] focus-visible:text-white focus-visible:ring-offset-white'
                 : 'border-white/20 bg-white text-neutral-950 hover:border-[#EF4444] hover:bg-[#EF4444] hover:text-white hover:shadow-[0_0_24px_rgba(239,68,68,0.4)] focus-visible:border-[#EF4444] focus-visible:bg-[#EF4444] focus-visible:text-white focus-visible:ring-offset-black'
@@ -371,7 +372,7 @@ function SonySpotlight({ spotlight }: { spotlight: (typeof spotlights)[number] }
         <div className="mt-8 pt-1">
           <Link
             href={`/products?brand=${spotlight.slug}`}
-            className={`group/btn inline-flex items-center justify-between gap-3.5 rounded-full border px-6 py-3 font-mono text-xs font-semibold uppercase tracking-wider transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#EF4444] focus-visible:ring-offset-2 ${
+            className={`group/btn inline-flex items-center justify-between gap-3.5 rounded-full border px-6 py-3 text-xs font-semibold uppercase tracking-wider transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#EF4444] focus-visible:ring-offset-2 ${
               isLight
                 ? 'border-neutral-300 bg-white text-neutral-900 shadow-sm hover:border-[#B91C1C] hover:bg-[#B91C1C] hover:text-white hover:shadow-[0_0_20px_rgba(185,28,28,0.25)] focus-visible:border-[#B91C1C] focus-visible:bg-[#B91C1C] focus-visible:text-white focus-visible:ring-offset-white'
                 : 'border-white/20 bg-white text-neutral-950 hover:border-[#EF4444] hover:bg-[#EF4444] hover:text-white hover:shadow-[0_0_24px_rgba(239,68,68,0.4)] focus-visible:border-[#EF4444] focus-visible:bg-[#EF4444] focus-visible:text-white focus-visible:ring-offset-black'
@@ -658,7 +659,7 @@ function KodakSpotlight({ spotlight }: { spotlight: (typeof spotlights)[number] 
         <div className="mt-8 pt-1">
           <Link
             href={`/products?brand=${spotlight.slug}`}
-            className={`group/btn inline-flex items-center justify-between gap-3.5 rounded-full border px-6 py-3 font-mono text-xs font-semibold uppercase tracking-wider transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#EF4444] focus-visible:ring-offset-2 ${
+            className={`group/btn inline-flex items-center justify-between gap-3.5 rounded-full border px-6 py-3 text-xs font-semibold uppercase tracking-wider transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#EF4444] focus-visible:ring-offset-2 ${
               isLight
                 ? 'border-neutral-300 bg-white text-neutral-900 shadow-sm hover:border-[#B91C1C] hover:bg-[#B91C1C] hover:text-white hover:shadow-[0_0_20px_rgba(185,28,28,0.25)] focus-visible:border-[#B91C1C] focus-visible:bg-[#B91C1C] focus-visible:text-white focus-visible:ring-offset-white'
                 : 'border-white/20 bg-white text-neutral-950 hover:border-[#EF4444] hover:bg-[#EF4444] hover:text-white hover:shadow-[0_0_24px_rgba(239,68,68,0.4)] focus-visible:border-[#EF4444] focus-visible:bg-[#EF4444] focus-visible:text-white focus-visible:ring-offset-black'
@@ -742,34 +743,40 @@ function BrandSpotlight({ spotlight, index }: { spotlight: (typeof spotlights)[n
         <div className="grid grid-cols-3 gap-3">
           <motion.div
             style={{ y: mainImgY }}
-            className="col-span-2 row-span-2 overflow-hidden rounded-lg border border-repixl-muted/10"
+            className="relative col-span-2 row-span-2 overflow-hidden rounded-lg border border-repixl-muted/10"
           >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
+            <Image
               src={spotlight.images[0]}
               alt={`${spotlight.brand} vintage digicams`}
+              fill
+              sizes="(max-width: 768px) 100vw, 50vw"
+              quality={90}
               className="h-full w-full object-cover"
             />
           </motion.div>
           <motion.div
             style={{ y: thumbY }}
-            className="aspect-square overflow-hidden rounded-lg border border-repixl-muted/10"
+            className="relative aspect-square overflow-hidden rounded-lg border border-repixl-muted/10"
           >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
+            <Image
               src={spotlight.images[1]}
               alt={`${spotlight.brand} sample camera`}
+              fill
+              sizes="(max-width: 768px) 50vw, 25vw"
+              quality={90}
               className="h-full w-full object-cover"
             />
           </motion.div>
           <motion.div
             style={{ y: thumbY }}
-            className="aspect-square overflow-hidden rounded-lg border border-repixl-muted/10"
+            className="relative aspect-square overflow-hidden rounded-lg border border-repixl-muted/10"
           >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
+            <Image
               src={spotlight.images[2]}
               alt={`${spotlight.brand} in the field`}
+              fill
+              sizes="(max-width: 768px) 50vw, 25vw"
+              quality={90}
               className="h-full w-full object-cover"
             />
           </motion.div>
@@ -795,7 +802,7 @@ function BrandSpotlight({ spotlight, index }: { spotlight: (typeof spotlights)[n
         <div className="mt-8">
           <Link
             href={`/products?brand=${spotlight.slug}`}
-            className={`group/btn inline-flex items-center justify-between gap-3.5 rounded-full border px-6 py-3 font-mono text-xs font-semibold uppercase tracking-wider transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#EF4444] focus-visible:ring-offset-2 ${
+            className={`group/btn inline-flex items-center justify-between gap-3.5 rounded-full border px-6 py-3 text-xs font-semibold uppercase tracking-wider transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#EF4444] focus-visible:ring-offset-2 ${
               isLight
                 ? 'border-neutral-300 bg-white text-neutral-900 shadow-sm hover:border-[#B91C1C] hover:bg-[#B91C1C] hover:text-white hover:shadow-[0_0_20px_rgba(185,28,28,0.25)] focus-visible:border-[#B91C1C] focus-visible:bg-[#B91C1C] focus-visible:text-white focus-visible:ring-offset-white'
                 : 'border-white/20 bg-white text-neutral-950 hover:border-[#EF4444] hover:bg-[#EF4444] hover:text-white hover:shadow-[0_0_24px_rgba(239,68,68,0.4)] focus-visible:border-[#EF4444] focus-visible:bg-[#EF4444] focus-visible:text-white focus-visible:ring-offset-black'
@@ -1044,9 +1051,14 @@ function BrandCard({
 }) {
   const [isHovered, setIsHovered] = useState(false)
   const [touchActive, setTouchActive] = useState(false)
+  const [hasInteracted, setHasInteracted] = useState(false)
   const cardRef = useRef<HTMLDivElement>(null)
 
   const isPreviewActive = isHovered || touchActive
+
+  const markInteracted = () => {
+    if (!hasInteracted) setHasInteracted(true)
+  }
 
   // Reset touch preview if user taps outside this card
   useEffect(() => {
@@ -1066,6 +1078,7 @@ function BrandCard({
 
   // Mobile/Touch behavior: tap once to preview sample photo, tap again to navigate
   const handleClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
+    markInteracted()
     if (
       typeof window !== 'undefined' &&
       ('ontouchstart' in window || navigator.maxTouchPoints > 0)
@@ -1086,10 +1099,17 @@ function BrandCard({
   return (
     <div
       ref={cardRef}
-      onMouseEnter={() => setIsHovered(true)}
+      onMouseEnter={() => {
+        setIsHovered(true)
+        markInteracted()
+      }}
       onMouseLeave={() => setIsHovered(false)}
-      onFocus={() => setIsHovered(true)}
+      onFocus={() => {
+        setIsHovered(true)
+        markInteracted()
+      }}
       onBlur={() => setIsHovered(false)}
+      onTouchStart={markInteracted}
       className="group relative h-full"
     >
       <Link
@@ -1171,11 +1191,15 @@ function BrandCard({
                 : 'opacity-100 scale-100'
             }`}
           >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
+            <Image
               src={cameraSrc}
               alt={`${brand.name} camera`}
-              className={`max-h-[75%] max-w-[78%] object-contain transition-transform duration-500 ease-out ${
+              width={380}
+              height={285}
+              sizes="(max-width: 640px) 90vw, (max-width: 1024px) 45vw, 380px"
+              quality={90}
+              priority={true}
+              className={`max-h-[75%] max-w-[78%] h-auto w-auto object-contain transition-transform duration-500 ease-out ${
                 isLight
                   ? 'drop-shadow-[0_10px_20px_rgba(0,0,0,0.18)]'
                   : 'drop-shadow-[0_12px_24px_rgba(0,0,0,0.65)]'
@@ -1197,14 +1221,17 @@ function BrandCard({
                 : 'pointer-events-none opacity-0 scale-[0.98]'
             }`}
           >
-            <Image
-              src={brand.sampleImage}
-              alt={`Sample photograph taken with ${brand.name}`}
-              fill
-              sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-              className="object-cover object-center"
-              priority={false}
-            />
+            {(hasInteracted || isPreviewActive) && (
+              <Image
+                src={brand.sampleImage}
+                alt={`Sample photograph taken with ${brand.name}`}
+                fill
+                sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                quality={90}
+                className="object-cover object-center"
+                priority={false}
+              />
+            )}
 
             {/* Sample Photo Indicator Badge */}
             <div className="absolute right-4 top-12 z-20 flex items-center gap-1.5 rounded-full border border-white/20 bg-black/75 px-3 py-1 backdrop-blur-md shadow-md">
@@ -1228,13 +1255,13 @@ function BrandCard({
             <h3 className="font-display text-2xl font-bold tracking-tight text-white">
               {brand.name}
             </h3>
-            <p className="mt-0.5 font-mono text-xs uppercase tracking-wider text-white/70">
+            <p className="mt-1 text-sm font-normal text-white/75">
               {brand.series}
             </p>
 
             {/* Explore CTA */}
             <div className="mt-3.5 flex items-center justify-between border-t border-white/10 pt-3">
-              <span className="inline-flex items-center gap-2 font-mono text-xs font-semibold uppercase tracking-wider text-white/90 transition-colors duration-200 group-hover:text-white">
+              <span className="inline-flex items-center gap-2 text-sm font-medium text-white/85 transition-colors duration-200 group-hover:text-white">
                 <span>Explore Lineup</span>
                 <svg
                   xmlns="http://www.w3.org/2000/svg"

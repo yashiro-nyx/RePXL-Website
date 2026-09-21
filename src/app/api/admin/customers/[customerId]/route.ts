@@ -15,9 +15,7 @@ import { getCurrentAdmin } from '@/lib/auth-helpers'
 export const dynamic = 'force-dynamic'
 
 interface RouteParams {
-  params: Promise<{
-    customerId: string
-  }>
+  params: Promise<{ customerId: string }>
 }
 
 // GET /api/admin/customers/[customerId] — Get customer details
@@ -26,13 +24,12 @@ export async function GET(
   { params }: RouteParams
 ) {
   try {
+    const { customerId } = await params
     const admin = await getCurrentAdmin()
 
     if (!admin) {
       return unauthorizedResponse('Admin access required')
     }
-
-    const { customerId } = await params
 
     const customer = await prisma.user.findUnique({
       where: {

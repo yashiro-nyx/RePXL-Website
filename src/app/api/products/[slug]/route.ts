@@ -39,12 +39,11 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 // PUT /api/products/[slug] — Update a product (admin only)
 export async function PUT(request: NextRequest, { params }: RouteParams) {
   try {
+    const { slug } = await params
     const admin = await getCurrentAdmin()
     if (!admin) {
       return unauthorizedResponse('Admin access required')
     }
-
-    const { slug } = await params
 
     const existing = await prisma.product.findUnique({ where: { slug } })
     if (!existing) {
@@ -110,12 +109,11 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
 // PATCH /api/products/[slug] — Partial update (status only, admin only)
 export async function PATCH(request: NextRequest, { params }: RouteParams) {
   try {
+    const { slug } = await params
     const admin = await getCurrentAdmin()
     if (!admin) {
       return unauthorizedResponse('Admin access required')
     }
-
-    const { slug } = await params
 
     const existing = await prisma.product.findUnique({ where: { slug } })
     if (!existing) {
@@ -160,12 +158,11 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
   try {
+    const { slug } = await params
     const admin = await getCurrentAdmin()
     if (!admin) {
       return unauthorizedResponse('Admin access required')
     }
-
-    const { slug } = await params
 
     const existing = await prisma.product.findUnique({ where: { slug } })
     if (!existing) {

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
+import Image from 'next/image'
 import { motion } from 'framer-motion'
 import { Container } from '@/components/layout/Container'
 import { RevealText } from '@/components/ui'
@@ -69,10 +70,12 @@ export function DealBanner() {
           className="deal-banner relative min-h-[48rem] overflow-hidden rounded-xl border min-[360px]:min-h-[44rem] md:min-h-[34rem]"
         >
           {/* The same mountain scene is relit by theme-specific CSS. */}
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
+          <Image
             src="/images/darkmodebg.png"
             alt=""
+            fill
+            sizes="(max-width: 1280px) 100vw, 1280px"
+            quality={90}
             className="deal-banner-mountain pointer-events-none absolute inset-0 h-full w-full object-cover"
             aria-hidden="true"
           />
@@ -90,12 +93,22 @@ export function DealBanner() {
             <span className="absolute bottom-0 right-0 h-5 w-5 border-b border-r md:h-7 md:w-7" />
           </div>
           <div className="deal-banner-phone-frame pointer-events-none absolute inset-x-0 bottom-0 z-10 h-[22rem] overflow-hidden md:bottom-0 md:left-auto md:right-0 md:top-[-2.5rem] md:h-auto md:w-[58%] md:overflow-visible">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={banner?.imageRef || '/images/dealbanner.png'}
-              alt={title}
-              className="deal-banner-phone absolute left-1/2 top-0 w-[min(100vw,21rem)] max-w-none -translate-x-[42%] md:left-auto md:right-[clamp(2rem,5vw,4rem)] md:top-0 md:w-[clamp(31rem,40vw,34rem)] md:translate-x-0 object-contain"
-            />
+            {(() => {
+              const imageSrc = banner?.imageRef || '/images/dealbanner.png'
+              const isRemote = imageSrc.startsWith('http://') || imageSrc.startsWith('https://')
+              return (
+                <Image
+                  src={imageSrc}
+                  alt={title || 'RePXL storefront displaying a blue Kodak compact camera'}
+                  width={961}
+                  height={1637}
+                  sizes="(max-width: 768px) 21rem, (max-width: 1280px) 40vw, 544px"
+                  quality={90}
+                  unoptimized={isRemote}
+                  className="deal-banner-phone absolute left-1/2 top-0 w-[min(100vw,21rem)] max-w-none -translate-x-[42%] md:left-auto md:right-[clamp(2rem,5vw,4rem)] md:top-0 md:w-[clamp(31rem,40vw,34rem)] md:translate-x-0 h-auto object-contain"
+                />
+              )
+            })()}
           </div>
           <div className="deal-banner-copy relative z-30 max-w-md px-6 py-12 sm:px-8 md:flex md:min-h-[34rem] md:w-1/2 md:flex-col md:justify-center md:px-12 md:py-14 lg:px-14">
             <div className="flex items-center gap-3 font-mono text-[10px] font-semibold uppercase tracking-[0.24em]">

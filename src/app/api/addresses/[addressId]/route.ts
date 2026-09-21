@@ -18,9 +18,7 @@ import { addressSchema } from '@/lib/validations'
 export const dynamic = 'force-dynamic'
 
 interface RouteParams {
-  params: Promise<{
-    addressId: string
-  }>
+  params: Promise<{ addressId: string }>
 }
 
 // PUT /api/addresses/[addressId] — Update an address
@@ -29,13 +27,12 @@ export async function PUT(
   { params }: RouteParams
 ) {
   try {
+    const { addressId } = await params
     const user = await getCurrentUser()
 
     if (!user) {
       return unauthorizedResponse()
     }
-
-    const { addressId } = await params
 
     const address = await prisma.address.findFirst({
       where: {
@@ -105,13 +102,12 @@ export async function DELETE(
   { params }: RouteParams
 ) {
   try {
+    const { addressId } = await params
     const user = await getCurrentUser()
 
     if (!user) {
       return unauthorizedResponse()
     }
-
-    const { addressId } = await params
 
     const address = await prisma.address.findFirst({
       where: {

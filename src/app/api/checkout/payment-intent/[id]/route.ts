@@ -24,14 +24,13 @@ export async function GET(
   { params }: RouteParams
 ) {
   try {
+    const { id } = await params
     if (!isPaymongoConfigured()) {
       return errorResponse('Payment not configured.', 503)
     }
 
     const user = await getCurrentUser()
     if (!user) return unauthorizedResponse()
-
-    const { id } = await params
 
     const intent = await retrievePaymentIntent(id)
 
