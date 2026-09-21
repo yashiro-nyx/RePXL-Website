@@ -14,7 +14,7 @@ function session(cookie = 'repixl-admin-session-token', age = 0) {
   const payload = Buffer.from(JSON.stringify({ userId: 'admin', iat: Date.now() - age })).toString('base64url')
   mock.cookies.set(cookie, `${payload}.${createHmac('sha256', 'admin-product-test').update(payload).digest('base64url')}`)
 }
-function put(body: unknown) { return PUT(new NextRequest('http://localhost/api/products/canon', { method: 'PUT', body: JSON.stringify(body) }), { params: { slug: 'canon' } }) }
+function put(body: unknown) { return PUT(new NextRequest('http://localhost/api/products/canon', { method: 'PUT', body: JSON.stringify(body) }), { params: Promise.resolve({ slug: 'canon' }) }) }
 beforeEach(() => {
   vi.resetAllMocks(); mock.cookies.clear(); vi.stubEnv('NEXTAUTH_SECRET', 'admin-product-test')
   mock.user.mockResolvedValue({ id: 'admin', role: 'ADMIN', firstName: 'Test', lastName: 'Admin', isArchived: false })

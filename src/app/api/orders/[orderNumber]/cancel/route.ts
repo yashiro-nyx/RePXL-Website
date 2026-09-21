@@ -17,13 +17,14 @@ export const dynamic = 'force-dynamic'
 // Server enforces: authenticated, owner, and order is not yet picked up by courier or shipped.
 export async function POST(
   _request: NextRequest,
-  { params }: { params: { orderNumber: string } }
+  { params }: { params: Promise<{ orderNumber: string }> }
 ) {
+  const { orderNumber } = await params
   const user = await getCurrentUser()
   if (!user) return unauthorizedResponse()
 
   const order = await prisma.order.findUnique({
-    where: { orderNumber: params.orderNumber },
+    where: { orderNumber: orderNumber },
     select: {
       id: true,
       userId: true,

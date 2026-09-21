@@ -14,19 +14,20 @@ import { addressSchema } from '@/lib/validations'
 export const dynamic = 'force-dynamic'
 
 interface RouteParams {
-  params: { addressId: string }
+  params: Promise<{ addressId: string }>
 }
 
 // PUT /api/addresses/[addressId] — Update an address
 export async function PUT(request: NextRequest, { params }: RouteParams) {
   try {
+    const { addressId } = await params
     const user = await getCurrentUser()
     if (!user) {
       return unauthorizedResponse()
     }
 
     const address = await prisma.address.findFirst({
-      where: { id: params.addressId, userId: user.id },
+      where: { id: addressId, userId: user.id },
     })
 
     if (!address) {
@@ -45,13 +46,13 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     // If setting as default, unset other defaults
     if (data.isDefault) {
       await prisma.address.updateMany({
-        where: { userId: user.id, id: { not: params.addressId } },
+        where: { userId: user.id, id: { not: addressId } },
         data: { isDefault: false },
       })
     }
 
     const updated = await prisma.address.update({
-      where: { id: params.addressId },
+      where: { id: addressId },
       data: {
         fullName: data.fullName,
         address: data.address,
@@ -77,20 +78,21 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
 // DELETE /api/addresses/[addressId] — Delete an address
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
   try {
+    const { addressId } = await params
     const user = await getCurrentUser()
     if (!user) {
       return unauthorizedResponse()
     }
 
     const address = await prisma.address.findFirst({
-      where: { id: params.addressId, userId: user.id },
+      where: { id: addressId, userId: user.id },
     })
 
     if (!address) {
       return notFoundResponse('Address not found')
     }
 
-    await prisma.address.delete({ where: { id: params.addressId } })
+    await prisma.address.delete({ where: { id: addressId } })
 
     // If deleted address was default, set the first remaining as default
     if (address.isDefault) {

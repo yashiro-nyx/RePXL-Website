@@ -8,12 +8,13 @@ import { updateCartSchema } from '@/lib/validations'
 export const dynamic = 'force-dynamic'
 
 interface RouteParams {
-  params: { itemId: string }
+  params: Promise<{ itemId: string }>
 }
 
 // PUT /api/cart/[itemId] — Update cart item quantity
 export async function PUT(request: NextRequest, { params }: RouteParams) {
   try {
+    const { itemId } = await params
     const user = await getCurrentUser()
     if (!user) {
       return unauthorizedResponse()
@@ -30,7 +31,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
 
     // Find the cart item (ensure it belongs to this user)
     const cartItem = await prisma.cartItem.findFirst({
-      where: { id: params.itemId, userId: user.id },
+      where: { id: itemId, userId: user.id },
       include: { product: true },
     })
 
@@ -42,7 +43,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     const cappedQty = Math.min(quantity, cartItem.product.stock)
 
     const updated = await prisma.cartItem.update({
-      where: { id: params.itemId },
+      where: { id: itemId },
       data: { quantity: cappedQty },
       include: { product: true },
     })
@@ -57,6 +58,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
 // DELETE /api/cart/[itemId] — Remove item from cart
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
   try {
+    const { itemId } = await params
     const user = await getCurrentUser()
     if (!user) {
       return unauthorizedResponse()
@@ -64,14 +66,14 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
 
     // Verify the item belongs to this user
     const cartItem = await prisma.cartItem.findFirst({
-      where: { id: params.itemId, userId: user.id },
+      where: { id: itemId, userId: user.id },
     })
 
     if (!cartItem) {
       return notFoundResponse('Cart item not found')
     }
 
-    await prisma.cartItem.delete({ where: { id: params.itemId } })
+    await prisma.cartItem.delete({ where: { id: itemId } })
 
     return successResponse({ message: 'Item removed from cart' })
   } catch (error) {

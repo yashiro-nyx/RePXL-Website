@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
     const user = await registerCustomer(parsed.data)
 
     // Set session cookie
-    setSessionCookie(user.id)
+    await setSessionCookie(user.id)
 
     return successResponse(user, 201)
   } catch (error) {

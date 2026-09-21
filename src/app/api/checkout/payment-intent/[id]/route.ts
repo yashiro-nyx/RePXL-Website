@@ -17,9 +17,10 @@ export const dynamic = 'force-dynamic'
  */
 export async function GET(
   _request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params
     if (!isPaymongoConfigured()) {
       return errorResponse('Payment not configured.', 503)
     }
@@ -27,7 +28,7 @@ export async function GET(
     const user = await getCurrentUser()
     if (!user) return unauthorizedResponse()
 
-    const intent = await retrievePaymentIntent(params.id)
+    const intent = await retrievePaymentIntent(id)
 
     return successResponse({
       intentId: intent.id,

@@ -67,7 +67,7 @@ export async function POST(request: NextRequest) {
     }))
 
     const primaryAt = (nextAuthSession as unknown as { primaryAuthenticatedAt?: number }).primaryAuthenticatedAt ?? 0
-    setSessionCookie(user.id, { primaryAt })
+    await setSessionCookie(user.id, { primaryAt })
 
     return successResponse({
       id: user.id,

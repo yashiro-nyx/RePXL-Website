@@ -83,9 +83,10 @@ function decodeToken(token: string): ({ userId: string; iat: number } & Customer
 /**
  * Set session cookie for customer
  */
-export function setSessionCookie(userId: string, proof: CustomerSessionProof = {}) {
+export async function setSessionCookie(userId: string, proof: CustomerSessionProof = {}): Promise<void> {
   const token = createToken(userId, { primaryAt: Date.now(), ...proof })
-  cookies().set(SESSION_COOKIE, token, {
+  const cookieStore = await cookies()
+  cookieStore.set(SESSION_COOKIE, token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'lax',
@@ -97,9 +98,10 @@ export function setSessionCookie(userId: string, proof: CustomerSessionProof = {
 /**
  * Set session cookie for admin
  */
-export function setAdminSessionCookie(userId: string) {
+export async function setAdminSessionCookie(userId: string): Promise<void> {
   const token = createToken(userId)
-  cookies().set(ADMIN_SESSION_COOKIE, token, {
+  const cookieStore = await cookies()
+  cookieStore.set(ADMIN_SESSION_COOKIE, token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'lax',
@@ -111,15 +113,17 @@ export function setAdminSessionCookie(userId: string) {
 /**
  * Clear customer session
  */
-export function clearSessionCookie() {
-  cookies().set(SESSION_COOKIE, '', { maxAge: 0, path: '/' })
+export async function clearSessionCookie(): Promise<void> {
+  const cookieStore = await cookies()
+  cookieStore.set(SESSION_COOKIE, '', { maxAge: 0, path: '/' })
 }
 
 /**
  * Clear admin session
  */
-export function clearAdminSessionCookie() {
-  cookies().set(ADMIN_SESSION_COOKIE, '', { maxAge: 0, path: '/' })
+export async function clearAdminSessionCookie(): Promise<void> {
+  const cookieStore = await cookies()
+  cookieStore.set(ADMIN_SESSION_COOKIE, '', { maxAge: 0, path: '/' })
 }
 
 /**
@@ -128,14 +132,15 @@ export function clearAdminSessionCookie() {
 export async function getCurrentUser(): Promise<SessionUser | null> {
   let authorization: string | null = null
   try {
-    authorization = headers().get('authorization')
+    const headerStore = await headers()
+    authorization = headerStore.get('authorization')
   } catch {}
   const bearer = authorization?.match(/^Bearer\s+([^\s]+)$/i)?.[1]
   if (bearer) return getMobileUserFromAccessToken(bearer)
 
   let token: string | undefined
   try {
-    const cookieStore = cookies()
+    const cookieStore = await cookies()
     token = cookieStore.get(SESSION_COOKIE)?.value
   } catch {
     return null
@@ -185,7 +190,7 @@ export async function getCurrentUser(): Promise<SessionUser | null> {
 export async function getCurrentAdmin(): Promise<SessionUser | null> {
   let token: string | undefined
   try {
-    const cookieStore = cookies()
+    const cookieStore = await cookies()
     token = cookieStore.get(ADMIN_SESSION_COOKIE)?.value
   } catch {
     return null
@@ -239,15 +244,25 @@ export async function requireAdmin(): Promise<SessionUser | null> {
 }
 
 /** Signed time of the primary factor, never extended by hydration or MFA setup. */
-export function customerPrimaryAuthTime(): number {
-  const token = cookies().get(SESSION_COOKIE)?.value
-  const decoded = token ? decodeToken(token) : null
-  return decoded?.primaryAt ?? 0
+export async function customerPrimaryAuthTime(): Promise<number> {
+  try {
+    const cookieStore = await cookies()
+    const token = cookieStore.get(SESSION_COOKIE)?.value
+    const decoded = token ? decodeToken(token) : null
+    return decoded?.primaryAt ?? 0
+  } catch {
+    return 0
+  }
 }
 
-export function customerMfaSessionVersion(): number {
-  const token = cookies().get(SESSION_COOKIE)?.value
-  return (token ? decodeToken(token)?.mfaVersion : undefined) ?? 0
+export async function customerMfaSessionVersion(): Promise<number> {
+  try {
+    const cookieStore = await cookies()
+    const token = cookieStore.get(SESSION_COOKIE)?.value
+    return (token ? decodeToken(token)?.mfaVersion : undefined) ?? 0
+  } catch {
+    return 0
+  }
 }
 
 // ─── Recent Re-Authentication ───────────────────────────────────────────────────
@@ -279,7 +294,8 @@ export async function setRecentAuthCookie(userId: string): Promise<void> {
 
   // Issue signed cookie
   const token = createRecentAuthToken(userId)
-  cookies().set(RECENT_AUTH_COOKIE, token, {
+  const cookieStore = await cookies()
+  cookieStore.set(RECENT_AUTH_COOKIE, token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'strict',
@@ -291,8 +307,9 @@ export async function setRecentAuthCookie(userId: string): Promise<void> {
 /**
  * Clear the recent-auth cookie (called on logout).
  */
-export function clearRecentAuthCookie(): void {
-  cookies().set(RECENT_AUTH_COOKIE, '', {
+export async function clearRecentAuthCookie(): Promise<void> {
+  const cookieStore = await cookies()
+  cookieStore.set(RECENT_AUTH_COOKIE, '', {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'strict',
@@ -310,7 +327,7 @@ export function clearRecentAuthCookie(): void {
  */
 export async function checkRecentAuth(userId: string): Promise<boolean> {
   try {
-    const cookieStore = cookies()
+    const cookieStore = await cookies()
     const raw = cookieStore.get(RECENT_AUTH_COOKIE)?.value
     if (!raw) return false
 

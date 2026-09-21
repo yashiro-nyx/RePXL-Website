@@ -92,9 +92,9 @@ export async function POST(request: NextRequest) {
   void sendSecurityNotification(normalised, 'your email address was set on this account').catch(() => undefined)
 
   // Invalidate the repixl session cookie so the browser cannot reuse it.
-  clearSessionCookie()
-  clearRecentAuthCookie()
-  clearChallenge()
+  await clearSessionCookie()
+  await clearRecentAuthCookie()
+  await clearChallenge()
 
   // The client must also set the oauth-logged-out flag so useOAuthSync does not
   // immediately restore the session from the NextAuth JWT (which still carries

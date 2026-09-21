@@ -47,8 +47,9 @@ const schema = z.object({
  */
 export async function POST(
   request: NextRequest,
-  { params }: { params: { orderNumber: string } }
+  { params }: { params: Promise<{ orderNumber: string }> }
 ) {
+  const { orderNumber } = await params
   const user = await getCurrentUser()
   if (!user) return unauthorizedResponse()
 
@@ -72,7 +73,7 @@ export async function POST(
 
   // Load order with items so we can create reviews per purchased product
   const order = await prisma.order.findUnique({
-    where: { orderNumber: params.orderNumber },
+    where: { orderNumber: orderNumber },
     include: {
       items: { include: { product: { select: { id: true, name: true } } } },
     },

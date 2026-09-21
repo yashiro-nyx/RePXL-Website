@@ -3,6 +3,7 @@
 import { formatPrice } from '@/lib/format'
 import { useState, useMemo, useEffect } from 'react'
 import Link from 'next/link'
+import Image from 'next/image'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Container } from '@/components/layout/Container'
 import { SectionHeader } from '@/components/ui'
@@ -174,9 +175,16 @@ function SideCard({ product }: { product: any }) {
 
   return (
     <div className="overflow-hidden rounded-lg border border-repixl-muted/10 bg-repixl-charcoal">
-      <div className="aspect-square bg-repixl-bg p-4">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={product.image} alt={product.name} className="h-full w-full object-contain" />
+      <div className="relative aspect-square bg-repixl-bg p-4 flex items-center justify-center">
+        <Image
+          src={product.image}
+          alt={product.name}
+          width={180}
+          height={180}
+          sizes="180px"
+          quality={90}
+          className="h-full w-full object-contain"
+        />
       </div>
       <div className="p-3">
         <p className="font-mono text-[8px] uppercase tracking-widest text-repixl-muted">{product.brand}</p>

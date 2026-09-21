@@ -7,19 +7,20 @@ import { getCurrentUser } from '@/lib/auth-helpers'
 export const dynamic = 'force-dynamic'
 
 interface RouteParams {
-  params: { addressId: string }
+  params: Promise<{ addressId: string }>
 }
 
 // PUT /api/addresses/[addressId]/default — Set address as default
 export async function PUT(request: NextRequest, { params }: RouteParams) {
   try {
+    const { addressId } = await params
     const user = await getCurrentUser()
     if (!user) {
       return unauthorizedResponse()
     }
 
     const address = await prisma.address.findFirst({
-      where: { id: params.addressId, userId: user.id },
+      where: { id: addressId, userId: user.id },
     })
 
     if (!address) {
@@ -33,7 +34,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     })
 
     const updated = await prisma.address.update({
-      where: { id: params.addressId },
+      where: { id: addressId },
       data: { isDefault: true },
     })
 

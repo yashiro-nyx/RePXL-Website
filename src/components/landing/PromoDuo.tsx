@@ -215,7 +215,8 @@ export function PromoDuo() {
                     src="/images/banner1.png"
                     alt="Top vintage cameras: Canon, Nikon, Fujifilm cluster"
                     fill
-                    sizes="(max-width: 768px) 100vw, 50vw"
+                    sizes="(max-width: 640px) 90vw, (max-width: 1024px) 45vw, 380px"
+                    quality={90}
                     className="object-contain object-right-bottom drop-shadow-[0_16px_28px_rgba(0,0,0,0.35)]"
                     priority={false}
                   />
@@ -416,7 +417,8 @@ export function PromoDuo() {
                     src="/images/banner2.png"
                     alt="Sony Cyber-shot W800 on dark stone pedestal"
                     fill
-                    sizes="(max-width: 768px) 100vw, 50vw"
+                    sizes="(max-width: 640px) 90vw, (max-width: 1024px) 45vw, 380px"
+                    quality={90}
                     className="object-contain object-right-bottom drop-shadow-[0_16px_28px_rgba(0,0,0,0.35)]"
                     priority={false}
                   />

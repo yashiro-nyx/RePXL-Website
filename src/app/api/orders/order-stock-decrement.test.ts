@@ -217,7 +217,7 @@ describe('Product Stock Decrement Upon Payment Confirmation', () => {
         body: JSON.stringify({ markPaymentCompleted: true }),
       })
 
-      const res = await PATCH(req, { params: { orderNumber: 'RPX-ADMIN-PAID' } })
+      const res = await PATCH(req, { params: Promise.resolve({ orderNumber: 'RPX-ADMIN-PAID' }) })
       const json = await res.json()
 
       expect(res.status).toBe(200)
@@ -259,7 +259,7 @@ describe('Product Stock Decrement Upon Payment Confirmation', () => {
         body: JSON.stringify({ markPaymentCompleted: true }),
       })
 
-      const res = await PATCH(req, { params: { orderNumber: 'RPX-OUT-OF-STOCK' } })
+      const res = await PATCH(req, { params: Promise.resolve({ orderNumber: 'RPX-OUT-OF-STOCK' }) })
       const json = await res.json()
 
       expect(res.status).toBe(409)
@@ -292,7 +292,7 @@ describe('Product Stock Decrement Upon Payment Confirmation', () => {
         body: JSON.stringify({ status: 'CANCELLED' }),
       })
 
-      const res = await PATCH(req, { params: { orderNumber: 'RPX-CANCEL-PAID' } })
+      const res = await PATCH(req, { params: Promise.resolve({ orderNumber: 'RPX-CANCEL-PAID' }) })
       const json = await res.json()
 
       expect(res.status).toBe(200)
@@ -327,7 +327,7 @@ describe('Product Stock Decrement Upon Payment Confirmation', () => {
         method: 'POST',
       })
 
-      const res = await cancelOrder(req, { params: { orderNumber: 'RPX-CUST-PAID' } })
+      const res = await cancelOrder(req, { params: Promise.resolve({ orderNumber: 'RPX-CUST-PAID' }) })
       const json = await res.json()
 
       expect(res.status).toBe(200)
@@ -359,7 +359,7 @@ describe('Product Stock Decrement Upon Payment Confirmation', () => {
         method: 'POST',
       })
 
-      const res = await cancelOrder(req, { params: { orderNumber: 'RPX-CUST-PENDING' } })
+      const res = await cancelOrder(req, { params: Promise.resolve({ orderNumber: 'RPX-CUST-PENDING' }) })
       const json = await res.json()
 
       expect(res.status).toBe(200)
@@ -382,7 +382,7 @@ describe('Product Stock Decrement Upon Payment Confirmation', () => {
         method: 'POST',
       })
 
-      const res = await cancelOrder(req, { params: { orderNumber: 'RPX-CUST-SHIPPED' } })
+      const res = await cancelOrder(req, { params: Promise.resolve({ orderNumber: 'RPX-CUST-SHIPPED' }) })
       const json = await res.json()
 
       expect(res.status).toBe(409)
@@ -404,7 +404,7 @@ describe('Product Stock Decrement Upon Payment Confirmation', () => {
         method: 'POST',
       })
 
-      const res = await cancelOrder(req, { params: { orderNumber: 'RPX-CUST-TRANSIT' } })
+      const res = await cancelOrder(req, { params: Promise.resolve({ orderNumber: 'RPX-CUST-TRANSIT' }) })
       const json = await res.json()
 
       expect(res.status).toBe(409)

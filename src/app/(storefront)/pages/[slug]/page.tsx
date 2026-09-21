@@ -30,8 +30,9 @@ async function fetchPage(slug: string): Promise<StaticPage | null> {
   }
 }
 
-export default async function CmsStaticPage({ params }: { params: { slug: string } }) {
-  const page = await fetchPage(params.slug)
+export default async function CmsStaticPage({ params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = await params
+  const page = await fetchPage(slug)
 
   // Draft pages: serve not-found to non-admin visitors
   if (!page) {

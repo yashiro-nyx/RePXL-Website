@@ -97,17 +97,19 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    const primaryAt = await customerPrimaryAuthTime()
+    const mfaVersion = await customerMfaSessionVersion()
     const result = await manageMfa(
       user.id,
       input.data.action,
       input.data,
-      customerPrimaryAuthTime(),
-      customerMfaSessionVersion()
+      primaryAt,
+      mfaVersion
     )
     if (!result.ok)
       return mfaResponse({ success: false, error: result.error }, result.status)
     if ('proof' in result && result.proof)
-      setSessionCookie(user.id, result.proof)
+      await setSessionCookie(user.id, result.proof)
     if ('event' in result && result.event)
       await securityEmail(result.email, result.event)
     if ('recoveryUsed' in result && result.recoveryUsed && 'email' in result)

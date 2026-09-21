@@ -66,7 +66,7 @@ describe('Order Payment Guard — Admin Status Editing Restrictions', () => {
       body: JSON.stringify({ status: 'SHIPPED' }),
     })
 
-    const res = await PATCH(req, { params: { orderNumber: 'RPX-1234' } })
+    const res = await PATCH(req, { params: Promise.resolve({ orderNumber: 'RPX-1234' }) })
     const json = await res.json()
 
     expect(res.status).toBe(409)
@@ -92,7 +92,7 @@ describe('Order Payment Guard — Admin Status Editing Restrictions', () => {
       body: JSON.stringify({ status: 'SHIPPED' }),
     })
 
-    const res = await PATCH(req, { params: { orderNumber: 'RPX-1234' } })
+    const res = await PATCH(req, { params: Promise.resolve({ orderNumber: 'RPX-1234' }) })
     const json = await res.json()
 
     expect(res.status).toBe(409)
@@ -127,7 +127,7 @@ describe('Order Payment Guard — Admin Status Editing Restrictions', () => {
       body: JSON.stringify({ status: 'SHIPPED' }),
     })
 
-    const res = await PATCH(req, { params: { orderNumber: 'RPX-1234' } })
+    const res = await PATCH(req, { params: Promise.resolve({ orderNumber: 'RPX-1234' }) })
     const json = await res.json()
 
     expect(res.status).toBe(200)
@@ -164,7 +164,7 @@ describe('Order Payment Guard — Admin Status Editing Restrictions', () => {
       body: JSON.stringify({ markPaymentCompleted: true }),
     })
 
-    const res = await PATCH(req, { params: { orderNumber: 'RPX-1234' } })
+    const res = await PATCH(req, { params: Promise.resolve({ orderNumber: 'RPX-1234' }) })
     const json = await res.json()
 
     expect(res.status).toBe(200)

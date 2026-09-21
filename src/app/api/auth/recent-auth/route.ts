@@ -112,7 +112,7 @@ export async function POST(request: NextRequest) {
     // the customer session cookie is the server-side timestamp of that login.
     // We accept it if it is within the recent-auth window.
 
-    const primaryAt = customerPrimaryAuthTime()
+    const primaryAt = await customerPrimaryAuthTime()
     const age = Date.now() - primaryAt
     if (primaryAt <= 0 || age > RECENT_AUTH_WINDOW_MS) {
       return errorResponse(

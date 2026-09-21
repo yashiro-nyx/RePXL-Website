@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from 'react'
 import Link from 'next/link'
+import Image from 'next/image'
 import { ConditionBadge, LoginRequiredModal } from '@/components/ui'
 import { useAuthStore } from '@/stores/authStore'
 import { useCartStore } from '@/stores/cartStore'
@@ -471,13 +472,16 @@ export function ProductCard({
               href={`/products/${product.slug}`}
               tabIndex={-1}
               aria-hidden="true"
-              className="flex h-full w-full items-center justify-center"
+              className="relative flex h-full w-full items-center justify-center"
             >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
+              <Image
                 src={product.image}
                 alt={product.name}
-                className={`max-h-[82%] max-w-[85%] object-contain transition-transform duration-500 ease-out ${
+                width={360}
+                height={270}
+                sizes="(max-width: 640px) 90vw, (max-width: 1024px) 45vw, 360px"
+                quality={90}
+                className={`max-h-[82%] max-w-[85%] h-auto w-auto object-contain transition-transform duration-500 ease-out ${
                   isLight
                     ? 'drop-shadow-[0_10px_20px_rgba(0,0,0,0.18)]'
                     : 'drop-shadow-[0_12px_24px_rgba(0,0,0,0.65)]'

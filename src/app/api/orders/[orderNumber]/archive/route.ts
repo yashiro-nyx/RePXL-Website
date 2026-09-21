@@ -7,19 +7,20 @@ import { getCurrentAdmin } from '@/lib/auth-helpers'
 export const dynamic = 'force-dynamic'
 
 interface RouteParams {
-  params: { orderNumber: string }
+  params: Promise<{ orderNumber: string }>
 }
 
 // POST /api/orders/[orderNumber]/archive — Archive an order
 export async function POST(request: NextRequest, { params }: RouteParams) {
   try {
+    const { orderNumber } = await params
     const admin = await getCurrentAdmin()
     if (!admin) {
       return unauthorizedResponse('Admin access required')
     }
 
     const order = await prisma.order.findUnique({
-      where: { orderNumber: params.orderNumber },
+      where: { orderNumber: orderNumber },
     })
 
     if (!order) {
@@ -27,14 +28,14 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     }
 
     const updated = await prisma.order.update({
-      where: { orderNumber: params.orderNumber },
+      where: { orderNumber: orderNumber },
       data: { isArchived: true },
     })
 
     await prisma.adminLog.create({
       data: {
         action: 'ARCHIVE_ORDER',
-        details: `Archived order ${params.orderNumber}`,
+        details: `Archived order ${orderNumber}`,
         adminId: admin.id,
         adminName: `${admin.firstName} ${admin.lastName}`,
       },
@@ -50,13 +51,14 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 // DELETE /api/orders/[orderNumber]/archive — Restore an archived order
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
   try {
+    const { orderNumber } = await params
     const admin = await getCurrentAdmin()
     if (!admin) {
       return unauthorizedResponse('Admin access required')
     }
 
     const order = await prisma.order.findUnique({
-      where: { orderNumber: params.orderNumber },
+      where: { orderNumber: orderNumber },
     })
 
     if (!order) {
@@ -64,14 +66,14 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     }
 
     const updated = await prisma.order.update({
-      where: { orderNumber: params.orderNumber },
+      where: { orderNumber: orderNumber },
       data: { isArchived: false },
     })
 
     await prisma.adminLog.create({
       data: {
         action: 'RESTORE_ORDER',
-        details: `Restored order ${params.orderNumber}`,
+        details: `Restored order ${orderNumber}`,
         adminId: admin.id,
         adminName: `${admin.firstName} ${admin.lastName}`,
       },
