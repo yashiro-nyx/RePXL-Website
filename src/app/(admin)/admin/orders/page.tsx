@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
+import dynamic from 'next/dynamic'
 import { Pagination } from '@/components/ui/Pagination'
 import { formatPrice } from '@/lib/format'
 import {
@@ -9,16 +10,28 @@ import {
   ORDER_STATUS_BADGE_CLASSES,
   PAYMENT_STATUS_LABELS,
   PAYMENT_STATUS_BADGE_CLASSES,
+  UNIFIED_FULFILLMENT_STATUSES,
+  UNIFIED_STATUS_CONFIG,
+  type UnifiedFulfillmentStatus,
+  getUnifiedFulfillmentStatus,
   normalizeOrderStatus,
   getOrderStatusLabel,
   getOrderStatusBadgeClass,
 } from '@/lib/order-status-unified'
 
-const PAGE_SIZE = 10
-const allStatuses = CANONICAL_ORDER_STATUSES
-const statusLabels = ORDER_STATUS_LABELS
-const statusStyles = ORDER_STATUS_BADGE_CLASSES
+const TrackingMap = dynamic(
+  () => import('@/components/tracking/TrackingMap').then((m) => ({ default: m.TrackingMap })),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex h-56 items-center justify-center rounded-2xl border border-repixl-muted/20 bg-repixl-bg/50">
+        <p className="font-mono text-xs text-repixl-muted animate-pulse">Loading live delivery simulation map...</p>
+      </div>
+    ),
+  }
+)
 
+const PAGE_SIZE = 10
 const paymentStatusStyles = PAYMENT_STATUS_BADGE_CLASSES
 const paymentStatusLabels = PAYMENT_STATUS_LABELS
 
@@ -43,41 +56,19 @@ interface ApiOrder {
   province: string
   postalCode: string
   deliveryStatus: string
+  trackingNumber?: string
+  trackingProgress?: number
+  trackingDescription?: string
   items: { id: string; quantity: number; price: number; product: { name: string; price: number } }[]
   user?: { email: string; firstName: string; lastName: string }
 }
 
-const DELIVERY_STEPS = [
-  { step: 'transit',          label: 'Mark In Transit',   icon: 'M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01' },
-  { step: 'out_for_delivery', label: 'Out for Delivery',  icon: 'M5 17H3a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11a2 2 0 0 1 2 2v3M9 11h14v10H9zM12 21h0M20 21h0' },
-  { step: 'delivered',        label: 'Mark Delivered',    icon: 'M20 6 9 17l-5-5' },
+const PROGRESSIVE_STAGES: UnifiedFulfillmentStatus[] = [
+  'PROCESSING',
+  'IN_TRANSIT',
+  'OUT_FOR_DELIVERY',
+  'DELIVERED',
 ]
-
-const deliveryStatusColor: Record<string, string> = {
-  'Order Placed': 'text-repixl-muted',
-  'In Transit': 'text-blue-400',
-  'Out for Delivery': 'text-amber-400',
-  'Delivered': 'text-repixl-success',
-  'Cancelled': 'text-red-400',
-  'COD Request Declined': 'text-red-400',
-}
-
-function getDeliveryStatusForOrderStatus(status: string, currentDeliveryStatus?: string): string {
-  switch (status) {
-    case 'SHIPPED':
-      return currentDeliveryStatus === 'Out for Delivery' ? 'Out for Delivery' : 'In Transit'
-    case 'DELIVERED':
-    case 'COMPLETED':
-      return 'Delivered'
-    case 'CANCELLED':
-      return currentDeliveryStatus === 'COD Request Declined' ? 'COD Request Declined' : 'Cancelled'
-    case 'PROCESSING':
-    default:
-      return currentDeliveryStatus === 'Pending COD Approval' || currentDeliveryStatus === 'COD Approval Requested'
-        ? currentDeliveryStatus
-        : 'Order Placed'
-  }
-}
 
 export default function AdminOrdersPage() {
   const [orders, setOrders] = useState<ApiOrder[]>([])
@@ -137,21 +128,38 @@ export default function AdminOrdersPage() {
   const handleStatusChange = (s: string) => { setStatusFilter(s); setCurrentPage(1) }
   const handleSearch = (q: string) => { setSearchQuery(q); setCurrentPage(1) }
 
-  const handleStatusUpdate = async (orderNumber: string, newStatus: string) => {
-    if (newStatus === 'COMPLETED') return // blocked — customer only
-    const canonical = normalizeOrderStatus(newStatus)
-    const nextDeliveryStatus = getDeliveryStatusForOrderStatus(canonical, viewOrder?.deliveryStatus)
+  const handleStatusUpdate = async (orderNumber: string, targetUnified: UnifiedFulfillmentStatus) => {
+    if (targetUnified === 'COMPLETED') return // blocked — customer only
+    const config = UNIFIED_STATUS_CONFIG[targetUnified]
+    const canonical = config.canonicalStatus
+    const nextDeliveryStatus = config.deliveryStatus
 
-    // Optimistic UI update
+    // Optimistic UI update: synchronously set status, deliveryStatus, progress and description
     setOrders((prev) =>
       prev.map((o) =>
         o.orderNumber === orderNumber
-          ? { ...o, status: canonical, deliveryStatus: getDeliveryStatusForOrderStatus(canonical, o.deliveryStatus) }
+          ? {
+              ...o,
+              status: canonical,
+              deliveryStatus: nextDeliveryStatus,
+              trackingProgress: config.progress,
+              trackingDescription: config.description,
+            }
           : o
       )
     )
     if (viewOrder?.orderNumber === orderNumber) {
-      setViewOrder((o) => (o ? { ...o, status: canonical, deliveryStatus: nextDeliveryStatus } : o))
+      setViewOrder((o) =>
+        o
+          ? {
+              ...o,
+              status: canonical,
+              deliveryStatus: nextDeliveryStatus,
+              trackingProgress: config.progress,
+              trackingDescription: config.description,
+            }
+          : o
+      )
     }
 
     try {
@@ -159,7 +167,10 @@ export default function AdminOrdersPage() {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ status: canonical }),
+        body: JSON.stringify({
+          status: targetUnified,
+          deliveryStatus: nextDeliveryStatus,
+        }),
       })
       const data = await res.json().catch(() => ({}))
       if (!res.ok) {
@@ -270,7 +281,9 @@ export default function AdminOrdersPage() {
           className="rounded-xl border border-repixl-muted/20 bg-repixl-charcoal px-4 py-2 text-sm text-repixl-text-light/80 shadow-sm focus:border-repixl-red/30 focus:outline-none"
         >
           <option value="">All Statuses</option>
-          {allStatuses.map((s) => <option key={s} value={s}>{statusLabels[s]}</option>)}
+          {UNIFIED_FULFILLMENT_STATUSES.map((s) => (
+            <option key={s} value={s}>{UNIFIED_STATUS_CONFIG[s].label}</option>
+          ))}
         </select>
       </div>
 
@@ -278,7 +291,7 @@ export default function AdminOrdersPage() {
         <table className="w-full text-left text-sm">
           <thead className="border-b border-repixl-muted/10 bg-repixl-bg/50">
             <tr>
-              {['Order ID', 'Customer', 'Total', 'Payment', 'Order Status', 'Date', 'Actions'].map((h) => (
+              {['Order ID', 'Customer', 'Total', 'Payment', 'Status & Delivery', 'Date', 'Actions'].map((h) => (
                 <th key={h} className="px-5 py-3.5 text-[10px] font-semibold uppercase tracking-wider text-repixl-muted">{h}</th>
               ))}
             </tr>
@@ -300,6 +313,7 @@ export default function AdminOrdersPage() {
                 (order.deliveryStatus === 'Pending COD Approval' ||
                   order.deliveryStatus === 'COD Approval Requested')
               const canEditStatus = isPaid || isCod
+              const currentUnified = getUnifiedFulfillmentStatus(order)
 
               return (
                 <tr key={order.id} className="transition-colors hover:bg-repixl-bg/60">
@@ -334,10 +348,12 @@ export default function AdminOrdersPage() {
                       <div className="group relative inline-block">
                         <select
                           disabled
-                          value={order.status}
+                          value={currentUnified}
                           className="cursor-not-allowed rounded-full border border-repixl-muted/20 bg-repixl-bg/50 px-2.5 py-1 text-[11px] font-semibold text-repixl-muted/50 opacity-60"
                         >
-                          {allStatuses.map((s) => <option key={s} value={s}>{statusLabels[s]}</option>)}
+                          {UNIFIED_FULFILLMENT_STATUSES.map((s) => (
+                            <option key={s} value={s}>{UNIFIED_STATUS_CONFIG[s].shortLabel}</option>
+                          ))}
                         </select>
                         <span className="pointer-events-none absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-md bg-black/90 px-2 py-1 text-[10px] text-amber-300 opacity-0 shadow-lg transition-opacity group-hover:opacity-100 z-10">
                           🔒 Payment must be completed first
@@ -345,19 +361,23 @@ export default function AdminOrdersPage() {
                       </div>
                     ) : (
                       <select
-                        value={normalizeOrderStatus(order.status)}
+                        value={currentUnified}
                         onChange={(e) => {
-                          if (e.target.value === 'COMPLETED' && normalizeOrderStatus(order.status) === 'DELIVERED') {
+                          if (e.target.value === 'COMPLETED') {
                             alert('Completed status can only be set by the customer after confirming receipt.')
-                            e.target.value = normalizeOrderStatus(order.status)
+                            e.target.value = currentUnified
                             return
                           }
-                          void handleStatusUpdate(order.orderNumber, e.target.value)
+                          void handleStatusUpdate(order.orderNumber, e.target.value as UnifiedFulfillmentStatus)
                         }}
                         className={`rounded-full border px-2.5 py-1 text-[11px] font-semibold cursor-pointer appearance-none pr-6 bg-no-repeat bg-[length:10px] bg-[right_8px_center] ${getOrderStatusBadgeClass(order.status, order.paymentStatus, order.deliveryStatus, order.paymentMethod)}`}
                         style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='3'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")` }}
                       >
-                        {allStatuses.map((s) => <option key={s} value={s}>{statusLabels[s]}</option>)}
+                        {UNIFIED_FULFILLMENT_STATUSES.filter((s) => s !== 'COMPLETED' || order.status === 'COMPLETED').map((s) => (
+                          <option key={s} value={s} disabled={s === 'COMPLETED'}>
+                            {UNIFIED_STATUS_CONFIG[s].label}
+                          </option>
+                        ))}
                       </select>
                     )}
                   </td>
@@ -410,10 +430,8 @@ export default function AdminOrdersPage() {
         <OrderDetailModal
           order={viewOrder}
           onClose={() => setViewOrder(null)}
-          onStatusChange={(newStatus) => {
-            void handleStatusUpdate(viewOrder.orderNumber, newStatus)
-            const nextDeliveryStatus = getDeliveryStatusForOrderStatus(newStatus, viewOrder.deliveryStatus)
-            setViewOrder((o) => o ? { ...o, status: newStatus, deliveryStatus: nextDeliveryStatus } : o)
+          onStatusChange={async (newStatus) => {
+            await handleStatusUpdate(viewOrder.orderNumber, newStatus)
           }}
           onPaymentCompleted={() => {
             void load(currentPage, statusFilter, searchQuery)
@@ -435,30 +453,28 @@ function OrderDetailModal({
 }: {
   order: ApiOrder
   onClose: () => void
-  onStatusChange: (status: string) => void
+  onStatusChange: (status: UnifiedFulfillmentStatus) => void | Promise<void>
   onPaymentCompleted: () => void
 }) {
-  const [firing, setFiring] = useState<string | null>(null)
+  const [isUpdating, setIsUpdating] = useState(false)
   const [markingPaid, setMarkingPaid] = useState(false)
   const [approvingCod, setApprovingCod] = useState(false)
   const [rejectingCod, setRejectingCod] = useState(false)
   const [feedback, setFeedback] = useState<{ ok: boolean; message: string } | null>(null)
-  const [currentDeliveryStatus, setCurrentDeliveryStatus] = useState(order.deliveryStatus ?? 'Order Placed')
-
-  useEffect(() => {
-    setCurrentDeliveryStatus(order.deliveryStatus ?? 'Order Placed')
-  }, [order.deliveryStatus])
+  const [showMap, setShowMap] = useState(true)
 
   const isCod =
     order.paymentMethod === 'Cash on Delivery' ||
     order.paymentMethod?.toLowerCase().includes('cash on delivery')
   const isCodPending =
     isCod &&
-    (currentDeliveryStatus === 'Pending COD Approval' ||
-      currentDeliveryStatus === 'COD Approval Requested')
+    (order.deliveryStatus === 'Pending COD Approval' ||
+      order.deliveryStatus === 'COD Approval Requested')
   const isPaid = order.paymentStatus === 'PAID'
   const isLocked = !isPaid && !isCod
-  const isDeliveryLocked = !isPaid && !isCod
+
+  const currentUnified = getUnifiedFulfillmentStatus(order)
+  const currentConfig = UNIFIED_STATUS_CONFIG[currentUnified]
 
   const handleApproveCodModal = async () => {
     if (!confirm(`Approve Cash on Delivery order #${order.orderNumber}? This will officially place the order.`)) return
@@ -473,7 +489,6 @@ function OrderDetailModal({
       })
       const data = await res.json().catch(() => ({}))
       if (res.ok) {
-        setCurrentDeliveryStatus('Order Placed')
         onPaymentCompleted()
         setFeedback({ ok: true, message: '✓ Cash on Delivery approved! Order is now officially placed.' })
       } else {
@@ -499,8 +514,7 @@ function OrderDetailModal({
       })
       const data = await res.json().catch(() => ({}))
       if (res.ok) {
-        setCurrentDeliveryStatus('COD Request Declined')
-        onStatusChange('CANCELLED')
+        await onStatusChange('CANCELLED')
         setFeedback({ ok: true, message: '✓ COD request declined and order cancelled.' })
       } else {
         setFeedback({ ok: false, message: `✗ Failed to decline COD: ${data.error ?? 'Unknown error'}` })
@@ -537,29 +551,29 @@ function OrderDetailModal({
     }
   }
 
-  const fireStep = async (step: typeof DELIVERY_STEPS[0]) => {
-    setFiring(step.step)
+  const handleStageSelect = async (stage: UnifiedFulfillmentStatus) => {
+    if (isLocked) return
+    if (stage === 'COMPLETED') {
+      setFeedback({ ok: false, message: 'Completed can only be set by the customer after confirming receipt.' })
+      return
+    }
+    if (currentUnified === stage) return
+
+    setIsUpdating(true)
     setFeedback(null)
     try {
-      const res = await fetch('/api/admin/update-tracking', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ orderNumber: order.orderNumber, step: step.step }),
-        credentials: 'include',
+      await onStatusChange(stage)
+      setFeedback({
+        ok: true,
+        message: `✓ Status updated to ${UNIFIED_STATUS_CONFIG[stage].label} — delivery tracking and live map synchronized.`,
       })
-      const data = await res.json().catch(() => ({}))
-      if (res.ok && data.success) {
-        setCurrentDeliveryStatus(data.deliveryStatus ?? step.step.replace(/_/g, ' '))
-        if (step.step === 'transit' || step.step === 'out_for_delivery') onStatusChange('SHIPPED')
-        if (step.step === 'delivered') onStatusChange('DELIVERED')
-        setFeedback({ ok: true, message: `✓ ${step.label} — customer tracking updated` })
-      } else {
-        setFeedback({ ok: false, message: `✗ Tracking update failed: ${data.error ?? 'Unknown error'}` })
-      }
     } catch (err) {
-      setFeedback({ ok: false, message: `✗ Network error: ${err instanceof Error ? err.message : 'Unknown error'}` })
+      setFeedback({
+        ok: false,
+        message: `✗ Error updating status: ${err instanceof Error ? err.message : 'Unknown error'}`,
+      })
     } finally {
-      setFiring(null)
+      setIsUpdating(false)
     }
   }
 
@@ -693,10 +707,21 @@ function OrderDetailModal({
             )}
           </div>
 
-          {/* Order Status */}
+          {/* Unified Fulfillment Lifecycle */}
           <div className="rounded-xl border border-repixl-muted/10 bg-repixl-bg/30 p-4">
             <div className="mb-3 flex items-center justify-between">
-              <p className="font-mono text-[10px] uppercase tracking-wider text-repixl-muted">Order Status</p>
+              <div>
+                <p className="font-mono text-[10px] uppercase tracking-wider text-repixl-muted">Fulfillment & Delivery Status</p>
+                <div className="mt-1 flex items-center gap-2">
+                  <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 font-mono text-[11px] font-semibold ${getOrderStatusBadgeClass(order.status, order.paymentStatus, order.deliveryStatus, order.paymentMethod)}`}>
+                    <span className="h-1.5 w-1.5 rounded-full bg-current" />
+                    {currentConfig.label} ({currentConfig.progress}%)
+                  </span>
+                  <span className="text-xs text-repixl-muted/70 truncate max-w-xs">
+                    • {order.deliveryStatus || currentConfig.deliveryStatus}
+                  </span>
+                </div>
+              </div>
               {isLocked && (
                 <span className="text-[11px] font-semibold text-amber-400 flex items-center gap-1">
                   <span>🔒</span> {isCodPending ? 'Locked (Awaiting COD Approval)' : 'Locked (Payment Pending)'}
@@ -709,103 +734,137 @@ function OrderDetailModal({
                 <span>🔒</span>
                 <span>
                   {isCodPending
-                    ? 'Order status cannot be updated until the Cash on Delivery request is approved.'
-                    : 'Order status cannot be updated until payment has been marked completed.'}
+                    ? 'Order fulfillment cannot proceed until Cash on Delivery is approved.'
+                    : 'Order fulfillment is locked until payment has been marked completed.'}
                 </span>
               </div>
             )}
 
-            <div className="flex flex-wrap gap-2">
-              {allStatuses.map((s) => {
-                const isBlockedTransition = s === 'COMPLETED' && order.status === 'DELIVERED'
+            <p className="mb-3 text-xs text-repixl-muted/70">
+              Selecting a stage atomically updates both the order status, courier milestone, progress bar, and vehicle simulation.
+            </p>
+
+            {/* Stepper Grid for Progressive Stages */}
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-4">
+              {PROGRESSIVE_STAGES.map((stage) => {
+                const config = UNIFIED_STATUS_CONFIG[stage]
+                const isActive = currentUnified === stage
+                const isPastStage =
+                  (stage === 'PROCESSING' && ['IN_TRANSIT', 'OUT_FOR_DELIVERY', 'DELIVERED', 'COMPLETED'].includes(currentUnified)) ||
+                  (stage === 'IN_TRANSIT' && ['OUT_FOR_DELIVERY', 'DELIVERED', 'COMPLETED'].includes(currentUnified)) ||
+                  (stage === 'OUT_FOR_DELIVERY' && ['DELIVERED', 'COMPLETED'].includes(currentUnified)) ||
+                  (stage === 'DELIVERED' && currentUnified === 'COMPLETED')
+
                 return (
                   <button
-                    key={s}
+                    key={stage}
                     type="button"
-                    disabled={isLocked}
-                    onClick={() => {
-                      if (isBlockedTransition) {
-                        setFeedback({ ok: false, message: '✗ Completed can only be set by the customer after confirming receipt.' })
-                        return
-                      }
-                      onStatusChange(s)
-                    }}
-                    title={
-                      isLocked
-                        ? isCodPending
-                          ? 'Approve COD request first'
-                          : 'Payment must be marked completed first'
-                        : isBlockedTransition
-                        ? 'Customer must confirm receipt to complete this order'
-                        : undefined
-                    }
-                    className={`rounded-full border px-3 py-1.5 font-mono text-[10px] uppercase tracking-wider transition-all ${
-                      order.status === s
-                        ? `${statusStyles[s]} border-current`
+                    disabled={isLocked || isUpdating}
+                    onClick={() => void handleStageSelect(stage)}
+                    className={`flex flex-col items-start rounded-xl border p-3 text-left transition-all ${
+                      isActive
+                        ? 'border-repixl-red/60 bg-repixl-red/10 shadow-sm ring-1 ring-repixl-red/30'
+                        : isPastStage
+                        ? 'border-emerald-500/30 bg-emerald-500/5 hover:border-emerald-500/50 text-repixl-text-light'
                         : isLocked
-                        ? 'cursor-not-allowed border-repixl-muted/10 text-repixl-muted/30 opacity-50'
-                        : isBlockedTransition
-                        ? 'cursor-not-allowed border-repixl-muted/10 text-repixl-muted/30'
-                        : 'border-repixl-muted/20 text-repixl-muted hover:border-repixl-muted/40 hover:text-repixl-text-light'
-                    }`}
+                        ? 'cursor-not-allowed border-repixl-muted/10 bg-repixl-charcoal/30 text-repixl-muted/40 opacity-50'
+                        : 'border-repixl-muted/15 bg-repixl-charcoal/60 hover:border-repixl-red/30 hover:bg-repixl-red/5'
+                    } disabled:cursor-not-allowed`}
                   >
-                    {statusLabels[s]}
+                    <div className="flex w-full items-center justify-between mb-1.5">
+                      <span className="font-mono text-[10px] font-bold text-repixl-muted">
+                        {config.progress}%
+                      </span>
+                      {isActive ? (
+                        <span className="h-2 w-2 rounded-full bg-repixl-red animate-ping" />
+                      ) : isPastStage ? (
+                        <span className="text-emerald-400 text-xs">✓</span>
+                      ) : null}
+                    </div>
+                    <span className="font-display text-xs font-bold text-repixl-text-light">
+                      {config.shortLabel}
+                    </span>
+                    <span className="mt-0.5 font-mono text-[9px] text-repixl-muted truncate w-full">
+                      {config.deliveryStatus}
+                    </span>
                   </button>
                 )
               })}
+            </div>
+
+            {/* Other actions: Cancel Order / Completed note */}
+            <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-repixl-muted/10 pt-3">
+              <div className="flex items-center gap-2">
+                {order.status === 'CANCELLED' ? (
+                  <span className="font-mono text-xs font-semibold text-red-400">Order is Cancelled (0% progress)</span>
+                ) : order.status === 'COMPLETED' ? (
+                  <span className="font-mono text-xs font-semibold text-repixl-success">Customer Confirmed Receipt (Completed)</span>
+                ) : (
+                  <button
+                    type="button"
+                    disabled={isLocked || isUpdating}
+                    onClick={() => {
+                      if (confirm(`Cancel order #${order.orderNumber}? This will mark it CANCELLED and return items to inventory.`)) {
+                        void handleStageSelect('CANCELLED')
+                      }
+                    }}
+                    className="font-mono text-[10px] uppercase text-red-400/80 hover:text-red-400 underline decoration-red-400/30 hover:decoration-red-400 transition-colors disabled:opacity-40"
+                  >
+                    Cancel Order
+                  </button>
+                )}
+              </div>
+
+              {feedback && (
+                <div className={`rounded-lg px-3 py-1 font-mono text-[10px] ${feedback.ok ? 'border border-repixl-success/20 bg-repixl-success/10 text-repixl-success' : 'border border-red-500/20 bg-red-500/10 text-red-400'}`}>
+                  {feedback.message}
+                </div>
+              )}
             </div>
           </div>
 
-          {/* Delivery Tracking */}
+          {/* Live Delivery Map Simulation Preview */}
           <div className="rounded-xl border border-repixl-muted/10 bg-repixl-bg/30 p-4">
             <div className="mb-3 flex items-center justify-between">
-              <p className="font-mono text-[10px] uppercase tracking-wider text-repixl-muted">Delivery Tracking</p>
-              <div className="flex items-center gap-1.5">
-                <span className="h-1.5 w-1.5 rounded-full bg-repixl-success" aria-hidden="true" />
-                <span className={`font-mono text-[9px] ${deliveryStatusColor[currentDeliveryStatus] ?? 'text-repixl-muted'}`}>{currentDeliveryStatus}</span>
+              <div>
+                <p className="font-mono text-[10px] uppercase tracking-wider text-repixl-muted">Live Delivery Map Simulation</p>
+                <p className="text-xs text-repixl-muted/80">
+                  Real-time route waypoint from Central Hub to customer destination ({currentConfig.progress}%)
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <a
+                  href={`/account/orders/${order.orderNumber}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="rounded-lg border border-repixl-muted/20 bg-repixl-charcoal/60 px-2.5 py-1 text-[11px] font-medium text-repixl-text-light/70 hover:text-repixl-text-light hover:border-repixl-muted/40 transition-colors inline-flex items-center gap-1"
+                >
+                  <span>Customer Tracking</span>
+                  <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" /><polyline points="15 3 21 3 21 9" /><line x1="10" y1="14" x2="21" y2="3" /></svg>
+                </a>
+                <button
+                  type="button"
+                  onClick={() => setShowMap((prev) => !prev)}
+                  className="rounded-lg border border-repixl-muted/20 bg-repixl-charcoal/60 px-2.5 py-1 font-mono text-[11px] text-repixl-muted hover:text-repixl-text-light hover:border-repixl-muted/40 transition-colors"
+                >
+                  {showMap ? 'Hide Map' : 'Show Map'}
+                </button>
               </div>
             </div>
-            {isDeliveryLocked ? (
-              <p className="mb-3 text-xs text-amber-400/90 font-medium">
-                🔒 Delivery tracking updates require completed payment.
-              </p>
-            ) : (
-              <p className="mb-3 text-xs text-repixl-muted/70">
-                {isCod && !isPaid
-                  ? 'Cash on Delivery: delivery tracking can be updated while payment is pending collection upon delivery.'
-                  : 'Updating delivery status notifies the customer in real time.'}
-              </p>
-            )}
-            <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-              {DELIVERY_STEPS.map((step) => {
-                return (
-                  <button
-                    key={step.step}
-                    type="button"
-                    onClick={() => void fireStep(step)}
-                    disabled={isDeliveryLocked || !!firing}
-                    className="flex items-center gap-3 rounded-xl border border-repixl-muted/15 bg-repixl-charcoal px-4 py-3 text-left transition-all hover:border-repixl-red/30 hover:bg-repixl-red/5 disabled:cursor-not-allowed disabled:opacity-40"
-                  >
-                    <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg bg-repixl-red/10">
-                      {firing === step.step ? (
-                        <svg className="h-3.5 w-3.5 animate-spin text-repixl-red" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" aria-hidden="true">
-                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                        </svg>
-                      ) : (
-                        <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-repixl-red" aria-hidden="true">
-                          <path d={step.icon} />
-                        </svg>
-                      )}
-                    </div>
-                    <span className="text-xs font-semibold text-repixl-text-light">{step.label}</span>
-                  </button>
-                )
-              })}
-            </div>
-            {feedback && (
-              <div className={`mt-3 rounded-lg px-3 py-2 font-mono text-[10px] ${feedback.ok ? 'border border-repixl-success/20 bg-repixl-success/10 text-repixl-success' : 'border border-red-500/20 bg-red-500/10 text-red-400'}`}>
-                {feedback.message}
+
+            {showMap && (
+              <div className="mt-3 overflow-hidden rounded-xl border border-repixl-muted/15 shadow-inner">
+                <TrackingMap
+                  key={`${order.orderNumber}-${currentUnified}-${order.trackingProgress}`}
+                  status={order.deliveryStatus || currentConfig.deliveryStatus}
+                  progress={order.trackingProgress ?? currentConfig.progress}
+                  order={order}
+                  initialState={{
+                    status: order.deliveryStatus || currentConfig.deliveryStatus,
+                    progress: order.trackingProgress ?? currentConfig.progress,
+                    description: order.trackingDescription || currentConfig.description,
+                  }}
+                />
               </div>
             )}
           </div>

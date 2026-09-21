@@ -35,6 +35,8 @@ export default function RootLayout() {
         <Stack.Screen name="order-confirm" />
         <Stack.Screen name="order" />
         <Stack.Screen name="notifications" />
+        <Stack.Screen name="forgot-password" />
+        <Stack.Screen name="support" />
       </Stack>
     </AppProvider>
   );

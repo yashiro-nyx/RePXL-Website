@@ -77,6 +77,10 @@ interface AppContextType {
     error?: string;
     voucher?: { code: string; description: string };
   }>;
+  forgotPassword: (email: string) => Promise<string>;
+  resetPassword: (token: string, newPassword: string) => Promise<string>;
+  changePassword: (oldPassword: string, newPassword: string) => Promise<void>;
+  contactSupport: (input: { name: string; email: string; subject: string; message: string }) => Promise<string>;
 }
 
 const AppContext = createContext<AppContextType | null>(null);
@@ -476,7 +480,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const submitReview = useCallback(async (productId: string, rating: number, comment: string) => {
     const created = await api.createReview(productId, rating, comment);
-    setReviews(await api.reviews());
+    try {
+      const all = await api.reviews();
+      setReviews(Array.isArray(all) ? all : [created]);
+    } catch {
+      setReviews((current) => [created, ...current.filter((item) => item.id !== created.id)]);
+    }
     return created;
   }, []);
 
@@ -487,6 +496,25 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const validateVoucher = useCallback(async (code: string, cartTotal: number) => {
     return api.validateVoucher(code, cartTotal);
+  }, []);
+
+  const forgotPassword = useCallback(async (email: string) => {
+    const res = await api.forgotPassword(email);
+    return res.message || "If an account with that email exists, we've sent reset instructions.";
+  }, []);
+
+  const resetPassword = useCallback(async (token: string, newPassword: string) => {
+    const res = await api.resetPassword(token, newPassword);
+    return res.message || 'Password reset successfully.';
+  }, []);
+
+  const changePassword = useCallback(async (oldPassword: string, newPassword: string) => {
+    await api.changePassword(oldPassword, newPassword);
+  }, []);
+
+  const contactSupport = useCallback(async (input: { name: string; email: string; subject: string; message: string }) => {
+    const res = await api.contactSupport(input);
+    return res.message || 'Thank you for contacting RePXL! We will respond shortly.';
   }, []);
 
   const value = useMemo<AppContextType>(() => ({
@@ -531,6 +559,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     confirmReceipt,
     updateOrderStatus,
     validateVoucher,
+    forgotPassword,
+    resetPassword,
+    changePassword,
+    contactSupport,
   }), [
     loading, refreshing, error, products, cart, user, profile, wishlist, compareList,
     addresses, orders, notifications, unreadNotificationsCount, reviews, signIn, signInWithGoogle, verifyMfa, register, logout,
@@ -538,6 +570,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     toggleWishlist, toggleCompare, clearCart, saveProfile, markNotificationRead, markAllNotificationsRead,
     addAddress, updateAddress, deleteAddress, setDefaultAddress, submitReview,
     removeReview, cancelOrder, confirmReceipt, updateOrderStatus, validateVoucher,
+    forgotPassword, resetPassword, changePassword, contactSupport,
   ]);
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

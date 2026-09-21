@@ -5,6 +5,8 @@ import {
   getOrderStatusBadgeClass,
   CANONICAL_ORDER_STATUSES,
   ORDER_STATUS_LABELS,
+  getUnifiedFulfillmentStatus,
+  UNIFIED_STATUS_CONFIG,
 } from './order-status-unified'
 
 describe('order-status-unified', () => {
@@ -59,6 +61,31 @@ describe('order-status-unified', () => {
     expect(getOrderStatusLabel('SHIPPED', 'PAID')).toBe('Shipped')
     expect(getOrderStatusLabel('DELIVERED', 'PAID')).toBe('Delivered')
     expect(getOrderStatusLabel('COMPLETED', 'PAID')).toBe('Completed')
+  })
+
+  it('resolves unified fulfillment status and badges with deliveryStatus accurately', () => {
+    expect(getUnifiedFulfillmentStatus({ status: 'PROCESSING' })).toBe('PROCESSING')
+    expect(getUnifiedFulfillmentStatus({ status: 'SHIPPED', deliveryStatus: 'In Transit' })).toBe('IN_TRANSIT')
+    expect(getUnifiedFulfillmentStatus({ status: 'SHIPPED', deliveryStatus: 'Out for Delivery' })).toBe('OUT_FOR_DELIVERY')
+    expect(getUnifiedFulfillmentStatus({ status: 'DELIVERED' })).toBe('DELIVERED')
+    expect(getUnifiedFulfillmentStatus({ status: 'COMPLETED' })).toBe('COMPLETED')
+    expect(getUnifiedFulfillmentStatus({ status: 'CANCELLED' })).toBe('CANCELLED')
+
+    // Labels with delivery status
+    expect(getOrderStatusLabel('SHIPPED', 'PAID', 'In Transit')).toBe('In Transit')
+    expect(getOrderStatusLabel('SHIPPED', 'PAID', 'Out for Delivery')).toBe('Out for Delivery')
+
+    // Badges distinguish In Transit vs Out for Delivery
+    expect(getOrderStatusBadgeClass('SHIPPED', 'PAID', 'In Transit')).toContain('text-blue-400')
+    expect(getOrderStatusBadgeClass('SHIPPED', 'PAID', 'Out for Delivery')).toContain('text-amber-300')
+
+    // Config matches expected progress percentages
+    expect(UNIFIED_STATUS_CONFIG.PROCESSING.progress).toBe(25)
+    expect(UNIFIED_STATUS_CONFIG.IN_TRANSIT.progress).toBe(50)
+    expect(UNIFIED_STATUS_CONFIG.OUT_FOR_DELIVERY.progress).toBe(75)
+    expect(UNIFIED_STATUS_CONFIG.DELIVERED.progress).toBe(100)
+    expect(UNIFIED_STATUS_CONFIG.COMPLETED.progress).toBe(100)
+    expect(UNIFIED_STATUS_CONFIG.CANCELLED.progress).toBe(0)
   })
 })
 

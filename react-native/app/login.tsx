@@ -108,6 +108,14 @@ export default function LoginScreen() {
                     <Feather name={showPw ? 'eye-off' : 'eye'} size={17} color="#666" />
                   </TouchableOpacity>
                 </View>
+                <TouchableOpacity
+                  onPress={() => router.push('/forgot-password')}
+                  style={{ alignSelf: 'flex-end', marginTop: 8 }}
+                >
+                  <Text style={{ fontFamily: 'Inter_500Medium', fontSize: 13, color: '#c62828' }}>
+                    Forgot password?
+                  </Text>
+                </TouchableOpacity>
               </View>
             </>
           )}

@@ -115,8 +115,17 @@ export const processPaymentSchema = createOrderSchema.extend({
 export const updateOrderStatusSchema = z
   .object({
     status: z
-      .enum(['PROCESSING', 'SHIPPED', 'DELIVERED', 'COMPLETED', 'CANCELLED'])
+      .enum([
+        'PROCESSING',
+        'SHIPPED',
+        'DELIVERED',
+        'COMPLETED',
+        'CANCELLED',
+        'IN_TRANSIT',
+        'OUT_FOR_DELIVERY',
+      ])
       .optional(),
+    deliveryStatus: z.string().max(100).optional(),
     paymentStatus: z
       .enum(['PENDING', 'PAID', 'FAILED', 'REFUNDED'])
       .optional(),
@@ -127,6 +136,7 @@ export const updateOrderStatusSchema = z
   .refine(
     (data) =>
       data.status !== undefined ||
+      data.deliveryStatus !== undefined ||
       data.paymentStatus !== undefined ||
       data.markPaymentCompleted !== undefined ||
       data.approveCod !== undefined ||
