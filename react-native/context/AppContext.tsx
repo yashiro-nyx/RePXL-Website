@@ -67,6 +67,7 @@ interface AppContextType {
   deleteAddress: (id: string) => Promise<void>;
   setDefaultAddress: (id: string) => Promise<void>;
   submitReview: (productId: string, rating: number, comment: string) => Promise<AccountReview>;
+  updateReview: (reviewId: string, rating: number, comment: string) => Promise<AccountReview>;
   removeReview: (reviewId: string) => Promise<void>;
   cancelOrder: (orderNumber: string) => Promise<Order>;
   confirmReceipt: (orderNumber: string, rating?: number, comment?: string) => Promise<Order>;
@@ -305,27 +306,78 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     if (cartLockRef.current.has(product.id)) return;
     cartLockRef.current.add(product.id);
     try {
+      setCart((prev) => {
+        const existing = prev.find((entry) => entry.product.id === product.id);
+        if (existing) {
+          const newQty = Math.min(existing.quantity + quantity, product.stockCount || 99);
+          return prev.map((entry) =>
+            entry.product.id === product.id ? { ...entry, quantity: newQty } : entry
+          );
+        }
+        return [
+          {
+            id: `temp-${Date.now()}`,
+            productId: product.id,
+            product,
+            quantity: Math.min(quantity, product.stockCount || 99),
+          },
+          ...prev,
+        ];
+      });
       await api.addToCart(product.id, quantity);
-      await reloadCart();
+      await reloadCart().catch(() => {});
+    } catch (err) {
+      await reloadCart().catch(() => {});
+      throw err;
     } finally {
       cartLockRef.current.delete(product.id);
     }
   }, [reloadCart, user]);
 
-  const removeFromCart = useCallback(async (productId: string) => {
-    const item = cart.find((entry) => entry.product.id === productId);
+  const removeFromCart = useCallback(async (productIdOrItemId: string) => {
+    const item = cart.find(
+      (entry) => entry.product.id === productIdOrItemId || entry.id === productIdOrItemId
+    );
     if (!item) return;
-    await api.removeCart(item.id);
-    await reloadCart();
-  }, [cart, reloadCart]);
+    const previous = cart;
+    setCart((prev) => prev.filter((entry) => entry.id !== item.id));
+    try {
+      await api.removeCart(item.id);
+    } catch (err) {
+      setCart(previous);
+      throw err;
+    }
+  }, [cart]);
 
-  const updateQty = useCallback(async (productId: string, quantity: number) => {
-    const item = cart.find((entry) => entry.product.id === productId);
+  const updateQty = useCallback(async (productIdOrItemId: string, quantity: number) => {
+    const item = cart.find(
+      (entry) => entry.product.id === productIdOrItemId || entry.id === productIdOrItemId
+    );
     if (!item) return;
-    if (quantity <= 0) await api.removeCart(item.id);
-    else await api.updateCart(item.id, quantity);
-    await reloadCart();
-  }, [cart, reloadCart]);
+    const previous = cart;
+    if (quantity <= 0) {
+      setCart((prev) => prev.filter((entry) => entry.id !== item.id));
+      try {
+        await api.removeCart(item.id);
+      } catch (err) {
+        setCart(previous);
+        throw err;
+      }
+    } else {
+      const cappedQty = Math.min(quantity, item.product.stockCount || 99);
+      setCart((prev) =>
+        prev.map((entry) =>
+          entry.id === item.id ? { ...entry, quantity: cappedQty } : entry
+        )
+      );
+      try {
+        await api.updateCart(item.id, cappedQty);
+      } catch (err) {
+        setCart(previous);
+        throw err;
+      }
+    }
+  }, [cart]);
 
   const toggleWishlist = useCallback(async (productId: string) => {
     if (!user) throw new Error('Sign in to use your synced wishlist.');
@@ -376,9 +428,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const clearCart = useCallback(async () => {
     if (!user) return;
-    await api.clearCart();
+    const previous = cart;
     setCart([]);
-  }, [user]);
+    try {
+      await api.clearCart();
+    } catch (err) {
+      setCart(previous);
+      throw err;
+    }
+  }, [cart, user]);
 
   const saveProfile = useCallback(async (input: { firstName: string; lastName: string; username?: string }) => {
     const updated = await api.updateProfile(input);
@@ -469,14 +527,32 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const deleteAddress = useCallback(async (id: string) => {
-    await api.deleteAddress(id);
-    setAddresses(await api.addresses());
-  }, []);
+    const previous = addresses;
+    setAddresses((prev) => prev.filter((item) => item.id !== id));
+    try {
+      await api.deleteAddress(id);
+      const synced = await api.addresses();
+      setAddresses(synced);
+    } catch (err) {
+      setAddresses(previous);
+      throw err;
+    }
+  }, [addresses]);
 
   const setDefaultAddress = useCallback(async (id: string) => {
-    await api.setDefaultAddress(id);
-    setAddresses(await api.addresses());
-  }, []);
+    const previous = addresses;
+    setAddresses((prev) =>
+      prev.map((item) => ({ ...item, isDefault: item.id === id }))
+    );
+    try {
+      await api.setDefaultAddress(id);
+      const synced = await api.addresses();
+      setAddresses(synced);
+    } catch (err) {
+      setAddresses(previous);
+      throw err;
+    }
+  }, [addresses]);
 
   const submitReview = useCallback(async (productId: string, rating: number, comment: string) => {
     const created = await api.createReview(productId, rating, comment);
@@ -489,10 +565,33 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     return created;
   }, []);
 
+  const updateReview = useCallback(async (reviewId: string, rating: number, comment: string) => {
+    const previous = reviews;
+    setReviews((current) =>
+      current.map((item) => (item.id === reviewId ? { ...item, rating, comment } : item))
+    );
+    try {
+      const updated = await api.updateReview(reviewId, rating, comment);
+      setReviews((current) =>
+        current.map((item) => (item.id === reviewId ? { ...item, ...updated } : item))
+      );
+      return updated;
+    } catch (err) {
+      setReviews(previous);
+      throw err;
+    }
+  }, [reviews]);
+
   const removeReview = useCallback(async (reviewId: string) => {
-    await api.deleteReview(reviewId);
+    const previous = reviews;
     setReviews((current) => current.filter((item) => item.id !== reviewId));
-  }, []);
+    try {
+      await api.deleteReview(reviewId);
+    } catch (err) {
+      setReviews(previous);
+      throw err;
+    }
+  }, [reviews]);
 
   const validateVoucher = useCallback(async (code: string, cartTotal: number) => {
     return api.validateVoucher(code, cartTotal);
@@ -554,6 +653,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     deleteAddress,
     setDefaultAddress,
     submitReview,
+    updateReview,
     removeReview,
     cancelOrder,
     confirmReceipt,
@@ -568,7 +668,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     addresses, orders, notifications, unreadNotificationsCount, reviews, signIn, signInWithGoogle, verifyMfa, register, logout,
     refreshProducts, refreshAccount, refreshNotifications, addToCart, removeFromCart, updateQty,
     toggleWishlist, toggleCompare, clearCart, saveProfile, markNotificationRead, markAllNotificationsRead,
-    addAddress, updateAddress, deleteAddress, setDefaultAddress, submitReview,
+    addAddress, updateAddress, deleteAddress, setDefaultAddress, submitReview, updateReview,
     removeReview, cancelOrder, confirmReceipt, updateOrderStatus, validateVoucher,
     forgotPassword, resetPassword, changePassword, contactSupport,
   ]);

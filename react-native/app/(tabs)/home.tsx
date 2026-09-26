@@ -7,6 +7,7 @@ import {
   Image,
   StyleSheet,
   TextInput,
+  useWindowDimensions,
 } from 'react-native';
 import { router } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -15,6 +16,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CONDITION_COLORS } from '../../data/products';
 import { useApp } from '../../context/AppContext';
 import { api } from '../../src/services/api';
+import { getSafeTopInset, getResponsiveCardLayout } from '../../src/utils/layout';
 import type { Product } from '../../types';
 
 const CATEGORIES = ['Popular', 'New Arrival', 'Canon', 'Fujifilm', 'Kodak', 'Nikon'];
@@ -29,15 +31,38 @@ function StarRating({ rating }: { rating: number }) {
   );
 }
 
-function ProductCard({ product }: { product: Product }) {
+function ProductCard({ product, cardWidth }: { product: Product; cardWidth: number }) {
+  const { wishlist, toggleWishlist, user } = useApp();
+  const isWishlisted = wishlist.includes(product.id);
   const cond = CONDITION_COLORS[product.condition] || { text: '#2196f3', border: '#2196f3' };
+  const imageHeight = Math.min(180, Math.max(130, Math.round(cardWidth * 0.88)));
   return (
     <TouchableOpacity
-      style={styles.card}
+      style={[styles.card, { width: cardWidth }]}
       onPress={() => router.push({ pathname: '/product', params: { slug: product.slug } })}
       activeOpacity={0.85}
     >
-      <Image source={{ uri: product.image }} style={styles.cardImage} resizeMode="cover" />
+      <View style={{ position: 'relative' }}>
+        <Image source={{ uri: product.image }} style={[styles.cardImage, { height: imageHeight }]} resizeMode="cover" />
+        <TouchableOpacity
+          style={styles.cardHeartBtn}
+          onPress={() => {
+            if (!user) {
+              router.push('/login');
+              return;
+            }
+            void toggleWishlist(product.id);
+          }}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          activeOpacity={0.7}
+        >
+          <Feather
+            name="heart"
+            size={14}
+            color={isWishlisted ? '#f44336' : '#fff'}
+          />
+        </TouchableOpacity>
+      </View>
       <View style={styles.cardBody}>
         <View style={[styles.condBadge, { borderColor: cond.border }]}>
           <Text style={[styles.condBadgeText, { color: cond.text }]}>{product.condition}</Text>
@@ -73,6 +98,13 @@ function ProductCard({ product }: { product: Product }) {
 
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
+  const safeTop = getSafeTopInset(insets);
+  const { width } = useWindowDimensions();
+  const { cardWidth, horizontalPadding, gap } = getResponsiveCardLayout(width, {
+    horizontalPadding: 16,
+    gap: 10,
+    tabletBreakpoint: 600,
+  });
   const { user, products, error, unreadNotificationsCount } = useApp();
   const [activeCategory, setActiveCategory] = useState('Popular');
   const [homeSearch, setHomeSearch] = useState('');
@@ -133,7 +165,7 @@ export default function HomeScreen() {
   }, [products, activeCategory]);
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
+    <View style={[styles.container, { paddingTop: safeTop }]}>
       <LinearGradient
         colors={['#4a0808', '#1a0202', 'transparent']}
         start={{ x: 1, y: 0 }}
@@ -273,10 +305,10 @@ export default function HomeScreen() {
           </TouchableOpacity>
         </View>
 
-        <View style={styles.grid}>
+        <View style={[styles.grid, { paddingHorizontal: horizontalPadding, gap }]}>
           {error ? <Text style={styles.loadMessage}>{error}</Text> : null}
           {displayedProducts.map((product) => (
-            <ProductCard key={product.id} product={product} />
+            <ProductCard key={product.id} product={product} cardWidth={cardWidth} />
           ))}
           {products.length === 0 && !error ? (
             <Text style={styles.loadMessage}>Loading current inventory…</Text>
@@ -309,7 +341,7 @@ const styles = StyleSheet.create({
   },
   logoDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: '#c62828', marginLeft: 3 },
   headerActions: { flexDirection: 'row', alignItems: 'center', gap: 16 },
-  bellButton: { position: 'relative', justifyContent: 'center', alignItems: 'center' },
+  bellButton: { position: 'relative', justifyContent: 'center', alignItems: 'center', minWidth: 32, minHeight: 32 },
   bellBadge: {
     position: 'absolute',
     top: -5,
@@ -337,13 +369,14 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     paddingHorizontal: 14,
     paddingVertical: 10,
+    elevation: 2,
   },
   searchInput: { flex: 1, fontSize: 14, color: '#fff', fontFamily: 'Inter_400Regular' },
   searchGoBtn: {
     backgroundColor: '#c62828',
     borderRadius: 8,
-    width: 26,
-    height: 26,
+    width: 28,
+    height: 28,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -367,7 +400,7 @@ const styles = StyleSheet.create({
   catPillActive: { backgroundColor: '#c62828', borderColor: '#c62828' },
   catPillText: { fontFamily: 'Inter_600SemiBold', fontSize: 13, color: '#aaa' },
   catPillTextActive: { color: '#fff' },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 14, gap: 10 },
+  grid: { flexDirection: 'row', flexWrap: 'wrap' },
   loadMessage: {
     width: '100%',
     color: '#888',
@@ -377,14 +410,25 @@ const styles = StyleSheet.create({
     paddingVertical: 20,
   },
   card: {
-    width: '47.5%',
     backgroundColor: '#1c1c1e',
     borderRadius: 16,
     overflow: 'hidden',
     borderWidth: 1,
     borderColor: '#2c2c2e',
+    elevation: 3,
   },
-  cardImage: { width: '100%', height: 148, backgroundColor: '#111' },
+  cardImage: { width: '100%', backgroundColor: '#111' },
+  cardHeartBtn: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: 'rgba(0, 0, 0, 0.55)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   cardBody: { padding: 10, gap: 4 },
   condBadge: {
     alignSelf: 'flex-start',
@@ -401,9 +445,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     marginTop: 4,
+    gap: 4,
   },
-  cardPrice: { fontFamily: 'Inter_700Bold', fontSize: 13, color: '#fff' },
-  stockRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  cardPrice: { fontFamily: 'Inter_700Bold', fontSize: 13, color: '#fff', flexShrink: 1 },
+  stockRow: { flexDirection: 'row', alignItems: 'center', gap: 4, flexShrink: 0 },
   stockDot: { width: 6, height: 6, borderRadius: 3 },
   stockText: { fontSize: 10, fontFamily: 'Inter_500Medium' },
   promoCard: {
@@ -413,6 +458,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     borderWidth: 1,
     borderColor: 'rgba(198, 40, 40, 0.3)',
+    elevation: 3,
   },
   promoCardGradient: { padding: 16 },
   promoContent: { gap: 6 },

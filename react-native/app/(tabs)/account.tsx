@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  BackHandler,
   Image,
   Modal,
   RefreshControl,
@@ -19,11 +20,13 @@ import { Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useApp } from '../../context/AppContext';
 import { CONDITION_COLORS } from '../../data/products';
+import { getSafeTopInset } from '../../src/utils/layout';
 import {
   getOrderStatusLabel,
   getOrderStatusColors,
   getPaymentStatusColors,
   normalizeOrderStatus,
+  type AccountReview,
   type Address,
   type Product,
 } from '../../types';
@@ -31,8 +34,10 @@ import {
 type Section = 'main' | 'profile' | 'password' | 'purchases' | 'addresses' | 'reviews' | 'notifications' | 'wishlist';
 
 function SignedOut() {
+  const insets = useSafeAreaInsets();
+  const safeTop = getSafeTopInset(insets);
   return (
-    <View style={styles.centeredFull}>
+    <View style={[styles.centeredFull, { paddingTop: safeTop }]}>
       <LinearGradient colors={['#4a0808', '#1a0202', 'transparent']} style={styles.topGradient} />
       <View style={styles.anonIcon}>
         <Feather name="user" size={34} color="#444" />
@@ -89,11 +94,13 @@ function SubPage({
   rightAction?: React.ReactNode;
   children: React.ReactNode;
 }) {
+  const insets = useSafeAreaInsets();
+  const safeTop = getSafeTopInset(insets);
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingTop: safeTop }]}>
       <LinearGradient colors={['#4a0808', '#1a0202', 'transparent']} style={styles.topGradient} />
       <View style={styles.subHeader}>
-        <TouchableOpacity onPress={onBack} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+        <TouchableOpacity onPress={onBack} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
           <Feather name="arrow-left" size={22} color="#fff" />
         </TouchableOpacity>
         <Text style={styles.subHeaderTitle}>{title}</Text>
@@ -111,13 +118,39 @@ function ProfileView({ onBack }: { onBack: () => void }) {
   const [username, setUsername] = useState(profile?.username ?? '');
   const [status, setStatus] = useState('');
   const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (profile) {
+      setFirstName(profile.firstName ?? '');
+      setLastName(profile.lastName ?? '');
+      setUsername(profile.username ?? '');
+    }
+  }, [profile]);
+
   if (!profile) return null;
 
   const save = async () => {
+    if (!firstName.trim() || !lastName.trim()) {
+      setStatus('First name and last name are required.');
+      return;
+    }
+    const cleanUsername = username.trim().toLowerCase();
+    if (cleanUsername && (cleanUsername.length < 3 || cleanUsername.length > 30)) {
+      setStatus('Username must be between 3 and 30 characters.');
+      return;
+    }
+    if (cleanUsername && !/^[a-z0-9_-]+$/.test(cleanUsername)) {
+      setStatus('Username may only contain letters, numbers, underscores, and hyphens.');
+      return;
+    }
     setStatus('');
     setSaving(true);
     try {
-      await saveProfile({ firstName, lastName, username: username.trim() || undefined });
+      await saveProfile({
+        firstName: firstName.trim(),
+        lastName: lastName.trim(),
+        username: cleanUsername || undefined,
+      });
       setStatus('Saved to your RePXL account.');
     } catch (reason) {
       setStatus(reason instanceof Error ? reason.message : 'Unable to save your profile.');
@@ -708,7 +741,39 @@ function AddressesView({ onBack }: { onBack: () => void }) {
 }
 
 function ReviewsView({ onBack }: { onBack: () => void }) {
-  const { reviews, removeReview } = useApp();
+  const { reviews, removeReview, updateReview } = useApp();
+  const [editingReview, setEditingReview] = useState<AccountReview | null>(null);
+  const [editRating, setEditRating] = useState(5);
+  const [editComment, setEditComment] = useState('');
+  const [editModalVisible, setEditModalVisible] = useState(false);
+  const [savingEdit, setSavingEdit] = useState(false);
+  const [editError, setEditError] = useState('');
+
+  const openEditModal = (review: AccountReview) => {
+    setEditingReview(review);
+    setEditRating(review.rating);
+    setEditComment(review.comment);
+    setEditError('');
+    setEditModalVisible(true);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editingReview) return;
+    if (!editComment.trim()) {
+      setEditError('Please write your review comment.');
+      return;
+    }
+    setSavingEdit(true);
+    setEditError('');
+    try {
+      await updateReview(editingReview.id, editRating, editComment.trim());
+      setEditModalVisible(false);
+    } catch (err) {
+      setEditError(err instanceof Error ? err.message : 'Unable to update review.');
+    } finally {
+      setSavingEdit(false);
+    }
+  };
 
   const handleDelete = (id: string, title: string) => {
     Alert.alert('Delete Review', `Remove your review for ${title}?`, [
@@ -740,12 +805,20 @@ function ReviewsView({ onBack }: { onBack: () => void }) {
               >
                 <Text style={styles.cardTitle}>{review.product?.name ?? 'Camera review'}</Text>
               </TouchableOpacity>
-              <TouchableOpacity
-                onPress={() => handleDelete(review.id, review.product?.name ?? 'camera')}
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              >
-                <Feather name="trash-2" size={15} color="#888" />
-              </TouchableOpacity>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                <TouchableOpacity
+                  onPress={() => openEditModal(review)}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  <Feather name="edit-2" size={15} color="#888" />
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => handleDelete(review.id, review.product?.name ?? 'camera')}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  <Feather name="trash-2" size={15} color="#888" />
+                </TouchableOpacity>
+              </View>
             </View>
             <Text style={styles.rating}>
               {'★'.repeat(review.rating)}
@@ -759,6 +832,68 @@ function ReviewsView({ onBack }: { onBack: () => void }) {
           </View>
         ))}
       </ScrollView>
+
+      {/* Edit Review Modal */}
+      <Modal visible={editModalVisible} animationType="slide" transparent>
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalSheet}>
+            <View style={styles.modalSheetHeader}>
+              <Text style={styles.modalSheetTitle}>Edit Your Review</Text>
+              <TouchableOpacity
+                onPress={() => setEditModalVisible(false)}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Feather name="x" size={20} color="#888" />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView contentContainerStyle={{ paddingBottom: 24, gap: 12 }}>
+              <Text style={styles.fieldLabel}>RATING</Text>
+              <View style={{ flexDirection: 'row', gap: 10, paddingVertical: 4 }}>
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <TouchableOpacity
+                    key={star}
+                    onPress={() => setEditRating(star)}
+                    activeOpacity={0.7}
+                  >
+                    <Feather
+                      name="star"
+                      size={28}
+                      color={star <= editRating ? '#f5a623' : '#444'}
+                    />
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              <Text style={styles.fieldLabel}>YOUR REVIEW</Text>
+              <TextInput
+                value={editComment}
+                onChangeText={setEditComment}
+                placeholder="Share your experience with this camera..."
+                placeholderTextColor="#555"
+                multiline
+                numberOfLines={4}
+                style={[styles.modalInput, { minHeight: 90, textAlignVertical: 'top' }]}
+              />
+
+              {!!editError && <Text style={styles.formErrorText}>{editError}</Text>}
+
+              <TouchableOpacity
+                style={[styles.saveAddressBtn, savingEdit && { opacity: 0.6 }]}
+                onPress={handleSaveEdit}
+                disabled={savingEdit}
+                activeOpacity={0.85}
+              >
+                {savingEdit ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <Text style={styles.saveAddressText}>Update Review</Text>
+                )}
+              </TouchableOpacity>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </SubPage>
   );
 }
@@ -1007,6 +1142,7 @@ function AccountSkeleton({ insetsTop }: { insetsTop: number }) {
 
 export default function AccountScreen() {
   const insets = useSafeAreaInsets();
+  const safeTop = getSafeTopInset(insets);
   const {
     loading,
     user,
@@ -1023,7 +1159,17 @@ export default function AccountScreen() {
   const [section, setSection] = useState<Section>('main');
   const [showLogoutModal, setShowLogoutModal] = useState(false);
 
-  if (loading && !user) return <AccountSkeleton insetsTop={insets.top} />;
+  useEffect(() => {
+    if (section === 'main') return;
+    const onBackPress = () => {
+      setSection('main');
+      return true;
+    };
+    const sub = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+    return () => sub.remove();
+  }, [section]);
+
+  if (loading && !user) return <AccountSkeleton insetsTop={safeTop} />;
   if (!user) return <SignedOut />;
   if (section === 'profile') return <ProfileView onBack={() => setSection('main')} />;
   if (section === 'password') return <PasswordView onBack={() => setSection('main')} />;
@@ -1036,7 +1182,7 @@ export default function AccountScreen() {
   const initials = `${user.firstName[0] ?? ''}${user.lastName[0] ?? ''}`.toUpperCase();
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
+    <View style={[styles.container, { paddingTop: safeTop }]}>
       <LinearGradient colors={['#4a0808', '#1a0202', 'transparent']} style={styles.topGradient} />
 
       <View style={styles.topBar}>
@@ -1276,6 +1422,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     borderWidth: 1,
     borderColor: '#2c2c2e',
+    elevation: 3,
   },
   avatarMed: {
     width: 50,
@@ -1295,6 +1442,7 @@ const styles = StyleSheet.create({
     borderColor: '#2c2c2e',
     paddingVertical: 12,
     alignItems: 'center',
+    elevation: 2,
   },
   statValue: { fontFamily: 'Inter_800ExtraBold', fontSize: 19, color: '#fff' },
   statLabel: { fontFamily: 'Inter_400Regular', fontSize: 10, color: '#666' },
@@ -1311,6 +1459,7 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderBottomWidth: 1,
     borderColor: '#1e1e1e',
+    elevation: 2,
   },
   navRow: {
     flexDirection: 'row',
@@ -1480,6 +1629,7 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 20,
     paddingHorizontal: 20,
     paddingTop: 18,
+    paddingBottom: 28,
     maxHeight: '85%',
   },
   modalSheetHeader: {

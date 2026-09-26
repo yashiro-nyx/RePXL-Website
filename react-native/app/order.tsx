@@ -14,6 +14,7 @@ import { Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { api } from '../src/services/api';
 import { useApp } from '../context/AppContext';
+import { getSafeTopInset } from '../src/utils/layout';
 import {
   getOrderStatusLabel,
   getOrderStatusColors,
@@ -171,8 +172,10 @@ export default function OrderScreen() {
     );
   };
 
+  const safeTop = getSafeTopInset(insets);
+
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
+    <View style={[styles.container, { paddingTop: safeTop }]}>
       <View style={styles.header}>
         <TouchableOpacity
           onPress={() => router.back()}
@@ -208,7 +211,13 @@ export default function OrderScreen() {
           )}
         </View>
       ) : (
-        <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <ScrollView
+          contentContainerStyle={[
+            styles.content,
+            { paddingBottom: Math.max(insets.bottom, 24) + 16 },
+          ]}
+          showsVerticalScrollIndicator={false}
+        >
           {/* Order Header Card */}
           <View style={styles.card}>
             <View style={styles.rowBetween}>
@@ -680,6 +689,7 @@ const styles = StyleSheet.create({
     borderColor: '#2c2c2e',
     padding: 16,
     gap: 8,
+    elevation: 2,
   },
   cardSectionTitle: {
     fontFamily: 'Inter_700Bold',

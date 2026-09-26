@@ -1,12 +1,11 @@
-import { View, Text, Image, TouchableOpacity, StyleSheet, Dimensions } from 'react-native';
+import { View, Text, Image, TouchableOpacity, StyleSheet, useWindowDimensions } from 'react-native';
 import { router } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-const { height } = Dimensions.get('window');
-
 export default function SplashScreen() {
   const insets = useSafeAreaInsets();
+  const { height } = useWindowDimensions();
 
   return (
     <View style={styles.container}>
@@ -19,16 +18,16 @@ export default function SplashScreen() {
 
       <Image
         source={{ uri: 'https://images.unsplash.com/photo-1516961642265-531546e84af2?w=500&h=700&fit=crop&auto=format' }}
-        style={styles.heroImage}
+        style={[styles.heroImage, { height: height * 0.65 }]}
         resizeMode="cover"
       />
 
       <LinearGradient
         colors={['transparent', 'rgba(13,13,13,0.85)', '#0d0d0d']}
-        style={styles.fadeOverlay}
+        style={[styles.fadeOverlay, { height: height * 0.5 }]}
       />
 
-      <View style={[styles.content, { paddingBottom: insets.bottom + 48 }]}>
+      <View style={[styles.content, { paddingBottom: Math.max(insets.bottom, 24) + 24 }]}>
         <View style={styles.logoRow}>
           <View style={styles.bracket} />
           <Text style={styles.logoText}>RePXL</Text>
@@ -59,7 +58,6 @@ const styles = StyleSheet.create({
     top: 0,
     left: 0,
     right: 0,
-    height: height * 0.65,
     opacity: 0.55,
   },
   fadeOverlay: {
@@ -67,7 +65,6 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    height: height * 0.5,
   },
   content: {
     position: 'absolute',
@@ -111,6 +108,11 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     paddingHorizontal: 52,
     borderRadius: 10,
+    elevation: 4,
+    shadowColor: '#c62828',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
   },
   startBtnText: {
     fontFamily: 'Inter_700Bold',

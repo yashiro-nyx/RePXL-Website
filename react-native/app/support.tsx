@@ -18,6 +18,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useApp } from '../context/AppContext';
 import { FAQS, FAQ_CATEGORIES, type FAQItem } from '../data/faqs';
 import { QUICK_PROMPTS, generateAiResponse } from '../data/ai-concierge';
+import { getSafeTopInset } from '../src/utils/layout';
 
 type SupportTab = 'ai' | 'faq' | 'contact';
 
@@ -141,9 +142,11 @@ export default function SupportScreen() {
     }
   };
 
+  const safeTop = getSafeTopInset(insets);
+
   return (
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <View style={[styles.container, { paddingTop: insets.top }]}>
+      <View style={[styles.container, { paddingTop: safeTop }]}>
         <LinearGradient
           colors={['#4a0808', '#1a0202', 'transparent']}
           start={{ x: 0.3, y: 0 }}
@@ -153,7 +156,7 @@ export default function SupportScreen() {
 
         {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+          <TouchableOpacity onPress={() => router.back()} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
             <Feather name="arrow-left" size={22} color="#fff" />
           </TouchableOpacity>
           <View style={{ flex: 1, marginLeft: 12 }}>
@@ -275,7 +278,7 @@ export default function SupportScreen() {
             </ScrollView>
 
             {/* Input Bar */}
-            <View style={[styles.inputBar, { paddingBottom: insets.bottom > 0 ? insets.bottom : 12 }]}>
+            <View style={[styles.inputBar, { paddingBottom: Math.max(insets.bottom, 12) }]}>
               <TextInput
                 value={chatInput}
                 onChangeText={setChatInput}
@@ -620,6 +623,7 @@ const styles = StyleSheet.create({
     borderColor: '#242426',
     borderRadius: 12,
     padding: 14,
+    elevation: 2,
   },
   faqCardHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   faqQuestion: { flex: 1, fontFamily: 'Inter_600SemiBold', fontSize: 14, color: '#eee', paddingRight: 8 },
@@ -647,6 +651,7 @@ const styles = StyleSheet.create({
     padding: 12,
     alignItems: 'center',
     gap: 4,
+    elevation: 2,
   },
   infoCardTitle: { fontFamily: 'Inter_600SemiBold', fontSize: 11, color: '#888', marginTop: 2 },
   infoCardValue: { fontFamily: 'Inter_700Bold', fontSize: 12, color: '#fff' },

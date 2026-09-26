@@ -1,8 +1,9 @@
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useFonts, Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold, Inter_800ExtraBold } from '@expo-google-fonts/inter';
+import { useEffect } from 'react';
+import { View, ActivityIndicator, Platform, StatusBar as RNStatusBar } from 'react-native';
 import { AppProvider } from '../context/AppContext';
-import { View, ActivityIndicator } from 'react-native';
 
 export default function RootLayout() {
   const [loaded] = useFonts({
@@ -12,6 +13,14 @@ export default function RootLayout() {
     Inter_700Bold,
     Inter_800ExtraBold,
   });
+
+  useEffect(() => {
+    if (Platform.OS === 'android') {
+      RNStatusBar.setBarStyle('light-content');
+      RNStatusBar.setBackgroundColor('#0d0d0d');
+      RNStatusBar.setTranslucent(true);
+    }
+  }, []);
 
   if (!loaded) {
     return (

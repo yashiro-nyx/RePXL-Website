@@ -12,6 +12,7 @@ import { router } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useApp } from '../context/AppContext';
+import { getSafeTopInset } from '../src/utils/layout';
 import type { Notification } from '../types';
 
 type NotificationCategory = 'ALL' | 'ORDERS' | 'RETURNS' | 'PROMOS' | 'UPDATES';
@@ -179,8 +180,10 @@ export default function NotificationsScreen() {
     router.push({ pathname: '/order', params: { orderNumber } });
   };
 
+  const safeTop = getSafeTopInset(insets);
+
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
+    <View style={[styles.container, { paddingTop: safeTop }]}>
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity
@@ -449,6 +452,7 @@ const styles = StyleSheet.create({
     padding: 16,
     borderWidth: 1,
     borderColor: '#222',
+    elevation: 2,
   },
   notificationCardUnread: {
     backgroundColor: '#1a1616',

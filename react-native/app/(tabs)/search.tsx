@@ -15,6 +15,7 @@ import { Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CONDITION_COLORS } from '../../data/products';
 import { useApp } from '../../context/AppContext';
+import { getSafeTopInset } from '../../src/utils/layout';
 import type { Product } from '../../types';
 
 const BRANDS = ['All', 'Canon', 'Fujifilm', 'Kodak', 'Nikon', 'Sony', 'Panasonic'];
@@ -44,6 +45,8 @@ function StarRow({ rating }: { rating: number }) {
 }
 
 function ProductCard({ product }: { product: Product }) {
+  const { wishlist, toggleWishlist, user } = useApp();
+  const isWishlisted = wishlist.includes(product.id);
   const cond = CONDITION_COLORS[product.condition] || { text: '#2196f3', border: '#2196f3' };
   return (
     <TouchableOpacity
@@ -53,8 +56,27 @@ function ProductCard({ product }: { product: Product }) {
     >
       <Image source={{ uri: product.image }} style={styles.cardImg} resizeMode="cover" />
       <View style={styles.cardBody}>
-        <View style={[styles.condChip, { borderColor: cond.border }]}>
-          <Text style={[styles.condChipText, { color: cond.text }]}>{product.condition}</Text>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+          <View style={[styles.condChip, { borderColor: cond.border }]}>
+            <Text style={[styles.condChipText, { color: cond.text }]}>{product.condition}</Text>
+          </View>
+          <TouchableOpacity
+            onPress={() => {
+              if (!user) {
+                router.push('/login');
+                return;
+              }
+              void toggleWishlist(product.id);
+            }}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            activeOpacity={0.7}
+          >
+            <Feather
+              name="heart"
+              size={15}
+              color={isWishlisted ? '#f44336' : '#666'}
+            />
+          </TouchableOpacity>
         </View>
         <Text style={styles.cardBrand}>{product.brand}</Text>
         <Text style={styles.cardName} numberOfLines={2}>
@@ -94,6 +116,7 @@ function ProductCard({ product }: { product: Product }) {
 
 export default function SearchScreen() {
   const insets = useSafeAreaInsets();
+  const safeTop = getSafeTopInset(insets);
   const params = useLocalSearchParams<{ query?: string; brand?: string }>();
   const { products } = useApp();
 
@@ -170,7 +193,7 @@ export default function SearchScreen() {
   };
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
+    <View style={[styles.container, { paddingTop: safeTop }]}>
       <LinearGradient
         colors={['#4a0808', '#1a0202', 'transparent']}
         start={{ x: 0, y: 0 }}
@@ -433,17 +456,19 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     paddingHorizontal: 14,
     paddingVertical: 12,
+    elevation: 2,
   },
   input: { flex: 1, fontFamily: 'Inter_400Regular', fontSize: 14, color: '#fff' },
   filterBtn: {
-    width: 44,
-    height: 44,
+    width: 46,
+    height: 46,
     borderRadius: 12,
     backgroundColor: '#1c1c1e',
     borderWidth: 1,
     borderColor: '#2c2c2e',
     alignItems: 'center',
     justifyContent: 'center',
+    elevation: 2,
   },
   filterBtnActive: { backgroundColor: '#c62828', borderColor: '#c62828' },
   filterDot: {
@@ -567,6 +592,7 @@ const styles = StyleSheet.create({
     borderColor: '#2c2c2e',
     overflow: 'hidden',
     flexDirection: 'row',
+    elevation: 3,
   },
   cardImg: { width: 100, height: 110, backgroundColor: '#111' },
   cardBody: { flex: 1, padding: 12, gap: 4 },

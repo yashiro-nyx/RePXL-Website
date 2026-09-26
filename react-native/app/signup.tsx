@@ -6,6 +6,7 @@ import { Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useApp } from '../context/AppContext';
 import { GoogleAuthButton } from '../components/GoogleAuthButton';
+import { getSafeTopInset } from '../src/utils/layout';
 
 const FIELDS = [
   { key: 'name', label: 'FULL NAME', placeholder: 'Alex Reyes', type: 'default' },
@@ -16,6 +17,7 @@ const FIELDS = [
 
 export default function SignupScreen() {
   const insets = useSafeAreaInsets();
+  const safeTop = getSafeTopInset(insets);
   const { register, signInWithGoogle } = useApp();
   const [vals, setVals] = useState({ name: '', email: '', password: '', confirm: '' });
   const [error, setError] = useState('');
@@ -65,11 +67,11 @@ export default function SignupScreen() {
   };
 
   return (
-    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-      <View style={[styles.container, { paddingTop: insets.top }]}>
+    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <View style={[styles.container, { paddingTop: safeTop }]}>
         <LinearGradient colors={['#5a1010', '#2a0505', 'transparent']} start={{ x: 0.8, y: 0 }} end={{ x: 0, y: 1 }} style={styles.gradient} />
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-          <TouchableOpacity onPress={() => router.back()} style={{ alignSelf: 'flex-start', marginBottom: 32 }}>
+          <TouchableOpacity onPress={() => router.back()} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} style={{ alignSelf: 'flex-start', marginBottom: 32 }}>
             <Feather name="arrow-left" size={22} color="#fff" />
           </TouchableOpacity>
 

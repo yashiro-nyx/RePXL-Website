@@ -16,6 +16,7 @@ import { Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useApp } from '../context/AppContext';
 import { CONDITION_COLORS } from '../data/products';
+import { getSafeTopInset } from '../src/utils/layout';
 import type { Product } from '../types';
 
 const SPEC_ROWS: { label: string; key: keyof Product['specs']; higherIsBetter: boolean }[] = [
@@ -82,8 +83,10 @@ export default function CompareScreen() {
     });
   }, [products, compareList, pickerSearch]);
 
+  const safeTop = getSafeTopInset(insets);
+
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
+    <View style={[styles.container, { paddingTop: safeTop }]}>
       <LinearGradient
         colors={['#4a0808', '#1a0202', 'transparent']}
         start={{ x: 0.5, y: 0 }}
@@ -536,6 +539,7 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 20,
     paddingHorizontal: 20,
     paddingTop: 18,
+    paddingBottom: 28,
     maxHeight: '80%',
   },
   pickerModalHeader: {
@@ -579,6 +583,7 @@ const styles = StyleSheet.create({
     padding: 10,
     borderWidth: 1,
     borderColor: '#252528',
+    elevation: 2,
   },
   pickerImg: { width: 50, height: 50, borderRadius: 8, backgroundColor: '#111' },
   pickerBrand: { fontFamily: 'Inter_600SemiBold', fontSize: 10, color: '#666' },

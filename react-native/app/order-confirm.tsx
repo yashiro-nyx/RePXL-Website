@@ -13,6 +13,7 @@ import { Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useApp } from '../context/AppContext';
 import { api } from '../src/services/api';
+import { getSafeTopInset } from '../src/utils/layout';
 import { getOrderStatusColors, getOrderStatusLabel, type Order } from '../types';
 
 export default function OrderConfirmScreen() {
@@ -42,13 +43,15 @@ export default function OrderConfirmScreen() {
     isCod &&
     (order?.deliveryStatus === 'Pending COD Approval' || order?.deliveryStatus === 'COD Approval Requested');
 
+  const safeTop = getSafeTopInset(insets);
+
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
+    <View style={[styles.container, { paddingTop: safeTop }]}>
       <ScrollView
         contentContainerStyle={{
           paddingHorizontal: 20,
           paddingTop: 16,
-          paddingBottom: insets.bottom + 32,
+          paddingBottom: Math.max(insets.bottom, 24) + 32,
         }}
         showsVerticalScrollIndicator={false}
       >
@@ -304,6 +307,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#2c2c2e',
     marginBottom: 20,
+    elevation: 3,
   },
   receiptHeader: {
     alignItems: 'center',

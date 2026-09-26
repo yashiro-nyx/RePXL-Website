@@ -16,9 +16,11 @@ import { Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useApp } from '../../context/AppContext';
 import { CONDITION_COLORS } from '../../data/products';
+import { getSafeTopInset } from '../../src/utils/layout';
 
 export default function CartScreen() {
   const insets = useSafeAreaInsets();
+  const safeTop = getSafeTopInset(insets);
   const { cart, removeFromCart, updateQty, clearCart, validateVoucher, user } = useApp();
 
   // Selection state
@@ -126,7 +128,7 @@ export default function CartScreen() {
   };
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
+    <View style={[styles.container, { paddingTop: safeTop }]}>
       <LinearGradient
         colors={['#3d0a0a', '#1a0202', 'transparent']}
         start={{ x: 0.5, y: 0 }}
@@ -153,7 +155,24 @@ export default function CartScreen() {
         )}
       </View>
 
-      {cart.length === 0 ? (
+      {!user ? (
+        <View style={styles.empty}>
+          <View style={styles.emptyIcon}>
+            <Feather name="user" size={32} color="#444" />
+          </View>
+          <Text style={styles.emptyTitle}>Sign in to view your cart</Text>
+          <Text style={styles.emptySub}>
+            Sign in to access your synchronized cart, saved cameras, and continue to checkout.
+          </Text>
+          <TouchableOpacity
+            style={styles.browseBtn}
+            onPress={() => router.push('/login')}
+            activeOpacity={0.85}
+          >
+            <Text style={styles.browseBtnText}>Sign In</Text>
+          </TouchableOpacity>
+        </View>
+      ) : cart.length === 0 ? (
         <View style={styles.empty}>
           <View style={styles.emptyIcon}>
             <Feather name="shopping-bag" size={32} color="#444" />
@@ -355,7 +374,7 @@ export default function CartScreen() {
           </ScrollView>
 
           {/* Checkout Bar */}
-          <View style={[styles.footer, { paddingBottom: insets.bottom + 12 }]}>
+          <View style={styles.footer}>
             <TouchableOpacity
               style={[
                 styles.checkoutBtn,
@@ -487,6 +506,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#2c2c2e',
     alignItems: 'center',
+    elevation: 2,
   },
   cartItemActive: {
     borderColor: '#4a1515',
@@ -631,15 +651,17 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     paddingHorizontal: 20,
-    paddingTop: 12,
+    paddingTop: 10,
+    paddingBottom: 10,
     backgroundColor: '#0d0d0d',
     borderTopWidth: 1,
     borderTopColor: '#1c1c1e',
+    elevation: 8,
   },
   checkoutBtn: {
     backgroundColor: '#c62828',
     borderRadius: 14,
-    paddingVertical: 16,
+    paddingVertical: 14,
     alignItems: 'center',
   },
   checkoutBtnDisabled: {
@@ -669,6 +691,7 @@ const styles = StyleSheet.create({
     padding: 22,
     alignItems: 'center',
     gap: 12,
+    elevation: 8,
   },
   modalIconWrap: {
     width: 52,

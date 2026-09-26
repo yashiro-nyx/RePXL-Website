@@ -18,6 +18,7 @@ import { CONDITION_COLORS, SPEC_LABELS } from '../data/products';
 import { getColorProfile, type ColorProfile } from '../data/colorProfiles';
 import { useApp } from '../context/AppContext';
 import { api } from '../src/services/api';
+import { getSafeTopInset } from '../src/utils/layout';
 import type { Product, ProductReview, Specs } from '../types';
 
 type Tab = 'overview' | 'specs' | 'reviews';
@@ -81,6 +82,7 @@ export default function ProductScreen() {
   const [remoteProduct, setRemoteProduct] = useState<Product | null>(null);
   const [loadError, setLoadError] = useState('');
   const insets = useSafeAreaInsets();
+  const safeTop = getSafeTopInset(insets);
 
   // "Try the Look" modal state
   const [showLookModal, setShowLookModal] = useState(false);
@@ -268,7 +270,7 @@ export default function ProductScreen() {
           style={StyleSheet.absoluteFill}
         />
         <TouchableOpacity
-          style={[styles.backBtn, { top: insets.top + 12 }]}
+          style={[styles.backBtn, { top: safeTop + 10 }]}
           onPress={() => router.back()}
           activeOpacity={0.8}
         >
@@ -278,7 +280,7 @@ export default function ProductScreen() {
 
         <TouchableOpacity
           onPress={() => setShowConditionGuide(true)}
-          style={[styles.condOver, { top: insets.top + 14, borderColor: cond.border }]}
+          style={[styles.condOver, { top: safeTop + 12, borderColor: cond.border }]}
           activeOpacity={0.8}
         >
           <Text style={[styles.condOverText, { color: cond.text }]}>{p.condition}</Text>
@@ -372,7 +374,7 @@ export default function ProductScreen() {
                   color="#fff"
                 />
               )}
-              <Text style={styles.addBtnText}>
+              <Text style={styles.addBtnText} numberOfLines={1}>
                 {addingToCart
                   ? 'Adding...'
                   : addedFeedback
@@ -645,7 +647,7 @@ export default function ProductScreen() {
       {/* ── Try the Look Modal ── */}
       <Modal visible={showLookModal} animationType="slide" transparent>
         <View style={styles.modalBackdrop}>
-          <View style={styles.lookModalSheet}>
+          <View style={[styles.lookModalSheet, { paddingBottom: Math.max(insets.bottom, 24) }]}>
             <View style={styles.lookModalHeader}>
               <View>
                 <Text style={styles.lookModalTag}>CCD COLOR PROFILE</Text>
@@ -718,7 +720,7 @@ export default function ProductScreen() {
       {/* ── Write a Review Modal ── */}
       <Modal visible={showReviewModal} animationType="slide" transparent>
         <View style={styles.modalBackdrop}>
-          <View style={styles.reviewModalSheet}>
+          <View style={[styles.reviewModalSheet, { paddingBottom: Math.max(insets.bottom, 24) }]}>
             <View style={styles.lookModalHeader}>
               <View>
                 <Text style={styles.lookModalTag}>VERIFIED REVIEW</Text>
@@ -963,6 +965,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#ded8d0',
     marginBottom: 20,
+    elevation: 2,
   },
   lookTitle: { fontFamily: 'Inter_700Bold', fontSize: 13, color: '#222', marginBottom: 2 },
   lookSub: { fontFamily: 'Inter_400Regular', fontSize: 11, color: '#777', lineHeight: 16 },
@@ -1243,6 +1246,7 @@ const styles = StyleSheet.create({
     borderColor: '#2c2c2e',
     padding: 20,
     maxHeight: '80%',
+    elevation: 6,
   },
   conditionModalHeader: {
     flexDirection: 'row',

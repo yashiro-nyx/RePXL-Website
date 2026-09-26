@@ -18,7 +18,17 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#0d0d0d"
       },
-      "package": "com.repxl.mobile"
+      "package": "com.repxl.mobile",
+      "softwareKeyboardLayoutMode": "resize",
+      "statusBar": {
+        "barStyle": "light-content",
+        "backgroundColor": "#0d0d0d",
+        "translucent": true
+      },
+      "navigationBar": {
+        "backgroundColor": "#111111",
+        "barStyle": "light-content"
+      }
     },
     "scheme": "repxl",
     "plugins": [

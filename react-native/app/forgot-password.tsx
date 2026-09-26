@@ -15,9 +15,11 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useApp } from '../context/AppContext';
+import { getSafeTopInset } from '../src/utils/layout';
 
 export default function ForgotPasswordScreen() {
   const insets = useSafeAreaInsets();
+  const safeTop = getSafeTopInset(insets);
   const { forgotPassword, resetPassword } = useApp();
 
   const [mode, setMode] = useState<'request' | 'reset'>('request');
@@ -96,8 +98,8 @@ export default function ForgotPasswordScreen() {
   };
 
   return (
-    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-      <View style={[styles.container, { paddingTop: insets.top }]}>
+    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <View style={[styles.container, { paddingTop: safeTop }]}>
         <LinearGradient
           colors={['#5a1010', '#2a0505', 'transparent']}
           start={{ x: 0.3, y: 0 }}
@@ -106,7 +108,7 @@ export default function ForgotPasswordScreen() {
         />
 
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+          <TouchableOpacity onPress={() => router.back()} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} style={styles.backButton}>
             <Feather name="arrow-left" size={22} color="#fff" />
           </TouchableOpacity>
 

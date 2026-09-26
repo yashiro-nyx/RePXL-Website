@@ -18,6 +18,7 @@ import * as WebBrowser from 'expo-web-browser';
 import * as Linking from 'expo-linking';
 import { useApp } from '../context/AppContext';
 import { api, API_BASE_URL } from '../src/services/api';
+import { getSafeTopInset, getSafeBottomInset } from '../src/utils/layout';
 import type { Address } from '../types';
 
 interface CourierOption {
@@ -38,13 +39,15 @@ type PayMethod = 'card' | 'gcash' | 'cod';
 
 export default function CheckoutScreen() {
   const insets = useSafeAreaInsets();
+  const safeTop = getSafeTopInset(insets);
+  const safeBottom = getSafeBottomInset(insets, 14);
   const params = useLocalSearchParams<{
     selectedSlugs?: string;
     voucherCode?: string;
     voucherDiscount?: string;
   }>();
 
-  const { user, cart, addresses, addAddress, refreshAccount } = useApp();
+  const { user, cart, addresses, addAddress, updateAddress, refreshAccount } = useApp();
 
   // Filter items based on selectedSlugs from cart if provided
   const checkoutItems = useMemo(() => {
@@ -75,8 +78,8 @@ export default function CheckoutScreen() {
   // In-app GCash State
   const [gcashPhone, setGcashPhone] = useState(defaultAddress?.phone ?? '');
 
-
-  // Add Address Modal state
+  // Add/Edit Address Modal state
+  const [editingAddressId, setEditingAddressId] = useState<string | null>(null);
   const [showAddressModal, setShowAddressModal] = useState(false);
   const [savingAddress, setSavingAddress] = useState(false);
   const [addressFormError, setAddressFormError] = useState('');
@@ -88,6 +91,34 @@ export default function CheckoutScreen() {
   const [newPostalCode, setNewPostalCode] = useState('');
   const [newPhone, setNewPhone] = useState('');
   const [newIsDefault, setNewIsDefault] = useState(addresses.length === 0);
+
+  const openAddAddressModal = () => {
+    setEditingAddressId(null);
+    setNewFullName(user?.name ?? '');
+    setNewAddress('');
+    setNewBarangay('');
+    setNewCity('');
+    setNewProvince('');
+    setNewPostalCode('');
+    setNewPhone('');
+    setNewIsDefault(addresses.length === 0);
+    setAddressFormError('');
+    setShowAddressModal(true);
+  };
+
+  const openEditAddressModal = (addr: Address) => {
+    setEditingAddressId(addr.id);
+    setNewFullName(addr.fullName);
+    setNewAddress(addr.address);
+    setNewBarangay(addr.barangay || '');
+    setNewCity(addr.city);
+    setNewProvince(addr.province || '');
+    setNewPostalCode(addr.postalCode);
+    setNewPhone(addr.phone);
+    setNewIsDefault(addr.isDefault);
+    setAddressFormError('');
+    setShowAddressModal(true);
+  };
 
   const selectedAddress = addresses.find((address) => address.id === addressId) ?? defaultAddress;
   const selectedCourier = COURIERS.find((c) => c.id === selectedCourierId) ?? COURIERS[0];
@@ -137,7 +168,7 @@ export default function CheckoutScreen() {
     setSavingAddress(true);
     setAddressFormError('');
     try {
-      const created = await addAddress({
+      const payload = {
         fullName: newFullName.trim(),
         address: newAddress.trim(),
         barangay: newBarangay.trim(),
@@ -146,10 +177,16 @@ export default function CheckoutScreen() {
         postalCode: newPostalCode.trim(),
         phone: newPhone.trim(),
         isDefault: newIsDefault,
-      });
-      setAddressId(created.id);
-      if (!cardholderName.trim()) setCardholderName(created.fullName);
-      if (!gcashPhone.trim()) setGcashPhone(created.phone);
+      };
+      if (editingAddressId) {
+        const updated = await updateAddress(editingAddressId, payload);
+        setAddressId(updated.id);
+      } else {
+        const created = await addAddress(payload);
+        setAddressId(created.id);
+        if (!cardholderName.trim()) setCardholderName(created.fullName);
+        if (!gcashPhone.trim()) setGcashPhone(created.phone);
+      }
       setShowAddressModal(false);
     } catch (err) {
       setAddressFormError(err instanceof Error ? err.message : 'Unable to save address.');
@@ -299,7 +336,7 @@ export default function CheckoutScreen() {
   };
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
+    <View style={[styles.container, { paddingTop: safeTop }]}>
       <LinearGradient colors={['#4a0808', '#1a0202', 'transparent']} style={styles.gradient} />
 
       <View style={styles.header}>
@@ -315,10 +352,7 @@ export default function CheckoutScreen() {
         <View style={styles.sectionHeaderRow}>
           <Text style={styles.sectionTitle}>Delivery Address</Text>
           <TouchableOpacity
-            onPress={() => {
-              setAddressFormError('');
-              setShowAddressModal(true);
-            }}
+            onPress={openAddAddressModal}
             style={styles.addAddressInlineBtn}
             activeOpacity={0.7}
           >
@@ -336,10 +370,7 @@ export default function CheckoutScreen() {
             </Text>
             <TouchableOpacity
               style={styles.noticeBtn}
-              onPress={() => {
-                setAddressFormError('');
-                setShowAddressModal(true);
-              }}
+              onPress={openAddAddressModal}
               activeOpacity={0.8}
             >
               <Text style={styles.noticeBtnText}>+ Add Delivery Address</Text>
@@ -363,11 +394,23 @@ export default function CheckoutScreen() {
                 ]}
               />
               <View style={{ flex: 1 }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                  <Text style={styles.optionTitle}>{address.fullName}</Text>
-                  {address.isDefault && (
-                    <Text style={styles.defaultBadge}>DEFAULT</Text>
-                  )}
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <Text style={styles.optionTitle}>{address.fullName}</Text>
+                    {address.isDefault && (
+                      <Text style={styles.defaultBadge}>DEFAULT</Text>
+                    )}
+                  </View>
+                  <TouchableOpacity
+                    onPress={(e) => {
+                      e.stopPropagation();
+                      openEditAddressModal(address);
+                    }}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    style={{ padding: 4 }}
+                  >
+                    <Feather name="edit-2" size={14} color="#888" />
+                  </TouchableOpacity>
                 </View>
                 <Text style={styles.optionText}>
                   {address.address}, {address.barangay ? `${address.barangay}, ` : ''}
@@ -573,7 +616,7 @@ export default function CheckoutScreen() {
       </ScrollView>
 
       {/* Fixed Checkout Action */}
-      <View style={[styles.footer, { paddingBottom: insets.bottom + 12 }]}>
+      <View style={[styles.footer, { paddingBottom: safeBottom }]}>
         <TouchableOpacity
           style={[styles.cta, submitting && { opacity: 0.6 }]}
           onPress={() => {
@@ -595,9 +638,11 @@ export default function CheckoutScreen() {
       {/* Add Address Modal */}
       <Modal visible={showAddressModal} animationType="slide" transparent>
         <View style={styles.modalBackdrop}>
-          <View style={styles.modalSheet}>
+          <View style={[styles.modalSheet, { paddingBottom: Math.max(insets.bottom, 24) }]}>
             <View style={styles.modalSheetHeader}>
-              <Text style={styles.modalSheetTitle}>Add Delivery Address</Text>
+              <Text style={styles.modalSheetTitle}>
+                {editingAddressId ? 'Edit Delivery Address' : 'Add Delivery Address'}
+              </Text>
               <TouchableOpacity
                 onPress={() => setShowAddressModal(false)}
                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
@@ -705,7 +750,9 @@ export default function CheckoutScreen() {
                 {savingAddress ? (
                   <ActivityIndicator color="#fff" />
                 ) : (
-                  <Text style={styles.saveAddressText}>Save Address</Text>
+                  <Text style={styles.saveAddressText}>
+                    {editingAddressId ? 'Update Address' : 'Save Address'}
+                  </Text>
                 )}
               </TouchableOpacity>
             </ScrollView>
@@ -900,6 +947,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#0d0d0d',
     borderTopWidth: 1,
     borderTopColor: '#1c1c1e',
+    elevation: 8,
   },
   cta: {
     backgroundColor: '#c62828',

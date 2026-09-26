@@ -21,17 +21,20 @@ function CustomTabBar({ state, navigation }: BottomTabBarProps) {
     { name: 'account', label: 'Account', icon: 'user' as const },
   ];
 
+  const bottomPadding = Math.max(insets.bottom, 10);
+
   return (
-    <View style={[styles.bar, { paddingBottom: insets.bottom || 8 }]}>
+    <View style={[styles.bar, { paddingBottom: bottomPadding }]}>
       {tabs.map((tab, i) => {
         const focused = state.index === i;
-        const color = focused ? '#fff' : '#555';
+        const color = focused ? '#fff' : '#777';
         return (
           <TouchableOpacity
             key={tab.name}
             onPress={() => navigation.navigate(tab.name)}
             style={styles.tab}
             activeOpacity={0.7}
+            hitSlop={{ top: 6, bottom: 6, left: 10, right: 10 }}
           >
             <View>
               <Feather name={tab.icon} size={22} color={color} />
@@ -66,15 +69,19 @@ export default function TabLayout() {
 const styles = StyleSheet.create({
   bar: {
     flexDirection: 'row',
-    backgroundColor: '#111',
+    backgroundColor: '#111111',
     borderTopWidth: 1,
-    borderTopColor: '#2c2c2e',
+    borderTopColor: '#252528',
     paddingTop: 8,
+    elevation: 12,
   },
   tab: {
     flex: 1,
+    minHeight: 48,
     alignItems: 'center',
+    justifyContent: 'center',
     gap: 4,
+    paddingVertical: 2,
   },
   label: {
     fontSize: 10,

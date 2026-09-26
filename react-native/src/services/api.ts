@@ -381,6 +381,10 @@ export const api = {
     method: 'POST',
     body: JSON.stringify({ productId, rating, comment }),
   }),
+  updateReview: (reviewId: string, rating: number, comment: string) => authorized<AccountReview>(`/api/reviews/${encodeURIComponent(reviewId)}`, {
+    method: 'PUT',
+    body: JSON.stringify({ rating, comment }),
+  }),
   deleteReview: (reviewId: string) => authorized<{ message?: string }>(`/api/reviews/${encodeURIComponent(reviewId)}`, {
     method: 'DELETE',
   }),
