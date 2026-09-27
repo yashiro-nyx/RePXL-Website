@@ -597,7 +597,7 @@ export default function OrderScreen() {
                 }}
                 activeOpacity={0.8}
               >
-                <Image source={{ uri: item.product.image }} style={styles.image} resizeMode="cover" />
+                <Image source={{ uri: item.product.image }} style={styles.image} resizeMode="contain" />
                 <View style={{ flex: 1, gap: 2 }}>
                   <Text style={styles.name} numberOfLines={2}>
                     {item.product.name}

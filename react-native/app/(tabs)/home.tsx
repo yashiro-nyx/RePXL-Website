@@ -112,7 +112,7 @@ function ProductCard({ product, cardWidth }: { product: Product; cardWidth: numb
       activeOpacity={0.85}
     >
       <View style={{ position: 'relative' }}>
-        <Image source={{ uri: product.image }} style={[styles.cardImage, { height: imageHeight }]} resizeMode="cover" />
+        <Image source={{ uri: product.image }} style={[styles.cardImage, { height: imageHeight }]} resizeMode="contain" />
         <TouchableOpacity
           style={styles.cardHeartBtn}
           onPress={() => {

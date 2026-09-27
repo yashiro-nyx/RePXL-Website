@@ -405,7 +405,7 @@ function PurchasesView({ onBack }: { onBack: () => void }) {
               activeOpacity={0.8}
             >
               {order.items[0]?.product.image ? (
-                <Image source={{ uri: order.items[0].product.image }} style={styles.orderImage} />
+                <Image source={{ uri: order.items[0].product.image }} style={styles.orderImage} resizeMode="contain" />
               ) : null}
               <View style={{ flex: 1, gap: 4 }}>
                 <Text style={styles.cardTitle}>{order.items[0]?.product.name ?? 'RePXL order'}</Text>
@@ -938,7 +938,7 @@ function WishlistView({ onBack }: { onBack: () => void }) {
               onPress={() => router.push({ pathname: '/product', params: { slug: product.slug } })}
               activeOpacity={0.85}
             >
-              <Image source={{ uri: product.image }} style={styles.wishImg} resizeMode="cover" />
+              <Image source={{ uri: product.image }} style={styles.wishImg} resizeMode="contain" />
               <View style={{ flex: 1, gap: 4 }}>
                 <View
                   style={{

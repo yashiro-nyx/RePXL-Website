@@ -165,7 +165,7 @@ export default function CompareScreen() {
                     return (
                       <View key={cam.id} style={[styles.camCol, { width: COL_WIDTH }]}>
                         <View style={{ position: 'relative' }}>
-                          <Image source={{ uri: cam.image }} style={styles.camImg} resizeMode="cover" />
+                          <Image source={{ uri: cam.image }} style={styles.camImg} resizeMode="contain" />
                           <TouchableOpacity
                             onPress={() => toggleCompare(cam.id)}
                             style={styles.removeBtn}
@@ -367,7 +367,7 @@ export default function CompareScreen() {
                       }}
                       activeOpacity={0.8}
                     >
-                      <Image source={{ uri: cam.image }} style={styles.pickerImg} resizeMode="cover" />
+                      <Image source={{ uri: cam.image }} style={styles.pickerImg} resizeMode="contain" />
                       <View style={{ flex: 1, gap: 3 }}>
                         <Text style={styles.pickerBrand}>{cam.brand}</Text>
                         <Text style={styles.pickerName} numberOfLines={1}>

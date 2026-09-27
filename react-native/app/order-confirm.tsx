@@ -184,7 +184,7 @@ export default function OrderConfirmScreen() {
               {order.items.map((item) => (
                 <View key={item.id} style={styles.itemRow}>
                   {item.product?.image ? (
-                    <Image source={{ uri: item.product.image }} style={styles.itemThumb} />
+                    <Image source={{ uri: item.product.image }} style={styles.itemThumb} resizeMode="contain" />
                   ) : (
                     <View style={styles.itemThumbPlaceholder}>
                       <Feather name="camera" size={16} color="#666" />

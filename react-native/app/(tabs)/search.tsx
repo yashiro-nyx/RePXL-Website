@@ -55,7 +55,7 @@ function ProductCard({ product }: { product: Product }) {
       onPress={() => router.push({ pathname: '/product', params: { slug: product.slug } })}
       activeOpacity={0.85}
     >
-      <Image source={{ uri: product.image }} style={styles.cardImg} resizeMode="cover" />
+      <Image source={{ uri: product.image }} style={styles.cardImg} resizeMode="contain" />
       <View style={styles.cardBody}>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
           <View style={[styles.condChip, { borderColor: cond.border }]}>

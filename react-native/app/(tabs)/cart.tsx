@@ -264,7 +264,7 @@ export default function CartScreen() {
                     onPress={() => router.push({ pathname: '/product', params: { slug: p.slug } })}
                     activeOpacity={0.85}
                   >
-                    <Image source={{ uri: p.image }} style={styles.itemImg} resizeMode="cover" />
+                    <Image source={{ uri: p.image }} style={styles.itemImg} resizeMode="contain" />
                   </TouchableOpacity>
 
                   <View style={styles.itemBody}>
