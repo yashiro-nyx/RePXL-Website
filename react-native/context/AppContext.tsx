@@ -49,6 +49,7 @@ interface AppContextType {
   syncInBackground: (options?: { force?: boolean; screen?: string }) => Promise<void>;
   signIn: (email: string, password: string) => Promise<AuthResult>;
   signInWithGoogle: (mode?: 'login' | 'register' | 'auto') => Promise<AuthResult>;
+  completeGoogleSignIn: (ticket: string) => Promise<AuthResult>;
   verifyMfa: (challenge: string, code: string) => Promise<void>;
   register: (input: { firstName: string; lastName: string; email: string; password: string }) => Promise<AuthResult>;
   logout: () => Promise<void>;
@@ -372,10 +373,30 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     return { mfaRequired: false };
   }, [acceptLogin]);
 
+  // Android delivers the deep link to both the router and the browser session.
+  // Share completion so the single-use ticket is exchanged exactly once.
+  const googleCompletionRef = useRef<{ ticket: string; result: Promise<AuthResult> } | null>(null);
+  const completeGoogleSignIn = useCallback((ticket: string): Promise<AuthResult> => {
+    if (googleCompletionRef.current?.ticket === ticket) return googleCompletionRef.current.result;
+    const result = (async (): Promise<AuthResult> => {
+      const loginResult = await api.exchangeGoogleOAuthTicket(ticket);
+      if (loginResult.mfaRequired && loginResult.challenge) {
+        return { mfaRequired: true, challenge: loginResult.challenge };
+      }
+      await acceptLogin(loginResult);
+      return { mfaRequired: false };
+    })();
+    googleCompletionRef.current = { ticket, result };
+    return result;
+  }, [acceptLogin]);
+
   const signInWithGoogle = useCallback(
     async (mode: 'login' | 'register' | 'auto' = 'auto'): Promise<AuthResult> => {
       setError('');
-      const redirectUri = Linking.createURL('auth/callback');
+      if (isExpoGo) {
+        throw new Error('Google sign-in requires an installed RePXL development or release build. Expo Go cannot return to the app reliably. Use email and password in Expo Go.');
+      }
+      const redirectUri = 'repxl://auth/callback';
       const authUrl = `${API_BASE_URL}/auth/mobile-google?mode=${mode}&redirect_uri=${encodeURIComponent(redirectUri)}`;
 
       const sessionResult = await WebBrowser.openAuthSessionAsync(authUrl, redirectUri);
@@ -395,15 +416,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         throw new Error('Google sign-in did not return a valid session ticket.');
       }
 
-      const result = await api.exchangeGoogleOAuthTicket(ticket);
-      if (result.mfaRequired && result.challenge) {
-        return { mfaRequired: true, challenge: result.challenge };
-      }
-
-      await acceptLogin(result);
-      return { mfaRequired: false };
+      return completeGoogleSignIn(ticket);
     },
-    [acceptLogin]
+    [completeGoogleSignIn]
   );
 
   const verifyMfa = useCallback(async (challenge: string, code: string) => {
@@ -780,6 +795,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     syncInBackground,
     signIn,
     signInWithGoogle,
+    completeGoogleSignIn,
     verifyMfa,
     register,
     logout,
@@ -814,7 +830,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     loading, refreshing, error, products, cart, user, profile, wishlist, compareList,
     addresses, orders, notifications, unreadNotificationsCount, reviews,
     isSyncing, lastSyncedAt, syncInBackground,
-    signIn, signInWithGoogle, verifyMfa, register, logout,
+    signIn, signInWithGoogle, completeGoogleSignIn, verifyMfa, register, logout,
     refreshProducts, refreshAccount, refreshNotifications, addToCart, removeFromCart, updateQty,
     toggleWishlist, toggleCompare, clearCart, saveProfile, markNotificationRead, markAllNotificationsRead,
     addAddress, updateAddress, deleteAddress, setDefaultAddress, submitReview, updateReview,

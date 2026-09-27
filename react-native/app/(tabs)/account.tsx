@@ -1105,22 +1105,6 @@ function AccountSkeleton({ insetsTop }: { insetsTop: number }) {
           </View>
         </View>
 
-        {/* Stats Row Skeleton */}
-        <View style={styles.statsRow}>
-          <View style={styles.statBox}>
-            <View style={styles.skeletonStatVal} />
-            <View style={styles.skeletonStatLabel} />
-          </View>
-          <View style={styles.statBox}>
-            <View style={styles.skeletonStatVal} />
-            <View style={styles.skeletonStatLabel} />
-          </View>
-          <View style={styles.statBox}>
-            <View style={styles.skeletonStatVal} />
-            <View style={styles.skeletonStatLabel} />
-          </View>
-        </View>
-
         {/* Section Label Skeleton */}
         <View style={styles.skeletonSectionLabel} />
 
@@ -1222,36 +1206,6 @@ export default function AccountScreen() {
           {refreshing && <ActivityIndicator color="#c62828" />}
         </View>
 
-        {/* Stats Row */}
-        <View style={styles.statsRow}>
-          <TouchableOpacity
-            style={styles.statBox}
-            onPress={() => setSection('purchases')}
-            activeOpacity={0.7}
-          >
-            <Text style={styles.statValue}>{orders.length}</Text>
-            <Text style={styles.statLabel}>Orders</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.statBox}
-            onPress={() => setSection('wishlist')}
-            activeOpacity={0.7}
-          >
-            <Text style={styles.statValue}>{wishlist.length}</Text>
-            <Text style={styles.statLabel}>Wishlist</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.statBox}
-            onPress={() => setSection('reviews')}
-            activeOpacity={0.7}
-          >
-            <Text style={styles.statValue}>{reviews.length}</Text>
-            <Text style={styles.statLabel}>Reviews</Text>
-          </TouchableOpacity>
-        </View>
-
         <Text style={styles.sectionLabel}>ACCOUNT</Text>
         <View style={styles.navGroup}>
           <NavRow icon="user" label="Profile" onPress={() => setSection('profile')} />
@@ -1286,9 +1240,14 @@ export default function AccountScreen() {
         <Text style={styles.sectionLabel}>HELP & SUPPORT</Text>
         <View style={styles.navGroup}>
           <NavRow
+            icon="cpu"
+            label="AI Vintage Camera Concierge"
+            onPress={() => router.push('/support?tab=ai')}
+          />
+          <NavRow
             icon="help-circle"
             label="Customer Support & FAQs"
-            onPress={() => router.push('/support')}
+            onPress={() => router.push('/support?tab=faq')}
           />
         </View>
 
@@ -1406,8 +1365,6 @@ const styles = StyleSheet.create({
   skeletonAvatar: { width: 50, height: 50, borderRadius: 25, backgroundColor: '#262628' },
   skeletonTextLineMed: { height: 14, borderRadius: 4, backgroundColor: '#262628' },
   skeletonTextLineShort: { width: '45%', height: 11, borderRadius: 4, backgroundColor: '#202022' },
-  skeletonStatVal: { width: 28, height: 20, borderRadius: 4, backgroundColor: '#262628', marginBottom: 4 },
-  skeletonStatLabel: { width: 44, height: 10, borderRadius: 3, backgroundColor: '#202022' },
   skeletonSectionLabel: { width: 70, height: 12, borderRadius: 3, backgroundColor: '#202022', marginVertical: 4 },
   skeletonNavRow: {
     flexDirection: 'row',
@@ -1441,19 +1398,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   avatarMedText: { fontFamily: 'Inter_800ExtraBold', fontSize: 19, color: '#fff' },
-  statsRow: { flexDirection: 'row', marginHorizontal: 20, gap: 8, marginBottom: 16 },
-  statBox: {
-    flex: 1,
-    backgroundColor: '#1c1c1e',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#2c2c2e',
-    paddingVertical: 12,
-    alignItems: 'center',
-    elevation: 2,
-  },
-  statValue: { fontFamily: 'Inter_800ExtraBold', fontSize: 19, color: '#fff' },
-  statLabel: { fontFamily: 'Inter_400Regular', fontSize: 10, color: '#666' },
   sectionLabel: {
     fontFamily: 'Inter_700Bold',
     fontSize: 10,

@@ -51,7 +51,7 @@ export function useOAuthSync() {
     if (oauthParam === 'login' || oauthParam === 'register') return
 
     // Also skip on auth pages entirely — they manage their own flow.
-    if (pathname === '/login' || pathname.startsWith('/login/') || pathname === '/register') return
+    if (pathname === '/login' || pathname.startsWith('/login/') || pathname === '/register' || pathname.startsWith('/auth/')) return
     // ── End skip ──────────────────────────────────────────────────────────────
 
     // Only an explicit unauthenticated server result can start automatic bridging.

@@ -11,6 +11,7 @@ import { AuthLayout } from '@/components/auth/AuthLayout'
 import { useAuthStore } from '@/stores/authStore'
 import { useToastStore } from '@/stores/toastStore'
 import { authService } from '@/lib/data/authService'
+import { oauthErrorDestination } from '@/lib/mobile-oauth-redirect'
 
 interface LoginErrors {
   email?: string
@@ -40,8 +41,15 @@ function LoginContent() {
 
   useEffect(() => {
     const error = searchParams.get('error')
-    if (error) setOauthError(OAUTH_ERROR_MESSAGES[error] ?? OAUTH_ERROR_MESSAGES.Default)
-  }, [searchParams])
+    if (error) {
+      const destination = oauthErrorDestination(searchParams.get('callbackUrl') ?? undefined, window.location.origin, error)
+      if (destination.startsWith('/auth/mobile-google?')) {
+        router.replace(destination)
+        return
+      }
+      setOauthError(OAUTH_ERROR_MESSAGES[error] ?? OAUTH_ERROR_MESSAGES.Default)
+    }
+  }, [searchParams, router])
 
   useEffect(() => {
     const oauthMode = searchParams.get('oauth')

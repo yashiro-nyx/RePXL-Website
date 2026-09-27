@@ -641,6 +641,29 @@ export default function ProductScreen() {
                 </View>
               ))}
             </Accordion>
+
+            {/* ── Ask AI Concierge Card ── */}
+            <TouchableOpacity
+              style={styles.aiConciergeCard}
+              onPress={() =>
+                router.push({
+                  pathname: '/support',
+                  params: { tab: 'ai', query: `Tell me about the ${p.name} condition and specs` },
+                })
+              }
+              activeOpacity={0.8}
+            >
+              <View style={styles.aiConciergeIconCircle}>
+                <Feather name="cpu" size={16} color="#fff" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.aiConciergeTitle}>Ask AI Concierge About This Camera</Text>
+                <Text style={styles.aiConciergeSub}>
+                  Get instant answers on {p.name} grading, battery compatibility, and CCD color output.
+                </Text>
+              </View>
+              <Feather name="chevron-right" size={18} color="#c62828" />
+            </TouchableOpacity>
           </View>
         </ScrollView>
       </View>
@@ -1338,5 +1361,37 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter_700Bold',
     fontSize: 11,
     color: '#4caf50',
+  },
+  aiConciergeCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: '#161619',
+    borderWidth: 1,
+    borderColor: '#29292e',
+    borderRadius: 14,
+    padding: 14,
+    marginTop: 14,
+    marginBottom: 8,
+  },
+  aiConciergeIconCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#c62828',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  aiConciergeTitle: {
+    fontFamily: 'Inter_700Bold',
+    fontSize: 13,
+    color: '#fff',
+  },
+  aiConciergeSub: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 11,
+    color: '#888',
+    lineHeight: 15,
+    marginTop: 2,
   },
 });

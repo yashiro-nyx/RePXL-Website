@@ -11,13 +11,18 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useApp } from '../context/AppContext';
-import { FAQS, FAQ_CATEGORIES, type FAQItem } from '../data/faqs';
-import { QUICK_PROMPTS, generateAiResponse } from '../data/ai-concierge';
+import { FAQS, FAQ_CATEGORIES } from '../data/faqs';
+import {
+  QUICK_PROMPTS,
+  PROMPT_CATEGORIES,
+  generateAiResponse,
+  type AiAction,
+} from '../data/ai-concierge';
 import { getSafeTopInset } from '../src/utils/layout';
 
 type SupportTab = 'ai' | 'faq' | 'contact';
@@ -27,25 +32,127 @@ interface ChatMessage {
   sender: 'user' | 'assistant';
   text: string;
   timestamp: string;
+  suggestedFollowUps?: string[];
+  action?: AiAction;
+}
+
+function FormattedAiMessage({ text }: { text: string }) {
+  const lines = text.split('\n');
+
+  const renderFormattedInline = (lineText: string, keyPrefix: string) => {
+    const parts = lineText.split(/(\*\*[^*]+\*\*|`[^`]+`)/g);
+    return parts.map((part, idx) => {
+      if (part.startsWith('**') && part.endsWith('**')) {
+        return (
+          <Text key={`${keyPrefix}-${idx}`} style={styles.boldText}>
+            {part.slice(2, -2)}
+          </Text>
+        );
+      }
+      if (part.startsWith('`') && part.endsWith('`')) {
+        return (
+          <Text key={`${keyPrefix}-${idx}`} style={styles.codeText}>
+            {part.slice(1, -1)}
+          </Text>
+        );
+      }
+      return <Text key={`${keyPrefix}-${idx}`}>{part}</Text>;
+    });
+  };
+
+  return (
+    <View style={styles.formattedContainer}>
+      {lines.map((line, index) => {
+        const trimmed = line.trim();
+        if (!trimmed) {
+          return <View key={index} style={{ height: 6 }} />;
+        }
+
+        // Callout box
+        if (trimmed.startsWith('💡') || trimmed.startsWith('⚠️') || trimmed.startsWith('🚨')) {
+          return (
+            <View key={index} style={styles.calloutBox}>
+              <Text style={styles.calloutText}>
+                {renderFormattedInline(trimmed, `callout-${index}`)}
+              </Text>
+            </View>
+          );
+        }
+
+        // Bullet point
+        if (trimmed.startsWith('• ') || trimmed.startsWith('- ')) {
+          const bulletContent = trimmed.slice(2);
+          return (
+            <View key={index} style={styles.bulletRow}>
+              <View style={styles.bulletDot} />
+              <Text style={styles.bulletText}>
+                {renderFormattedInline(bulletContent, `bullet-${index}`)}
+              </Text>
+            </View>
+          );
+        }
+
+        // Numbered list item
+        const numMatch = trimmed.match(/^(\d+)\.\s+(.*)/);
+        if (numMatch) {
+          const num = numMatch[1];
+          const content = numMatch[2];
+          return (
+            <View key={index} style={styles.numberedRow}>
+              <View style={styles.numberedBadge}>
+                <Text style={styles.numberedBadgeText}>{num}</Text>
+              </View>
+              <Text style={styles.numberedText}>
+                {renderFormattedInline(content, `num-${index}`)}
+              </Text>
+            </View>
+          );
+        }
+
+        // Regular paragraph line
+        return (
+          <Text key={index} style={styles.assistantMessageText}>
+            {renderFormattedInline(trimmed, `p-${index}`)}
+          </Text>
+        );
+      })}
+    </View>
+  );
 }
 
 export default function SupportScreen() {
   const insets = useSafeAreaInsets();
+  const params = useLocalSearchParams<{ tab?: SupportTab; query?: string }>();
   const { profile, user, contactSupport } = useApp();
 
-  const [activeTab, setActiveTab] = useState<SupportTab>('ai');
+  const [activeTab, setActiveTab] = useState<SupportTab>(params.tab || 'ai');
 
   // AI Chat State
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: 'welcome',
       sender: 'assistant',
-      text: 'Hello! I am your RePXL Vintage Camera AI Concierge. How can I help you today? Feel free to ask about condition grading, order tracking, camera recommendations, or store policies.',
+      text: `👋 Hello! I am your RePXL Vintage Camera AI Concierge.
+
+How can I help you today? Feel free to ask about:
+• Condition grading tiers & optical inspection
+• Y2K CCD camera recommendations for your aesthetic
+• Batteries, SD card limits & photo transfer tips
+• Order tracking, shipping timeframes & 14-day returns`,
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      suggestedFollowUps: [
+        'Recommend a CCD camera',
+        'How does condition grading work?',
+        'Where is my order?',
+        'What memory card size should I use?',
+      ],
+      action: { type: 'browse', label: 'Explore Vintage Cameras' },
     },
   ]);
   const [chatInput, setChatInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
+  const [activePromptCat, setActivePromptCat] = useState<string>('popular');
+  const [feedbackMap, setFeedbackMap] = useState<Record<string, 'up' | 'down'>>({});
   const chatScrollRef = useRef<ScrollView>(null);
 
   // FAQ State
@@ -61,6 +168,11 @@ export default function SupportScreen() {
   const [submittingContact, setSubmittingContact] = useState(false);
   const [contactError, setContactError] = useState('');
   const [contactSuccess, setContactSuccess] = useState('');
+
+  const currentPrompts = useMemo(() => {
+    const found = PROMPT_CATEGORIES.find((c) => c.id === activePromptCat);
+    return found ? found.prompts : QUICK_PROMPTS;
+  }, [activePromptCat]);
 
   const filteredFaqs = useMemo(() => {
     const q = faqSearch.trim().toLowerCase();
@@ -88,17 +200,77 @@ export default function SupportScreen() {
     setIsTyping(true);
 
     setTimeout(() => {
-      const replyText = generateAiResponse(text);
+      const reply = generateAiResponse(text);
       const assistantMsg: ChatMessage = {
         id: (Date.now() + 1).toString(),
         sender: 'assistant',
-        text: replyText,
+        text: reply.text,
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        suggestedFollowUps: reply.suggestedFollowUps,
+        action: reply.action,
       };
       setMessages((prev) => [...prev, assistantMsg]);
       setIsTyping(false);
     }, 600);
   };
+
+  const handleClearChat = () => {
+    setMessages([
+      {
+        id: 'welcome',
+        sender: 'assistant',
+        text: `👋 Hello! I am your RePXL Vintage Camera AI Concierge.
+
+How can I help you today? Feel free to ask about:
+• Condition grading tiers & optical inspection
+• Y2K CCD camera recommendations for your aesthetic
+• Batteries, SD card limits & photo transfer tips
+• Order tracking, shipping timeframes & 14-day returns`,
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        suggestedFollowUps: [
+          'Recommend a CCD camera',
+          'How does condition grading work?',
+          'Where is my order?',
+          'What memory card size should I use?',
+        ],
+        action: { type: 'browse', label: 'Explore Vintage Cameras' },
+      },
+    ]);
+    setFeedbackMap({});
+  };
+
+  const handleActionPress = (action: AiAction) => {
+    switch (action.type) {
+      case 'orders':
+        router.push('/order');
+        break;
+      case 'browse':
+        router.push('/(tabs)/browse');
+        break;
+      case 'faq':
+        setActiveTab('faq');
+        break;
+      case 'contact':
+        setActiveTab('contact');
+        break;
+      case 'compare':
+        router.push('/compare');
+        break;
+    }
+  };
+
+  const handleFeedback = (messageId: string, rating: 'up' | 'down') => {
+    setFeedbackMap((prev) => ({
+      ...prev,
+      [messageId]: rating,
+    }));
+  };
+
+  useEffect(() => {
+    if (params.query) {
+      handleSendMessage(params.query);
+    }
+  }, [params.query]);
 
   useEffect(() => {
     if (activeTab === 'ai') {
@@ -204,23 +376,77 @@ export default function SupportScreen() {
         {/* Content Area */}
         {activeTab === 'ai' && (
           <View style={styles.tabContentFull}>
-            {/* Quick Prompts Bar */}
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.promptScroll}
-            >
-              {QUICK_PROMPTS.map((prompt, i) => (
-                <TouchableOpacity
-                  key={i}
-                  style={styles.promptChip}
-                  onPress={() => handleSendMessage(prompt)}
-                  activeOpacity={0.7}
-                >
-                  <Text style={styles.promptChipText}>{prompt}</Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
+            {/* Status Banner with Clear / Restart Chat Button */}
+            <View style={styles.aiStatusBanner}>
+              <View style={styles.aiStatusLeft}>
+                <View style={styles.statusDotLive} />
+                <Text style={styles.aiStatusText}>RePXL Concierge • Online & Ready</Text>
+              </View>
+              <TouchableOpacity
+                style={styles.clearChatBtn}
+                onPress={handleClearChat}
+                activeOpacity={0.7}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Feather name="rotate-ccw" size={12} color="#999" />
+                <Text style={styles.clearChatText}>Restart Chat</Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Prompt Categories & Quick Prompts Selector */}
+            <View style={styles.promptSection}>
+              {/* Category Pills */}
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.promptCatScroll}
+              >
+                {PROMPT_CATEGORIES.map((cat) => {
+                  const isSelected = activePromptCat === cat.id;
+                  return (
+                    <TouchableOpacity
+                      key={cat.id}
+                      style={[styles.promptCatChip, isSelected && styles.promptCatChipActive]}
+                      onPress={() => setActivePromptCat(cat.id)}
+                      activeOpacity={0.7}
+                    >
+                      <Feather
+                        name={cat.icon as any}
+                        size={12}
+                        color={isSelected ? '#fff' : '#888'}
+                      />
+                      <Text
+                        style={[
+                          styles.promptCatChipText,
+                          isSelected && styles.promptCatChipTextActive,
+                        ]}
+                      >
+                        {cat.label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+
+              {/* Category Prompts */}
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.promptScroll}
+              >
+                {currentPrompts.map((prompt, i) => (
+                  <TouchableOpacity
+                    key={i}
+                    style={styles.promptChip}
+                    onPress={() => handleSendMessage(prompt)}
+                    activeOpacity={0.7}
+                  >
+                    <Feather name="message-circle" size={11} color="#e53935" />
+                    <Text style={styles.promptChipText}>{prompt}</Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
 
             {/* Messages Scroll Area */}
             <ScrollView
@@ -228,50 +454,212 @@ export default function SupportScreen() {
               contentContainerStyle={styles.chatScroll}
               keyboardShouldPersistTaps="handled"
             >
-              {messages.map((msg) => (
-                <View
-                  key={msg.id}
-                  style={[
-                    styles.messageBubble,
-                    msg.sender === 'user' ? styles.userBubble : styles.assistantBubble,
-                  ]}
-                >
-                  {msg.sender === 'assistant' && (
-                    <View style={styles.avatarMini}>
-                      <Text style={styles.avatarMiniText}>R</Text>
+              {/* Welcome Hero Card for fresh chat */}
+              {messages.length <= 1 && (
+                <View style={styles.welcomeHeroCard}>
+                  <LinearGradient
+                    colors={['#240909', '#151518']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={styles.welcomeGradient}
+                  >
+                    <View style={styles.welcomeHeader}>
+                      <View style={styles.welcomeIconCircle}>
+                        <Feather name="camera" size={20} color="#ff5252" />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.welcomeTitle}>Vintage Digicam Specialist</Text>
+                        <Text style={styles.welcomeSub}>
+                          Trained on 2000s CCD color science, battery care, condition grading & RePXL orders.
+                        </Text>
+                      </View>
                     </View>
-                  )}
-                  <View style={{ flex: 1 }}>
-                    <Text
-                      style={[
-                        styles.messageText,
-                        msg.sender === 'user' ? styles.userMessageText : styles.assistantMessageText,
-                      ]}
-                    >
-                      {msg.text}
-                    </Text>
-                    <Text
-                      style={[
-                        styles.messageTime,
-                        msg.sender === 'user' ? { textAlign: 'right' } : { textAlign: 'left' },
-                      ]}
-                    >
-                      {msg.timestamp}
-                    </Text>
-                  </View>
-                </View>
-              ))}
 
-              {isTyping && (
-                <View style={[styles.messageBubble, styles.assistantBubble]}>
-                  <View style={styles.avatarMini}>
-                    <Text style={styles.avatarMiniText}>R</Text>
+                    <Text style={styles.starterGridTitle}>SUGGESTED STARTING TOPICS</Text>
+                    <View style={styles.starterGrid}>
+                      <TouchableOpacity
+                        style={styles.starterCard}
+                        onPress={() => handleSendMessage('Recommend a CCD camera')}
+                        activeOpacity={0.8}
+                      >
+                        <Feather name="aperture" size={15} color="#e53935" />
+                        <Text style={styles.starterCardTitle}>CCD Camera Guide</Text>
+                        <Text style={styles.starterCardSub}>Y2K flash & film tones</Text>
+                      </TouchableOpacity>
+
+                      <TouchableOpacity
+                        style={styles.starterCard}
+                        onPress={() => handleSendMessage('How does condition grading work?')}
+                        activeOpacity={0.8}
+                      >
+                        <Feather name="award" size={15} color="#e53935" />
+                        <Text style={styles.starterCardTitle}>Condition Grading</Text>
+                        <Text style={styles.starterCardSub}>Mint, Excellent, Good, Fair</Text>
+                      </TouchableOpacity>
+
+                      <TouchableOpacity
+                        style={styles.starterCard}
+                        onPress={() => handleSendMessage('What memory card size should I use?')}
+                        activeOpacity={0.8}
+                      >
+                        <Feather name="hard-drive" size={15} color="#e53935" />
+                        <Text style={styles.starterCardTitle}>Batteries & Cards</Text>
+                        <Text style={styles.starterCardSub}>SD sizes & photo transfer</Text>
+                      </TouchableOpacity>
+
+                      <TouchableOpacity
+                        style={styles.starterCard}
+                        onPress={() => handleSendMessage('Where is my order?')}
+                        activeOpacity={0.8}
+                      >
+                        <Feather name="truck" size={15} color="#e53935" />
+                        <Text style={styles.starterCardTitle}>Track & Delivery</Text>
+                        <Text style={styles.starterCardSub}>Shipping times & returns</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </LinearGradient>
+                </View>
+              )}
+
+              {/* Message List */}
+              {messages.map((msg) => {
+                if (msg.sender === 'user') {
+                  return (
+                    <View key={msg.id} style={styles.userBubble}>
+                      <Text style={styles.userMessageText}>{msg.text}</Text>
+                      <View style={styles.userMetaRow}>
+                        <Text style={styles.userMessageTime}>{msg.timestamp}</Text>
+                        <Feather name="check" size={11} color="rgba(255, 255, 255, 0.7)" />
+                      </View>
+                    </View>
+                  );
+                }
+
+                // Assistant Bubble
+                return (
+                  <View key={msg.id} style={styles.assistantBubbleWrapper}>
+                    <View style={styles.assistantBubble}>
+                      {/* Assistant Header Row */}
+                      <View style={styles.assistantHeaderRow}>
+                        <View style={styles.avatarMini}>
+                          <Feather name="cpu" size={13} color="#fff" />
+                        </View>
+                        <Text style={styles.assistantNameText}>RePXL Concierge</Text>
+                        <View style={styles.aiTag}>
+                          <Text style={styles.aiTagText}>AI EXPERT</Text>
+                        </View>
+                        <Text style={styles.messageTime}>{msg.timestamp}</Text>
+                      </View>
+
+                      {/* Rich Content */}
+                      <FormattedAiMessage text={msg.text} />
+
+                      {/* Action Button */}
+                      {msg.action && (
+                        <TouchableOpacity
+                          style={styles.actionBtn}
+                          onPress={() => handleActionPress(msg.action!)}
+                          activeOpacity={0.85}
+                        >
+                          <Feather
+                            name={
+                              msg.action.type === 'orders'
+                                ? 'package'
+                                : msg.action.type === 'browse'
+                                ? 'camera'
+                                : msg.action.type === 'faq'
+                                ? 'help-circle'
+                                : msg.action.type === 'contact'
+                                ? 'mail'
+                                : 'sliders'
+                            }
+                            size={14}
+                            color="#ffcdd2"
+                          />
+                          <Text style={styles.actionBtnText}>{msg.action.label}</Text>
+                          <Feather name="arrow-right" size={13} color="#ffcdd2" />
+                        </TouchableOpacity>
+                      )}
+
+                      {/* Feedback Row */}
+                      <View style={styles.feedbackRow}>
+                        <Text style={styles.feedbackLabel}>Helpful?</Text>
+                        <TouchableOpacity
+                          style={[
+                            styles.feedbackBtn,
+                            feedbackMap[msg.id] === 'up' && styles.feedbackBtnActive,
+                          ]}
+                          onPress={() => handleFeedback(msg.id, 'up')}
+                          hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                        >
+                          <Feather
+                            name="thumbs-up"
+                            size={11}
+                            color={feedbackMap[msg.id] === 'up' ? '#4caf50' : '#777'}
+                          />
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          style={[
+                            styles.feedbackBtn,
+                            feedbackMap[msg.id] === 'down' && styles.feedbackBtnActive,
+                          ]}
+                          onPress={() => handleFeedback(msg.id, 'down')}
+                          hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                        >
+                          <Feather
+                            name="thumbs-down"
+                            size={11}
+                            color={feedbackMap[msg.id] === 'down' ? '#f44336' : '#777'}
+                          />
+                        </TouchableOpacity>
+                        {feedbackMap[msg.id] && (
+                          <Text style={styles.feedbackAck}>
+                            {feedbackMap[msg.id] === 'up' ? 'Glad to help!' : 'Thanks for feedback'}
+                          </Text>
+                        )}
+                      </View>
+                    </View>
+
+                    {/* Follow-up Suggestion Chips directly under Assistant Bubble */}
+                    {msg.suggestedFollowUps && msg.suggestedFollowUps.length > 0 && (
+                      <View style={styles.followUpsWrap}>
+                        <Text style={styles.followUpTitle}>SUGGESTED FOLLOW-UPS</Text>
+                        <View style={styles.followUpChipsRow}>
+                          {msg.suggestedFollowUps.map((chip, idx) => (
+                            <TouchableOpacity
+                              key={idx}
+                              style={styles.followUpChip}
+                              onPress={() => handleSendMessage(chip)}
+                              activeOpacity={0.75}
+                            >
+                              <Feather name="corner-down-right" size={11} color="#e53935" />
+                              <Text style={styles.followUpChipText}>{chip}</Text>
+                            </TouchableOpacity>
+                          ))}
+                        </View>
+                      </View>
+                    )}
                   </View>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 4 }}>
-                    <ActivityIndicator size="small" color="#c62828" />
-                    <Text style={{ fontFamily: 'Inter_400Regular', fontSize: 12, color: '#888' }}>
-                      RePXL AI is typing...
-                    </Text>
+                );
+              })}
+
+              {/* Typing State */}
+              {isTyping && (
+                <View style={styles.assistantBubbleWrapper}>
+                  <View style={[styles.assistantBubble, styles.typingBubble]}>
+                    <View style={styles.assistantHeaderRow}>
+                      <View style={styles.avatarMini}>
+                        <Feather name="cpu" size={13} color="#fff" />
+                      </View>
+                      <Text style={styles.assistantNameText}>RePXL Concierge</Text>
+                      <View style={styles.aiTag}>
+                        <Text style={styles.aiTagText}>AI EXPERT</Text>
+                      </View>
+                    </View>
+                    <View style={styles.typingIndicatorRow}>
+                      <ActivityIndicator size="small" color="#c62828" />
+                      <Text style={styles.typingText}>Searching vintage digicam archives...</Text>
+                    </View>
                   </View>
                 </View>
               )}
@@ -279,21 +667,34 @@ export default function SupportScreen() {
 
             {/* Input Bar */}
             <View style={[styles.inputBar, { paddingBottom: Math.max(insets.bottom, 12) }]}>
-              <TextInput
-                value={chatInput}
-                onChangeText={setChatInput}
-                placeholder="Ask about cameras, shipping, grading..."
-                placeholderTextColor="#555"
-                style={styles.chatTextInput}
-                onSubmitEditing={() => handleSendMessage()}
-              />
+              <View style={styles.inputContainer}>
+                <Feather name="search" size={15} color="#777" style={{ marginLeft: 12 }} />
+                <TextInput
+                  value={chatInput}
+                  onChangeText={setChatInput}
+                  placeholder="Ask about cameras, shipping, grading..."
+                  placeholderTextColor="#666"
+                  style={styles.chatTextInput}
+                  onSubmitEditing={() => handleSendMessage()}
+                  returnKeyType="send"
+                />
+                {!!chatInput && (
+                  <TouchableOpacity
+                    onPress={() => setChatInput('')}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    style={{ marginRight: 10 }}
+                  >
+                    <Feather name="x-circle" size={15} color="#888" />
+                  </TouchableOpacity>
+                )}
+              </View>
               <TouchableOpacity
                 style={[styles.sendBtn, !chatInput.trim() && { opacity: 0.4 }]}
                 onPress={() => handleSendMessage()}
                 disabled={!chatInput.trim()}
                 activeOpacity={0.8}
               >
-                <Feather name="send" size={16} color="#fff" />
+                <Feather name="arrow-up" size={18} color="#fff" />
               </TouchableOpacity>
             </View>
           </View>
@@ -518,66 +919,489 @@ const styles = StyleSheet.create({
   navTabTextActive: { color: '#fff' },
   tabContentFull: { flex: 1 },
 
-  // AI Chat Styles
-  promptScroll: { paddingHorizontal: 16, paddingVertical: 8, gap: 8 },
-  promptChip: {
-    backgroundColor: '#1a1a1c',
+  // AI Status Banner
+  aiStatusBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 18,
+    paddingVertical: 6,
+    borderBottomWidth: 1,
+    borderBottomColor: '#1c1c1f',
+  },
+  aiStatusLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  statusDotLive: {
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
+    backgroundColor: '#4caf50',
+  },
+  aiStatusText: {
+    fontFamily: 'Inter_500Medium',
+    fontSize: 11,
+    color: '#aaa',
+  },
+  clearChatBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    backgroundColor: '#1a1a1d',
+  },
+  clearChatText: {
+    fontFamily: 'Inter_500Medium',
+    fontSize: 11,
+    color: '#888',
+  },
+
+  // Prompt Selector Section
+  promptSection: {
+    backgroundColor: '#121214',
+    borderBottomWidth: 1,
+    borderBottomColor: '#1e1e22',
+    paddingBottom: 6,
+  },
+  promptCatScroll: {
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    paddingBottom: 6,
+    gap: 6,
+  },
+  promptCatChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: '#1a1a1d',
+    borderRadius: 14,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
     borderWidth: 1,
-    borderColor: '#2e2e30',
-    borderRadius: 18,
+    borderColor: '#26262a',
+  },
+  promptCatChipActive: {
+    backgroundColor: '#991b1b',
+    borderColor: '#b91c1c',
+  },
+  promptCatChipText: {
+    fontFamily: 'Inter_500Medium',
+    fontSize: 11,
+    color: '#888',
+  },
+  promptCatChipTextActive: {
+    color: '#fff',
+  },
+  promptScroll: {
+    paddingHorizontal: 16,
+    paddingVertical: 4,
+    gap: 8,
+  },
+  promptChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#1a1a1d',
+    borderWidth: 1,
+    borderColor: '#2c2c30',
+    borderRadius: 16,
     paddingHorizontal: 12,
     paddingVertical: 6,
   },
-  promptChipText: { fontFamily: 'Inter_500Medium', fontSize: 11, color: '#ccc' },
-  chatScroll: { paddingHorizontal: 16, paddingBottom: 16, gap: 12 },
-  messageBubble: {
-    flexDirection: 'row',
-    gap: 10,
-    maxWidth: '86%',
-    padding: 12,
-    borderRadius: 14,
+  promptChipText: {
+    fontFamily: 'Inter_500Medium',
+    fontSize: 11.5,
+    color: '#ddd',
   },
-  assistantBubble: {
-    alignSelf: 'flex-start',
-    backgroundColor: '#1a1a1c',
+
+  // Chat Scroll Area
+  chatScroll: {
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 24,
+    gap: 16,
+  },
+
+  // Welcome Hero Card
+  welcomeHeroCard: {
+    borderRadius: 16,
+    overflow: 'hidden',
     borderWidth: 1,
-    borderColor: '#262628',
+    borderColor: '#381616',
+    marginBottom: 4,
   },
+  welcomeGradient: {
+    padding: 16,
+  },
+  welcomeHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 14,
+  },
+  welcomeIconCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(198, 40, 40, 0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(198, 40, 40, 0.4)',
+  },
+  welcomeTitle: {
+    fontFamily: 'Inter_700Bold',
+    fontSize: 15,
+    color: '#fff',
+  },
+  welcomeSub: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 11.5,
+    color: '#aaa',
+    lineHeight: 16,
+    marginTop: 2,
+  },
+  starterGridTitle: {
+    fontFamily: 'Inter_600SemiBold',
+    fontSize: 10,
+    color: '#e53935',
+    letterSpacing: 0.8,
+    marginBottom: 8,
+  },
+  starterGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  starterCard: {
+    width: '48.5%',
+    backgroundColor: '#1c1c20',
+    borderWidth: 1,
+    borderColor: '#2b2b30',
+    borderRadius: 10,
+    padding: 10,
+    gap: 3,
+  },
+  starterCardTitle: {
+    fontFamily: 'Inter_600SemiBold',
+    fontSize: 12,
+    color: '#eee',
+    marginTop: 2,
+  },
+  starterCardSub: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 10,
+    color: '#777',
+  },
+
+  // Message Bubbles
   userBubble: {
     alignSelf: 'flex-end',
-    backgroundColor: '#7f1d1d',
+    backgroundColor: '#8b1111',
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    borderBottomLeftRadius: 16,
+    borderBottomRightRadius: 3,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    maxWidth: '82%',
+    borderWidth: 1,
+    borderColor: '#a31515',
+  },
+  userMessageText: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 14,
+    lineHeight: 20,
+    color: '#fff',
+  },
+  userMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    gap: 4,
+    marginTop: 4,
+  },
+  userMessageTime: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 10,
+    color: 'rgba(255, 255, 255, 0.7)',
+  },
+
+  assistantBubbleWrapper: {
+    alignSelf: 'flex-start',
+    maxWidth: '92%',
+    gap: 6,
+  },
+  assistantBubble: {
+    backgroundColor: '#151518',
+    borderWidth: 1,
+    borderColor: '#26262a',
+    borderTopLeftRadius: 4,
+    borderTopRightRadius: 16,
+    borderBottomLeftRadius: 16,
+    borderBottomRightRadius: 16,
+    padding: 14,
+    gap: 8,
+  },
+  typingBubble: {
+    paddingVertical: 12,
+  },
+  assistantHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 4,
   },
   avatarMini: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
     backgroundColor: '#c62828',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  avatarMiniText: { fontFamily: 'Inter_800ExtraBold', fontSize: 12, color: '#fff' },
-  messageText: { fontFamily: 'Inter_400Regular', fontSize: 14, lineHeight: 20 },
-  assistantMessageText: { color: '#e0e0e0' },
-  userMessageText: { color: '#fff' },
-  messageTime: { fontFamily: 'Inter_400Regular', fontSize: 10, color: '#888', marginTop: 4 },
+  assistantNameText: {
+    fontFamily: 'Inter_700Bold',
+    fontSize: 12,
+    color: '#f0f0f0',
+  },
+  aiTag: {
+    backgroundColor: 'rgba(198, 40, 40, 0.2)',
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: 'rgba(198, 40, 40, 0.4)',
+  },
+  aiTagText: {
+    fontFamily: 'Inter_700Bold',
+    fontSize: 8.5,
+    color: '#ff8a80',
+    letterSpacing: 0.5,
+  },
+  messageTime: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 10,
+    color: '#777',
+    marginLeft: 'auto',
+  },
+
+  // Formatted Assistant Message Styles
+  formattedContainer: {
+    gap: 3,
+  },
+  assistantMessageText: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 13.5,
+    lineHeight: 20,
+    color: '#d4d4d8',
+  },
+  boldText: {
+    fontFamily: 'Inter_700Bold',
+    color: '#ffffff',
+  },
+  codeText: {
+    fontFamily: 'Inter_600SemiBold',
+    color: '#ff8a80',
+    backgroundColor: '#261717',
+    paddingHorizontal: 4,
+    paddingVertical: 1,
+    borderRadius: 4,
+    fontSize: 12,
+  },
+  calloutBox: {
+    backgroundColor: 'rgba(198, 40, 40, 0.1)',
+    borderColor: 'rgba(198, 40, 40, 0.3)',
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    marginVertical: 4,
+  },
+  calloutText: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 12.5,
+    lineHeight: 18,
+    color: '#ffcdd2',
+  },
+  bulletRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+    marginVertical: 2,
+    paddingLeft: 2,
+  },
+  bulletDot: {
+    width: 5,
+    height: 5,
+    borderRadius: 2.5,
+    backgroundColor: '#c62828',
+    marginTop: 7,
+  },
+  bulletText: {
+    flex: 1,
+    fontFamily: 'Inter_400Regular',
+    fontSize: 13,
+    lineHeight: 19,
+    color: '#d4d4d8',
+  },
+  numberedRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+    marginVertical: 3,
+  },
+  numberedBadge: {
+    width: 17,
+    height: 17,
+    borderRadius: 8.5,
+    backgroundColor: '#222226',
+    borderWidth: 1,
+    borderColor: '#383840',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 1,
+  },
+  numberedBadgeText: {
+    fontFamily: 'Inter_700Bold',
+    fontSize: 9.5,
+    color: '#ff8a80',
+  },
+  numberedText: {
+    flex: 1,
+    fontFamily: 'Inter_400Regular',
+    fontSize: 13,
+    lineHeight: 19,
+    color: '#e4e4e7',
+  },
+
+  // Action Button inside Assistant Bubble
+  actionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#241212',
+    borderWidth: 1,
+    borderColor: '#4d1919',
+    borderRadius: 10,
+    paddingVertical: 9,
+    paddingHorizontal: 14,
+    marginTop: 4,
+  },
+  actionBtnText: {
+    fontFamily: 'Inter_600SemiBold',
+    fontSize: 12,
+    color: '#ffcdd2',
+  },
+
+  // Feedback Row
+  feedbackRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 4,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#202024',
+  },
+  feedbackLabel: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 10.5,
+    color: '#666',
+  },
+  feedbackBtn: {
+    padding: 4,
+    borderRadius: 4,
+    backgroundColor: '#1b1b1e',
+  },
+  feedbackBtnActive: {
+    backgroundColor: '#2b2b30',
+  },
+  feedbackAck: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 10,
+    color: '#9e9e9e',
+    marginLeft: 4,
+  },
+
+  // Follow-up Suggestions
+  followUpsWrap: {
+    paddingLeft: 4,
+    gap: 6,
+    marginTop: 2,
+  },
+  followUpTitle: {
+    fontFamily: 'Inter_700Bold',
+    fontSize: 9.5,
+    color: '#888',
+    letterSpacing: 0.6,
+  },
+  followUpChipsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  followUpChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: '#19191d',
+    borderWidth: 1,
+    borderColor: '#2b2b30',
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  followUpChipText: {
+    fontFamily: 'Inter_500Medium',
+    fontSize: 11,
+    color: '#ccc',
+  },
+
+  // Typing Indicator
+  typingIndicatorRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 2,
+  },
+  typingText: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 12,
+    color: '#888',
+  },
+
+  // Input Bar
   inputBar: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
     backgroundColor: '#141416',
     borderTopWidth: 1,
-    borderTopColor: '#202022',
-    paddingHorizontal: 16,
+    borderTopColor: '#202024',
+    paddingHorizontal: 14,
     paddingTop: 8,
+  },
+  inputContainer: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#1e1e22',
+    borderWidth: 1,
+    borderColor: '#2c2c30',
+    borderRadius: 22,
   },
   chatTextInput: {
     flex: 1,
-    backgroundColor: '#1e1e20',
-    borderRadius: 20,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 9,
     color: '#fff',
-    fontSize: 14,
+    fontSize: 13.5,
     fontFamily: 'Inter_400Regular',
   },
   sendBtn: {
@@ -712,4 +1536,3 @@ const styles = StyleSheet.create({
   },
   submitBtnText: { fontFamily: 'Inter_700Bold', fontSize: 14, color: '#fff' },
 });
-

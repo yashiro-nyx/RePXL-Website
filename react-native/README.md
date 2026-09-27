@@ -57,8 +57,23 @@ submission, real-time voucher validation, selective cart checkout, interactive
 CCD color profile previews ("Try the Look"), dedicated wishlist browsing, and
 synchronized camera comparison are also active.
 
-Google OAuth uses the website's browser-cookie flow and is not exposed as a
-native login button. A future native implementation needs an authorization-code
-redirect and secure server-side token exchange. Return submission with signed
+Google sign-in and sign-up open the website's `/auth/mobile-google` bridge,
+then return to `repxl://auth/callback` with a short-lived, single-use ticket.
+The app exchanges that ticket for a mobile session and completes MFA when required.
+Provider errors return through the same bridge instead of leaving the user on
+the website login page.
+
+Google OAuth requires an installed development or release build, not Expo Go
+(https://docs.expo.dev/guides/authentication/). For local Android testing with
+the Android SDK installed, run `npx expo run:android` from `react-native` to
+build and install the app with its registered `repxl` scheme. Email/password
+authentication remains available in Expo Go.
+
+Deploy the website callback changes alongside the app. Set `EXPO_PUBLIC_API_BASE_URL`
+to the same public origin as the server's `NEXTAUTH_URL`. Google Cloud must have
+`<NEXTAUTH_URL origin>/api/auth/callback/google` as an authorized redirect URI;
+Google returns to the website first, which then returns the ticket to the app.
+
+Return submission with signed
 image uploads, payment deep-link return handling, and app-store/EAS configuration
 remain future mobile work.

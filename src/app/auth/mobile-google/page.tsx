@@ -1,8 +1,9 @@
 'use client'
 
-import { useEffect, useState, useRef, Suspense } from 'react'
+import { useCallback, useEffect, useState, useRef, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { signIn, useSession } from 'next-auth/react'
+import { isMobileOAuthCallback, MOBILE_OAUTH_CALLBACK } from '@/lib/mobile-oauth-redirect'
 
 function MobileGoogleBridgeContent() {
   const searchParams = useSearchParams()
@@ -15,22 +16,44 @@ function MobileGoogleBridgeContent() {
   const hasFinalized = useRef(false)
 
   const mode = (searchParams.get('mode') ?? 'auto') as 'login' | 'register' | 'auto'
-  const clientRedirectUri = searchParams.get('redirect_uri') ?? 'repxl://auth/callback'
+  const clientRedirectUri = searchParams.get('redirect_uri') ?? MOBILE_OAUTH_CALLBACK
+  const validRedirect = isMobileOAuthCallback(clientRedirectUri)
+  const oauthError = searchParams.get('error')
+
+  const returnError = useCallback((message: string) => {
+    setErrorMsg(message)
+    setStage('error')
+    if (validRedirect) {
+      const target = `${clientRedirectUri}?error=${encodeURIComponent(message)}`
+      setRedirectUrl(target)
+      window.location.replace(target)
+    }
+  }, [clientRedirectUri, validRedirect])
+
+  useEffect(() => {
+    if (!validRedirect) {
+      returnError('Open Google sign-in from an installed RePXL app. Expo Go is not supported; use a development build.')
+    } else if (oauthError) {
+      returnError(`Google sign-in could not finish (${oauthError}). Please try again in the app.`)
+    }
+  }, [validRedirect, oauthError, returnError])
 
   // Step 1: If not yet signed into NextAuth, initiate Google sign-in
   useEffect(() => {
-    if (status === 'unauthenticated' && !hasTriggeredSignIn.current) {
+    if (validRedirect && !oauthError && status === 'unauthenticated' && !hasTriggeredSignIn.current) {
       hasTriggeredSignIn.current = true
       setStage('authorizing')
       setStatusMessage('Redirecting to Google Account selector…')
       const currentUrl = window.location.href
-      void signIn('google', { callbackUrl: currentUrl })
+      void signIn('google', { callbackUrl: currentUrl }).catch(() => {
+        returnError('Unable to start Google sign-in. Please try again.')
+      })
     }
-  }, [status])
+  }, [status, validRedirect, oauthError, returnError])
 
   // Step 2: Once NextAuth session is established, exchange for mobile ticket
   useEffect(() => {
-    if (status === 'authenticated' && session?.user && !hasFinalized.current) {
+    if (validRedirect && !oauthError && status === 'authenticated' && session?.user && !hasFinalized.current) {
       hasFinalized.current = true
       setStage('completing')
       setStatusMessage('Securing your RePXL session…')
@@ -56,16 +79,10 @@ function MobileGoogleBridgeContent() {
         })
         .catch((err: unknown) => {
           const message = err instanceof Error ? err.message : 'Google authentication failed.'
-          setErrorMsg(message)
-          setStage('error')
-          const errorTarget = `${clientRedirectUri}${clientRedirectUri.includes('?') ? '&' : '?'}error=${encodeURIComponent(message)}`
-          setRedirectUrl(errorTarget)
-
-          // Auto return error to app
-          window.location.replace(errorTarget)
+          returnError(message)
         })
     }
-  }, [status, session, mode, clientRedirectUri])
+  }, [status, session, mode, clientRedirectUri, validRedirect, oauthError, returnError])
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-[#0d0d0d] px-6 text-center text-white">

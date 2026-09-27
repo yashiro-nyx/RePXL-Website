@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -9,6 +9,7 @@ import { GoogleAuthButton } from '../components/GoogleAuthButton';
 import { getSafeTopInset } from '../src/utils/layout';
 
 export default function LoginScreen() {
+  const { challenge: googleChallenge } = useLocalSearchParams<{ challenge?: string }>();
   const insets = useSafeAreaInsets();
   const safeTop = getSafeTopInset(insets);
   const { signIn, signInWithGoogle, verifyMfa } = useApp();
@@ -20,6 +21,10 @@ export default function LoginScreen() {
   const [mfaCode, setMfaCode] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [googleSubmitting, setGoogleSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (googleChallenge) setChallenge(googleChallenge);
+  }, [googleChallenge]);
 
   const handleLogin = async () => {
     if (!email || !password) { setError('Please fill in all fields.'); return; }

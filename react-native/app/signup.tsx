@@ -55,7 +55,7 @@ export default function SignupScreen() {
       const result = await signInWithGoogle('auto');
       if (result.cancelled) return;
       if (result.mfaRequired && result.challenge) {
-        router.replace('/login');
+        router.replace({ pathname: '/login', params: { challenge: result.challenge } });
         return;
       }
       router.replace('/(tabs)/account');
