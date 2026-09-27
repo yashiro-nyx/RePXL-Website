@@ -1,5 +1,4 @@
 import { Platform } from 'react-native';
-import * as Notifications from 'expo-notifications';
 import Constants, { ExecutionEnvironment } from 'expo-constants';
 import { api } from './api';
 
@@ -7,8 +6,21 @@ export const isExpoGo =
   Constants.executionEnvironment === ExecutionEnvironment.StoreClient ||
   (Constants as any).appOwnership === 'expo';
 
+function getNotificationsModule() {
+  if (isExpoGo && Platform.OS === 'android') {
+    return null;
+  }
+  try {
+    return require('expo-notifications');
+  } catch {
+    return null;
+  }
+}
+
+export const Notifications = getNotificationsModule();
+
 // Configure notification behavior for foreground alerts (avoid running on Android in Expo Go)
-if (!(isExpoGo && Platform.OS === 'android')) {
+if (Notifications) {
   Notifications.setNotificationHandler({
     handleNotification: async () => ({
       shouldShowAlert: true,
@@ -24,7 +36,7 @@ export async function registerPushNotifications() {
   if (Platform.OS === 'web') return;
 
   // Remote push notifications are not supported in Expo Go on Android (SDK 53+)
-  if (isExpoGo && Platform.OS === 'android') {
+  if (!Notifications || (isExpoGo && Platform.OS === 'android')) {
     return;
   }
 
@@ -55,3 +67,4 @@ export async function registerPushNotifications() {
     console.log('[push] Push token registration skipped:', err);
   }
 }
+

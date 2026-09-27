@@ -4,6 +4,7 @@ import { useFonts, Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_7
 import { useEffect } from 'react';
 import { View, ActivityIndicator, Platform, StatusBar as RNStatusBar } from 'react-native';
 import { AppProvider } from '../context/AppContext';
+import { ScreenSyncObserver } from '../src/hooks/useScreenSync';
 
 export default function RootLayout() {
   const [loaded] = useFonts({
@@ -33,6 +34,7 @@ export default function RootLayout() {
   return (
     <AppProvider>
       <StatusBar style="light" />
+      <ScreenSyncObserver />
       <Stack screenOptions={{ headerShown: false, animation: 'slide_from_right', contentStyle: { backgroundColor: '#0d0d0d' } }}>
         <Stack.Screen name="index" />
         <Stack.Screen name="(tabs)" />

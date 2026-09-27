@@ -17,6 +17,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as WebBrowser from 'expo-web-browser';
 import * as Linking from 'expo-linking';
 import { useApp } from '../context/AppContext';
+import { useScreenSync } from '../src/hooks/useScreenSync';
 import { api, API_BASE_URL } from '../src/services/api';
 import { getSafeTopInset, getSafeBottomInset } from '../src/utils/layout';
 import type { Address } from '../types';
@@ -48,6 +49,7 @@ export default function CheckoutScreen() {
   }>();
 
   const { user, cart, addresses, addAddress, updateAddress, refreshAccount } = useApp();
+  useScreenSync();
 
   // Filter items based on selectedSlugs from cart if provided
   const checkoutItems = useMemo(() => {

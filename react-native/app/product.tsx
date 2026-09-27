@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -17,6 +17,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CONDITION_COLORS, SPEC_LABELS } from '../data/products';
 import { getColorProfile, type ColorProfile } from '../data/colorProfiles';
 import { useApp } from '../context/AppContext';
+import { useScreenSync } from '../src/hooks/useScreenSync';
 import { api } from '../src/services/api';
 import { getSafeTopInset } from '../src/utils/layout';
 import type { Product, ProductReview, Specs } from '../types';
@@ -118,33 +119,33 @@ export default function ProductScreen() {
     } catch {}
   };
 
-  useEffect(() => {
+  const fetchProductDetails = useCallback(async () => {
     if (!slug) return;
-    let active = true;
-    api.product(slug)
-      .then(async (product) => {
-        let reviews: ProductReview[] = [];
-        try {
-          reviews = await api.productReviews(slug);
-        } catch {}
-        if (active) {
-          setRemoteProduct({
-            ...product,
-            reviewList: reviews,
-            reviews: reviews.length,
-            rating: reviews.length
-              ? reviews.reduce((sum, review) => sum + review.rating, 0) / reviews.length
-              : (product.rating ?? 0),
-          });
-        }
-      })
-      .catch((reason) => {
-        if (active) setLoadError(reason instanceof Error ? reason.message : 'Unable to load this camera.');
+    try {
+      const p = await api.product(slug);
+      let reviews: ProductReview[] = [];
+      try {
+        reviews = await api.productReviews(slug);
+      } catch {}
+      setRemoteProduct({
+        ...p,
+        reviewList: reviews,
+        reviews: reviews.length,
+        rating: reviews.length
+          ? reviews.reduce((sum, review) => sum + review.rating, 0) / reviews.length
+          : (p.rating ?? 0),
       });
-    return () => {
-      active = false;
-    };
+      setLoadError('');
+    } catch (reason) {
+      setLoadError(reason instanceof Error ? reason.message : 'Unable to load this camera.');
+    }
   }, [slug]);
+
+  useScreenSync({ onSync: fetchProductDetails });
+
+  useEffect(() => {
+    void fetchProductDetails();
+  }, [fetchProductDetails]);
 
   const product = remoteProduct ?? listedProduct;
   if (!product) {

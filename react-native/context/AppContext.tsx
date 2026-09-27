@@ -21,8 +21,7 @@ import {
   type LoginResult,
 } from '../src/services/api';
 import type { MobileUser } from '../src/services/session';
-import { registerPushNotifications, isExpoGo } from '../src/services/push';
-import * as Notifications from 'expo-notifications';
+import { Notifications, registerPushNotifications, isExpoGo } from '../src/services/push';
 import * as WebBrowser from 'expo-web-browser';
 import * as Linking from 'expo-linking';
 
@@ -45,6 +44,9 @@ interface AppContextType {
   notifications: Notification[];
   unreadNotificationsCount: number;
   reviews: AccountReview[];
+  isSyncing: boolean;
+  lastSyncedAt: Date | null;
+  syncInBackground: (options?: { force?: boolean; screen?: string }) => Promise<void>;
   signIn: (email: string, password: string) => Promise<AuthResult>;
   signInWithGoogle: (mode?: 'login' | 'register' | 'auto') => Promise<AuthResult>;
   verifyMfa: (challenge: string, code: string) => Promise<void>;
@@ -106,6 +108,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [orders, setOrders] = useState<Order[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [reviews, setReviews] = useState<AccountReview[]>([]);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [lastSyncedAt, setLastSyncedAt] = useState<Date | null>(null);
+  const inFlightSyncRef = useRef<Promise<void> | null>(null);
+  const lastSyncTimeRef = useRef<number>(0);
 
   const resetAccount = useCallback(() => {
     setCart([]);
@@ -122,6 +128,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     try {
       setProducts(await api.products(query));
       setError('');
+      lastSyncTimeRef.current = Date.now();
+      setLastSyncedAt(new Date());
     } catch (reason) {
       setError(message(reason));
       throw reason;
@@ -170,6 +178,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       } else {
         setError('');
       }
+      lastSyncTimeRef.current = Date.now();
+      setLastSyncedAt(new Date());
     } catch (reason) {
       const remaining = await loadSession();
       if (!remaining) resetAccount();
@@ -178,6 +188,127 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       setRefreshing(false);
     }
   }, [resetAccount]);
+
+  const syncInBackground = useCallback(
+    async (options?: { force?: boolean; screen?: string }) => {
+      const now = Date.now();
+      // Throttle: avoid spamming requests if synced within 1500ms, unless forced
+      if (!options?.force && now - lastSyncTimeRef.current < 1500) {
+        return;
+      }
+
+      if (inFlightSyncRef.current) {
+        return inFlightSyncRef.current;
+      }
+
+      const syncPromise = (async () => {
+        setIsSyncing(true);
+        try {
+          const current = await loadSession();
+
+          // Concurrently fetch products to keep stock, prices, and listing data fresh
+          const productsPromise = api.products().catch((err) => {
+            console.log('[syncInBackground] products sync error:', err);
+            return null;
+          });
+
+          if (!current) {
+            // Guest mode: only sync products
+            const nextProducts = await productsPromise;
+            if (Array.isArray(nextProducts) && nextProducts.length > 0) {
+              setProducts(nextProducts);
+            }
+          } else {
+            // Authenticated: sync products and full user account data concurrently
+            const [
+              productsRes,
+              cartRes,
+              wishlistRes,
+              profileRes,
+              addressesRes,
+              ordersRes,
+              notificationsRes,
+              reviewsRes,
+            ] = await Promise.allSettled([
+              productsPromise,
+              api.cart(),
+              api.wishlist(),
+              api.profile(),
+              api.addresses(),
+              api.orders(),
+              api.notifications(),
+              api.reviews(),
+            ]);
+
+            // Update products
+            if (productsRes.status === 'fulfilled' && Array.isArray(productsRes.value) && productsRes.value.length > 0) {
+              setProducts(productsRes.value);
+            }
+
+            // Update cart (respect optimistic local lock)
+            if (cartRes.status === 'fulfilled' && Array.isArray(cartRes.value) && cartLockRef.current.size === 0) {
+              setCart(cartRes.value);
+            }
+
+            // Update wishlist (respect optimistic local lock)
+            if (wishlistRes.status === 'fulfilled' && Array.isArray(wishlistRes.value) && wishlistLockRef.current.size === 0) {
+              setWishlist(wishlistRes.value.map((item: any) => item.product.id));
+            }
+
+            // Update profile
+            if (profileRes.status === 'fulfilled' && profileRes.value) {
+              setProfile(profileRes.value);
+              setUser(profileRes.value);
+            }
+
+            // Update addresses
+            if (addressesRes.status === 'fulfilled' && Array.isArray(addressesRes.value)) {
+              setAddresses(addressesRes.value);
+            }
+
+            // Update orders
+            if (ordersRes.status === 'fulfilled' && Array.isArray(ordersRes.value)) {
+              setOrders(ordersRes.value);
+            }
+
+            // Update notifications
+            if (notificationsRes.status === 'fulfilled' && Array.isArray(notificationsRes.value)) {
+              setNotifications(notificationsRes.value);
+            }
+
+            // Update reviews
+            if (reviewsRes.status === 'fulfilled' && Array.isArray(reviewsRes.value)) {
+              setReviews(reviewsRes.value);
+            }
+
+            // Handle potential 401/403 session revocation
+            const authError = [cartRes, profileRes, ordersRes].find(
+              (r) =>
+                r.status === 'rejected' &&
+                r.reason instanceof ApiError &&
+                (r.reason.status === 401 || r.reason.status === 403)
+            );
+            if (authError) {
+              const remaining = await loadSession();
+              if (!remaining) resetAccount();
+            }
+          }
+
+          lastSyncTimeRef.current = Date.now();
+          setLastSyncedAt(new Date());
+        } catch (err) {
+          console.log('[syncInBackground] notice:', err);
+        } finally {
+          setIsSyncing(false);
+          inFlightSyncRef.current = null;
+        }
+      })();
+
+      inFlightSyncRef.current = syncPromise;
+      return syncPromise;
+    },
+    [resetAccount]
+  );
 
   useEffect(() => {
     let active = true;
@@ -325,7 +456,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         ];
       });
       await api.addToCart(product.id, quantity);
-      await reloadCart().catch(() => {});
+      void reloadCart().catch(() => {});
     } catch (err) {
       await reloadCart().catch(() => {});
       throw err;
@@ -405,8 +536,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           throw err;
         });
       }
-      const synced = await api.wishlist();
-      setWishlist(synced.map((item) => item.product.id));
+      void api.wishlist().then((synced) => {
+        setWishlist(synced.map((item) => item.product.id));
+      }).catch(() => {});
     } catch (err) {
       console.warn('[wishlist] Failed to toggle wishlist:', err);
       // Re-sync on error to restore consistent server state
@@ -500,8 +632,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, [notifications]);
 
   useEffect(() => {
-    if (isExpoGo && Platform.OS === 'android') return;
-    let sub: Notifications.Subscription | null = null;
+    if (!Notifications || (isExpoGo && Platform.OS === 'android')) return;
+    let sub: any = null;
     try {
       sub = Notifications.addNotificationReceivedListener(() => {
         void refreshNotifications();
@@ -516,13 +648,24 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const addAddress = useCallback(async (data: Omit<Address, 'id'>) => {
     const created = await api.createAddress(data);
-    setAddresses(await api.addresses());
+    setAddresses((prev) => [
+      created,
+      ...prev.map((item) => (data.isDefault ? { ...item, isDefault: false } : item)),
+    ]);
+    void api.addresses().then(setAddresses).catch(() => {});
     return created;
   }, []);
 
   const updateAddress = useCallback(async (id: string, data: Omit<Address, 'id'>) => {
     const updated = await api.updateAddress(id, data);
-    setAddresses(await api.addresses());
+    setAddresses((prev) =>
+      prev.map((item) => {
+        if (item.id === id) return updated;
+        if (data.isDefault) return { ...item, isDefault: false };
+        return item;
+      })
+    );
+    void api.addresses().then(setAddresses).catch(() => {});
     return updated;
   }, []);
 
@@ -531,8 +674,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setAddresses((prev) => prev.filter((item) => item.id !== id));
     try {
       await api.deleteAddress(id);
-      const synced = await api.addresses();
-      setAddresses(synced);
+      void api.addresses().then(setAddresses).catch(() => {});
     } catch (err) {
       setAddresses(previous);
       throw err;
@@ -545,9 +687,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       prev.map((item) => ({ ...item, isDefault: item.id === id }))
     );
     try {
-      await api.setDefaultAddress(id);
-      const synced = await api.addresses();
-      setAddresses(synced);
+      const updated = await api.setDefaultAddress(id);
+      setAddresses((prev) =>
+        prev.map((item) => (item.id === id ? updated : { ...item, isDefault: false }))
+      );
+      void api.addresses().then(setAddresses).catch(() => {});
     } catch (err) {
       setAddresses(previous);
       throw err;
@@ -631,6 +775,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     notifications,
     unreadNotificationsCount,
     reviews,
+    isSyncing,
+    lastSyncedAt,
+    syncInBackground,
     signIn,
     signInWithGoogle,
     verifyMfa,
@@ -665,7 +812,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     contactSupport,
   }), [
     loading, refreshing, error, products, cart, user, profile, wishlist, compareList,
-    addresses, orders, notifications, unreadNotificationsCount, reviews, signIn, signInWithGoogle, verifyMfa, register, logout,
+    addresses, orders, notifications, unreadNotificationsCount, reviews,
+    isSyncing, lastSyncedAt, syncInBackground,
+    signIn, signInWithGoogle, verifyMfa, register, logout,
     refreshProducts, refreshAccount, refreshNotifications, addToCart, removeFromCart, updateQty,
     toggleWishlist, toggleCompare, clearCart, saveProfile, markNotificationRead, markAllNotificationsRead,
     addAddress, updateAddress, deleteAddress, setDefaultAddress, submitReview, updateReview,

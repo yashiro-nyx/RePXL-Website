@@ -12,6 +12,7 @@ import { router } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useApp } from '../context/AppContext';
+import { useScreenSync } from '../src/hooks/useScreenSync';
 import { getSafeTopInset } from '../src/utils/layout';
 import type { Notification } from '../types';
 
@@ -137,6 +138,8 @@ export default function NotificationsScreen() {
     markAllNotificationsRead,
     refreshNotifications,
   } = useApp();
+
+  useScreenSync({ onSync: refreshNotifications });
 
   const [activeTab, setActiveTab] = useState<NotificationCategory>('ALL');
   const [refreshing, setRefreshing] = useState(false);

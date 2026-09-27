@@ -9,12 +9,14 @@ import {
   TextInput,
   ActivityIndicator,
   Modal,
+  RefreshControl,
 } from 'react-native';
 import { router } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useApp } from '../../context/AppContext';
+import { useScreenSync } from '../../src/hooks/useScreenSync';
 import { CONDITION_COLORS } from '../../data/products';
 import { getSafeTopInset } from '../../src/utils/layout';
 
@@ -22,6 +24,17 @@ export default function CartScreen() {
   const insets = useSafeAreaInsets();
   const safeTop = getSafeTopInset(insets);
   const { cart, removeFromCart, updateQty, clearCart, validateVoucher, user } = useApp();
+  const { syncInBackground } = useScreenSync();
+  const [pullRefreshing, setPullRefreshing] = useState(false);
+
+  const handlePullRefresh = async () => {
+    setPullRefreshing(true);
+    try {
+      await syncInBackground({ force: true, screen: 'cart_pull' });
+    } finally {
+      setPullRefreshing(false);
+    }
+  };
 
   // Selection state
   const [selectedSlugs, setSelectedSlugs] = useState<Set<string>>(new Set());
@@ -173,7 +186,18 @@ export default function CartScreen() {
           </TouchableOpacity>
         </View>
       ) : cart.length === 0 ? (
-        <View style={styles.empty}>
+        <ScrollView
+          contentContainerStyle={styles.empty}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={pullRefreshing}
+              onRefresh={handlePullRefresh}
+              tintColor="#c62828"
+              colors={['#c62828']}
+            />
+          }
+        >
           <View style={styles.emptyIcon}>
             <Feather name="shopping-bag" size={32} color="#444" />
           </View>
@@ -188,12 +212,20 @@ export default function CartScreen() {
           >
             <Text style={styles.browseBtnText}>Browse Cameras</Text>
           </TouchableOpacity>
-        </View>
+        </ScrollView>
       ) : (
         <>
           <ScrollView
             showsVerticalScrollIndicator={false}
             contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 120, gap: 14 }}
+            refreshControl={
+              <RefreshControl
+                refreshing={pullRefreshing}
+                onRefresh={handlePullRefresh}
+                tintColor="#c62828"
+                colors={['#c62828']}
+              />
+            }
           >
             {/* Select All Row */}
             <TouchableOpacity

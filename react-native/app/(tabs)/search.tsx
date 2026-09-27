@@ -15,6 +15,7 @@ import { Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CONDITION_COLORS } from '../../data/products';
 import { useApp } from '../../context/AppContext';
+import { useScreenSync } from '../../src/hooks/useScreenSync';
 import { getSafeTopInset } from '../../src/utils/layout';
 import type { Product } from '../../types';
 
@@ -119,6 +120,7 @@ export default function SearchScreen() {
   const safeTop = getSafeTopInset(insets);
   const params = useLocalSearchParams<{ query?: string; brand?: string }>();
   const { products } = useApp();
+  useScreenSync();
 
   const [query, setQuery] = useState(params.query || '');
   const [brand, setBrand] = useState(params.brand || 'All');

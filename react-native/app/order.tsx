@@ -14,6 +14,7 @@ import { Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { api } from '../src/services/api';
 import { useApp } from '../context/AppContext';
+import { useScreenSync } from '../src/hooks/useScreenSync';
 import { getSafeTopInset } from '../src/utils/layout';
 import {
   getOrderStatusLabel,
@@ -56,6 +57,8 @@ export default function OrderScreen() {
       setRefreshing(false);
     }
   }, [orderNumber]);
+
+  useScreenSync({ onSync: fetchOrder });
 
   useEffect(() => {
     void fetchOrder();

@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -8,16 +8,85 @@ import {
   StyleSheet,
   TextInput,
   useWindowDimensions,
+  RefreshControl,
 } from 'react-native';
 import { router } from 'expo-router';
+import * as WebBrowser from 'expo-web-browser';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CONDITION_COLORS } from '../../data/products';
 import { useApp } from '../../context/AppContext';
-import { api } from '../../src/services/api';
+import { useScreenSync } from '../../src/hooks/useScreenSync';
+import { API_BASE_URL, api } from '../../src/services/api';
 import { getSafeTopInset, getResponsiveCardLayout } from '../../src/utils/layout';
 import type { Product } from '../../types';
+
+interface BannerItem {
+  id: string;
+  title: string;
+  imageRef: string;
+  placement: string;
+  linkTarget: string;
+  isActive?: boolean;
+}
+
+const DEFAULT_BANNERS: BannerItem[] = [
+  {
+    id: 'default-hero',
+    title: 'More than just a photo.',
+    imageRef: '/images/camherosec.png',
+    placement: 'HOMEPAGE_HERO',
+    linkTarget: 'https://repxl.com/products',
+    isActive: true,
+  },
+  {
+    id: 'default-strip',
+    title: 'Hottest Deals',
+    imageRef: '/images/dealbanner.png',
+    placement: 'HOMEPAGE_STRIP',
+    linkTarget: 'https://repxl.com/products',
+    isActive: true,
+  },
+  {
+    id: 'default-sidebar',
+    title: 'Sony Cyber-shot W800',
+    imageRef: '/images/banner2.png',
+    placement: 'SIDEBAR',
+    linkTarget: 'https://repxl.com/products?brand=sony',
+    isActive: true,
+  },
+];
+
+function resolveBannerImageUrl(imageRef?: string | null): string {
+  if (!imageRef) return '';
+  const trimmed = imageRef.trim();
+  if (!trimmed) return '';
+  if (/^https?:\/\//i.test(trimmed) || trimmed.startsWith('data:')) {
+    return trimmed;
+  }
+  const cleanPath = trimmed.startsWith('/') ? trimmed : `/${trimmed}`;
+  return `${API_BASE_URL}${cleanPath}`;
+}
+
+function ViewfinderCorners({
+  color = 'rgba(255, 255, 255, 0.25)',
+  size = 12,
+  inset = 10,
+}: {
+  color?: string;
+  size?: number;
+  inset?: number;
+}) {
+  return (
+    <View pointerEvents="none" style={[StyleSheet.absoluteFill, { margin: inset }]}>
+      <View style={[styles.cornerTL, { borderColor: color, width: size, height: size }]} />
+      <View style={[styles.cornerTR, { borderColor: color, width: size, height: size }]} />
+      <View style={[styles.cornerBL, { borderColor: color, width: size, height: size }]} />
+      <View style={[styles.cornerBR, { borderColor: color, width: size, height: size }]} />
+    </View>
+  );
+}
 
 const CATEGORIES = ['Popular', 'New Arrival', 'Canon', 'Fujifilm', 'Kodak', 'Nikon'];
 
@@ -106,28 +175,141 @@ export default function HomeScreen() {
     tabletBreakpoint: 600,
   });
   const { user, products, error, unreadNotificationsCount } = useApp();
+  const { syncInBackground } = useScreenSync();
+  const [pullRefreshing, setPullRefreshing] = useState(false);
   const [activeCategory, setActiveCategory] = useState('Popular');
   const [homeSearch, setHomeSearch] = useState('');
-  const [promoBanner, setPromoBanner] = useState<{
-    id: string;
-    title: string;
-    imageRef: string;
-    linkTarget: string;
-  } | null>(null);
+  const [banners, setBanners] = useState<BannerItem[]>(DEFAULT_BANNERS);
+  const [activeHeroIndex, setActiveHeroIndex] = useState(0);
+
+  const loadBanners = useCallback(async () => {
+    try {
+      const data = await api.banners();
+      if (Array.isArray(data) && data.length > 0) {
+        setBanners(data);
+      }
+    } catch {
+      // Keep existing/default banners
+    }
+  }, []);
+
+  useScreenSync({
+    onSync: loadBanners,
+  });
 
   useEffect(() => {
-    let isMounted = true;
-    api
-      .banners()
-      .then((data) => {
-        if (isMounted && Array.isArray(data) && data.length > 0) {
-          setPromoBanner(data[0]);
+    void loadBanners();
+  }, [loadBanners]);
+
+  const handlePullRefresh = async () => {
+    setPullRefreshing(true);
+    try {
+      await Promise.allSettled([
+        syncInBackground({ force: true, screen: 'home_pull' }),
+        loadBanners(),
+      ]);
+    } finally {
+      setPullRefreshing(false);
+    }
+  };
+
+  const heroBanners = useMemo(() => {
+    const list = banners.filter((b) => b.placement === 'HOMEPAGE_HERO');
+    return list.length > 0 ? list : DEFAULT_BANNERS.filter((b) => b.placement === 'HOMEPAGE_HERO');
+  }, [banners]);
+
+  const activeHero = heroBanners[activeHeroIndex % heroBanners.length] || heroBanners[0];
+
+  const dealBanner = useMemo(() => {
+    return (
+      banners.find((b) => b.placement === 'HOMEPAGE_STRIP') ||
+      DEFAULT_BANNERS.find((b) => b.placement === 'HOMEPAGE_STRIP') ||
+      null
+    );
+  }, [banners]);
+
+  const spotlightBanner = useMemo(() => {
+    return (
+      banners.find((b) => b.placement === 'SIDEBAR') ||
+      DEFAULT_BANNERS.find((b) => b.placement === 'SIDEBAR') ||
+      null
+    );
+  }, [banners]);
+
+  const handleBannerPress = useCallback(async (linkTarget?: string | null) => {
+    if (!linkTarget) {
+      router.push('/(tabs)/search');
+      return;
+    }
+    const target = linkTarget.trim();
+    if (!target) {
+      router.push('/(tabs)/search');
+      return;
+    }
+
+    if (target.startsWith('/')) {
+      if (target.startsWith('/products/') || target.startsWith('/product/')) {
+        const parts = target.split('/');
+        const slug = parts[2]?.split('?')[0];
+        if (slug) {
+          router.push({ pathname: '/product', params: { slug } });
+          return;
         }
-      })
-      .catch(() => {});
-    return () => {
-      isMounted = false;
-    };
+      }
+      if (target.includes('brand=')) {
+        const brandMatch = target.match(/[?&]brand=([^&#]+)/i);
+        if (brandMatch?.[1]) {
+          router.push({ pathname: '/(tabs)/search', params: { brand: decodeURIComponent(brandMatch[1]) } });
+          return;
+        }
+      }
+      if (target.includes('query=') || target.includes('q=')) {
+        const qMatch = target.match(/[?&](?:query|q)=([^&#]+)/i);
+        if (qMatch?.[1]) {
+          router.push({ pathname: '/(tabs)/search', params: { query: decodeURIComponent(qMatch[1]) } });
+          return;
+        }
+      }
+      router.push('/(tabs)/search');
+      return;
+    }
+
+    try {
+      const parsed = new URL(target);
+      const host = parsed.hostname.toLowerCase();
+      const isInternal =
+        host.includes('repxl.com') ||
+        host.includes('vercel.app') ||
+        host === 'localhost' ||
+        host === '127.0.0.1';
+
+      if (isInternal) {
+        if (parsed.pathname.startsWith('/products/') || parsed.pathname.startsWith('/product/')) {
+          const parts = parsed.pathname.split('/');
+          const slug = parts[2];
+          if (slug) {
+            router.push({ pathname: '/product', params: { slug } });
+            return;
+          }
+        }
+        const brand = parsed.searchParams.get('brand');
+        if (brand) {
+          router.push({ pathname: '/(tabs)/search', params: { brand } });
+          return;
+        }
+        const query = parsed.searchParams.get('query') || parsed.searchParams.get('q');
+        if (query) {
+          router.push({ pathname: '/(tabs)/search', params: { query } });
+          return;
+        }
+        router.push('/(tabs)/search');
+        return;
+      }
+
+      await WebBrowser.openBrowserAsync(target);
+    } catch {
+      router.push('/(tabs)/search');
+    }
   }, []);
 
   const handleSearchSubmit = () => {
@@ -205,7 +387,18 @@ export default function HomeScreen() {
         </View>
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 32 }}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: 32 }}
+        refreshControl={
+          <RefreshControl
+            refreshing={pullRefreshing}
+            onRefresh={handlePullRefresh}
+            tintColor="#c62828"
+            colors={['#c62828']}
+          />
+        }
+      >
         {/* Greeting */}
         <View style={{ paddingHorizontal: 20, marginBottom: 16 }}>
           <Text style={styles.greeting}>Hello, {user ? user.name.split(' ')[0] : 'Guest'}!</Text>
@@ -231,6 +424,72 @@ export default function HomeScreen() {
           )}
         </View>
 
+        {/* Hero Banner Showcase */}
+        {activeHero && (
+          <View style={styles.heroContainer}>
+            <TouchableOpacity
+              activeOpacity={0.9}
+              style={styles.heroCard}
+              onPress={() => handleBannerPress(activeHero.linkTarget)}
+            >
+              <LinearGradient
+                colors={['#2c0606', '#170303', '#0d0d0d']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.heroGradient}
+              >
+                <ViewfinderCorners color="rgba(239, 68, 68, 0.4)" size={16} inset={12} />
+                <View style={styles.heroGlow} pointerEvents="none" />
+
+                <View style={styles.heroContentRow}>
+                  <View style={styles.heroTextCol}>
+                    <View style={styles.heroBadge}>
+                      <View style={styles.heroBadgeDot} />
+                      <Text style={styles.heroBadgeText}>CCD ARCHIVE</Text>
+                    </View>
+                    <Text style={styles.heroTitle} numberOfLines={2}>
+                      {activeHero.title}
+                    </Text>
+                    <Text style={styles.heroSubtitle} numberOfLines={2}>
+                      Tactile vintage digicams & authentic Y2K grain.
+                    </Text>
+                    <View style={styles.heroCtaBtn}>
+                      <Text style={styles.heroCtaText}>Shop Collection</Text>
+                      <Feather name="arrow-right" size={12} color="#fff" />
+                    </View>
+                  </View>
+
+                  {activeHero.imageRef ? (
+                    <View style={styles.heroImageWrap}>
+                      <Image
+                        source={{ uri: resolveBannerImageUrl(activeHero.imageRef) }}
+                        style={styles.heroImage}
+                        resizeMode="contain"
+                      />
+                    </View>
+                  ) : null}
+                </View>
+
+                {heroBanners.length > 1 && (
+                  <View style={styles.heroIndicators}>
+                    {heroBanners.map((_, i) => (
+                      <TouchableOpacity
+                        key={i}
+                        onPress={() => setActiveHeroIndex(i)}
+                        style={[
+                          styles.heroDot,
+                          i === activeHeroIndex % heroBanners.length && styles.heroDotActive,
+                        ]}
+                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      />
+                    ))}
+                  </View>
+                )}
+              </LinearGradient>
+            </TouchableOpacity>
+          </View>
+        )}
+
         {/* Categories */}
         <View style={styles.sectionRow}>
           <Text style={styles.sectionTitle}>Categories</Text>
@@ -241,7 +500,7 @@ export default function HomeScreen() {
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
-          style={{ paddingLeft: 20, marginBottom: 24 }}
+          style={{ paddingLeft: 20, marginBottom: 20 }}
           contentContainerStyle={{ gap: 8, paddingRight: 20 }}
         >
           {CATEGORIES.map((cat) => (
@@ -258,43 +517,105 @@ export default function HomeScreen() {
           ))}
         </ScrollView>
 
-        {/* Promo Spotlight Banner */}
-        {promoBanner && (
-          <TouchableOpacity
-            style={styles.promoCard}
-            activeOpacity={0.88}
-            onPress={() => {
-              if (promoBanner.linkTarget?.includes('brand=')) {
-                const brand = promoBanner.linkTarget.split('brand=')[1]?.split('&')[0];
-                if (brand) router.push({ pathname: '/(tabs)/search', params: { brand } });
-              } else {
-                router.push('/(tabs)/search');
-              }
-            }}
-          >
-            <LinearGradient
-              colors={['#3b0a0a', '#180404']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.promoCardGradient}
+        {/* Curated Spotlight Banner */}
+        {spotlightBanner && (
+          <View style={styles.spotlightContainer}>
+            <TouchableOpacity
+              activeOpacity={0.88}
+              style={styles.spotlightCard}
+              onPress={() => handleBannerPress(spotlightBanner.linkTarget)}
             >
-              <View style={styles.promoContent}>
-                <View style={styles.promoBadge}>
-                  <Text style={styles.promoBadgeText}>FEATURED CAMPAIGN</Text>
+              <LinearGradient
+                colors={['#1c1417', '#120f13', '#0a0a0c']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.spotlightGradient}
+              >
+                <ViewfinderCorners color="rgba(255, 255, 255, 0.18)" size={12} inset={10} />
+
+                <View style={styles.spotlightContentRow}>
+                  <View style={styles.spotlightTextCol}>
+                    <View style={styles.spotlightBadge}>
+                      <Text style={styles.spotlightBadgeText}>CURATED SPOTLIGHT</Text>
+                    </View>
+                    <Text style={styles.spotlightTitle} numberOfLines={2}>
+                      {spotlightBanner.title}
+                    </Text>
+                    <Text style={styles.spotlightSubtitle} numberOfLines={2}>
+                      Staff recommendation & tested vintage compact
+                    </Text>
+                    <View style={styles.spotlightCtaRow}>
+                      <Text style={styles.spotlightCtaText}>Explore Now</Text>
+                      <Feather name="arrow-right" size={12} color="#f87171" />
+                    </View>
+                  </View>
+
+                  {spotlightBanner.imageRef ? (
+                    <View style={styles.spotlightImageWrap}>
+                      <Image
+                        source={{ uri: resolveBannerImageUrl(spotlightBanner.imageRef) }}
+                        style={styles.spotlightImage}
+                        resizeMode="contain"
+                      />
+                    </View>
+                  ) : null}
                 </View>
-                <Text style={styles.promoTitle} numberOfLines={2}>
-                  {promoBanner.title}
+              </LinearGradient>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {/* Deal Banner Strip */}
+        {dealBanner && (
+          <View style={styles.dealContainer}>
+            <TouchableOpacity
+              activeOpacity={0.88}
+              style={styles.dealCard}
+              onPress={() => handleBannerPress(dealBanner.linkTarget)}
+            >
+              <LinearGradient
+                colors={['#1e0505', '#120202', '#0a0a0a']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.dealGradient}
+              >
+                <Text style={styles.dealWatermark} pointerEvents="none">
+                  REPIXL
                 </Text>
-                <Text style={styles.promoSubtitle}>
-                  Curated selections & verified digicams
-                </Text>
-                <View style={styles.promoCtaRow}>
-                  <Text style={styles.promoCtaText}>Explore Deals</Text>
-                  <Feather name="arrow-right" size={12} color="#f87171" />
+
+                <ViewfinderCorners color="rgba(248, 113, 113, 0.3)" size={14} inset={10} />
+
+                <View style={styles.dealContentRow}>
+                  <View style={styles.dealTextCol}>
+                    <View style={styles.dealBadgeRow}>
+                      <View style={styles.dealBadgeLine} />
+                      <Text style={styles.dealBadgeText}>FEATURED THIS WEEK</Text>
+                    </View>
+                    <Text style={styles.dealTitle} numberOfLines={2}>
+                      {dealBanner.title}
+                    </Text>
+                    <Text style={styles.dealSubtitle} numberOfLines={2}>
+                      Curated promotional collection selected by RePXL curators.
+                    </Text>
+                    <View style={styles.dealCtaBtn}>
+                      <Text style={styles.dealCtaText}>Explore Deals</Text>
+                      <Feather name="arrow-right" size={12} color="#fff" />
+                    </View>
+                  </View>
+
+                  {dealBanner.imageRef ? (
+                    <View style={styles.dealImageWrap}>
+                      <Image
+                        source={{ uri: resolveBannerImageUrl(dealBanner.imageRef) }}
+                        style={styles.dealImage}
+                        resizeMode="contain"
+                      />
+                    </View>
+                  ) : null}
                 </View>
-              </View>
-            </LinearGradient>
-          </TouchableOpacity>
+              </LinearGradient>
+            </TouchableOpacity>
+          </View>
         )}
 
         {/* Products */}
@@ -451,52 +772,333 @@ const styles = StyleSheet.create({
   stockRow: { flexDirection: 'row', alignItems: 'center', gap: 4, flexShrink: 0 },
   stockDot: { width: 6, height: 6, borderRadius: 3 },
   stockText: { fontSize: 10, fontFamily: 'Inter_500Medium' },
-  promoCard: {
+  // Viewfinder corner marks
+  cornerTL: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    borderTopWidth: 1.5,
+    borderLeftWidth: 1.5,
+  },
+  cornerTR: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    borderTopWidth: 1.5,
+    borderRightWidth: 1.5,
+  },
+  cornerBL: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    borderBottomWidth: 1.5,
+    borderLeftWidth: 1.5,
+  },
+  cornerBR: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    borderBottomWidth: 1.5,
+    borderRightWidth: 1.5,
+  },
+
+  // Hero Banner Showcase
+  heroContainer: {
     marginHorizontal: 20,
     marginBottom: 20,
+  },
+  heroCard: {
+    borderRadius: 16,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(239, 68, 68, 0.35)',
+    elevation: 4,
+    shadowColor: '#dc2626',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 10,
+  },
+  heroGradient: {
+    position: 'relative',
+    padding: 16,
+    minHeight: 180,
+    justifyContent: 'center',
+  },
+  heroGlow: {
+    position: 'absolute',
+    right: -20,
+    top: -20,
+    width: 140,
+    height: 140,
+    borderRadius: 70,
+    backgroundColor: 'rgba(220, 38, 38, 0.15)',
+  },
+  heroContentRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  heroTextCol: {
+    flex: 1,
+    gap: 6,
+    paddingRight: 4,
+  },
+  heroBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    alignSelf: 'flex-start',
+    backgroundColor: 'rgba(220, 38, 38, 0.22)',
+    borderWidth: 1,
+    borderColor: 'rgba(239, 68, 68, 0.55)',
+    borderRadius: 99,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+  heroBadgeDot: {
+    width: 5,
+    height: 5,
+    borderRadius: 3,
+    backgroundColor: '#ef4444',
+  },
+  heroBadgeText: {
+    fontFamily: 'Inter_700Bold',
+    fontSize: 9,
+    color: '#fca5a5',
+    letterSpacing: 0.8,
+  },
+  heroTitle: {
+    fontFamily: 'Inter_800ExtraBold',
+    fontSize: 18,
+    color: '#fff',
+    lineHeight: 23,
+    letterSpacing: -0.3,
+  },
+  heroSubtitle: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 12,
+    color: '#ccc',
+    lineHeight: 16,
+  },
+  heroCtaBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    alignSelf: 'flex-start',
+    backgroundColor: '#c62828',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    marginTop: 4,
+  },
+  heroCtaText: {
+    fontFamily: 'Inter_600SemiBold',
+    fontSize: 11,
+    color: '#fff',
+    letterSpacing: 0.3,
+  },
+  heroImageWrap: {
+    width: 115,
+    height: 130,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  heroImage: {
+    width: '100%',
+    height: '100%',
+  },
+  heroIndicators: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 12,
+  },
+  heroDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+  },
+  heroDotActive: {
+    width: 16,
+    backgroundColor: '#ef4444',
+  },
+
+  // Curated Spotlight Banner
+  spotlightContainer: {
+    marginHorizontal: 20,
+    marginBottom: 20,
+  },
+  spotlightCard: {
     borderRadius: 14,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: 'rgba(198, 40, 40, 0.3)',
+    borderColor: 'rgba(255, 255, 255, 0.12)',
     elevation: 3,
   },
-  promoCardGradient: { padding: 16 },
-  promoContent: { gap: 6 },
-  promoBadge: {
-    alignSelf: 'flex-start',
-    backgroundColor: 'rgba(198, 40, 40, 0.25)',
-    borderWidth: 1,
-    borderColor: 'rgba(198, 40, 40, 0.5)',
-    borderRadius: 4,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
+  spotlightGradient: {
+    position: 'relative',
+    padding: 14,
+    minHeight: 135,
+    justifyContent: 'center',
   },
-  promoBadgeText: {
-    fontFamily: 'Inter_700Bold',
-    fontSize: 9,
-    color: '#f87171',
-    letterSpacing: 0.8,
-  },
-  promoTitle: {
-    fontFamily: 'Inter_700Bold',
-    fontSize: 16,
-    color: '#fff',
-    lineHeight: 22,
-  },
-  promoSubtitle: {
-    fontFamily: 'Inter_400Regular',
-    fontSize: 12,
-    color: '#aaa',
-  },
-  promoCtaRow: {
+  spotlightContentRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  spotlightTextCol: {
+    flex: 1,
+    gap: 5,
+  },
+  spotlightBadge: {
+    alignSelf: 'flex-start',
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.18)',
+    borderRadius: 4,
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+  },
+  spotlightBadgeText: {
+    fontFamily: 'Inter_700Bold',
+    fontSize: 9,
+    color: '#ddd',
+    letterSpacing: 0.8,
+  },
+  spotlightTitle: {
+    fontFamily: 'Inter_700Bold',
+    fontSize: 15,
+    color: '#fff',
+    lineHeight: 20,
+  },
+  spotlightSubtitle: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 11,
+    color: '#999',
+    lineHeight: 15,
+  },
+  spotlightCtaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    marginTop: 3,
+  },
+  spotlightCtaText: {
+    fontFamily: 'Inter_600SemiBold',
+    fontSize: 11,
+    color: '#f87171',
+  },
+  spotlightImageWrap: {
+    width: 95,
+    height: 100,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  spotlightImage: {
+    width: '100%',
+    height: '100%',
+  },
+
+  // Deal Banner Strip
+  dealContainer: {
+    marginHorizontal: 20,
+    marginBottom: 20,
+  },
+  dealCard: {
+    borderRadius: 14,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(198, 40, 40, 0.4)',
+    elevation: 3,
+    shadowColor: '#c62828',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+  },
+  dealGradient: {
+    position: 'relative',
+    padding: 16,
+    minHeight: 150,
+    justifyContent: 'center',
+  },
+  dealWatermark: {
+    position: 'absolute',
+    top: 10,
+    right: 14,
+    fontFamily: 'Inter_800ExtraBold',
+    fontSize: 42,
+    color: 'rgba(255, 255, 255, 0.04)',
+    letterSpacing: -1,
+  },
+  dealContentRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  dealTextCol: {
+    flex: 1,
+    gap: 5,
+    zIndex: 2,
+  },
+  dealBadgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  dealBadgeLine: {
+    width: 14,
+    height: 1.5,
+    backgroundColor: '#ef4444',
+  },
+  dealBadgeText: {
+    fontFamily: 'Inter_700Bold',
+    fontSize: 9,
+    color: '#ef4444',
+    letterSpacing: 1.2,
+  },
+  dealTitle: {
+    fontFamily: 'Inter_800ExtraBold',
+    fontSize: 17,
+    color: '#fff',
+    lineHeight: 22,
+    letterSpacing: -0.3,
+  },
+  dealSubtitle: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 11,
+    color: '#aaa',
+    lineHeight: 15,
+  },
+  dealCtaBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    alignSelf: 'flex-start',
+    backgroundColor: 'rgba(198, 40, 40, 0.85)',
+    borderRadius: 7,
+    paddingHorizontal: 11,
+    paddingVertical: 6,
     marginTop: 4,
   },
-  promoCtaText: {
+  dealCtaText: {
     fontFamily: 'Inter_600SemiBold',
-    fontSize: 12,
-    color: '#f87171',
+    fontSize: 11,
+    color: '#fff',
+  },
+  dealImageWrap: {
+    width: 100,
+    height: 110,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 2,
+  },
+  dealImage: {
+    width: '100%',
+    height: '100%',
   },
 });

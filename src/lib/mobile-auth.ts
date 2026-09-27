@@ -79,10 +79,17 @@ export async function getMobileUserFromAccessToken(token: string): Promise<Sessi
   if (!session || session.revokedAt || session.accessExpiresAt.getTime() <= Date.now()) return null
   if (session.user.isArchived || session.user.role !== 'CUSTOMER') return null
 
-  await prisma.mobileSession.update({
-    where: { id: session.id },
-    data: { lastUsedAt: new Date() },
-  })
+  // Non-blocking, throttled session activity touch (at most once every 5 minutes)
+  const fiveMinAgo = Date.now() - 5 * 60 * 1000
+  if (!session.lastUsedAt || session.lastUsedAt.getTime() < fiveMinAgo) {
+    prisma.mobileSession
+      .update({
+        where: { id: session.id },
+        data: { lastUsedAt: new Date() },
+      })
+      .catch(() => {})
+  }
+
   return userShape(session.user)
 }
 

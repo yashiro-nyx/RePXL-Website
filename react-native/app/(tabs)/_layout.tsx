@@ -11,7 +11,7 @@ type BottomTabBarProps = Parameters<
 
 function CustomTabBar({ state, navigation }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
-  const { cart, unreadNotificationsCount } = useApp();
+  const { cart, unreadNotificationsCount, syncInBackground } = useApp();
   const cartCount = cart.reduce((s, i) => s + i.quantity, 0);
 
   const tabs = [
@@ -31,7 +31,10 @@ function CustomTabBar({ state, navigation }: BottomTabBarProps) {
         return (
           <TouchableOpacity
             key={tab.name}
-            onPress={() => navigation.navigate(tab.name)}
+            onPress={() => {
+              navigation.navigate(tab.name);
+              void syncInBackground({ force: focused, screen: tab.name });
+            }}
             style={styles.tab}
             activeOpacity={0.7}
             hitSlop={{ top: 6, bottom: 6, left: 10, right: 10 }}

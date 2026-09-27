@@ -19,6 +19,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useApp } from '../../context/AppContext';
+import { useScreenSync } from '../../src/hooks/useScreenSync';
 import { CONDITION_COLORS } from '../../data/products';
 import { getSafeTopInset } from '../../src/utils/layout';
 import {
@@ -1158,6 +1159,13 @@ export default function AccountScreen() {
 
   const [section, setSection] = useState<Section>('main');
   const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const { syncInBackground } = useScreenSync();
+
+  useEffect(() => {
+    if (section !== 'main') {
+      void syncInBackground({ screen: `account_${section}` });
+    }
+  }, [section, syncInBackground]);
 
   useEffect(() => {
     if (section === 'main') return;
