@@ -4,7 +4,7 @@ import { useState, useMemo, useEffect } from 'react'
 import Link from 'next/link'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Container } from '@/components/layout/Container'
-import { Button, BackButton, CornerBracket } from '@/components/ui'
+import { Button, PageBackLink, CornerBracket } from '@/components/ui'
 import { RevealText } from '@/components/ui/RevealText'
 import { useReducedMotion } from '@/hooks/useReducedMotion'
 import { faqs, type FAQItem } from '@/data/faqs'
@@ -84,7 +84,7 @@ export default function FAQPage() {
         </div>
 
         <Container>
-          <BackButton href="/" label="Home" className="mb-6" />
+          <PageBackLink label="Home" fallback="/" />
           <div className="mx-auto max-w-2xl text-center">
             <span className="mb-5 block font-mono text-xs uppercase tracking-widest text-repixl-muted">
               — Support

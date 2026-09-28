@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Container } from '@/components/layout/Container'
-import { BackButton } from '@/components/ui'
+import { PageBackLink } from '@/components/ui'
 import { RevealText } from '@/components/ui/RevealText'
 import { useReducedMotion } from '@/hooks/useReducedMotion'
 import { useToastStore } from '@/stores/toastStore'
@@ -209,7 +209,7 @@ export default function ContactPage() {
         </div>
 
         <Container>
-          <BackButton href="/" label="Home" className="mb-6" />
+          <PageBackLink label="Home" fallback="/" />
           <div className="mx-auto max-w-2xl text-center">
             <span className="mb-5 block font-mono text-xs uppercase tracking-widest text-repixl-muted">
               — Get in Touch

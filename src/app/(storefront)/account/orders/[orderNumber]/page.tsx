@@ -5,7 +5,7 @@ import dynamic from 'next/dynamic'
 import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
 import { createPortal } from 'react-dom'
-import { Button, BackButton, PageLoader, ImageUploader, type UploadedImage } from '@/components/ui'
+import { Button, PageBackLink, PageLoader, ImageUploader, type UploadedImage } from '@/components/ui'
 import { useAuthStore } from '@/stores/authStore'
 import { useOrderHistoryStore, type Order } from '@/stores/orderHistoryStore'
 import { computeStepperState } from '@/lib/order-tracking'
@@ -369,8 +369,8 @@ export default function OrderDetailPage() {
     <>
       <div className="min-w-0">
         <>
-          {/* Back button */}
-          <BackButton href="/account/orders" label="Back to Orders" className="mb-6" />
+          {/* Contextual Back to My Purchases (parent of this order-detail page) */}
+          <PageBackLink href="/account/orders" label="My Purchases" />
 
           {/* Breadcrumb + actions bar */}
           <div className="mb-8 flex flex-wrap items-center justify-between gap-3">

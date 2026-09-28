@@ -3,6 +3,11 @@
 
 generator client {
   provider = "prisma-client-js"
+  // Cross-platform engines: this project is developed on macOS (darwin-arm64)
+  // and Windows, and deploys to Vercel (Linux). "native" covers the machine
+  // running `prisma generate`; the explicit targets ensure the client works
+  // after node_modules is copied between OSes without a re-generate.
+  binaryTargets = ["native", "windows", "darwin-arm64", "debian-openssl-3.0.x"]
 }
 
 datasource db {

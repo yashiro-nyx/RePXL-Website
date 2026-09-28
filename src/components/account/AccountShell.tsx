@@ -207,6 +207,9 @@ export default function AccountShell({ children }: { children: React.ReactNode }
 
             {/* ── Main content ─────────────────────────────────── */}
             <main className="min-w-0 flex-1 text-repixl-text-light">
+              {/* No shell-level Back button: account tabs are primary navigation
+                  reachable via the persistent sidebar. Contextual Back buttons live
+                  only on nested detail pages (e.g. an order's details), not here. */}
               {authError && (
                 <div role="alert" className="mb-4 rounded-lg border border-repixl-muted/20 p-4 text-sm">
                   {authError} <button className="underline" onClick={() => void hydrate()}>Retry</button>

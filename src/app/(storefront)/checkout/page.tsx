@@ -6,7 +6,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
 import { Container } from '@/components/layout/Container'
-import { Button, ConditionBadge, LegalModal, PageLoader } from '@/components/ui'
+import { Button, ConditionBadge, LegalModal, PageLoader, PageBackLink } from '@/components/ui'
 import { PhoneInput } from '@/components/ui/PhoneInput'
 import { emptyPHAddress, type PHAddressValue } from '@/components/ui/PHAddressSelect'
 import { MinimalFooter } from '@/components/layout/MinimalFooter'
@@ -726,6 +726,11 @@ export default function CheckoutPage() {
   return (
     <div className="burn-subtle min-h-screen pb-20 pt-24">
       <Container>
+        {/* Explicit Back to Cart — a plain link to /cart. Does not clear the cart,
+            cancel payment, or change order state (no order/session exists yet at
+            the form step). */}
+        <PageBackLink href="/cart" label="Back to Cart" />
+
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}

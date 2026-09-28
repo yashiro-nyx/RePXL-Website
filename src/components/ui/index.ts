@@ -1,5 +1,5 @@
 export { Accordion } from './Accordion'
-export { BackButton } from './BackButton'
+export { BackButton, PageBackLink } from './BackButton'
 export { Button, type ButtonProps, type ButtonVariant, type ButtonSize } from './Button'
 export { ConditionBadge, type Condition, type ConditionBadgeProps } from './ConditionBadge'
 export { CornerBracket, type CornerBracketProps } from './CornerBracket'

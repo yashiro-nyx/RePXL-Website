@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { motion, AnimatePresence, useInView } from 'framer-motion'
 import { Container } from '@/components/layout/Container'
-import { ConditionBadge, BackButton, type Condition } from '@/components/ui'
+import { ConditionBadge, PageBackLink, type Condition } from '@/components/ui'
 import { RevealText } from '@/components/ui/RevealText'
 import { useReducedMotion } from '@/hooks/useReducedMotion'
 import { CmsPageLayout } from '@/components/layout/CmsPageLayout'
@@ -197,7 +197,7 @@ export default function ConditionGradingPage() {
         </div>
 
         <Container>
-          <BackButton href="/" label="Home" className="mb-6" />
+          <PageBackLink label="Home" fallback="/" />
           <div className="mx-auto max-w-2xl text-center">
             <span className="mb-5 block font-mono text-xs uppercase tracking-widest text-repixl-muted">
               — Our Standard

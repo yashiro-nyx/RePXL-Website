@@ -1,9 +1,9 @@
 'use client'
 
 import React from 'react'
-import Link from 'next/link'
 import { Container } from '@/components/layout/Container'
 import { Footer } from '@/components/layout/Footer'
+import { BackButton } from '@/components/ui'
 import { LegalPageContent } from '@/app/(storefront)/terms/LegalPageContent'
 
 interface CmsPageLayoutProps {
@@ -11,6 +11,7 @@ interface CmsPageLayoutProps {
   body: string
   updatedAt?: string | Date | null
   isDraft?: boolean
+  /** Fallback destination for the Back button on direct visits. Defaults to Home. */
   backHref?: string
   backLabel?: string
   children?: React.ReactNode
@@ -22,7 +23,7 @@ export function CmsPageLayout({
   updatedAt,
   isDraft,
   backHref = '/',
-  backLabel = 'Back to Home',
+  backLabel = 'Home',
   children,
 }: CmsPageLayoutProps) {
   return (
@@ -30,12 +31,7 @@ export function CmsPageLayout({
       <main className="min-h-[70vh] py-16 md:py-24">
         <Container className="max-w-3xl">
           <div className="mb-8">
-            <Link
-              href={backHref}
-              className="inline-flex items-center gap-1.5 font-mono text-xs uppercase tracking-wider text-repixl-muted transition-colors hover:text-repixl-text-light"
-            >
-              ← {backLabel}
-            </Link>
+            <BackButton fallback={backHref} label={backLabel} />
             <h1 className="mt-4 font-display text-3xl font-bold tracking-tight text-repixl-text-light md:text-5xl">
               {title}
             </h1>

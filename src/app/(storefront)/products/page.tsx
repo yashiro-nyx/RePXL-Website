@@ -5,7 +5,7 @@ import { useSearchParams } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Container } from '@/components/layout/Container'
 import { ProductCard } from '@/components/product/ProductCard'
-import { ConditionBadge, Skeleton } from '@/components/ui'
+import { ConditionBadge, PageBackLink, Skeleton } from '@/components/ui'
 import { Footer } from '@/components/layout/Footer'
 import { useProductStore } from '@/stores/productStore'
 import { useThemeStore } from '@/stores/themeStore'
@@ -179,6 +179,10 @@ function ProductsContent() {
       />
 
       <Container className="relative z-10">
+        {/* Canonical back-navigation region — returns to the actual previous page
+            (e.g. homepage after a Find Your Era card), fallback to home on direct visit. */}
+        <PageBackLink fallback="/" />
+
         {/* Page header */}
         <motion.div variants={fadeUp} initial="hidden" animate="show"
           className="mb-8 border-b border-repixl-muted/10 pb-6">
