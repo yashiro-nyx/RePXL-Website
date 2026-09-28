@@ -57,6 +57,15 @@ submission, real-time voucher validation, selective cart checkout, interactive
 CCD color profile previews ("Try the Look"), dedicated wishlist browsing, and
 synchronized camera comparison are also active.
 
+"Try the Look" requests camera access when opened and previews the selected
+brand-inspired color tint over the live phone camera. It supports front/back
+switching, original comparison, and a Settings link when permission is blocked.
+The camera stops when the sheet closes or the app leaves the foreground.
+These are tint approximations, not calibrated reproductions of each model's
+built-in modes; the preset CSS filters are not applied to native camera frames.
+No photos are captured or uploaded. After adding the camera dependency, rebuild
+the native app with `npm run android`; a Metro reload alone is insufficient.
+
 Google sign-in and sign-up open the website's `/auth/mobile-google` bridge,
 then return to `repxl://auth/callback` with a short-lived, single-use ticket.
 The app exchanges that ticket for a mobile session and completes MFA when required.
@@ -68,6 +77,20 @@ Google OAuth requires an installed development or release build, not Expo Go
 the Android SDK installed, run `npx expo run:android` from `react-native` to
 build and install the app with its registered `repxl` scheme. Email/password
 authentication remains available in Expo Go.
+
+On Windows, if Gradle reports `SDK location not found`, point it to your
+installed Android SDK. For the default Android Studio location, run this in
+PowerShell from `react-native`:
+
+```powershell
+$env:ANDROID_HOME = "$env:LOCALAPPDATA\Android\Sdk"
+```
+
+If `android` has already been generated, you can also create
+`android/local.properties` with `sdk.dir=C:/Users/YOUR_USER/AppData/Local/Android/Sdk`
+(use your actual SDK path and forward slashes). This machine-specific file is
+ignored by Git. Then run `npm run android`. The first build may take longer
+while Gradle downloads the required SDK and NDK packages.
 
 Deploy the website callback changes alongside the app. Set `EXPO_PUBLIC_API_BASE_URL`
 to the same public origin as the server's `NEXTAUTH_URL`. Google Cloud must have

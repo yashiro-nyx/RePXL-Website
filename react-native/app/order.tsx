@@ -1,8 +1,8 @@
+import ProductImage from '../components/ProductImage';
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import {
   ActivityIndicator,
   Alert,
-  Image,
   ScrollView,
   StyleSheet,
   Text,
@@ -597,7 +597,7 @@ export default function OrderScreen() {
                 }}
                 activeOpacity={0.8}
               >
-                <Image source={{ uri: item.product.image }} style={styles.image} resizeMode="contain" />
+                <ProductImage uri={item.product.image} style={styles.image} />
                 <View style={{ flex: 1, gap: 2 }}>
                   <Text style={styles.name} numberOfLines={2}>
                     {item.product.name}

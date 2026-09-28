@@ -114,11 +114,11 @@ async function request<T>(path: string, init: RequestInit = {}, timeoutMs = DEFA
 
   try {
     const response = await fetch(`${API_BASE_URL}${path}`, {
+      cache: 'no-store',
       ...init,
       signal: init.signal || controller.signal,
       headers: { Accept: 'application/json', 'Content-Type': 'application/json', ...init.headers },
     });
-    clearTimeout(timer);
     const body = (await response.json().catch(() => null)) as any;
     if (!response.ok) {
       const fallback =
@@ -135,7 +135,6 @@ async function request<T>(path: string, init: RequestInit = {}, timeoutMs = DEFA
     }
     return body as T;
   } catch (error: any) {
-    clearTimeout(timer);
     const errText = String(error?.message || error || '');
     const isCancelOrTimeout =
       error?.name === 'AbortError' ||
@@ -146,6 +145,8 @@ async function request<T>(path: string, init: RequestInit = {}, timeoutMs = DEFA
       throw new ApiError('Request timed out or was cancelled. Please check your connection and try again.', 408);
     }
     throw error;
+  } finally {
+    clearTimeout(timer);
   }
 }
 

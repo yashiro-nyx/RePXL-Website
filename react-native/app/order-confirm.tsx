@@ -1,7 +1,7 @@
+import ProductImage from '../components/ProductImage';
 import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
-  Image,
   ScrollView,
   StyleSheet,
   Text,
@@ -184,7 +184,7 @@ export default function OrderConfirmScreen() {
               {order.items.map((item) => (
                 <View key={item.id} style={styles.itemRow}>
                   {item.product?.image ? (
-                    <Image source={{ uri: item.product.image }} style={styles.itemThumb} resizeMode="contain" />
+                    <ProductImage uri={item.product.image} style={styles.itemThumb} />
                   ) : (
                     <View style={styles.itemThumbPlaceholder}>
                       <Feather name="camera" size={16} color="#666" />

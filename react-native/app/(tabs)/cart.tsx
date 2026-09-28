@@ -1,8 +1,8 @@
+import ProductImage from '../../components/ProductImage';
 import { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
-  Image,
   ScrollView,
   TouchableOpacity,
   StyleSheet,
@@ -264,7 +264,7 @@ export default function CartScreen() {
                     onPress={() => router.push({ pathname: '/product', params: { slug: p.slug } })}
                     activeOpacity={0.85}
                   >
-                    <Image source={{ uri: p.image }} style={styles.itemImg} resizeMode="contain" />
+                    <ProductImage uri={p.image} style={styles.itemImg} />
                   </TouchableOpacity>
 
                   <View style={styles.itemBody}>

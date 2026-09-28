@@ -1,3 +1,4 @@
+import ProductImage from '../../components/ProductImage';
 import { useState, useMemo, useEffect } from 'react';
 import {
   View,
@@ -5,7 +6,6 @@ import {
   TextInput,
   ScrollView,
   TouchableOpacity,
-  Image,
   StyleSheet,
   FlatList,
 } from 'react-native';
@@ -55,7 +55,7 @@ function ProductCard({ product }: { product: Product }) {
       onPress={() => router.push({ pathname: '/product', params: { slug: product.slug } })}
       activeOpacity={0.85}
     >
-      <Image source={{ uri: product.image }} style={styles.cardImg} resizeMode="contain" />
+      <ProductImage uri={product.image} style={styles.cardImg} />
       <View style={styles.cardBody}>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
           <View style={[styles.condChip, { borderColor: cond.border }]}>

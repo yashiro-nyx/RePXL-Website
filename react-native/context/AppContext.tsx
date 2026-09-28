@@ -20,6 +20,7 @@ import {
   API_BASE_URL,
   type LoginResult,
 } from '../src/services/api';
+import { loadStartupData } from '../src/services/startup';
 import type { MobileUser } from '../src/services/session';
 import { Notifications, registerPushNotifications, isExpoGo } from '../src/services/push';
 import * as WebBrowser from 'expo-web-browser';
@@ -31,6 +32,10 @@ type AuthResult = { mfaRequired: boolean; challenge?: string; cancelled?: boolea
 
 interface AppContextType {
   loading: boolean;
+  startupReady: boolean;
+  startupError: string;
+  retryStartup: () => void;
+  banners: Awaited<ReturnType<typeof api.banners>>;
   refreshing: boolean;
   error: string;
   products: Product[];
@@ -95,6 +100,12 @@ function message(error: unknown) {
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
+  const [startupReady, setStartupReady] = useState(false);
+  const startupReadyRef = useRef(false);
+  const [startupError, setStartupError] = useState('');
+  const [startupAttempt, setStartupAttempt] = useState(0);
+  const [banners, setBanners] = useState<Awaited<ReturnType<typeof api.banners>>>([]);
+  const retryStartup = useCallback(() => setStartupAttempt((attempt) => attempt + 1), []);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
   const [products, setProducts] = useState<Product[]>([]);
@@ -192,6 +203,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const syncInBackground = useCallback(
     async (options?: { force?: boolean; screen?: string }) => {
+      if (!startupReadyRef.current) return;
       const now = Date.now();
       // Throttle: avoid spamming requests if synced within 1500ms, unless forced
       if (!options?.force && now - lastSyncTimeRef.current < 1500) {
@@ -313,49 +325,37 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     let active = true;
-    (async () => {
-      try {
-        // Immediate local restoration so UI remains persistently logged in
-        const stored = await loadSession();
-        if (!active) return;
-        if (stored?.user) {
-          setUser(mapUser(stored.user));
-        }
-
-        // Sync products and validate session in background
-        const [nextProducts] = await Promise.all([
-          api.products().catch(() => null),
-        ]);
-        if (!active) return;
-        if (nextProducts) setProducts(nextProducts);
-
-        if (stored) {
-          try {
-            const authenticated = await api.me();
-            if (!active) return;
-            setUser(mapUser(authenticated));
-            await refreshAccount();
-            void registerPushNotifications().catch(() => undefined);
-          } catch {
-            // Keep the user logged in if offline or network temporarily failed.
-            // Only clear account if the session was explicitly deleted (authoritative 401/403).
-            const remaining = await loadSession();
-            if (!remaining && active) {
-              resetAccount();
-            }
-          }
-        }
-      } catch (reason) {
-        if (!active) return;
-        const remaining = await loadSession();
-        if (!remaining) resetAccount();
-        setError(message(reason));
-      } finally {
-        if (active) setLoading(false);
+    setLoading(true);
+    setStartupError('');
+    void loadStartupData().then(({ products: nextProducts, banners: nextBanners, account }) => {
+      if (!active) return;
+      setProducts(nextProducts);
+      setBanners(nextBanners);
+      if (account) {
+        setCart(account.cart);
+        setWishlist(account.wishlist.map((item) => item.product.id));
+        setProfile(account.profile);
+        setUser(account.profile);
+        setAddresses(account.addresses);
+        setOrders(account.orders);
+        setNotifications(account.notifications);
+        setReviews(account.reviews);
+        void registerPushNotifications().catch(() => undefined);
+      } else {
+        resetAccount();
       }
-    })();
+      lastSyncTimeRef.current = Date.now();
+      setLastSyncedAt(new Date());
+      setError('');
+      startupReadyRef.current = true;
+      setStartupReady(true);
+    }).catch((reason: unknown) => {
+      if (active) setStartupError(message(reason));
+    }).finally(() => {
+      if (active) setLoading(false);
+    });
     return () => { active = false; };
-  }, [refreshAccount, resetAccount]);
+  }, [startupAttempt, resetAccount]);
 
   const acceptLogin = useCallback(async (result: LoginResult) => {
     if (!result.user || !result.tokens) throw new Error('The server returned an incomplete session.');
@@ -777,6 +777,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const value = useMemo<AppContextType>(() => ({
     loading,
+    startupReady,
+    startupError,
+    retryStartup,
+    banners,
     refreshing,
     error,
     products,
@@ -827,6 +831,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     changePassword,
     contactSupport,
   }), [
+    startupReady, startupError, retryStartup, banners,
     loading, refreshing, error, products, cart, user, profile, wishlist, compareList,
     addresses, orders, notifications, unreadNotificationsCount, reviews,
     isSyncing, lastSyncedAt, syncInBackground,

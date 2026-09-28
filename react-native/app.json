@@ -28,6 +28,15 @@
     },
     "scheme": "repxl",
     "plugins": [
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow RePXL to use your camera to preview sample camera looks.",
+          "microphonePermission": false,
+          "recordAudioAndroid": false,
+          "barcodeScannerEnabled": false
+        }
+      ],
       "expo-router",
       "expo-notifications",
       [

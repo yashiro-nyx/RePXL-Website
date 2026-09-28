@@ -1,3 +1,4 @@
+import ProductImage from '../../components/ProductImage';
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import {
   View,
@@ -112,7 +113,7 @@ function ProductCard({ product, cardWidth }: { product: Product; cardWidth: numb
       activeOpacity={0.85}
     >
       <View style={{ position: 'relative' }}>
-        <Image source={{ uri: product.image }} style={[styles.cardImage, { height: imageHeight }]} resizeMode="contain" />
+        <ProductImage uri={product.image} style={[styles.cardImage, { height: imageHeight }]} />
         <TouchableOpacity
           style={styles.cardHeartBtn}
           onPress={() => {
@@ -174,12 +175,12 @@ export default function HomeScreen() {
     gap: 10,
     tabletBreakpoint: 600,
   });
-  const { user, products, error, unreadNotificationsCount } = useApp();
+  const { user, products, error, unreadNotificationsCount, banners: startupBanners } = useApp();
   const { syncInBackground } = useScreenSync();
   const [pullRefreshing, setPullRefreshing] = useState(false);
   const [activeCategory, setActiveCategory] = useState('Popular');
   const [homeSearch, setHomeSearch] = useState('');
-  const [banners, setBanners] = useState<BannerItem[]>(DEFAULT_BANNERS);
+  const [banners, setBanners] = useState<BannerItem[]>(startupBanners.length ? startupBanners : DEFAULT_BANNERS);
   const [activeHeroIndex, setActiveHeroIndex] = useState(0);
 
   const loadBanners = useCallback(async () => {
@@ -738,7 +739,7 @@ const styles = StyleSheet.create({
     borderColor: '#2c2c2e',
     elevation: 3,
   },
-  cardImage: { width: '100%', backgroundColor: '#111' },
+  cardImage: { width: '100%', paddingHorizontal: 12, paddingTop: 40, paddingBottom: 12, backgroundColor: '#111' },
   cardHeartBtn: {
     position: 'absolute',
     top: 8,

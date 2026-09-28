@@ -1,8 +1,8 @@
+import ProductImage from '../components/ProductImage';
 import { useState, useMemo } from 'react';
 import {
   View,
   Text,
-  Image,
   ScrollView,
   TouchableOpacity,
   StyleSheet,
@@ -165,7 +165,7 @@ export default function CompareScreen() {
                     return (
                       <View key={cam.id} style={[styles.camCol, { width: COL_WIDTH }]}>
                         <View style={{ position: 'relative' }}>
-                          <Image source={{ uri: cam.image }} style={styles.camImg} resizeMode="contain" />
+                          <ProductImage uri={cam.image} style={styles.camImg} />
                           <TouchableOpacity
                             onPress={() => toggleCompare(cam.id)}
                             style={styles.removeBtn}
@@ -367,7 +367,7 @@ export default function CompareScreen() {
                       }}
                       activeOpacity={0.8}
                     >
-                      <Image source={{ uri: cam.image }} style={styles.pickerImg} resizeMode="contain" />
+                      <ProductImage uri={cam.image} style={styles.pickerImg} />
                       <View style={{ flex: 1, gap: 3 }}>
                         <Text style={styles.pickerBrand}>{cam.brand}</Text>
                         <Text style={styles.pickerName} numberOfLines={1}>

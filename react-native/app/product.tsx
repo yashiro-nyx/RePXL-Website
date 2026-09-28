@@ -21,6 +21,7 @@ import { useScreenSync } from '../src/hooks/useScreenSync';
 import { api } from '../src/services/api';
 import { getSafeTopInset } from '../src/utils/layout';
 import type { Product, ProductReview, Specs } from '../types';
+import { LiveLookPreview } from '../components/LiveLookPreview';
 
 type Tab = 'overview' | 'specs' | 'reviews';
 
@@ -669,7 +670,7 @@ export default function ProductScreen() {
       </View>
 
       {/* ── Try the Look Modal ── */}
-      <Modal visible={showLookModal} animationType="slide" transparent>
+      <Modal visible={showLookModal} animationType="slide" transparent onRequestClose={() => setShowLookModal(false)}>
         <View style={styles.modalBackdrop}>
           <View style={[styles.lookModalSheet, { paddingBottom: Math.max(insets.bottom, 24) }]}>
             <View style={styles.lookModalHeader}>
@@ -685,28 +686,10 @@ export default function ProductScreen() {
               </TouchableOpacity>
             </View>
 
-            <ScrollView contentContainerStyle={{ paddingBottom: 24, gap: 14 }}>
-              <Text style={styles.lookModalDesc}>{colorProfile.description}</Text>
-
-              {/* Simulated Camera Preview */}
-              <View style={styles.lookPreviewContainer}>
-                <Image source={{ uri: p.image }} style={styles.lookPreviewImage} resizeMode="contain" />
-                <View
-                  style={[
-                    styles.lookPreviewFilterOverlay,
-                    {
-                      backgroundColor: currentLookPreset.previewTint || '#ffead0',
-                      opacity: currentLookPreset.id === 'none' ? 0 : 0.28,
-                    },
-                  ]}
-                />
-                <View style={styles.lookPresetBadge}>
-                  <Text style={styles.lookPresetBadgeText}>{currentLookPreset.name}</Text>
-                </View>
-              </View>
-
+            {showLookModal && <LiveLookPreview preset={currentLookPreset} />}
+            <ScrollView style={{ flexShrink: 1, marginTop: 12 }} contentContainerStyle={{ paddingBottom: 24, gap: 14 }}>
               {/* Presets List */}
-              <Text style={styles.lookPresetsTitle}>COLOR SCIENCE PRESETS</Text>
+              <Text style={styles.lookPresetsTitle}>SAMPLE LOOKS</Text>
               <View style={{ gap: 8 }}>
                 {colorProfile.presets.map((preset) => {
                   const isActive = currentLookPreset.id === preset.id;
@@ -1129,39 +1112,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#aaa',
     lineHeight: 19,
-  },
-  lookPreviewContainer: {
-    width: '100%',
-    height: 180,
-    borderRadius: 14,
-    backgroundColor: '#111',
-    borderWidth: 1,
-    borderColor: '#333',
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
-    position: 'relative',
-  },
-  lookPreviewImage: {
-    width: '85%',
-    height: '85%',
-  },
-  lookPreviewFilterOverlay: {
-    ...StyleSheet.absoluteFill,
-  },
-  lookPresetBadge: {
-    position: 'absolute',
-    bottom: 10,
-    left: 12,
-    backgroundColor: 'rgba(0,0,0,0.7)',
-    borderRadius: 6,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-  },
-  lookPresetBadgeText: {
-    fontFamily: 'Inter_700Bold',
-    fontSize: 11,
-    color: '#fff',
   },
   lookPresetsTitle: {
     fontFamily: 'Inter_700Bold',
