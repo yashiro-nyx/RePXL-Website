@@ -4,7 +4,7 @@ import { useRef, useState, useEffect } from 'react'
 import Link from 'next/link'
 import { motion, useScroll, useTransform, useInView, AnimatePresence } from 'framer-motion'
 import { Container } from '@/components/layout/Container'
-import { PageBackLink, Button, CornerBracket, ConditionBadge } from '@/components/ui'
+import { Button, CornerBracket, ConditionBadge } from '@/components/ui'
 import { RevealText } from '@/components/ui/RevealText'
 import { useReducedMotion } from '@/hooks/useReducedMotion'
 import { products } from '@/data/products'
@@ -127,7 +127,6 @@ function AboutHero({ reducedMotion }: { reducedMotion: boolean }) {
       </motion.div>
 
       <Container>
-        <PageBackLink label="Home" fallback="/" />
         <motion.div
           variants={container}
           initial="hidden"

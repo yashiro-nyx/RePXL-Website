@@ -36,11 +36,11 @@ describe('sendPasswordChangedEmail', () => {
     expect(sendMail).toHaveBeenCalledTimes(1)
     const callArg = sendMail.mock.calls[0][0]
     expect(callArg.to).toBe('collector@example.com')
-    expect(callArg.subject).toContain('Security Alert')
+    expect(callArg.subject.toLowerCase()).toContain('security alert')
     expect(callArg.html).toContain('Maria Clara')
     expect(callArg.html).toContain('collector@example.com')
     expect(callArg.html).toContain('https://repxlph.vercel.app/forgot-password')
-    expect(callArg.text).toContain('SECURITY ALERT')
+    expect(callArg.text.toLowerCase()).toContain('security alert')
   })
 
   it('handles unconfigured mailer gracefully in dev mode without throwing', async () => {

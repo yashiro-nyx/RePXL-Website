@@ -144,6 +144,76 @@ export function computeBackTarget(args: {
   return resolveFallback(current, fallback)
 }
 
+// ─── Explicit homepage-promo navigation context ─────────────────────────────────
+// The Cameras catalog (`/products`) shows its Back button ONLY when the user
+// arrived through a homepage promotional entry point (Find Your Era, promo
+// banners, featured brand/camera collections). We signal this with an explicit,
+// validated query parameter — NOT `window.history.length`, which cannot reliably
+// tell where the user came from and breaks on refresh / new tab.
+//
+// This is a UX hint only: it is never treated as auth/security, and it must not
+// interfere with catalog filters, brand params, sort, or search.
+
+/** Query parameter name that carries the homepage-promo navigation context. */
+export const HOME_CONTEXT_PARAM = 'from'
+
+/** The only accepted value for {@link HOME_CONTEXT_PARAM}. */
+export const HOME_CONTEXT_VALUE = 'home'
+
+/**
+ * True when the given search params carry a VALID homepage-promo context
+ * (`from=home`). Accepts either a `URLSearchParams` (or the Next.js
+ * `ReadonlyURLSearchParams`) or a plain string→string map. Any other value of
+ * the parameter is ignored, so a hand-typed `?from=foo` will not show the Back
+ * button.
+ */
+export function hasHomeNavContext(
+  params:
+    | { get(name: string): string | null }
+    | Record<string, string | string[] | undefined>
+    | null
+    | undefined
+): boolean {
+  if (!params) return false
+  let value: string | null | undefined
+  if (typeof (params as { get?: unknown }).get === 'function') {
+    value = (params as { get(name: string): string | null }).get(HOME_CONTEXT_PARAM)
+  } else {
+    const raw = (params as Record<string, string | string[] | undefined>)[HOME_CONTEXT_PARAM]
+    value = Array.isArray(raw) ? raw[0] : raw
+  }
+  return value === HOME_CONTEXT_VALUE
+}
+
+/**
+ * Append the homepage-promo context (`from=home`) to an internal `/products`
+ * link, preserving any existing catalog params (brand, sort, search, etc.).
+ *
+ * - Non-internal or non-`/products` hrefs are returned unchanged (the context
+ *   is only meaningful on the Cameras catalog).
+ * - An already-present `from=home` is not duplicated.
+ * - Existing query params and hash are preserved.
+ *
+ * Use this ONLY for eligible homepage promotional links. Navbar/footer links to
+ * the catalog must NOT use it, so standard navigation stays context-free.
+ */
+export function withHomeContext(href: string): string {
+  if (!isInternalPath(href)) return href
+
+  const [pathAndQuery, hash = ''] = href.split('#')
+  const [pathname, query = ''] = pathAndQuery.split('?')
+
+  // Only the Cameras catalog understands this context.
+  if (normalizePath(pathname).toLowerCase() !== '/products') return href
+
+  const search = new URLSearchParams(query)
+  search.set(HOME_CONTEXT_PARAM, HOME_CONTEXT_VALUE)
+
+  const qs = search.toString()
+  const suffix = hash ? `#${hash}` : ''
+  return `${pathname}${qs ? `?${qs}` : ''}${suffix}`
+}
+
 /** Maximum number of entries retained in the per-tab history stack. */
 export const MAX_HISTORY_ENTRIES = 10
 

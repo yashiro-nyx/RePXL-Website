@@ -2,7 +2,11 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react'
 import Link from 'next/link'
-import { eventLabel, CATEGORY_META, type NotificationItem } from '@/components/account/NotificationList'
+import {
+  NotificationRow,
+  type NotificationItem,
+} from '@/components/account/NotificationList'
+import { NotificationIcon } from '@/components/account/NotificationIcon'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -16,20 +20,6 @@ interface NavBellDropdownProps {
   onOpen?: () => void
 }
 
-// ── Helper: time-ago formatting ───────────────────────────────────────────────
-
-function timeAgo(dateStr: string): string {
-  const diff = Date.now() - new Date(dateStr).getTime()
-  const mins  = Math.floor(diff / 60_000)
-  const hours = Math.floor(diff / 3_600_000)
-  const days  = Math.floor(diff / 86_400_000)
-  if (mins < 1)   return 'just now'
-  if (mins < 60)  return `${mins}m ago`
-  if (hours < 24) return `${hours}h ago`
-  if (days < 7)   return `${days}d ago`
-  return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-}
-
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export function NavBellDropdown({
@@ -39,35 +29,38 @@ export function NavBellDropdown({
   onUnreadCountChange,
   onOpen,
 }: NavBellDropdownProps) {
-  const [open, setOpen]                   = useState(false)
-  const [items, setItems]                 = useState<NotificationItem[]>([])
-  const [loading, setLoading]             = useState(false)
-  const [fetched, setFetched]             = useState(false)
-  const containerRef                      = useRef<HTMLDivElement>(null)
-  const bellRef                           = useRef<HTMLButtonElement>(null)
+  const [open, setOpen] = useState(false)
+  const [items, setItems] = useState<NotificationItem[]>([])
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState(false)
+  const [fetched, setFetched] = useState(false)
+  const containerRef = useRef<HTMLDivElement>(null)
+  const bellRef = useRef<HTMLButtonElement>(null)
 
   // ── Fetch preview on open ─────────────────────────────────────────────────
 
   const fetchPreview = useCallback(async () => {
     if (!isLoggedIn) return
     setLoading(true)
+    setError(false)
     try {
-      const res = await fetch('/api/notifications/preview?limit=5', { credentials: 'include' })
-      if (res.ok) {
-        const body = await res.json()
-        setItems(body.data?.notifications ?? [])
-      }
-    } catch { /* ignore */ }
-    setLoading(false)
-    setFetched(true)
+      const res = await fetch('/api/notifications/preview?limit=6', { credentials: 'include' })
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      const body = await res.json()
+      setItems(body.data?.notifications ?? [])
+    } catch {
+      setError(true)
+    } finally {
+      setLoading(false)
+      setFetched(true)
+    }
   }, [isLoggedIn])
 
   const handleToggle = () => {
     if (!open) {
       setOpen(true)
-      fetchPreview()
-      // Also refresh the unread count so the badge is authoritative on open
-      onOpen?.()
+      void fetchPreview()
+      onOpen?.() // refresh the authoritative unread count
     } else {
       setOpen(false)
     }
@@ -102,11 +95,24 @@ export function NavBellDropdown({
 
   // ── Mark single notification read ─────────────────────────────────────────
 
-  const markRead = async (id: string) => {
-    setItems((prev) => prev.map((n) => (n.id === id ? { ...n, isRead: true } : n)))
-    onUnreadCountChange(-1)
-    await fetch(`/api/notifications/${id}/read`, { method: 'PATCH', credentials: 'include' })
-  }
+  const markRead = useCallback(
+    async (id: string) => {
+      let wasUnread = false
+      setItems((prev) =>
+        prev.map((n) => {
+          if (n.id === id && !n.isRead) wasUnread = true
+          return n.id === id ? { ...n, isRead: true } : n
+        })
+      )
+      if (wasUnread) onUnreadCountChange(-1)
+      try {
+        await fetch(`/api/notifications/${id}/read`, { method: 'PATCH', credentials: 'include' })
+      } catch {
+        /* optimistic; count reconciles on next poll */
+      }
+    },
+    [onUnreadCountChange]
+  )
 
   // ── Don't render until auth is resolved ──────────────────────────────────
 
@@ -118,52 +124,37 @@ export function NavBellDropdown({
       <button
         ref={bellRef}
         type="button"
-        aria-label={unreadCount > 0 ? `${unreadCount} unread notifications` : 'Notifications'}
+        aria-label={unreadCount > 0 ? `Notifications, ${unreadCount} unread` : 'Notifications'}
         aria-expanded={open}
-        aria-haspopup="true"
+        aria-haspopup="dialog"
         onClick={handleToggle}
-        className="relative flex h-10 w-10 items-center justify-center text-repixl-text-light/80 transition-colors hover:text-repixl-text-light"
+        className="relative flex h-10 w-10 items-center justify-center rounded-full text-repixl-text-light/80 transition-colors hover:text-repixl-text-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-repixl-red/50"
       >
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          width="20"
-          height="20"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.5"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          aria-hidden="true"
-        >
-          <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
-          <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
-        </svg>
+        <NotificationIcon icon="update" size={20} />
         {unreadCount > 0 && (
-          <span className="absolute -right-1.5 -top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-repixl-red text-[9px] font-bold text-white">
+          <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-repixl-red px-1 text-[9px] font-bold text-white">
             {unreadCount > 99 ? '99+' : unreadCount}
           </span>
         )}
       </button>
+
       {open && (
         <div
           role="dialog"
-          aria-label="Notification preview"
+          aria-label="Notifications"
           className={[
             'fixed left-4 right-4 top-[4.5rem] z-50 sm:absolute sm:left-auto sm:right-0 sm:top-full sm:mt-3',
-            'w-auto sm:w-[min(22rem,calc(100vw-2rem))]',
+            'w-auto sm:w-[min(24rem,calc(100vw-2rem))]',
             'overflow-hidden rounded-2xl border border-repixl-muted/20',
-            'bg-repixl-bg shadow-2xl shadow-black/40',
+            'bg-repixl-bg shadow-xl shadow-black/30',
           ].join(' ')}
         >
           {/* Header */}
           <div className="flex items-center justify-between border-b border-repixl-muted/10 px-4 py-3">
             <div className="flex items-center gap-2">
-              <span className="font-display text-sm font-semibold text-repixl-text-light">
-                Notifications
-              </span>
+              <span className="font-display text-sm font-semibold text-repixl-text-light">Notifications</span>
               {unreadCount > 0 && (
-                <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-repixl-red px-1.5 font-mono text-[8px] font-bold text-white">
+                <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-repixl-red px-1.5 font-mono text-[9px] font-bold text-white">
                   {unreadCount > 99 ? '99+' : unreadCount}
                 </span>
               )}
@@ -171,118 +162,54 @@ export function NavBellDropdown({
             <button
               type="button"
               onClick={() => setOpen(false)}
+              className="rounded p-1 text-repixl-muted transition-colors hover:text-repixl-text-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-repixl-red/40"
               aria-label="Close notifications"
-              className="rounded p-1 text-repixl-muted/60 transition-colors hover:text-repixl-text-light"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <path d="M18 6 6 18M6 6l12 12" />
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                <path d="M18 6 6 18" />
+                <path d="m6 6 12 12" />
               </svg>
             </button>
           </div>
 
           {/* Items */}
-          <div className="max-h-[min(28rem,60vh)] overflow-y-auto">
+          <div className="max-h-[min(28rem,60vh)] divide-y divide-repixl-muted/5 overflow-y-auto">
             {loading && !fetched ? (
               <div className="flex items-center justify-center py-10">
-                <div className="h-5 w-5 animate-spin rounded-full border-2 border-repixl-red border-t-transparent" aria-label="Loading…" />
+                <div className="h-5 w-5 animate-spin rounded-full border-2 border-repixl-red border-t-transparent" aria-label="Loading notifications" />
+              </div>
+            ) : error ? (
+              <div className="flex flex-col items-center gap-2 px-4 py-10 text-center">
+                <p className="text-sm text-repixl-text-light/70">Couldn&apos;t load notifications</p>
+                <button
+                  type="button"
+                  onClick={() => void fetchPreview()}
+                  className="rounded-md border border-repixl-muted/25 px-3 py-1 font-mono text-[10px] uppercase tracking-wider text-repixl-muted transition-colors hover:border-repixl-muted/50 hover:text-repixl-text-light"
+                >
+                  Retry
+                </button>
               </div>
             ) : items.length === 0 ? (
-              <div className="flex flex-col items-center gap-2 py-10 text-center">
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" className="text-repixl-muted/30" aria-hidden="true">
-                  <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
-                  <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
-                </svg>
-                <p className="text-sm text-repixl-muted">No notifications yet</p>
+              <div className="flex flex-col items-center gap-2 py-12 text-center">
+                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-repixl-charcoal/50 text-repixl-muted/40">
+                  <NotificationIcon icon="update" size={20} />
+                </div>
+                <p className="text-sm text-repixl-muted">You&apos;re all caught up</p>
               </div>
             ) : (
-              <ul role="list">
-                {items.map((n) => {
-                  // Derive an order destination from the message text if possible
-                  const orderMatch = n.message.match(/\b(RPX-[A-Z0-9]{6,})\b/)
-                  const destination = orderMatch ? `/account/orders/${orderMatch[1]}` : null
-
-                  const inner = (
-                    <div
-                      className={[
-                        'flex items-start gap-3 px-4 py-3 transition-colors',
-                        n.isRead
-                          ? 'bg-transparent'
-                          : 'bg-repixl-charcoal/40',
-                        destination ? 'cursor-pointer hover:bg-repixl-charcoal/60' : '',
-                      ].join(' ')}
-                    >
-                      {/* Unread dot */}
-                      <div className="mt-1.5 shrink-0">
-                        <div
-                          className={`h-2 w-2 rounded-full ${n.isRead ? 'bg-transparent' : 'bg-repixl-red'}`}
-                          aria-hidden="true"
-                        />
-                      </div>
-
-                      <div className="min-w-0 flex-1">
-                        {/* Event category label */}
-                        <p className="mb-0.5 font-mono text-[9px] uppercase tracking-wider text-repixl-muted/60">
-                          {eventLabel(n.event)}
-                        </p>
-                        {/* Message preview — truncated */}
-                        <p className={`text-xs leading-relaxed ${n.isRead ? 'text-repixl-text-light/60' : 'text-repixl-text-light'}`}>
-                          {n.message.length > 120 ? n.message.slice(0, 120) + '…' : n.message}
-                        </p>
-                        <p className="mt-1 font-mono text-[9px] text-repixl-muted/50">
-                          {timeAgo(n.createdAt)}
-                        </p>
-                      </div>
-
-                      {/* Mark read button (visible when unread and no destination link) */}
-                      {!n.isRead && !destination && (
-                        <button
-                          type="button"
-                          onClick={(e) => { e.preventDefault(); e.stopPropagation(); markRead(n.id) }}
-                          className="shrink-0 rounded px-1.5 py-0.5 font-mono text-[8px] uppercase tracking-wider text-repixl-muted transition-colors hover:bg-repixl-charcoal hover:text-repixl-text-light"
-                          aria-label="Mark as read"
-                        >
-                          ✕
-                        </button>
-                      )}
-                    </div>
-                  )
-
-                  return (
-                    <li key={n.id} className="border-b border-repixl-muted/5 last:border-0">
-                      {destination ? (
-                        <Link
-                          href={destination}
-                          onClick={() => { if (!n.isRead) markRead(n.id); setOpen(false) }}
-                          className="block focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-repixl-red/40"
-                        >
-                          {inner}
-                        </Link>
-                      ) : (
-                        inner
-                      )}
-                    </li>
-                  )
-                })}
+              <ul aria-label="Recent notifications">
+                {items.map((n) => (
+                  <li key={n.id}>
+                    <NotificationRow
+                      notification={n}
+                      variant="compact"
+                      onMarkRead={markRead}
+                      onNavigate={() => setOpen(false)}
+                    />
+                  </li>
+                ))}
               </ul>
             )}
-          </div>
-
-          {/* Category shortcuts */}
-          <div className="border-t border-repixl-muted/10 px-3 py-2">
-            <div className="flex flex-wrap gap-1">
-              {(Object.entries(CATEGORY_META) as [string, { label: string; route: string }][]).map(
-                ([, meta]) => (
-                  <Link
-                    key={meta.route}
-                    href={meta.route}
-                    onClick={() => setOpen(false)}
-                    className="rounded-md border border-repixl-muted/15 px-2 py-1 font-mono text-[9px] text-repixl-muted transition-colors hover:border-repixl-muted/30 hover:text-repixl-text-light"
-                  >
-                    {meta.label}
-                  </Link>
-                )
-              )}
-            </div>
           </div>
 
           {/* View All footer */}
@@ -290,9 +217,9 @@ export function NavBellDropdown({
             <Link
               href="/account/notifications"
               onClick={() => setOpen(false)}
-              className="flex w-full items-center justify-center gap-1.5 px-4 py-3 text-sm font-medium text-repixl-red transition-colors hover:bg-repixl-red/5"
+              className="flex w-full items-center justify-center gap-1.5 px-4 py-3 text-sm font-medium text-repixl-red transition-colors hover:bg-repixl-red/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-repixl-red/40"
             >
-              View All Notifications
+              View all notifications
               <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                 <path d="M5 12h14M12 5l7 7-7 7" />
               </svg>

@@ -10,6 +10,7 @@ import { useReducedMotion } from '@/hooks/useReducedMotion'
 import { useThemeStore } from '@/stores/themeStore'
 import { fetchHomepageCmsBlocks } from '@/lib/cms-client'
 import { fetchBannersByPlacement } from '@/lib/banner-client'
+import { withHomeContext } from '@/lib/back-navigation'
 
 interface SidebarBanner {
   id: string
@@ -276,7 +277,7 @@ export function PromoDuo() {
               {/* Actionable CTA: White/Neutral default → RePXL red on hover/focus */}
               <div className="mt-8 pt-2">
                 <Link
-                  href={dealHref}
+                  href={withHomeContext(dealHref)}
                   className={`group/btn inline-flex items-center justify-between gap-3.5 rounded-full border px-6 py-3 font-mono text-xs font-semibold uppercase tracking-wider transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#EF4444] focus-visible:ring-offset-2 ${
                     isLight
                       ? 'border-neutral-300 bg-white text-neutral-900 hover:border-[#B91C1C] hover:bg-[#B91C1C] hover:text-white hover:shadow-[0_0_20px_rgba(185,28,28,0.25)] focus-visible:border-[#B91C1C] focus-visible:bg-[#B91C1C] focus-visible:text-white focus-visible:ring-offset-white'
@@ -462,7 +463,7 @@ export function PromoDuo() {
               {/* Actionable CTA: White/Neutral default → RePXL red on hover/focus */}
               <div className="mt-8 pt-2">
                 <Link
-                  href={staffHref}
+                  href={withHomeContext(staffHref)}
                   className={`group/btn inline-flex items-center justify-between gap-3.5 rounded-full border px-6 py-3 font-mono text-xs font-semibold uppercase tracking-wider transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#EF4444] focus-visible:ring-offset-2 ${
                     isLight
                       ? 'border-neutral-300 bg-white text-neutral-900 hover:border-[#B91C1C] hover:bg-[#B91C1C] hover:text-white hover:shadow-[0_0_20px_rgba(185,28,28,0.25)] focus-visible:border-[#B91C1C] focus-visible:bg-[#B91C1C] focus-visible:text-white focus-visible:ring-offset-white'

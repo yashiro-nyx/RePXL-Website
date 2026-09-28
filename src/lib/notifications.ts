@@ -14,6 +14,7 @@
 
 import { getSettings } from './settings'
 import { resolvePlaceholders, type NotificationEvent, EVENT_CATEGORY_MAP } from './notification-templates'
+import { buildInAppNotification, serializeInAppContent, parseInAppMessage } from './notification-inapp'
 import { sendNotificationEmail, renderBrandedEmailHtml } from './mailer'
 import { prisma } from './prisma'
 
@@ -260,6 +261,24 @@ export async function emitNotification(
   const activeChannel = template ? (template.channel as 'IN_APP' | 'EMAIL' | 'BOTH') : channel
   const orderNumber = options.orderNumber || mergedContext.orderNumber
 
+  // ─── In-app content (root-cause fix) ──────────────────────────────────────
+  // The in-app inbox stores CONCISE, human-readable content built from the
+  // validated context — NOT the long, token-laden email template body. This is
+  // what prevents raw `{{orderNumber}}` / `{{status}}` / embedded URLs from ever
+  // reaching the customer's inbox. Email delivery continues to use the rich
+  // resolved template above, unchanged.
+  const inAppMessage = serializeInAppContent(
+    buildInAppNotification({
+      event,
+      context: mergedContext,
+      orderNumber,
+      // The caller's own plain-text subject/body seed PROMOTION / REPIXL_UPDATE
+      // (admin free text) and act as a safe last resort for other events.
+      fallbackTitle: subject,
+      fallbackBody: body,
+    })
+  )
+
   // Determine per-category suppression (unless this is a mandatory event)
   const mandatory = isMandatoryEvent(event)
   if (!mandatory) {
@@ -307,6 +326,7 @@ export async function emitNotification(
       event,
       subject: resolvedSubject,
       body: resolvedBody,
+      inAppMessage,
       channel: resolvedChannel,
       recipientEmail,
       user,
@@ -319,6 +339,7 @@ export async function emitNotification(
     event,
     subject: resolvedSubject,
     body: resolvedBody,
+    inAppMessage,
     channel: activeChannel,
     recipientEmail,
     user,
@@ -330,6 +351,7 @@ async function _doEmit({
   userId,
   event,
   body,
+  inAppMessage,
   channel,
   recipientEmail,
   user,
@@ -340,6 +362,8 @@ async function _doEmit({
   event: NotificationEvent
   subject: string
   body: string
+  /** Concise, pre-serialized in-app envelope stored on the Notification row. */
+  inAppMessage: string
   channel: 'IN_APP' | 'EMAIL' | 'BOTH'
   recipientEmail?: string
   user: { id: string }
@@ -352,7 +376,10 @@ async function _doEmit({
       data: {
         userId,
         event,
-        message: truncateForDisplay(body),
+        // Store the concise in-app envelope (title + body + href), NOT the long
+        // email body. truncateForDisplay is a defensive bound; concise content
+        // is well under the limit.
+        message: truncateForDisplay(inAppMessage),
         // Always store as IN_APP regardless of whether email is also being sent.
         // The channel field on the notification row represents where it lives
         // (the in-app inbox), not the full delivery instruction. All customer-facing
@@ -420,13 +447,16 @@ async function _doEmit({
         select: { token: true },
       })
       if (pushTokens.length > 0) {
+        // Push uses the same concise, human-readable content as the in-app inbox
+        // (never the long token-laden email body).
+        const pushContent = parseInAppMessage(inAppMessage, event)
         await fetch('https://exp.host/--/api/v2/push/send', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(pushTokens.map(({ token }) => ({
             to: token,
-            title: subject,
-            body: truncateForDisplay(body),
+            title: pushContent.title || subject,
+            body: pushContent.body || truncateForDisplay(body),
             data: { notificationId, event },
           }))),
         })

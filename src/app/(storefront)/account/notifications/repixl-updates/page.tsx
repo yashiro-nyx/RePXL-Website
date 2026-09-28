@@ -1,11 +1,6 @@
 import { NotificationList } from '@/components/account/NotificationList'
 
-/** /account/notifications/repixl-updates */
+/** /account/notifications/repixl-updates — platform updates & account notices */
 export default function RepixlUpdatesPage() {
-  return (
-    <NotificationList
-      filter="REPIXL_UPDATES"
-      heading="RePIXL Updates"
-    />
-  )
+  return <NotificationList backendCategory="REPIXL_UPDATES" heading="RePXL Updates" />
 }

@@ -10,6 +10,7 @@ import { useProductStore } from '@/stores/productStore'
 import { useReviewStore } from '@/stores/reviewStore'
 import { useThemeStore } from '@/stores/themeStore'
 import { useReducedMotion } from '@/hooks/useReducedMotion'
+import { withHomeContext } from '@/lib/back-navigation'
 
 export function BestSellers() {
   const reducedMotion = useReducedMotion()
@@ -78,7 +79,7 @@ export function BestSellers() {
         {/* View All Callout — Wide intentional pill outline: neutral default, red on hover */}
         <div className="mt-14 flex justify-center">
           <Link
-            href="/products"
+            href={withHomeContext('/products')}
             className={`group inline-flex items-center gap-2.5 rounded-full border px-9 py-3 font-mono text-xs uppercase tracking-widest transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#EF4444] focus-visible:ring-offset-2 ${
               isLight
                 ? 'border-neutral-300 bg-white text-neutral-900 hover:border-[#B91C1C] hover:bg-[#B91C1C]/5 hover:text-[#B91C1C] hover:shadow-[0_0_16px_rgba(185,28,28,0.15)] focus-visible:border-[#B91C1C] focus-visible:text-[#B91C1C] focus-visible:ring-offset-white'

@@ -78,15 +78,25 @@ describe('emitNotification Dynamic Template & HTML Rendering', () => {
     expect(result.notificationId).toBe('notif-1')
     expect(result.emailDelivered).toBe(true)
 
-    // Verify in-app notification uses resolved template
+    // Verify the IN-APP notification stores the CONCISE, human-readable envelope
+    // (NOT the long token-laden email body). The email still uses the rich
+    // template (asserted below). This is the root-cause fix: raw {{tokens}} can
+    // never reach the in-app inbox.
     expect(mockPrisma.notification.create).toHaveBeenCalledWith({
       data: expect.objectContaining({
         userId: 'user-1',
         event: 'ORDER_STATUS_CHANGE',
-        message: expect.stringContaining('Your package is with LBC Express (tracking LBC-777888)'),
+        message: expect.stringContaining('RPXN1:'),
         channel: 'IN_APP',
       }),
     })
+    const storedMessage = mockPrisma.notification.create.mock.calls[0][0].data.message as string
+    // The IN TRANSIT status yields a concise "Order Shipped" message with the
+    // real order number and courier — and no unresolved placeholders.
+    expect(storedMessage).toContain('Order Shipped')
+    expect(storedMessage).toContain('RPX-9000')
+    expect(storedMessage).toContain('LBC Express')
+    expect(storedMessage).not.toMatch(/\{\{|\}\}/)
 
     // Verify email was dispatched with resolved subject, resolved body, and branded HTML layout
     expect(mockSendNotificationEmail).toHaveBeenCalledWith(

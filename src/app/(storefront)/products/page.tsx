@@ -11,6 +11,7 @@ import { useProductStore } from '@/stores/productStore'
 import { useThemeStore } from '@/stores/themeStore'
 import { useRevealAnimation } from '@/hooks/useRevealAnimation'
 import { useReducedMotion } from '@/hooks/useReducedMotion'
+import { hasHomeNavContext } from '@/lib/back-navigation'
 import type { ConditionGrade } from '@/types'
 
 const conditions: ConditionGrade[] = ['mint', 'excellent', 'good', 'fair']
@@ -117,6 +118,13 @@ function ProductsContent() {
     useProductStore.getState().hydrate().finally(() => setHydrated(true))
   }, [])
 
+  // Show the Back button ONLY when the user arrived through a homepage
+  // promotional entry point (Find Your Era, promo banners, featured brand /
+  // camera collections), signalled by the explicit `from=home` context param.
+  // Navbar / footer / direct visits omit the param, so no Back appears there.
+  // The param lives in the URL, so a refresh preserves the context correctly.
+  const cameFromHome = hasHomeNavContext(searchParams)
+
   const products = useMemo(() => allProducts.filter((p) => p.status === 'active'), [allProducts])
   const brands = useMemo(() => Array.from(new Set(products.map((p) => p.brand))).sort(), [products])
 
@@ -179,9 +187,11 @@ function ProductsContent() {
       />
 
       <Container className="relative z-10">
-        {/* Canonical back-navigation region — returns to the actual previous page
-            (e.g. homepage after a Find Your Era card), fallback to home on direct visit. */}
-        <PageBackLink fallback="/" />
+        {/* Contextual back-navigation — shown ONLY when the customer arrived from a
+            homepage promotional entry point (`from=home`). Returns to the homepage.
+            Standard navbar/footer/direct visits omit the context, so no Back appears.
+            Uses the canonical PageBackLink (identical design everywhere). */}
+        {cameFromHome && <PageBackLink href="/" label="Home" />}
 
         {/* Page header */}
         <motion.div variants={fadeUp} initial="hidden" animate="show"

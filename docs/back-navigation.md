@@ -71,14 +71,49 @@ differs. No page-specific variants.
 > is the one true nested admin route and carries the contextual Back.
 
 ### Explicitly-kept storefront pages
-- **Catalog `/products`** (the **Find Your Era** destination) — keeps Back
-  (history-aware, fallback `/`), so `Homepage → Find Your Era → Catalog → Back`
-  returns to the homepage.
+- **Catalog `/products`** — **contextual**. The Back button appears **only when
+  the customer arrived through a homepage promotional entry point**, signalled by
+  an explicit `from=home` query parameter (see §3a). When visible it returns to
+  the homepage (`href="/"`, label "Home"). Navbar/footer/direct visits omit the
+  parameter, so no Back appears there.
 - **Product detail `/products/[slug]`** — keeps Back (fallback `/products`), in
   both the loaded and "not found" states.
-- **Footer informational pages** — About, FAQ, Contact, Condition Grading,
+- **Footer informational pages** — FAQ, Contact, Condition Grading,
   Shipping & Returns, Terms, Privacy — keep Back (label "Home", fallback `/`).
+  **About is intentionally excluded** — it has **no** generic Back button,
+  regardless of entry point.
 - **CMS pages** (`/pages/[slug]`) via `CmsPageLayout` — keep Back.
+
+### 3a. Explicit navigation context for the Cameras catalog
+
+The Cameras Back button is driven by the user's **entry point**, not by browser
+history (`window.history.length` cannot tell where the user came from and breaks
+on refresh / new tab). Instead we use a small, explicit, validated query
+parameter:
+
+| Piece | Value |
+|---|---|
+| Param name (`HOME_CONTEXT_PARAM`) | `from` |
+| Accepted value (`HOME_CONTEXT_VALUE`) | `home` |
+| Example link | `/products?brand=canon&from=home` |
+
+- **`withHomeContext(href)`** (in `src/lib/back-navigation.ts`) appends
+  `from=home` to an internal `/products` link, preserving existing catalog params
+  (brand, sort, search) and any hash, and never duplicating the param. It no-ops
+  on non-`/products` or external hrefs.
+- **`hasHomeNavContext(searchParams)`** returns true only for the exact
+  `from=home` value. `/products` renders the `PageBackLink` only when this is true.
+- **Eligible homepage promotional links** call `withHomeContext`: the Hero CTA,
+  Deal banner, Promo duo (deals + staff pick), Find Your Era / brand gallery
+  cards and spotlight CTAs, New Arrivals "view all", and Best Sellers "view all".
+- **Navbar and footer** Cameras links deliberately do **not** use it, so standard
+  navigation opens the catalog **without** the promotional context. This also
+  prevents stale context: navigating promo-catalog → navbar Cameras clears it.
+- The parameter is a **UX hint only** — never an auth/security mechanism — and it
+  does not interfere with catalog filters or product queries (filters read
+  `brand`, `sort`, etc. independently; `from` is ignored by the filter logic).
+- **Refresh** preserves the intended context because the parameter lives in the
+  URL (client-side filtering never rewrites it away).
 
 ### Checkout — explicit "Back to Cart"
 - The **form step** of `/checkout` renders `PageBackLink href="/cart"
@@ -119,7 +154,7 @@ newsletter result pages, and all modals/pagination/lightbox/PaymentProcessor.
 | Route | Class | Back? |
 |---|---|---|
 | `/` | Primary (entry) | — |
-| `/products` (catalog / Find Your Era dest) | Kept storefront | ✅ (fallback `/`) |
+| `/products` (Cameras catalog) | Contextual | ✅ **only** when `from=home` (→ homepage); ❌ otherwise |
 | `/products/[slug]` | Detail | ✅ (fallback `/products`) |
 | `/search` | Primary browse | — |
 | `/compare` | Primary browse | — |
@@ -128,7 +163,8 @@ newsletter result pages, and all modals/pagination/lightbox/PaymentProcessor.
 | `/checkout` (form step) | Checkout | ✅ **Back to Cart** → `/cart` |
 | `/checkout` (review step) | Checkout multi-step | "Back to Edit" (existing) |
 | `/checkout` (confirmed) / `/checkout/success` | Payment result | — |
-| `/about`, `/faq`, `/contact`, `/condition-grading`, `/shipping-returns`, `/terms`, `/privacy` | Footer info | ✅ (label "Home") |
+| `/faq`, `/contact`, `/condition-grading`, `/shipping-returns`, `/terms`, `/privacy` | Footer info | ✅ (label "Home") |
+| `/about` | Footer info | — (generic Back removed) |
 | `/pages/[slug]` | CMS | ✅ |
 | `/account`, `/account/profile`, `/addresses`, `/reviews`, `/notifications*`, `/notification-settings`, `/vouchers`, `/payments`, `/security`, `/security/password`, `/orders` (My Purchases) | Primary (account sidebar) | — |
 | `/account/orders/[orderNumber]` | Detail | ✅ → "My Purchases" |
@@ -201,7 +237,51 @@ should be spot-checked manually. Everything else was confirmed in rendered HTML.
 | `src/app/(storefront)/checkout/page.tsx` | **Added** "Back to Cart" (`/cart`) on the form step; review-step "Back to Edit" preserved. |
 | `src/lib/back-navigation.test.ts` | Rewritten to assert the refined hierarchy (69 tests). |
 
-_Kept unchanged:_ catalog `/products`, product detail, footer info pages
-(`about`/`faq`/`contact`/`condition-grading`/`shipping-returns`/`terms`/`privacy`),
-`CmsPageLayout`, and the core (`useNavigationHistory.tsx`, `back-navigation.ts`,
-root-layout provider mount).
+_Kept unchanged:_ product detail, footer info pages
+(`faq`/`contact`/`condition-grading`/`shipping-returns`/`terms`/`privacy`),
+`CmsPageLayout`, and the core (`useNavigationHistory.tsx`, root-layout provider
+mount).
+
+---
+
+## 8. Follow-up refinement — contextual Cameras Back button
+
+The Cameras catalog (`/products`) Back button was made **context-aware** so it
+depends on the user's entry point, and the generic Back button was **removed from
+About**.
+
+### Behaviour
+
+| Journey | Back button |
+|---|---|
+| Homepage → Find Your Era → Cameras | ✅ visible → homepage |
+| Homepage → Promotional banner → Cameras | ✅ visible → homepage |
+| Homepage → Featured camera/brand collection → Cameras | ✅ visible → homepage |
+| Navbar → Cameras | ❌ hidden |
+| Direct visit to `/products` | ❌ hidden |
+| Refresh a promotional catalog view | ✅ preserved (context is in the URL) |
+| Apply a filter within a promotional catalog view | ✅ context preserved (client-side filtering keeps the URL) |
+| Promotional catalog → Navbar Cameras | ❌ context cleared (navbar link is context-free) |
+
+The mechanism is the explicit `from=home` query parameter (see §3a) — **not**
+`window.history.length`. Catalog filters, brand params, sorting and search are
+fully preserved (`/products?brand=canon` still applies the Canon filter, and the
+promo variant is simply `/products?brand=canon&from=home`).
+
+### Files changed in this refinement
+
+| File | Change |
+|---|---|
+| `src/lib/back-navigation.ts` | Added `HOME_CONTEXT_PARAM`, `HOME_CONTEXT_VALUE`, `hasHomeNavContext()`, `withHomeContext()`. |
+| `src/app/(storefront)/products/page.tsx` | Renders `PageBackLink href="/" label="Home"` **only** when `hasHomeNavContext(searchParams)`. |
+| `src/components/landing/Hero.tsx` | Hero CTA catalog link tagged via `withHomeContext`. |
+| `src/components/landing/DealBanner.tsx` | Internal deal link tagged via `withHomeContext`. |
+| `src/components/landing/PromoDuo.tsx` | Deal + staff-pick links tagged via `withHomeContext`. |
+| `src/components/landing/BrandGallery.tsx` | Find Your Era brand card + spotlight CTAs tagged via `withHomeContext`. |
+| `src/components/landing/NewArrivals.tsx` | "View all" link tagged via `withHomeContext`. |
+| `src/components/landing/BestSellers.tsx` | "View all" CTA tagged via `withHomeContext`. |
+| `src/app/(storefront)/about/page.tsx` | **Removed** the generic `PageBackLink` (and its import). |
+| `src/lib/back-navigation.test.ts` | Added `hasHomeNavContext`/`withHomeContext` unit tests; moved `/products` to a context-gated assertion; moved `/about` to the "no back" list; added promo-link + navbar/footer context assertions. |
+
+_Kept unchanged:_ `PageBackLink`/`BackButton` design, `Navbar`, `Footer`, the
+history core (`useNavigationHistory.tsx`), and all other pages' back behaviour.

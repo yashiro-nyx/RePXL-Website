@@ -8,6 +8,10 @@ import {
   pushHistoryEntry,
   MAX_HISTORY_ENTRIES,
   UNSAFE_BACK_PREFIXES,
+  hasHomeNavContext,
+  withHomeContext,
+  HOME_CONTEXT_PARAM,
+  HOME_CONTEXT_VALUE,
 } from './back-navigation'
 
 // ─── isInternalPath: external-URL avoidance ──────────────────────────────────────
@@ -180,6 +184,75 @@ describe('pushHistoryEntry — dedup, cap, and internal-only stack', () => {
   })
 })
 
+// ─── Homepage-promo navigation context (Cameras Back button gate) ─────────────────
+describe('hasHomeNavContext — explicit, validated homepage-promo context', () => {
+  it('is true only for the exact from=home value (via URLSearchParams)', () => {
+    expect(hasHomeNavContext(new URLSearchParams('from=home'))).toBe(true)
+    expect(hasHomeNavContext(new URLSearchParams('brand=canon&from=home'))).toBe(true)
+    expect(hasHomeNavContext(new URLSearchParams('from=home&sort=newest'))).toBe(true)
+  })
+
+  it('is false for a missing, empty, or non-matching context value', () => {
+    expect(hasHomeNavContext(new URLSearchParams(''))).toBe(false)
+    expect(hasHomeNavContext(new URLSearchParams('brand=canon'))).toBe(false)
+    expect(hasHomeNavContext(new URLSearchParams('from=foo'))).toBe(false)
+    expect(hasHomeNavContext(new URLSearchParams('from='))).toBe(false)
+    expect(hasHomeNavContext(new URLSearchParams('from=HOME'))).toBe(false)
+  })
+
+  it('accepts a plain object map as well as URLSearchParams-like objects', () => {
+    expect(hasHomeNavContext({ from: 'home' })).toBe(true)
+    expect(hasHomeNavContext({ from: 'home', brand: 'canon' })).toBe(true)
+    expect(hasHomeNavContext({ from: ['home'] })).toBe(true)
+    expect(hasHomeNavContext({ brand: 'canon' })).toBe(false)
+    expect(hasHomeNavContext({ from: 'nope' })).toBe(false)
+  })
+
+  it('is false for nullish params', () => {
+    expect(hasHomeNavContext(null)).toBe(false)
+    expect(hasHomeNavContext(undefined)).toBe(false)
+  })
+
+  it('uses the documented param name/value constants', () => {
+    expect(HOME_CONTEXT_PARAM).toBe('from')
+    expect(HOME_CONTEXT_VALUE).toBe('home')
+  })
+})
+
+describe('withHomeContext — tag catalog links without harming filters', () => {
+  it('adds from=home to a bare /products link', () => {
+    expect(withHomeContext('/products')).toBe('/products?from=home')
+  })
+
+  it('preserves existing catalog params (brand, sort, search) exactly', () => {
+    expect(withHomeContext('/products?brand=canon')).toBe('/products?brand=canon&from=home')
+    expect(withHomeContext('/products?sort=newest')).toBe('/products?sort=newest&from=home')
+    expect(hasHomeNavContext(new URLSearchParams(withHomeContext('/products?brand=canon').split('?')[1]))).toBe(true)
+    // The pre-existing brand filter survives untouched.
+    expect(withHomeContext('/products?brand=canon')).toContain('brand=canon')
+  })
+
+  it('does not duplicate an already-present context', () => {
+    expect(withHomeContext('/products?from=home')).toBe('/products?from=home')
+    expect(withHomeContext('/products?brand=canon&from=home')).toBe('/products?brand=canon&from=home')
+  })
+
+  it('preserves a hash fragment', () => {
+    expect(withHomeContext('/products?brand=canon#grid')).toBe('/products?brand=canon&from=home#grid')
+  })
+
+  it('only tags the Cameras catalog — leaves other internal routes unchanged', () => {
+    expect(withHomeContext('/products/leica-m9')).toBe('/products/leica-m9')
+    expect(withHomeContext('/compare')).toBe('/compare')
+    expect(withHomeContext('/')).toBe('/')
+  })
+
+  it('never tags an external/unsafe href', () => {
+    expect(withHomeContext('https://evil.com/products')).toBe('https://evil.com/products')
+    expect(withHomeContext('//evil.com')).toBe('//evil.com')
+  })
+})
+
 // ─── Component / integration source assertions ────────────────────────────────────
 describe('BackButton component — design, a11y, and history-aware wiring', () => {
   const src = readFileSync('src/components/ui/BackButton.tsx', 'utf8')
@@ -252,9 +325,7 @@ describe('Back navigation integration — intentional, hierarchy-based placement
 
   // ── DETAIL / NESTED + explicitly-kept storefront pages: MUST render a back control ──
   const pagesThatShouldHaveBack: Array<[label: string, file: string]> = [
-    ['/products (catalog — Find Your Era destination)', 'src/app/(storefront)/products/page.tsx'],
     ['/products/[slug] (product details)', 'src/app/(storefront)/products/[slug]/page.tsx'],
-    ['/about (footer info)', 'src/app/(storefront)/about/page.tsx'],
     ['/faq (footer info)', 'src/app/(storefront)/faq/page.tsx'],
     ['/contact (footer info)', 'src/app/(storefront)/contact/page.tsx'],
     ['/condition-grading (footer info)', 'src/app/(storefront)/condition-grading/page.tsx'],
@@ -279,6 +350,7 @@ describe('Back navigation integration — intentional, hierarchy-based placement
     ['search', 'src/app/(storefront)/search/page.tsx'],
     ['compare', 'src/app/(storefront)/compare/page.tsx'],
     ['homepage', 'src/app/page.tsx'],
+    ['about (no generic back — removed)', 'src/app/(storefront)/about/page.tsx'],
     ['account: My Purchases list', 'src/app/(storefront)/account/orders/page.tsx'],
     ['account: profile shell', 'src/components/account/AccountShell.tsx'],
     ['auth: login', 'src/app/(auth)/login/page.tsx'],
@@ -341,5 +413,54 @@ describe('Back navigation integration — intentional, hierarchy-based placement
   it('checkout keeps its multi-step "Back to Edit" navigation intact', () => {
     const src = readFileSync('src/app/(storefront)/checkout/page.tsx', 'utf8')
     expect(src).toContain('Back to Edit')
+  })
+})
+
+// ─── Contextual Cameras (/products) Back button — depends on entry point ──────────
+describe('Cameras catalog Back button — shown only for homepage-promo entry', () => {
+  const catalog = readFileSync('src/app/(storefront)/products/page.tsx', 'utf8')
+
+  it('gates the PageBackLink on the explicit home-nav context (not history.length)', () => {
+    // The back control is rendered conditionally on the context flag.
+    expect(catalog).toContain('hasHomeNavContext')
+    expect(catalog).toMatch(/cameFromHome\s*&&\s*<PageBackLink/)
+    // It must NOT decide visibility from browser history length.
+    expect(catalog).not.toContain('history.length')
+  })
+
+  it('returns to the homepage when visible', () => {
+    expect(catalog).toMatch(/<PageBackLink[^>]*href="\/"/)
+  })
+
+  it('still reads the brand filter from the query (context does not replace filters)', () => {
+    expect(catalog).toContain("searchParams.get('brand')")
+  })
+
+  // Eligible homepage promotional entry points must tag the catalog link.
+  const promoEntryPoints: Array<[label: string, file: string]> = [
+    ['Hero CTA', 'src/components/landing/Hero.tsx'],
+    ['Deal banner', 'src/components/landing/DealBanner.tsx'],
+    ['Promo duo (deals + staff pick)', 'src/components/landing/PromoDuo.tsx'],
+    ['Find Your Era / brand gallery', 'src/components/landing/BrandGallery.tsx'],
+    ['New arrivals', 'src/components/landing/NewArrivals.tsx'],
+    ['Best sellers', 'src/components/landing/BestSellers.tsx'],
+  ]
+
+  it.each(promoEntryPoints)('%s applies the home-nav context to its catalog link', (_label, file) => {
+    const src = readFileSync(file, 'utf8')
+    expect(src).toContain('withHomeContext')
+  })
+
+  it('the navbar Cameras link stays context-free (standard navigation)', () => {
+    const navbar = readFileSync('src/components/layout/Navbar.tsx', 'utf8')
+    expect(navbar).toContain('href="/products"')
+    expect(navbar).not.toContain('withHomeContext')
+    expect(navbar).not.toContain('from=home')
+  })
+
+  it('the footer Cameras links stay context-free (standard navigation)', () => {
+    const footer = readFileSync('src/components/layout/Footer.tsx', 'utf8')
+    expect(footer).not.toContain('withHomeContext')
+    expect(footer).not.toContain('from=home')
   })
 })
