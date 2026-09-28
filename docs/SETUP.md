@@ -25,7 +25,9 @@ Requirements: **Node 18+** and **npm**.
 
 ```powershell
 npm install
-Copy-Item .env.local.example .env.local
+# There is no tracked .env.local.example. Start from the reference backup,
+# then edit values (or create .env.local from the Part 4 variable list):
+Copy-Item .env.local.neon.bak .env.local
 ```
 
 You'll fill in `.env.local` as you go through Parts 2–3. For a quick local run
@@ -83,9 +85,11 @@ pooling**, so every provider gives you two strings:
    `prisma/migrations/`) then `prisma db seed` (admin, demo customer, 12 cameras,
    vouchers, reviews).
 
-   **Seeded logins:**
-   - Admin: `admin@repxl.com` / `admin123`
+   **Seeded logins** (from `prisma/seed.ts`):
+   - Admin: `admin@repixl-admin.com` / `RePIXL2026!`
    - Customer: `demo@repxl.com` / `customer123`
+
+   > Rotate the admin password after first login in any real deployment.
 
 4. (Optional) Browse the data: `npm run prisma:studio`
 
@@ -215,9 +219,9 @@ to `main` that changes `prisma/**`. This is complementary to the Vercel build
 (both are idempotent). One-time setup:
 
 - GitHub repo → **Settings → Secrets and variables → Actions → New repository secret**
-- Name: `DIRECT_URL`, Value: your direct Postgres string.
+- Add **both** `DATABASE_URL` (pooled) and `DIRECT_URL` (direct) — the workflow validates both are present before running.
 
-If you skip it, the Actions job fails but deploys still work (Vercel migrates too).
+If you skip them, the Actions job fails but deploys still work (Vercel migrates too).
 
 ---
 

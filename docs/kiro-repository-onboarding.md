@@ -6,6 +6,8 @@
 > **Prepared:** September 27, 2026
 > **Scope of evidence:** Findings below are derived from reading source files, config, the Prisma schema/migrations, and read-only Git inspection. Where documentation conflicts with code, the discrepancy is called out rather than resolved in favor of either side.
 
+> **Update (documentation audit):** Several discrepancies this report flagged in §12 have since been corrected in the docs — `README.md`/`HANDOFF.md` now say **Next.js 15 / Expo SDK 57**, the seed credentials (`admin@repixl-admin.com` / `RePIXL2026!`) are now stated accurately in `README.md`/`SETUP.md`/`deployment.md`, the birth-date "known issue" was removed (the `dateOfBirth` column exists), and the `.env.local.example` references now point to the real `.env.local.neon.bak`. The Git-status findings in **§10** are point-in-time: local `main` is now level with `origin/main` (no longer one commit behind). The untracked `20260924133000_optimize_rls_policies` migration status should be re-checked directly with Git rather than relied upon from this section.
+
 ---
 
 ## 1. Executive Project Overview

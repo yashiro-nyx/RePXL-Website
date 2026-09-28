@@ -140,3 +140,40 @@
       - [x] ~~Contact Support~~  
       - [x] ~~FAQs~~  
       - [x] ~~Live Chat or AI~~
+
+
+---
+
+## V. Implementation Status & Verification
+
+_Maintained per the documentation-synchronization rule in [`AGENTS.md`](../AGENTS.md). The checklist items above reflect the delivered academic project scope; the notes below record the current verified engineering status so the checklist stays honest._
+
+### Verification snapshot (latest documentation audit)
+
+| Check | Command | Result |
+|---|---|---|
+| Type check | `npx tsc --noEmit` | ✅ Clean |
+| Production build | `npm run build` | ✅ Succeeds — 68/68 static pages generated |
+| Test suite | `npx vitest run` | ⚠️ **932 passed, 9 failed, 47 skipped** (988 tests across 58 files) |
+
+Deployment: live on Vercel at `https://repxlph.vercel.app`; database on Supabase (PostgreSQL) with 14 tracked Prisma migrations applied on deploy.
+
+### Recent refinements (verified in code)
+
+- Context-aware Back navigation on the Cameras catalog + About Back button removed — `docs/back-navigation.md`.
+- Navbar avatar synchronization from `authStore`.
+- Payment success navigation reads the real order from the API.
+- In-app notification redesign (concise content, shared dropdown/page components, category system) — `docs/notifications.md`.
+- Notification content sanitization for legacy/malformed records — `docs/notifications.md`.
+- Gmail email redesign onto a shared, Gmail-compatible design system with an offline preview generator — `docs/emails.md`.
+
+### Known limitations / pending (not marked complete)
+
+- **Mobile AI concierge tests failing (9):** `src/lib/mobile-features.test.ts` (8) and `src/lib/mobile-all-modules.test.ts` (1) — the "Live Chat or AI" support assistant's `generateAiResponse` output no longer matches expected support copy. This is the one area above whose automated tests do not currently pass and should be treated as in-progress.
+- **PayMongo (Live):** at least one payment method must be activated in the PayMongo Dashboard; a live end-to-end payment has not been re-verified here.
+- **Live Gmail rendering:** not verified in a real email client (built to Gmail-safe spec only).
+- **Mobile push notifications:** require `EXPO_PUBLIC_EXPO_PROJECT_ID` + `EXPO_PUSH_ENABLED=true` and physical-device permission testing.
+- **Native returns with image upload** and **EAS/app-store release config:** future mobile work.
+- **Saved payment cards:** stored in localStorage, not the database.
+
+> Status is based on the actual codebase and the verification commands above — not on plans or unverified reports. Re-run the commands after any change and update this section (per `AGENTS.md`).

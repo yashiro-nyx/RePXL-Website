@@ -22,6 +22,8 @@ The maintained integration is implemented in `react-native/`. The deprecated `mo
 
 The next work is return request submission, image uploads for mobile reviews/returns, deep-link payment return handling, offline/cache strategy, device testing, and app-store release configuration.
 
+**Known failing area (as of the latest documentation audit):** the mobile support "AI concierge" response generator (`generateAiResponse`) has 9 failing unit tests — `src/lib/mobile-features.test.ts` (8) and `src/lib/mobile-all-modules.test.ts` (1) — where the generated support copy no longer matches the expected content for condition grading, tracking, returns, recommendations, payments, escalation, consignment, and general queries. This should be fixed (or the expectations realigned) before the support assistant is considered done. The rest of the test suite passes.
+
 ## 2. Recommended Architecture
 
 ```text

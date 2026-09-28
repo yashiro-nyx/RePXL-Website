@@ -51,9 +51,11 @@ Prisma. Vercel runs your API as serverless functions, so the database needs
 
 ## Part B — Set up the schema + seed data (run once, from your machine)
 
-1. Copy the env template and fill in the two Neon strings:
+1. Create `.env.local` and fill in the two Postgres connection strings (there is
+   no tracked `.env.local.example`; a reference backup exists at
+   `.env.local.neon.bak`):
    ```powershell
-   Copy-Item .env.local.example .env.local
+   Copy-Item .env.local.neon.bak .env.local
    ```
    Open `.env.local` and set `DATABASE_URL`, `DIRECT_URL`, and generate a secret:
    ```powershell
@@ -77,8 +79,8 @@ Prisma. Vercel runs your API as serverless functions, so the database needs
    migration in `prisma/migrations/`) then `prisma db seed` (admin account, a demo
    customer, 12 cameras, vouchers, and reviews).
 
-   Seeded logins:
-   - **Admin:** `admin@repxl.com` / `admin123`
+   Seeded logins (from `prisma/seed.ts`):
+   - **Admin:** `admin@repixl-admin.com` / `RePIXL2026!` (rotate after first login)
    - **Customer:** `demo@repxl.com` / `customer123`
 
 4. (Optional) Inspect the data visually:
@@ -101,8 +103,8 @@ Prisma. Vercel runs your API as serverless functions, so the database needs
 
    | Name | Value |
    | --- | --- |
-   | `DATABASE_URL` | your Neon **pooled** string |
-   | `DIRECT_URL` | your Neon **direct** string |
+   | `DATABASE_URL` | your **pooled** Postgres string (Supabase transaction pooler, 6543) |
+   | `DIRECT_URL` | your **direct** Postgres string (5432) |
    | `NEXTAUTH_SECRET` | the secret you generated |
    | `NEXTAUTH_URL` | `https://your-app.vercel.app` |
    | `NEXT_PUBLIC_SITE_URL` | `https://your-app.vercel.app` |
@@ -132,12 +134,13 @@ haven't run yet), so running them together is safe.
    (before/independently of the Vercel deploy) and can also be triggered manually
    from the repo's **Actions** tab.
 
-   **One-time setup:** add the direct connection string as a repository secret:
+   **One-time setup:** the workflow validates and uses **both** connection
+   strings, so add both as repository secrets:
    - GitHub repo → **Settings → Secrets and variables → Actions → New repository secret**
-   - Name: `DIRECT_URL`
-   - Value: your Neon/Supabase **direct** connection string
+   - `DATABASE_URL` → your **pooled** Postgres connection string
+   - `DIRECT_URL` → your **direct** Postgres connection string
 
-   > Only this one secret is needed. If you skip it, the workflow will fail but
+   > If you skip them, the workflow fails fast (it checks both are present) but
    > the Vercel build will still apply migrations, so deploys keep working.
 
 ## Part E — Mobile app release configuration
