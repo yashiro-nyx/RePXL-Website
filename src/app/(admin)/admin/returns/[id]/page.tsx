@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
-import { BackButton, ImageLightbox } from '@/components/ui'
+import { ImageLightbox, PageBackLink } from '@/components/ui'
 import { formatPrice } from '@/lib/format'
 
 interface ReturnDetail {
@@ -105,7 +105,6 @@ export default function ReturnDetailPage() {
     return (
       <div className="py-12 text-center">
         <p className="text-sm text-repixl-muted">Return request not found.</p>
-        <BackButton href="/admin/returns" label="Back to Returns" />
       </div>
     )
   }
@@ -119,10 +118,12 @@ export default function ReturnDetailPage() {
   return (
     <>
     <div className="space-y-6">
-      {/* Back + header */}
+      {/* Contextual Back to the Returns list (nested detail page) */}
+      <PageBackLink href="/admin/returns" label="Returns" />
+
+      {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
-          <BackButton href="/admin/returns" label="Back to Returns" />
           <h1 className="font-display text-xl font-bold text-repixl-text-light">Return #{detail.id.slice(-8).toUpperCase()}</h1>
           <span className={`rounded-full border px-2.5 py-1 font-mono text-[10px] uppercase tracking-wider ${statusStyles[status] ?? ''}`}>
             {status.replace('_', ' ')}

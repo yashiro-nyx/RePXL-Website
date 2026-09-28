@@ -9,7 +9,7 @@ import { createPortal } from 'react-dom'
 import { motion } from 'framer-motion'
 import { Container } from '@/components/layout/Container'
 import { Footer } from '@/components/layout/Footer'
-import { Accordion, BackButton, Button, ConditionBadge, CornerBracket, LoginRequiredModal, ReviewImageThumbnails } from '@/components/ui'
+import { Accordion, PageBackLink, Button, ConditionBadge, CornerBracket, LoginRequiredModal, ReviewImageThumbnails } from '@/components/ui'
 import { useRevealAnimation } from '@/hooks/useRevealAnimation'
 import { CompareToast } from '@/components/ui/CompareToast'
 import { ProductCard } from '@/components/product/ProductCard'
@@ -140,19 +140,16 @@ export default function ProductDetailPage() {
   if (!product) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-repixl-bg">
-        <div className="text-center">
+        <div className="flex flex-col items-center text-center">
           <h1 className="font-display text-display-lg text-repixl-text-light">
             Camera not found
           </h1>
           <p className="mt-2 text-sm text-repixl-muted">
             The product you&apos;re looking for doesn&apos;t exist or has been removed.
           </p>
-          <Link
-            href="/products"
-            className="mt-6 inline-block text-sm text-repixl-red hover:underline"
-          >
-            ← Back to all cameras
-          </Link>
+          <div className="mt-6">
+            <PageBackLink label="All cameras" fallback="/products" />
+          </div>
         </div>
       </div>
     )
@@ -171,7 +168,11 @@ export default function ProductDetailPage() {
   return (
     <div className="burn-subtle min-h-screen pb-20 pt-24">
       <Container>
-        {/* Breadcrumb + Back */}
+        {/* Canonical back-navigation region — returns to the actual previous page
+            (e.g. the filtered catalog or search results), fallback to catalog. */}
+        <PageBackLink fallback="/products" />
+
+        {/* Breadcrumb */}
         <motion.div
           variants={fadeUp}
           initial="hidden"
@@ -187,7 +188,6 @@ export default function ProductDetailPage() {
               <li className="max-w-[160px] truncate text-repixl-text-light/50">{product.name}</li>
             </ol>
           </nav>
-          <BackButton />
         </motion.div>
 
         {/* Main product layout */}

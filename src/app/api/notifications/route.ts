@@ -8,6 +8,7 @@ import {
   parsePagination,
   paginatedResponse,
 } from '@/lib/api'
+import { toNotificationViews } from '@/lib/notification-view'
 import { z } from 'zod'
 
 /**
@@ -59,7 +60,7 @@ export async function GET(request: NextRequest) {
       },
     })
 
-    return paginatedResponse(notifications, total, pagination)
+    return paginatedResponse(toNotificationViews(notifications), total, pagination)
   } catch (error) {
     console.error('Notifications list error:', error)
     return errorResponse(

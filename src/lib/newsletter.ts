@@ -5,6 +5,9 @@
  */
 
 import { randomBytes, createHash } from 'crypto'
+import { buildNewsletterConfirmationEmail } from '@/lib/email/templates'
+import { renderEmailLayout } from '@/lib/email/layout'
+import { paragraph } from '@/lib/email/components'
 
 // ── Marketing eligibility ─────────────────────────────────────────────────────
 
@@ -84,102 +87,23 @@ export function siteOrigin(): string {
 }
 
 // ── Email HTML templates ──────────────────────────────────────────────────────
+// These delegate to the shared RePXL email design system (src/lib/email) so the
+// newsletter opt-in matches every other outgoing email.
 
-const year = new Date().getFullYear()
-
+/** Double opt-in confirmation email HTML for the given confirmation URL. */
 export function confirmationEmailHtml(confirmUrl: string): string {
-  return `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Confirm your RePIXL subscription</title>
-</head>
-<body style="margin:0;padding:0;background-color:#0a0806;font-family:sans-serif;">
-<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" bgcolor="#0a0806">
-  <tr>
-    <td align="center" style="padding:40px 20px;">
-      <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="max-width:520px;">
-        <!-- Logo -->
-        <tr>
-          <td align="center" style="padding-bottom:28px;">
-            <table role="presentation" cellpadding="0" cellspacing="0" border="0">
-              <tr>
-                <td style="border:1px solid rgba(245,241,236,0.2);padding:6px 14px;">
-                  <span style="font-family:Georgia,serif;font-size:18px;font-weight:700;color:#f5f1ec;">RePIXL</span>
-                </td>
-              </tr>
-            </table>
-          </td>
-        </tr>
-        <!-- Card -->
-        <tr>
-          <td style="background-color:#16131a;border:1px solid rgba(140,133,128,0.15);border-top:3px solid #c22c2c;padding:36px 32px;">
-            <h2 style="margin:0 0 12px;font-family:Georgia,serif;font-size:22px;color:#f5f1ec;">
-              Confirm your subscription
-            </h2>
-            <p style="margin:0 0 20px;font-size:14px;line-height:1.6;color:#8c8580;">
-              Someone (hopefully you) requested a subscription to the
-              <strong style="color:#f5f1ec;">RePIXL</strong> newsletter —
-              your source for new vintage camera arrivals, exclusive deals, and collector news.
-            </p>
-            <p style="margin:0 0 28px;font-size:14px;line-height:1.6;color:#8c8580;">
-              Click the button below to confirm. This link expires in <strong style="color:#f5f1ec;">24 hours</strong>.
-            </p>
-            <!-- CTA -->
-            <table role="presentation" cellpadding="0" cellspacing="0" border="0">
-              <tr>
-                <td style="background-color:#c22c2c;border-radius:8px;">
-                  <a href="${confirmUrl}"
-                     style="display:inline-block;padding:14px 32px;font-family:sans-serif;font-size:15px;font-weight:600;color:#ffffff;text-decoration:none;border-radius:8px;">
-                    Confirm Subscription
-                  </a>
-                </td>
-              </tr>
-            </table>
-            <p style="margin:28px 0 0;font-size:12px;color:rgba(140,133,128,0.6);">
-              If you didn't request this, you can safely ignore this email —
-              you will not be subscribed.
-            </p>
-            <p style="margin:12px 0 0;font-size:11px;color:rgba(140,133,128,0.4);word-break:break-all;">
-              Or copy this link: ${confirmUrl}
-            </p>
-          </td>
-        </tr>
-        <tr>
-          <td align="center" style="padding-top:24px;">
-            <p style="margin:0;font-family:monospace;font-size:10px;letter-spacing:2px;text-transform:uppercase;color:rgba(140,133,128,0.4);">&copy; ${year} RePIXL</p>
-          </td>
-        </tr>
-      </table>
-    </td>
-  </tr>
-</table>
-</body>
-</html>`
+  return buildNewsletterConfirmationEmail({ confirmUrl, expiresInLabel: '24 hours' }).html
 }
 
+/** Informational "already subscribed" email HTML. */
 export function alreadyConfirmedEmailHtml(): string {
-  return `<!DOCTYPE html>
-<html lang="en">
-<head><meta charset="UTF-8"/><title>RePIXL Newsletter</title></head>
-<body style="margin:0;padding:0;background-color:#0a0806;font-family:sans-serif;">
-<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" bgcolor="#0a0806">
-  <tr>
-    <td align="center" style="padding:40px 20px;">
-      <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="max-width:520px;">
-        <tr>
-          <td style="background-color:#16131a;border:1px solid rgba(140,133,128,0.15);border-top:3px solid #c22c2c;padding:36px 32px;">
-            <h2 style="margin:0 0 12px;font-family:Georgia,serif;font-size:20px;color:#f5f1ec;">You're already subscribed</h2>
-            <p style="margin:0;font-size:14px;color:#8c8580;">
-              This email address is already confirmed for the RePIXL newsletter. No action needed.
-            </p>
-          </td>
-        </tr>
-      </table>
-    </td>
-  </tr>
-</table>
-</body>
-</html>`
+  return renderEmailLayout({
+    title: "You're already subscribed",
+    heading: "You're already subscribed",
+    preheader: 'No action needed — your subscription is already active.',
+    bodyHtml: paragraph(
+      'This email address is already confirmed for the RePXL newsletter, so there is nothing more to do.',
+      { muted: true }
+    ),
+  })
 }

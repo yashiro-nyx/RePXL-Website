@@ -244,7 +244,7 @@ function SuccessInner() {
             </p>
             <div className="no-print mt-8 flex flex-wrap justify-center gap-3">
               <Link
-                href="/account"
+                href="/account/orders"
                 className="rounded bg-repixl-red px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-red-700"
               >
                 View My Orders
@@ -434,7 +434,7 @@ function SuccessInner() {
               Print Receipt
             </button>
             <Link
-              href="/account"
+              href="/account/orders"
               className="rounded border border-repixl-muted/20 px-5 py-2.5 text-sm text-repixl-text-light/70 transition-colors hover:border-repixl-muted/40 hover:text-repixl-text-light"
             >
               View My Orders

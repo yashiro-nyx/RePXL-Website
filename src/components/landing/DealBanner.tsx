@@ -8,6 +8,7 @@ import { Container } from '@/components/layout/Container'
 import { RevealText } from '@/components/ui'
 import { useReducedMotion } from '@/hooks/useReducedMotion'
 import { fetchBannersByPlacement } from '@/lib/banner-client'
+import { withHomeContext } from '@/lib/back-navigation'
 
 interface ActiveBanner {
   id: string
@@ -138,7 +139,7 @@ export function DealBanner() {
                 </span>
               </a>
             ) : (
-              <Link href={href} className="mt-8 w-fit">
+              <Link href={withHomeContext(href)} className="mt-8 w-fit">
                 <span className="deal-banner-cta inline-flex min-h-11 items-center rounded-lg px-6 py-2.5 font-mono text-xs font-semibold uppercase tracking-widest transition-colors">
                   View All
                 </span>

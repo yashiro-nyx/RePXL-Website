@@ -3,6 +3,7 @@
 import { reportActionFailure } from '@/lib/action-error'
 import { useState, useRef, useEffect, useCallback } from 'react'
 import Link from 'next/link'
+import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import { signOut } from 'next-auth/react'
 import { LoginRequiredModal } from '@/components/ui'
@@ -28,7 +29,7 @@ export function Navbar() {
   const profileRef = useRef<HTMLDivElement>(null)
   const router = useRouter()
 
-  const { isLoggedIn, firstName, lastName, userEmail, logout, hydrate } = useAuthStore()
+  const { isLoggedIn, firstName, lastName, userEmail, avatarUrl, logout, hydrate } = useAuthStore()
   const addToast = useToastStore((s) => s.addToast)
 
   const cartCount = useCartStore((s) => s.items.reduce((sum, i) => sum + i.quantity, 0))
@@ -220,16 +221,26 @@ export function Navbar() {
                   type="button"
                   aria-label={isLoggedIn ? 'Account menu' : 'Sign in'}
                   onClick={handleProfileClick}
-                  className={`flex h-8 w-8 items-center justify-center rounded-full transition-colors ${
+                  className={`relative flex h-8 w-8 items-center justify-center overflow-hidden rounded-full transition-colors ${
                     isLoggedIn
                       ? 'bg-repixl-red/20'
                       : 'text-repixl-text-light/80 hover:text-repixl-text-light'
                   }`}
                 >
                   {isLoggedIn ? (
-                    <span className="font-display text-xs font-bold text-repixl-red">
-                      {`${firstName?.[0] || ''}${lastName?.[0] || ''}`.toUpperCase() || '?'}
-                    </span>
+                    avatarUrl ? (
+                      <Image
+                        src={avatarUrl}
+                        alt="Your profile photo"
+                        fill
+                        className="object-cover"
+                        sizes="32px"
+                      />
+                    ) : (
+                      <span className="font-display text-xs font-bold text-repixl-red">
+                        {`${firstName?.[0] || ''}${lastName?.[0] || ''}`.toUpperCase() || '?'}
+                      </span>
+                    )
                   ) : (
                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" />
@@ -241,9 +252,20 @@ export function Navbar() {
               {/* Dropdown — only visible after hydration + login */}
               {authHydrated && profileOpen && isLoggedIn && (
                 <div className="absolute right-0 top-full mt-2 w-56 rounded-lg border border-repixl-muted/20 bg-repixl-bg p-3 shadow-xl">
-                  <div className="mb-3 border-b border-repixl-muted/10 pb-3">
-                    <p className="text-sm font-medium text-repixl-text-light">{firstName} {lastName}</p>
-                    <p className="font-mono text-[10px] text-repixl-muted">{userEmail}</p>
+                  <div className="mb-3 flex items-center gap-2.5 border-b border-repixl-muted/10 pb-3">
+                    <div className="relative flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-repixl-red/20">
+                      {avatarUrl ? (
+                        <Image src={avatarUrl} alt="Your profile photo" fill className="object-cover" sizes="36px" />
+                      ) : (
+                        <span className="font-display text-xs font-bold text-repixl-red">
+                          {`${firstName?.[0] || ''}${lastName?.[0] || ''}`.toUpperCase() || '?'}
+                        </span>
+                      )}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium text-repixl-text-light">{firstName} {lastName}</p>
+                      <p className="truncate font-mono text-[10px] text-repixl-muted">{userEmail}</p>
+                    </div>
                   </div>
                   <ul className="space-y-1">
                     <li>
@@ -311,6 +333,21 @@ export function Navbar() {
             </ul>
             {isLoggedIn && (
               <div className="mt-4 border-t border-repixl-muted/10 pt-4 space-y-2">
+                <div className="mb-1 flex items-center gap-2.5">
+                  <div className="relative flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-repixl-red/20">
+                    {avatarUrl ? (
+                      <Image src={avatarUrl} alt="Your profile photo" fill className="object-cover" sizes="36px" />
+                    ) : (
+                      <span className="font-display text-xs font-bold text-repixl-red">
+                        {`${firstName?.[0] || ''}${lastName?.[0] || ''}`.toUpperCase() || '?'}
+                      </span>
+                    )}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium text-repixl-text-light">{firstName} {lastName}</p>
+                    <p className="truncate font-mono text-[10px] text-repixl-muted">{userEmail}</p>
+                  </div>
+                </div>
                 <Link href="/account" onClick={() => setMobileMenuOpen(false)} className="block text-sm text-repixl-text-light/80 hover:text-repixl-text-light">My Account</Link>
                 <Link href="/account/orders" onClick={() => setMobileMenuOpen(false)} className="block text-sm text-repixl-text-light/80 hover:text-repixl-text-light">My Purchases</Link>
                 <Link href="/wishlist" onClick={() => setMobileMenuOpen(false)} className="block text-sm text-repixl-text-light/80 hover:text-repixl-text-light">Wishlist</Link>

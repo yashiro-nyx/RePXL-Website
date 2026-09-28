@@ -230,21 +230,23 @@ describe('mark-as-read ownership enforcement', () => {
 
 // ── Order number regex ────────────────────────────────────────────────────────
 
-describe('order number regex matches real format', () => {
-  it('NotificationList uses RPX- prefix in order-number regex', () => {
-    const src = readFileSync('src/components/account/NotificationList.tsx', 'utf8')
-    expect(src).toContain('RPX-')
-    expect(src).not.toContain('ORD-')
-  })
+describe('order destination derivation uses the real RPX- format', () => {
+  it('destinations are derived server-side (not by regex-scraping in the UI components)', () => {
+    // The UI now renders a resolved `href` from the API view model; it no longer
+    // scrapes the message text for an order number. The RPX- derivation for
+    // legacy rows lives in the pure notification-inapp module.
+    const inapp = readFileSync('src/lib/notification-inapp.ts', 'utf8')
+    expect(inapp).toContain('RPX-')
+    expect(inapp).not.toContain('ORD-')
 
-  it('NavBellDropdown uses RPX- prefix in order-number regex', () => {
-    const src = readFileSync('src/components/layout/NavBellDropdown.tsx', 'utf8')
-    expect(src).toContain('RPX-')
-    expect(src).not.toContain('ORD-')
+    const list = readFileSync('src/components/account/NotificationList.tsx', 'utf8')
+    expect(list).not.toContain('n.message.match')
+    const dropdown = readFileSync('src/components/layout/NavBellDropdown.tsx', 'utf8')
+    expect(dropdown).not.toContain('n.message.match')
   })
 
   it('RPX- regex matches sample order numbers from DB', () => {
-    const pattern = /\b(RPX-[A-Z0-9]{6,})\b/
+    const pattern = /\b(RPX-[A-Z0-9]{4,})\b/
     expect(pattern.test('Your order RPX-MTRJ0Z8SX3RG has been confirmed.')).toBe(true)
     expect(pattern.test('Your order RPX-MTO7XOD14L6K status has changed.')).toBe(true)
     // Old ORD- format should not match

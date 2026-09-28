@@ -1,5 +1,7 @@
 # RePXL — System Architecture Diagram
 
+> **Accuracy note (last reviewed during the documentation audit):** the stack, payment gateway (PayMongo), email (Gmail SMTP), image CDN (Cloudinary), and auth model shown below reflect the current implementation. The diagrams focus on the core browse/purchase path; additional implemented subsystems not drawn here include Returns & refunds, customer MFA (TOTP) and OTP-guarded sensitive changes, in-app + email notifications, the CMS (pages/banners/homepage blocks), order tracking (SSE), and Supabase Row-Level Security (defense-in-depth). For the fullest, evidence-based map see [`kiro-repository-onboarding.md`](./kiro-repository-onboarding.md).
+
 ## High-Level Overview
 
 ```mermaid
@@ -58,9 +60,9 @@ graph TB
     %% ─── EXTERNAL SERVICES ──────────────────────────────────────────────────────
     subgraph External ["External Services"]
         direction LR
-        PAY["Payment Gateway<br/><i>Stripe + Local Digital Payment</i><br/>─────────────────<br/>Charge, Refund,<br/>Webhook Notifications"]
-        IMG["Image CDN<br/><i>Cloudinary / S3 + CDN</i><br/>─────────────────<br/>Product Images (WebP),<br/>Optimized Delivery"]
-        EMAIL["Email Service<br/><i>(Future)</i><br/>─────────────────<br/>Order Confirmations,<br/>Password Resets"]
+        PAY["Payment Gateway<br/><i>PayMongo Hosted Checkout</i><br/>─────────────────<br/>Checkout Session, Refund,<br/>Signed Webhooks"]
+        IMG["Image CDN<br/><i>Cloudinary</i><br/>─────────────────<br/>Review images (public),<br/>Return evidence (signed)"]
+        EMAIL["Email Service<br/><i>Gmail SMTP (Nodemailer)</i><br/>─────────────────<br/>Order Confirmations,<br/>Password Reset, OTP, Newsletter"]
         PUSH["Expo Push Service<br/><i>Optional native notifications</i>"]
     end
 
@@ -205,12 +207,17 @@ sequenceDiagram
 External Integrations:
   ┌────────────────┐   ┌────────────────┐   ┌────────────────┐
   │ Payment Gateway│   │   Image CDN    │   │ Email Service  │
-  │ (Stripe/Local) │   │(Cloudinary/S3) │   │   (Future)     │
+  │   (PayMongo)   │   │  (Cloudinary)  │   │  (Gmail SMTP)  │
   │                │   │                │   │                │
-  │ • Charges      │   │ • WebP images  │   │ • Order emails │
-  │ • Refunds      │   │ • Responsive   │   │ • PW resets    │
-  │ • Webhooks     │   │ • Lazy loading │   │ • Newsletters  │
+  │ • Checkout     │   │ • Review imgs  │   │ • Order emails │
+  │ • Refunds      │   │ • Signed URLs  │   │ • PW reset/OTP │
+  │ • Webhooks     │   │ • EXIF strip   │   │ • Newsletter   │
   └────────────────┘   └────────────────┘   └────────────────┘
+  ┌────────────────┐
+  │  Expo Push     │
+  │  (optional)    │
+  │ • Native alerts│
+  └────────────────┘
 ```
 
 ## Key Architecture Decisions
@@ -221,7 +228,7 @@ External Integrations:
 | **Server-side rendering for storefront** | SEO for product pages, fast FCP, fresh stock data |
 | **Client-side rendering for admin** | No SEO needed, complex interactive dashboards |
 | **Prisma ORM** | Type-safe queries, migrations, schema-as-code |
-| **NextAuth.js sessions** | Secure cookie-based auth, role field for admin guard |
+| **Custom HMAC cookie sessions + NextAuth (Google) + mobile bearer** | Cookie sessions are primary (separate 1-hour admin cookie); NextAuth handles Google OAuth; mobile uses opaque bearer tokens. No central `middleware.ts` — each route calls `getCurrentUser()`/`getCurrentAdmin()` |
 | **Zustand for client state** | Lightweight, no boilerplate, handles cart/wishlist/auth |
 | **Zod for validation** | Runtime schema validation on all API inputs |
 | **Edge middleware** | Auth checks before route resolution, zero cold start |
@@ -230,15 +237,17 @@ External Integrations:
 
 | Layer | Technology |
 |-------|-----------|
-| Framework | Next.js 14 (App Router) |
+| Framework | Next.js 15 (App Router) |
 | Language | TypeScript (strict) |
 | Styling | Tailwind CSS (custom design tokens) |
 | Animation | Framer Motion |
 | State | Zustand |
-| Auth | NextAuth.js |
+| Auth | Custom HMAC cookie sessions + NextAuth (Google OAuth) + mobile bearer tokens; customer MFA (TOTP) |
 | ORM | Prisma |
-| Database | PostgreSQL |
+| Database | PostgreSQL (Supabase; RLS enabled as defense-in-depth) |
 | Validation | Zod |
 | Deployment | Vercel |
-| Payment | Stripe + Local Digital Payment |
-| Images | Cloudinary / S3 + CDN |
+| Payment | PayMongo Hosted Checkout |
+| Images | Cloudinary |
+| Email | Gmail SMTP (Nodemailer) |
+| Mobile | Expo SDK 57 / React Native |

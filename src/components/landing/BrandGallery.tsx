@@ -9,6 +9,7 @@ import { RevealText, SectionHeader } from '@/components/ui'
 import { useReducedMotion } from '@/hooks/useReducedMotion'
 import { useThemeStore } from '@/stores/themeStore'
 import { useProductStore } from '@/stores/productStore'
+import { withHomeContext } from '@/lib/back-navigation'
 import type { Product } from '@/types'
 import { ERA_CAMERA_DATA_URIS } from '@/data/eraCameras'
 
@@ -280,7 +281,7 @@ function CanonSpotlight({ spotlight }: { spotlight: (typeof spotlights)[number] 
         {/* Actionable CTA: White/Neutral default → RePXL red on hover/focus */}
         <div className="mt-8 pt-1">
           <Link
-            href={`/products?brand=${spotlight.slug}`}
+            href={withHomeContext(`/products?brand=${spotlight.slug}`)}
             className={`group/btn inline-flex items-center justify-between gap-3.5 rounded-full border px-6 py-3 text-xs font-semibold uppercase tracking-wider transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#EF4444] focus-visible:ring-offset-2 ${
               isLight
                 ? 'border-neutral-300 bg-white text-neutral-900 shadow-sm hover:border-[#B91C1C] hover:bg-[#B91C1C] hover:text-white hover:shadow-[0_0_20px_rgba(185,28,28,0.25)] focus-visible:border-[#B91C1C] focus-visible:bg-[#B91C1C] focus-visible:text-white focus-visible:ring-offset-white'
@@ -371,7 +372,7 @@ function SonySpotlight({ spotlight }: { spotlight: (typeof spotlights)[number] }
         {/* Actionable CTA: White/Neutral default → RePXL red on hover/focus */}
         <div className="mt-8 pt-1">
           <Link
-            href={`/products?brand=${spotlight.slug}`}
+            href={withHomeContext(`/products?brand=${spotlight.slug}`)}
             className={`group/btn inline-flex items-center justify-between gap-3.5 rounded-full border px-6 py-3 text-xs font-semibold uppercase tracking-wider transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#EF4444] focus-visible:ring-offset-2 ${
               isLight
                 ? 'border-neutral-300 bg-white text-neutral-900 shadow-sm hover:border-[#B91C1C] hover:bg-[#B91C1C] hover:text-white hover:shadow-[0_0_20px_rgba(185,28,28,0.25)] focus-visible:border-[#B91C1C] focus-visible:bg-[#B91C1C] focus-visible:text-white focus-visible:ring-offset-white'
@@ -658,7 +659,7 @@ function KodakSpotlight({ spotlight }: { spotlight: (typeof spotlights)[number] 
         {/* Actionable CTA: White/Neutral default → RePXL red on hover/focus */}
         <div className="mt-8 pt-1">
           <Link
-            href={`/products?brand=${spotlight.slug}`}
+            href={withHomeContext(`/products?brand=${spotlight.slug}`)}
             className={`group/btn inline-flex items-center justify-between gap-3.5 rounded-full border px-6 py-3 text-xs font-semibold uppercase tracking-wider transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#EF4444] focus-visible:ring-offset-2 ${
               isLight
                 ? 'border-neutral-300 bg-white text-neutral-900 shadow-sm hover:border-[#B91C1C] hover:bg-[#B91C1C] hover:text-white hover:shadow-[0_0_20px_rgba(185,28,28,0.25)] focus-visible:border-[#B91C1C] focus-visible:bg-[#B91C1C] focus-visible:text-white focus-visible:ring-offset-white'
@@ -801,7 +802,7 @@ function BrandSpotlight({ spotlight, index }: { spotlight: (typeof spotlights)[n
         </p>
         <div className="mt-8">
           <Link
-            href={`/products?brand=${spotlight.slug}`}
+            href={withHomeContext(`/products?brand=${spotlight.slug}`)}
             className={`group/btn inline-flex items-center justify-between gap-3.5 rounded-full border px-6 py-3 text-xs font-semibold uppercase tracking-wider transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#EF4444] focus-visible:ring-offset-2 ${
               isLight
                 ? 'border-neutral-300 bg-white text-neutral-900 shadow-sm hover:border-[#B91C1C] hover:bg-[#B91C1C] hover:text-white hover:shadow-[0_0_20px_rgba(185,28,28,0.25)] focus-visible:border-[#B91C1C] focus-visible:bg-[#B91C1C] focus-visible:text-white focus-visible:ring-offset-white'
@@ -1113,7 +1114,7 @@ function BrandCard({
       className="group relative h-full"
     >
       <Link
-        href={`/products?brand=${brand.slug}`}
+        href={withHomeContext(`/products?brand=${brand.slug}`)}
         onClick={handleClick}
         className={`relative block h-full overflow-hidden rounded-2xl border transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-repixl-red focus-visible:ring-offset-2 ${
           isLight

@@ -5,6 +5,7 @@
 
 import { prisma } from '@/lib/prisma'
 import { sendNotificationEmail } from '@/lib/mailer'
+import { buildVerificationCodeEmail, buildSecurityNoticeEmail } from '@/lib/email'
 import type { SensitiveChangeType } from '@prisma/client'
 
 import {
@@ -176,48 +177,6 @@ export async function consumeAuthorization(
 
 // ── Email senders ─────────────────────────────────────────────────────────────
 
-const YEAR = new Date().getFullYear()
-
-function emailWrapper(title: string, body: string): string {
-  return `<!DOCTYPE html>
-<html lang="en"><head><meta charset="UTF-8"/></head>
-<body style="margin:0;padding:0;background:#0a0806;font-family:sans-serif;">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" bgcolor="#0a0806">
-<tr><td align="center" style="padding:40px 20px;">
-<table role="presentation" width="100%" style="max-width:520px;">
-<tr><td align="center" style="padding-bottom:24px;">
-  <table role="presentation" cellpadding="0" cellspacing="0"><tr>
-    <td style="border:1px solid rgba(245,241,236,0.2);padding:6px 14px;">
-      <span style="font-family:Georgia,serif;font-size:18px;font-weight:700;color:#f5f1ec;">RePIXL</span>
-    </td></tr></table>
-</td></tr>
-<tr><td style="background:#16131a;border:1px solid rgba(140,133,128,0.15);border-top:3px solid #c22c2c;padding:36px 32px;">
-  <h2 style="margin:0 0 16px;font-family:Georgia,serif;font-size:20px;color:#f5f1ec;">${title}</h2>
-  ${body}
-</td></tr>
-<tr><td align="center" style="padding-top:24px;">
-  <p style="margin:0;font-family:monospace;font-size:10px;letter-spacing:2px;text-transform:uppercase;color:rgba(140,133,128,0.4);">&copy; ${YEAR} RePIXL</p>
-</td></tr>
-</table>
-</td></tr>
-</table></body></html>`
-}
-
-function otpBlock(
-  code: string,
-  purposeLabel: string,
-  ttlMinutes: number
-): string {
-  return `<p style="margin:0 0 20px;font-size:14px;color:#8c8580;line-height:1.6;">
-    Your verification code to ${purposeLabel}:
-  </p>
-  <div style="text-align:center;margin:0 0 24px;">
-    <span style="display:inline-block;background:#1e1a20;border:1px solid rgba(194,44,44,0.3);border-radius:8px;padding:16px 32px;font-family:monospace;font-size:28px;font-weight:700;letter-spacing:8px;color:#f5f1ec;">${code}</span>
-  </div>
-  <p style="margin:0 0 8px;font-size:13px;color:rgba(140,133,128,0.7);">This code expires in <strong style="color:#f5f1ec;">${ttlMinutes} minutes</strong> and can only be used once.</p>
-  <p style="margin:0;font-size:12px;color:rgba(140,133,128,0.5);">If you didn't request this change, you can safely ignore this email.</p>`
-}
-
 export async function sendOtpEmail(
   toEmail: string,
   otp: string,
@@ -226,7 +185,7 @@ export async function sendOtpEmail(
   const ttlMins = Math.round(OTP_TTL_MS / 60_000)
   const subjects: Record<SensitiveChangeType, string> = {
     CHANGE_EMAIL_VERIFY_OLD: 'Verify your identity — email change request',
-    CHANGE_EMAIL_VERIFY_NEW: 'Confirm your new email address — RePIXL',
+    CHANGE_EMAIL_VERIFY_NEW: 'Confirm your new email address — RePXL',
     CHANGE_PHONE: 'Verify your identity — phone number change',
     CHANGE_DOB: 'Verify your identity — date of birth change',
   }
@@ -237,29 +196,19 @@ export async function sendOtpEmail(
     CHANGE_PHONE: 'verify your identity before changing your phone number',
     CHANGE_DOB: 'verify your identity before changing your date of birth',
   }
-  const html = emailWrapper(
-    subjects[changeType],
-    otpBlock(otp, purposes[changeType], ttlMins)
-  )
-  const text = `Your RePIXL verification code: ${otp}\n\nThis code expires in ${ttlMins} minutes.\n\nIf you didn't request this, ignore this email.`
-  await sendNotificationEmail(toEmail, subjects[changeType], text, { html })
+  const { subject, html, text } = buildVerificationCodeEmail({
+    subject: subjects[changeType],
+    purpose: purposes[changeType],
+    code: otp,
+    ttlMinutes: ttlMins,
+  })
+  await sendNotificationEmail(toEmail, subject, text, { html })
 }
 
 export async function sendSecurityNotification(
   toEmail: string,
   event: string
 ): Promise<void> {
-  const html = emailWrapper(
-    `Security alert: ${event}`,
-    `<p style="margin:0;font-size:14px;color:#8c8580;line-height:1.6;">
-      Your <strong style="color:#f5f1ec;">RePIXL account</strong> ${event}.
-      If you did not make this change, contact support immediately.
-    </p>`
-  )
-  await sendNotificationEmail(
-    toEmail,
-    `RePIXL security: ${event}`,
-    `Your RePIXL account ${event}. If you did not make this change, contact support immediately.`,
-    { html }
-  )
+  const { subject, html, text } = buildSecurityNoticeEmail({ event })
+  await sendNotificationEmail(toEmail, subject, text, { html })
 }

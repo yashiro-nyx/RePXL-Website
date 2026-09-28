@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
-import { Button, PageLoader, ImageUploader, type UploadedImage } from '@/components/ui'
+import { Button, PageBackLink, PageLoader, ImageUploader, type UploadedImage } from '@/components/ui'
 import { useAuthStore } from '@/stores/authStore'
 import { useOrderHistoryStore } from '@/stores/orderHistoryStore'
 import { REASON_OPTIONS, requiresEvidence } from '@/lib/returnReasons'
@@ -120,6 +120,9 @@ export default function ReturnRequestPage() {
     <>
       <div className="min-w-0">
         <>
+          {/* Contextual Back to the parent order-detail page */}
+          <PageBackLink href={`/account/orders/${orderNumber}`} label="Order" />
+
           <div className="mb-8">
             <nav className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-widest text-repixl-muted">
               <Link href="/account/orders" className="hover:text-repixl-text-light">Orders</Link>

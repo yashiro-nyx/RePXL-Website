@@ -15,3 +15,6 @@ tsconfig.tsbuildinfo
 ._*
 .AppleDouble
 .LSOverride
+
+# Generated email previews (local inspection only — never committed)
+/email-previews

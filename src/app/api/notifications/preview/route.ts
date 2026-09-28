@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getCurrentUser } from '@/lib/auth-helpers'
 import { successResponse, errorResponse, unauthorizedResponse } from '@/lib/api'
+import { toNotificationViews } from '@/lib/notification-view'
 
 export const dynamic = 'force-dynamic'
 
@@ -49,7 +50,9 @@ export async function GET(request: NextRequest) {
       },
     })
 
-    return successResponse({ notifications, limit })
+    // Map to the display view model (concise title/body/href/category/icon).
+    // Legacy or malformed rows are sanitized here, never shown raw.
+    return successResponse({ notifications: toNotificationViews(notifications), limit })
   } catch (error) {
     console.error('Notification preview error:', error)
     return errorResponse('Internal server error', 500)

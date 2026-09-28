@@ -7,6 +7,7 @@ import { motion } from 'framer-motion'
 import { useReducedMotion } from '@/hooks/useReducedMotion'
 import { useThemeStore } from '@/stores/themeStore'
 import { fetchBannersByPlacement } from '@/lib/banner-client'
+import { withHomeContext } from '@/lib/back-navigation'
 
 interface HeroBannerData {
   id: string
@@ -67,6 +68,8 @@ export function Hero() {
       heroLink = banner.linkTarget
     }
   }
+  // Homepage promotional entry point → tag the catalog with the Back context.
+  heroLink = withHomeContext(heroLink)
 
   const reveal = reducedMotion
     ? { initial: false as const, animate: undefined }

@@ -8,6 +8,7 @@ import { Container } from '@/components/layout/Container'
 import { useProductStore } from '@/stores/productStore'
 import { useReducedMotion } from '@/hooks/useReducedMotion'
 import { formatPrice } from '@/lib/format'
+import { withHomeContext } from '@/lib/back-navigation'
 
 export function NewArrivals() {
   const reducedMotion = useReducedMotion()
@@ -41,7 +42,7 @@ export function NewArrivals() {
             New Arrivals
           </h2>
           <Link
-            href="/products?sort=newest"
+            href={withHomeContext('/products?sort=newest')}
             className="hidden rounded-full border border-repixl-muted/25 px-5 py-2 font-mono text-[11px] uppercase tracking-wider text-repixl-text-light/80 transition-colors hover:border-repixl-red/50 hover:text-repixl-text-light md:inline-block"
           >
             View All

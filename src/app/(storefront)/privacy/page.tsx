@@ -1,5 +1,6 @@
 import { Container } from '@/components/layout/Container'
 import { Footer } from '@/components/layout/Footer'
+import { PageBackLink } from '@/components/ui'
 import { privacyContent } from '@/data/legal'
 import { prisma } from '@/lib/prisma'
 import { LegalPageContent } from '../terms/LegalPageContent'
@@ -25,6 +26,7 @@ export default async function PrivacyPage() {
       <div className="min-h-screen pb-16 pt-24">
         <Container>
           <div className="mx-auto max-w-2xl">
+            <PageBackLink label="Home" fallback="/" />
             <LegalPageContent content={content} />
           </div>
         </Container>

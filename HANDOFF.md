@@ -16,16 +16,16 @@ RePXL is a curated, admin-managed marketplace for buying vintage digital cameras
 
 | Layer | Choice |
 |---|---|
-| Framework | Next.js 14 (App Router, TypeScript strict) |
+| Framework | Next.js 15 (App Router, TypeScript strict) |
 | Styling | Tailwind CSS + custom design tokens |
 | Animation | Framer Motion |
 | Client state | Zustand (cartStore, wishlistStore, productStore, authStore, etc.) |
 | Database | PostgreSQL via **Prisma ORM** (hosted on Supabase) |
-| Authentication | Custom HTTP-only cookie sessions (bcrypt passwords) + NextAuth for Google OAuth |
-| Email | Gmail SMTP via Nodemailer |
+| Authentication | Custom HTTP-only cookie sessions (bcrypt passwords) + NextAuth for Google OAuth + mobile bearer sessions; customer MFA (TOTP) |
+| Email | Gmail SMTP via Nodemailer (shared branded email design system in `src/lib/email`) |
 | Payments | PayMongo Hosted Checkout (Live mode active) |
 | Deployment | Vercel |
-| Mobile client | Expo SDK 51 / Expo Router / React Native / TypeScript |
+| Mobile client | Expo SDK 57 / Expo Router / React Native / TypeScript |
 | Mobile state and storage | Typed API client + Expo SecureStore |
 
 ---
@@ -100,8 +100,8 @@ npm run db:reset           # reset all data (destructive — dev only)
 ### Seeded data
 
 The seed creates:
-- Admin account: `admin@repixl-admin.com` (password in `.env.local`)
-- Demo customer: `demo@repxl.com`
+- Admin account: `admin@repixl-admin.com` / `RePIXL2026!` (password hardcoded in `prisma/seed.ts` — rotate after first login)
+- Demo customer: `demo@repxl.com` / `customer123`
 - 12 vintage camera products
 - 8 sample reviews across multiple products
 - 3 voucher codes (WELCOME10, SUMMER15, FLAT5)
@@ -263,7 +263,7 @@ LAN IP for a physical device. Push registration additionally requires
 | Forgot / Reset Password | ✅ | Gmail SMTP, hashed token in DB |
 | Change Password | ✅ | bcrypt verify old → hash new |
 | Profile update (name, email, phone) | ✅ | Persists to DB via `PUT /api/auth/me` |
-| Birth date field | ✅ | Stored in localStorage (no DB column). UI shows dirty state correctly |
+| Date of birth field | ✅ | Persisted in the DB (`User.dateOfBirth`, migration `20260906120000`); changing it uses the OTP-guarded sensitive-change flow |
 | Logout confirmation modal | ✅ | Account page sidebar |
 | Navbar logout | ⚠️ | Navbar logout skips confirmation modal (logs out directly) |
 | Product listing | ✅ | ACTIVE products only, live DB stock, In Stock filter |
@@ -401,7 +401,7 @@ EXPO_PUSH_ENABLED    # "true" to dispatch through Expo's push service
 
 These are confirmed in the current codebase and do not need revisiting:
 
-- **Database/Prisma** — migration applied, seed runs, all tables created on Neon
+- **Database/Prisma** — migrations applied, seed runs, all tables created on Supabase (Postgres)
 - **Admin credentials** — seeded as `admin@repixl-admin.com` with correct hashed password
 - **Google OAuth** — `POST /api/auth/oauth` creates DB user + sets HTTP-only cookie; redirect works after login
 - **Cart race condition** — auth hydrates before cart in `cart/page.tsx` and `checkout/page.tsx`
@@ -424,6 +424,12 @@ These are confirmed in the current codebase and do not need revisiting:
 - **Product listing** — awaits DB hydration before showing results; "In Stock Only" filter added; count reflects filtered set
 - **PayMongo redirect URLs** — trailing slash stripped from `NEXT_PUBLIC_SITE_URL`
 - **Mobile integration** — native sessions, bearer access across customer APIs, checkout, orders, returns, reviews, and notifications
+- **Context-aware Back navigation** — the Cameras catalog shows a Back button only when reached from a homepage promo (`from=home`); About no longer shows a generic Back button (`docs/back-navigation.md`)
+- **Navbar avatar sync** — the navbar avatar reflects the current `authStore` user
+- **Payment success navigation** — the success page fetches the real order from the API (no localStorage reliance)
+- **In-app notification redesign** — concise, human-readable in-app content with a shared dropdown/page row component and category system (`docs/notifications.md`)
+- **Notification content sanitization** — legacy malformed notification records are rendered safely at read time; no raw tokens/JSON reach customers
+- **Gmail email redesign** — all outgoing emails share a light, Gmail-compatible design system (`src/lib/email`) with an offline preview generator (`scripts/email-previews.mjs`); see `docs/emails.md`
 
 ---
 
@@ -432,8 +438,8 @@ These are confirmed in the current codebase and do not need revisiting:
 - **Navbar logout** — the dropdown "Log Out" button logs out immediately without a confirmation modal (the modal only exists on the Account page sidebar)
 - **PayMongo payment methods** — at least one method must be activated in PayMongo Dashboard → Settings → Payment Methods (Live mode). If none are active, the checkout page shows "No payment methods available" — this is a PayMongo account configuration issue, not a code bug
 - **Mobile migrations** — deploy `20260910000000_add_mobile_sessions` and `20260910000001_add_push_tokens` before native login or push registration can work against a real database
-- **Birth date** — stored in localStorage per user email key (`repixl-birthdate-{email}`), not in the PostgreSQL database (no `birthDate` column in the `User` model). Changing email breaks the birthdate lookup
 - **Saved payment cards** — stored in localStorage per user (`repixl-payments-{email}`), not in the database
+- **Mobile AI concierge tests failing** — 9 tests in `src/lib/mobile-features.test.ts` (8) and `src/lib/mobile-all-modules.test.ts` (1) fail because `generateAiResponse` output no longer matches the expected support copy (condition grading, tracking, returns, recommendations, payments, escalation, consignment, general). Pre-existing; the rest of the suite passes
 - **Admin `/products` page** — renders a stub "Product management coming soon" — the actual camera management is at `/admin/cameras`
 - **Compare page keyboard accessibility** — picker dialog lacks `aria-modal` and a complete focus trap
 - **`setHydrated` timing in admin dashboard** — now fixed with `await` but the `customerCount` fetch is fire-and-forget; in slow networks the count shows `—` briefly
@@ -459,8 +465,7 @@ These are confirmed in the current codebase and do not need revisiting:
 ## 15. Recommended Next Steps
 
 1. **Enable PayMongo payment methods** — in PayMongo Dashboard (Live mode) → Settings → Payment Methods → activate Card and/or GCash
-2. **Add birthDate to the User DB schema** — add `birthDate DateTime?` column to Prisma schema, migrate, update `PUT /api/auth/me` to accept and store it
-3. **Move saved cards to DB** — add a `SavedCard` model to Prisma (store payment provider token, not raw card data)
+2. **Move saved cards to DB** — add a `SavedCard` model to Prisma (store payment provider token, not raw card data)
 4. **Navbar logout confirmation** — add a state + modal to `Navbar.tsx` mirroring the Account page implementation
 5. **Admin /products page** — the stub at `/admin/products` confuses navigation; either redirect to `/admin/cameras` or build it out
 6. **Run live payment test** — activate at least one payment method in PayMongo Dashboard, then do an end-to-end test purchase in live mode

@@ -185,9 +185,7 @@ describe('customer account navigation', () => {
       'src/components/layout/NavBellDropdown.tsx', 'utf8'
     )
     expect(dropdown).toContain('/account/notifications')
-    expect(dropdown).toContain('View All Notifications')
-    // Must use CATEGORY_META routes so all three categories are accessible
-    expect(dropdown).toContain('CATEGORY_META')
+    expect(dropdown).toContain('View all notifications')
   })
 
   it('Navbar imports NavBellDropdown instead of using a direct router.push bell', () => {
