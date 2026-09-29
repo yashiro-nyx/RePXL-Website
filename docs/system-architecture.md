@@ -1,6 +1,6 @@
 # RePXL — System Architecture Diagram
 
-> **Accuracy note (last reviewed during the documentation audit):** the stack, payment gateway (PayMongo), email (Gmail SMTP), image CDN (Cloudinary), and auth model shown below reflect the current implementation. The diagrams focus on the core browse/purchase path; additional implemented subsystems not drawn here include Returns & refunds, customer MFA (TOTP) and OTP-guarded sensitive changes, in-app + email notifications, the CMS (pages/banners/homepage blocks), order tracking (SSE), and Supabase Row-Level Security (defense-in-depth). For the fullest, evidence-based map see [`kiro-repository-onboarding.md`](./kiro-repository-onboarding.md).
+> **Accuracy note (last reviewed during the documentation audit):** the stack, payment gateway (PayMongo), email (Gmail SMTP), image CDN (Cloudinary), and auth model shown below reflect the current implementation. The diagrams focus on the core browse/purchase path; additional implemented subsystems not drawn here include Returns & refunds, customer MFA (TOTP) and OTP-guarded sensitive changes, in-app + email notifications, the CMS (pages/banners/homepage blocks), order tracking (SSE), Supabase Row-Level Security (defense-in-depth), and the storefront floating **AI Concierge chat widget** (client-side, local rule-based logic shared with the mobile app — no chat backend; see [`chat-widget.md`](./chat-widget.md)). For the fullest, evidence-based map see [`kiro-repository-onboarding.md`](./kiro-repository-onboarding.md).
 
 ## High-Level Overview
 

@@ -154,7 +154,7 @@ _Maintained per the documentation-synchronization rule in [`AGENTS.md`](../AGENT
 |---|---|---|
 | Type check | `npx tsc --noEmit` | ✅ Clean |
 | Production build | `npm run build` | ✅ Succeeds — 68/68 static pages generated |
-| Test suite | `npx vitest run` | ⚠️ **932 passed, 9 failed, 47 skipped** (988 tests across 58 files) |
+| Test suite | `npx vitest run` | ⚠️ **957 passed, 9 failed, 47 skipped** (1013 tests across 60 files) |
 
 Deployment: live on Vercel at `https://repxlph.vercel.app`; database on Supabase (PostgreSQL) with 14 tracked Prisma migrations applied on deploy.
 
@@ -166,6 +166,7 @@ Deployment: live on Vercel at `https://repxlph.vercel.app`; database on Supabase
 - In-app notification redesign (concise content, shared dropdown/page components, category system) — `docs/notifications.md`.
 - Notification content sanitization for legacy/malformed records — `docs/notifications.md`.
 - Gmail email redesign onto a shared, Gmail-compatible design system with an offline preview generator — `docs/emails.md`.
+- Floating website AI Concierge chat widget reusing the mobile app's local rule-based concierge logic (automated assistant, no chat backend) — `docs/chat-widget.md`. Note: this addresses the storefront side of the "Live Chat or AI" item; no cross-device conversation history (see doc).
 
 ### Known limitations / pending (not marked complete)
 
