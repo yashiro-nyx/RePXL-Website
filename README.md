@@ -284,6 +284,7 @@ prisma generate && prisma migrate deploy && next build
 - ✅ In-app notification redesign with concise, human-readable content and shared dropdown/page components — see [`docs/notifications.md`](./docs/notifications.md)
 - ✅ Notification content sanitization (legacy malformed records rendered safely; no raw tokens/JSON reach customers)
 - ✅ Gmail email redesign onto a shared, light, Gmail-compatible email design system with an offline preview generator — see [`docs/emails.md`](./docs/emails.md)
+- ✅ Floating website AI Concierge chat widget that reuses the mobile app's local rule-based concierge logic (automated assistant, not human live-chat; no chat backend) — see [`docs/chat-widget.md`](./docs/chat-widget.md)
 
 **Pending / manual action required:**
 - Activate payment methods in PayMongo Dashboard (Live mode)
@@ -295,7 +296,7 @@ prisma generate && prisma migrate deploy && next build
 ### Verification snapshot (last audit)
 - `npx tsc --noEmit` — clean
 - `npm run build` — succeeds (68/68 static pages)
-- `npx vitest run` — **932 passed, 9 failed, 47 skipped** (988 tests, 58 files). The 9 failures are isolated to the mobile AI concierge feature noted above; live Gmail rendering and live PayMongo payments were not tested.
+- `npx vitest run` — **957 passed, 9 failed, 47 skipped** (1013 tests, 60 files). The 9 failures are isolated to the mobile AI concierge content-assertion tests noted above (pre-existing; not affected by the chat widget); live Gmail rendering and live PayMongo payments were not tested.
 
 For full developer context, see [`HANDOFF.md`](./HANDOFF.md).
 

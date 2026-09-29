@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { Inter, JetBrains_Mono } from 'next/font/google'
 import { ConditionalNavbar } from '@/components/layout/ConditionalNavbar'
+import { ConditionalChatWidget } from '@/components/chat/ConditionalChatWidget'
 import { GlobalToast } from '@/components/ui/GlobalToast'
 import { AuthProvider } from '@/components/auth/AuthProvider'
 import { NavigationHistoryProvider } from '@/hooks/useNavigationHistory'
@@ -56,6 +57,7 @@ export default function RootLayout({
             <ConditionalNavbar />
             <GlobalToast />
             {children}
+            <ConditionalChatWidget />
           </NavigationHistoryProvider>
         </AuthProvider>
       </body>

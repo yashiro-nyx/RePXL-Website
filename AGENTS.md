@@ -74,6 +74,7 @@ required no documentation change, state that explicitly and why.
 | `docs/back-navigation.md` | Back-navigation design |
 | `docs/notifications.md` | In-app notification pipeline & formatting |
 | `docs/emails.md` | Outgoing email design system |
+| `docs/chat-widget.md` | Website floating AI Concierge chat widget |
 | `docs/mobile-app-development-plan.md` | React Native app plan |
 | `docs/kiro-repository-onboarding.md` | Repository onboarding |
 
