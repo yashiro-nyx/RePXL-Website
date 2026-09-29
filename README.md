@@ -277,6 +277,7 @@ prisma generate && prisma migrate deploy && next build
 - ✅ React Native customer app with shared API/database integration
 
 **Recent refinements (completed):**
+- Mobile FAQ layout: content-sized category row, centered touch targets, and a question list with bottom safe-area padding. Mobile typecheck and 3 focused FAQ data tests passed; native visual verification remains pending. See [`react-native/README.md`](./react-native/README.md#customer-support-layout).
 - ✅ Context-aware Back navigation on the Cameras catalog (`from=home`) and removed the generic About Back button — see [`docs/back-navigation.md`](./docs/back-navigation.md)
 - ✅ Navbar avatar synchronization from `authStore`
 - ✅ Payment success navigation (success page fetches the real order from the API)

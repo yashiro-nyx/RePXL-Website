@@ -160,6 +160,10 @@ Deployment: live on Vercel at `https://repxlph.vercel.app`; database on Supabase
 
 ### Recent refinements (verified in code)
 
+- [x] Mobile FAQ layout fix (2026-09-29): prevent the horizontal category scroller from growing vertically, center category labels with 44-point minimum touch targets, and reserve remaining space for the question list with bottom safe-area padding. Filtering/expansion taps work with the search keyboard open; list dragging dismisses it.
+  - Verification: `cd react-native; npx tsc --noEmit` passed. `npx vitest run src/lib/mobile-features.test.ts -t 'Mobile Bundled FAQs Data Integrity'`: 3 passed, 16 skipped. Broader `npx vitest run src/lib/mobile-features.test.ts src/lib/mobile-all-modules.test.ts -t 'FAQ'`: 6 passed, 1 existing AI concierge failure, 39 skipped (the support group name also matches FAQ).
+  - Android production export passed: from `react-native`, `npx expo export --platform android --output-dir .expo/support-layout-check` (1,536 modules). Native layout/large-font/keyboard visual checks remain pending; the data tests do not verify rendering. Root `npm run build` was not run because it does not compile the mobile app.
+
 - Context-aware Back navigation on the Cameras catalog + About Back button removed — `docs/back-navigation.md`.
 - Navbar avatar synchronization from `authStore`.
 - Payment success navigation reads the real order from the API.

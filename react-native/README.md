@@ -39,7 +39,24 @@ Only intentionally public Expo variables belong here. Keep `DATABASE_URL`,
 `DIRECT_URL`, PayMongo secrets, Cloudinary secrets, `NEXTAUTH_SECRET`, MFA
 keys, mail credentials, and webhook secrets in the server environment.
 
-## Commands
+## Customer Support layout
+
+The FAQ category row in `app/support.tsx` sizes to its content instead of
+expanding into the question list's space. Categories scroll horizontally with
+centered labels and a minimum 44-point touch height. The question list fills
+the remaining space and includes bottom safe-area padding. Filters and FAQ
+cards respond while the search keyboard is open; dragging the list dismisses it.
+
+Verification (2026-09-29): mobile `npx tsc --noEmit` passed; the focused FAQ
+data suite passed (3 tests, 16 skipped). The broader `-t 'FAQ'` run selected
+the whole support group as well (6 passed, 1 existing AI concierge failure,
+39 skipped). These tests cover data/filtering, not native layout rendering.
+Android production export passed with `npx expo export --platform android
+--output-dir .expo/support-layout-check` (1,536 modules). The root website
+build was not run because it does not compile this app. Visual checks on a
+refreshed native build remain pending.
+
+## Development commands
 
 ```sh
 npm install

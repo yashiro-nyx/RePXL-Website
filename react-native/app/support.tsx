@@ -723,7 +723,9 @@ How can I help you today? Feel free to ask about:
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
+              style={styles.categoryViewport}
               contentContainerStyle={styles.categoryScroll}
+              keyboardShouldPersistTaps="handled"
             >
               {FAQ_CATEGORIES.map((cat) => (
                 <TouchableOpacity
@@ -731,6 +733,8 @@ How can I help you today? Feel free to ask about:
                   style={[styles.catChip, faqCategory === cat && styles.catChipActive]}
                   onPress={() => setFaqCategory(cat)}
                   activeOpacity={0.7}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: faqCategory === cat }}
                 >
                   <Text style={[styles.catChipText, faqCategory === cat && styles.catChipTextActive]}>
                     {cat}
@@ -740,7 +744,12 @@ How can I help you today? Feel free to ask about:
             </ScrollView>
 
             {/* FAQ Items */}
-            <ScrollView contentContainerStyle={styles.faqList}>
+            <ScrollView
+              style={styles.faqViewport}
+              contentContainerStyle={[styles.faqList, { paddingBottom: insets.bottom + 24 }]}
+              keyboardShouldPersistTaps="handled"
+              keyboardDismissMode="on-drag"
+            >
               {filteredFaqs.length === 0 ? (
                 <View style={styles.emptyWrap}>
                   <Feather name="search" size={32} color="#444" />
@@ -1428,8 +1437,13 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   searchInput: { flex: 1, color: '#fff', fontFamily: 'Inter_400Regular', fontSize: 14 },
-  categoryScroll: { paddingHorizontal: 16, paddingVertical: 10, gap: 8 },
+  // Keep this horizontal scroller from sharing the FAQ list's remaining height.
+  categoryViewport: { flexGrow: 0, flexShrink: 0 },
+  categoryScroll: { paddingHorizontal: 16, paddingVertical: 12, gap: 8, alignItems: 'center' },
   catChip: {
+    minHeight: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
     backgroundColor: '#1a1a1c',
     borderRadius: 14,
     paddingHorizontal: 12,
@@ -1438,9 +1452,10 @@ const styles = StyleSheet.create({
     borderColor: '#262628',
   },
   catChipActive: { backgroundColor: '#c62828', borderColor: '#c62828' },
-  catChipText: { fontFamily: 'Inter_500Medium', fontSize: 11, color: '#888' },
+  catChipText: { fontFamily: 'Inter_500Medium', fontSize: 12, color: '#aaa' },
   catChipTextActive: { color: '#fff' },
-  faqList: { paddingHorizontal: 16, paddingBottom: 24, gap: 10 },
+  faqViewport: { flex: 1 },
+  faqList: { paddingHorizontal: 16, gap: 10 },
   faqCard: {
     backgroundColor: '#161618',
     borderWidth: 1,
