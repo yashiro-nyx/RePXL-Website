@@ -95,6 +95,17 @@ npm install
 
 The mobile app has its own dependencies:
 
+For installation/startup troubleshooting and the distinction between Expo Go
+and an installed development APK, see the [mobile startup diagnostic](./react-native/README.md#startup-diagnostic-2026-10-01).
+For an Expo-style development launcher versus a standalone APK, see the
+[EAS APK installation diagnostic](./react-native/README.md#eas-apk-installation-diagnostic-2026-10-01).
+The supplied EAS build was confirmed as a completed RePXL development client;
+completed preview APKs also exist, while the reported parsing failure remains
+unverified pending artifact and device details.
+A fresh [standalone preview build](https://expo.dev/accounts/vaelarr/projects/repxl/builds/37422cf1-4fb7-452e-a0cd-41761aa351d6)
+was submitted on 2026-10-01; its last checked status was `IN_PROGRESS`, with
+device installation still pending.
+
 For the Expo development-client install error involving
 `autoAddConfigPlugins.js`, see the [mobile CLI recovery steps](./react-native/README.md#recovery-after-expo-installs-the-development-client).
 

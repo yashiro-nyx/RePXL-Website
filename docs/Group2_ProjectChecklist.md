@@ -167,6 +167,39 @@ _Maintained per the documentation-synchronization rule in [`AGENTS.md`](../AGENT
 
 ### Verification snapshot (latest documentation audit)
 
+- **Requested standalone APK rebuild (2026-10-01):** EAS preview build
+  `37422cf1-4fb7-452e-a0cd-41761aa351d6` uploaded and submitted successfully;
+  last checked cloud status `IN_PROGRESS`, package `com.repxl.mobile`, version
+  code 1. Existing signing credentials reused. Mobile TypeScript passed and
+  Expo dependency compatibility check passed. No source changes, Vitest run,
+  or root Next.js build; cloud completion and APK/device installation pending.
+
+- **EAS APK installation follow-up (2026-10-01):** inspected `app.json` and
+  `eas.json`; development builds intentionally include the Expo launcher,
+  while preview builds already request standalone APKs. User-reported parsing
+  failure remains unresolved without the actual artifacts and phone details;
+  no local APK or adb device was available. No source/config changes, EAS
+  builds, installs, or repeated automated checks were performed. Instructions
+  and verification limits are recorded in `react-native/README.md`.
+  Subsequent EAS CLI inspection confirmed supplied build
+  `653750f0-8473-4805-997f-76ba679b0e97` is FINISHED, development profile,
+  `com.repxl.mobile`, version code 1. The latest five Android builds include
+  finished preview/production APKs. Slow artifact download was stopped;
+  APK manifest/signature/integrity and phone installation remain unverified.
+  No new cloud build, source change, or repeated automated checks performed.
+
+- **Mobile startup audit (2026-10-01):** mobile `npx.cmd tsc --noEmit`
+  passed; `npx.cmd expo install --check` reported compatible dependencies;
+  Expo Doctor passed **21/21** checks; isolated offline Metro startup on port
+  8099 succeeded; Android production export to `.expo/startup-audit` passed
+  (**1,536 modules**). `expo-dev-client` makes the default launch target an
+  installed development APK; Expo Go requires explicit `--go`. No Android
+  device was visible to adb; no mobile environment file existed, so the hosted
+  API fallback applied. JDK 17 was available through `JAVA_HOME`, despite Java 8
+  on PATH. No application code changed; Vitest and root Next.js build were not
+  run. APK build/install, device execution, and the original reported failure
+  remain unverified. See `react-native/README.md` for startup instructions.
+
 | Check | Command | Result |
 |---|---|---|
 | Type check | `npx tsc --noEmit` | ✅ Clean |
