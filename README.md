@@ -94,6 +94,9 @@ npm install
 
 The mobile app has its own dependencies:
 
+For the Expo development-client install error involving
+`autoAddConfigPlugins.js`, see the [mobile CLI recovery steps](./react-native/README.md#recovery-after-expo-installs-the-development-client).
+
 ```powershell
 Set-Location react-native
 npm install

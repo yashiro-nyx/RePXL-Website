@@ -15,6 +15,23 @@
 
 **PROJECT CHECKLIST**
 
+### Expo development-client CLI recovery (2026-10-01)
+
+- [x] Verified the installed SDK 57 CLI contains `autoAddConfigPlugins.js` in
+  `react-native/node_modules/expo/node_modules/@expo/cli`. The old top-level CLI
+  path in the error no longer exists; relocation during npm installation is the
+  likely cause. Re-ran the failed plugin-application step successfully in a
+  fresh Node process; preserved the existing development-client dependency edits.
+- [x] Mobile TypeScript check passed after regenerating ignored Expo route types
+  (initial check: four stale-route errors). Android production export passed:
+  1,536 modules in `.expo/dev-client-check`, with `EXPO_OFFLINE=1`.
+- [x] Documented recovery and Windows `.cmd` commands in `react-native/README.md`.
+- [ ] SDK compatibility check reports four newer patches: Expo 57.0.26, camera
+  57.0.6, constants 57.0.20, router 57.0.24. Updates and audit remediation pending.
+- [ ] EAS native build and device runtime verification remain pending. Vitest
+  and root `npm run build` were not run: no app logic changed and the website
+  build does not compile the mobile app.
+
 ## I. Core Application Architecture 
 
 - [x] ~~Modular Design~~  

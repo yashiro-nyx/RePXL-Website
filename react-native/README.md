@@ -58,6 +58,44 @@ refreshed native build remain pending.
 
 ## Development commands
 
+### Recovery after Expo installs the development client
+
+If installation finishes but the running CLI reports missing
+`./utils/autoAddConfigPlugins.js`, retry from a fresh terminal in `react-native`.
+On 2026-10-01, npm had relocated `@expo/cli` from the top-level `node_modules`
+into `node_modules/expo/node_modules`; the new CLI contained the missing file.
+The failed plugin-application step passed when invoked in a fresh Node process.
+`expo-dev-client` is already recorded in `package.json` and `package-lock.json`.
+
+```powershell
+cd D:\Development\RePXL-Website\react-native
+npx.cmd expo install expo-dev-client
+npx.cmd eas-cli build --platform android --profile development
+```
+
+The second command starts a cloud development build. For a local Android build
+with the Android SDK installed, use `npm.cmd run android` instead. The `.cmd`
+suffix avoids PowerShell's disabled-script error for npm/npx wrappers.
+If a fresh process still reports missing installed files, stop Metro and run
+`npm.cmd ci` in this directory to restore dependencies from the existing lockfile.
+The deprecation and audit warnings are separate from this CLI error; do not use
+`npm audit fix --force` as a missing-module repair.
+
+The SDK compatibility check on 2026-10-01 reported newer patches for `expo`
+(`~57.0.26`), `expo-camera` (`~57.0.6`), `expo-constants` (`~57.0.20`), and
+`expo-router` (`~57.0.24`). These updates and vulnerability remediation remain
+pending; the recovery does not upgrade dependencies or verify an EAS native build.
+
+Verification: the original plugin-application step passed. Mobile
+`npx.cmd tsc --noEmit` passed after regenerating the ignored `.expo/types` route
+declarations using Expo's installed route generator (the initial check had four
+stale-route errors). Android production export passed with 1,536 modules:
+`npx.cmd expo export --platform android --output-dir .expo/dev-client-check`
+with `EXPO_OFFLINE=1`. No application code changed, so Vitest and the separate
+root Next.js production build were not run. Device testing remains pending.
+
+### Local commands
+
 ```sh
 npm install
 npm run typecheck
