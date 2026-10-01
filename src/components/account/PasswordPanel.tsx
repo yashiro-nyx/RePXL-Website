@@ -1,5 +1,6 @@
 'use client'
 
+import { messageFromApiBody } from '@/lib/errors/client-errors'
 import { useState, useEffect } from 'react'
 import { Button, PasswordInput } from '@/components/ui'
 import { useAuthStore } from '@/stores/authStore'
@@ -9,6 +10,7 @@ export default function PasswordPanel() {
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [saved, setSaved] = useState(false)
+  const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const changePassword = useAuthStore((s) => s.changePassword)
 
@@ -17,10 +19,10 @@ export default function PasswordPanel() {
   const [hasPassword, setHasPassword] = useState<boolean | null>(null)
 
   useEffect(() => {
-    fetch('/api/auth/me', { credentials: 'include', cache: 'no-store' })
-      .then((r) => r.json())
-      .then((j) => { if (typeof j?.data?.hasPassword === 'boolean') setHasPassword(j.data.hasPassword) })
-      .catch(() => setHasPassword(true)) // conservative default: show change-password form
+    fetch('/api/auth/me?scope=customer', { credentials: 'include', cache: 'no-store' })
+      .then((r) => { if (!r.ok) throw new Error('Could not load settings'); return r.json() })
+      .then((j) => { if (typeof j?.data?.hasPassword !== 'boolean') throw new Error('Could not load settings'); setHasPassword(j.data.hasPassword) })
+      .catch(() => setError("We couldn't load your password settings. Please refresh the page."))
   }, [])
 
   const passwordRequirements = [
@@ -35,11 +37,11 @@ export default function PasswordPanel() {
   const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
-    if (!currentPassword.trim()) { setError('Enter your current password.'); return }
-    if (!allMet) { setError('New password does not meet requirements.'); return }
-    if (newPassword !== confirmPassword) { setError('Passwords do not match.'); return }
+    if (!currentPassword.trim()) { setError('Enter your current password to continue.'); return }
+    if (!allMet) { setError('Please choose a password that meets all the requirements below.'); return }
+    if (newPassword !== confirmPassword) { setError("Your new passwords don't match."); return }
     const success = await changePassword(currentPassword, newPassword)
-    if (!success) { setError('Current password is incorrect.'); return }
+    if (!success) { setError('The current password you entered is incorrect.'); return }
     setSaved(true)
     setCurrentPassword(''); setNewPassword(''); setConfirmPassword('')
     setTimeout(() => setSaved(false), 3000)
@@ -47,9 +49,11 @@ export default function PasswordPanel() {
 
   const handleSetPassword = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (saving) return
     setError('')
-    if (!allMet) { setError('Password does not meet requirements.'); return }
-    if (newPassword !== confirmPassword) { setError('Passwords do not match.'); return }
+    if (!allMet) { setError('Please choose a password that meets all the requirements below.'); return }
+    if (newPassword !== confirmPassword) { setError("Your new passwords don't match."); return }
+    setSaving(true)
     try {
       const res = await fetch('/api/auth/set-password', {
         method: 'POST',
@@ -64,12 +68,16 @@ export default function PasswordPanel() {
         setHasPassword(true) // account now has a password
         setTimeout(() => setSaved(false), 3000)
       } else {
-        setError(data.error ?? 'Failed to set password. Please try again.')
+        setError(messageFromApiBody(data, res.status))
       }
     } catch {
       setError('Network error. Please try again.')
+    } finally {
+      setSaving(false)
     }
   }
+
+  if (hasPassword === null) return <p role={error ? 'alert' : 'status'}>{error || 'Loading password settings…'}</p>
 
   return (
     <div className="space-y-4">
@@ -140,10 +148,13 @@ export default function PasswordPanel() {
               type="submit"
               variant="primary"
               size="md"
-              disabled={hasPassword === null || !allMet}
+              disabled={hasPassword === null || !allMet || saving}
+              loading={saving}
               className={!allMet ? 'opacity-50 cursor-not-allowed' : ''}
             >
-              {hasPassword === false ? 'Set RePXL Password' : 'Update Password'}
+              {hasPassword === false
+                ? saving ? 'Setting password…' : 'Set RePXL Password'
+                : 'Update Password'}
             </Button>
             {saved && (
               <span className="flex items-center gap-1.5 text-sm text-repixl-success" role="status">
@@ -155,22 +166,6 @@ export default function PasswordPanel() {
         </form>
       </div>
 
-      <div className="rounded-xl border border-repixl-muted/10 bg-repixl-charcoal p-6">
-        <h3 className="mb-4 font-mono text-[10px] uppercase tracking-widest text-repixl-muted">Recent Activity</h3>
-        <dl className="space-y-2.5">
-          {[
-            { label: 'Last Login', value: 'Today' },
-            { label: 'Account Created', value: new Date().toLocaleDateString() },
-            { label: 'Profile Last Updated', value: new Date().toLocaleDateString() },
-          ].map((item) => (
-            <div key={item.label} className="flex items-center justify-between rounded-lg bg-repixl-bg/50 px-3 py-2.5">
-              <dt className="text-xs text-repixl-text-light/60">{item.label}</dt>
-              <dd className="font-mono text-xs text-repixl-text-light">{item.value}</dd>
-            </div>
-          ))}
-        </dl>
-      </div>
     </div>
   )
 }
-

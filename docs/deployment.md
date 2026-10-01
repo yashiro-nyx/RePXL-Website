@@ -229,3 +229,38 @@ git push -u origin main
 `.env`, `.env.local`, and `node_modules` are already gitignored, so no secrets get
 committed. The `prisma/migrations/` folder **is** committed — that's what lets
 `prisma migrate deploy` build the tables.
+
+
+### Security flow and local build isolation (2026-10-01)
+
+Production builds continue using `.next`; local development now uses `.next-dev`
+to prevent a build from replacing live development chunks. Both outputs are
+generated and ignored. No database migration, credential rotation or environment
+change is required for the password step-up repair. Existing recent-auth cookies
+without the new method/session binding are rejected and users verify again.
+Normal Google authentication is retained; MFA management requires password
+step-up and a valid second factor for disabling/regenerating recovery codes.
+MFA's serialized Prisma transactions explicitly allow 10 seconds to acquire and
+30 seconds to execute; this prevents a slow reachable pooler from expiring the
+five-second Prisma default while keeping a bounded failure window. A `P1001`
+still indicates connectivity and must be investigated separately.
+See [Security test results and remaining live checks](./security-step-up.md)
+before declaring the complete MFA workflow verified.
+
+Production auth configuration must use a complete canonical origin:
+
+- `NEXTAUTH_URL`: absolute HTTPS origin with scheme and no path, used by
+  NextAuth and the security POST origin allowlist.
+- `NEXT_PUBLIC_SITE_URL`: absolute public HTTPS URL for emails and payment
+  redirects. It is not the CSRF authority.
+- `NEXTAUTH_SECRET`, Google client variables, and `MFA_ENCRYPTION_KEY`: required
+  server-side secrets. Keep their existing values private.
+
+The 2026-10-01 Vercel audit found every required variable name, but runtime logs
+proved `NEXTAUTH_URL` was stored as a bare hostname. Correct that one variable
+and redeploy before production MFA verification. The source now fails closed on
+an invalid URL instead of throwing, but a valid production origin is still
+required. Confirm Google's authorized redirect list includes
+`https://repxlph.vercel.app/api/auth/callback/google`; application metadata
+already generates that callback, while provider-console registration was not
+verified in this audit.

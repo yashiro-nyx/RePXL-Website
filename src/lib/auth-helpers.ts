@@ -1,5 +1,5 @@
 import { cookies, headers } from 'next/headers'
-import { createHmac, timingSafeEqual } from 'crypto'
+import { createHash, createHmac, timingSafeEqual } from 'crypto'
 import { prisma } from './prisma'
 import { getMobileUserFromAccessToken } from './mobile-auth'
 
@@ -267,8 +267,8 @@ export async function customerMfaSessionVersion(): Promise<number> {
 
 // ─── Recent Re-Authentication ───────────────────────────────────────────────────
 // Customers must re-verify identity before accessing sensitive Security pages.
-// Window: 12 minutes. State is canonical in the DB; cookie carries only a signed
-// userId claim so it cannot be forged or replayed across logouts.
+// Window: 12 minutes. The signed cookie binds the user, verification method,
+// issue time and exact customer session; the DB record controls expiry/revocation.
 
 export const RECENT_AUTH_COOKIE = 'repixl-recent-auth'
 export const RECENT_AUTH_WINDOW_MS = 12 * 60 * 1000   // 12 minutes
@@ -278,10 +278,12 @@ const RECENT_AUTH_ATTEMPT_WINDOW_MS = 10 * 60 * 1000
 
 /**
  * Issue a short-lived recent-auth cookie and persist the canonical record in the DB.
- * The cookie payload is `{userId}.{hmac}` — cannot be forged without NEXTAUTH_SECRET.
+ * The cookie signs userId, method, issue time and a digest of the current session.
  * Called after the customer successfully re-verifies their identity.
  */
-export async function setRecentAuthCookie(userId: string): Promise<void> {
+export type SecurityVerificationMethod = 'password' | 'google' | 'email' | 'totp'
+
+export async function setRecentAuthCookie(userId: string, method: SecurityVerificationMethod): Promise<void> {
   const now = new Date()
   const expiresAt = new Date(now.getTime() + RECENT_AUTH_WINDOW_MS)
 
@@ -293,7 +295,7 @@ export async function setRecentAuthCookie(userId: string): Promise<void> {
   })
 
   // Issue signed cookie
-  const token = createRecentAuthToken(userId)
+  const token = createRecentAuthToken(userId, method, now.getTime(), await securitySessionBinding())
   const cookieStore = await cookies()
   cookieStore.set(RECENT_AUTH_COOKIE, token, {
     httpOnly: true,
@@ -325,7 +327,7 @@ export async function clearRecentAuthCookie(): Promise<void> {
  *
  * Does NOT throw — returns false for any failure so callers can redirect to the gate.
  */
-export async function checkRecentAuth(userId: string): Promise<boolean> {
+export async function checkRecentAuth(userId: string, method?: SecurityVerificationMethod | 'ownership', db: Pick<typeof prisma, 'recentAuthRecord'> = prisma): Promise<boolean> {
   try {
     let authorization: string | null = null
     try {
@@ -335,19 +337,21 @@ export async function checkRecentAuth(userId: string): Promise<boolean> {
     const bearer = authorization?.match(/^Bearer\s+([^\s]+)$/i)?.[1]
     if (bearer) {
       const mobileUser = await getMobileUserFromAccessToken(bearer)
-      if (mobileUser && mobileUser.id === userId) return true
+      if (!method && mobileUser && mobileUser.id === userId) return true
     }
 
     const cookieStore = await cookies()
     const raw = cookieStore.get(RECENT_AUTH_COOKIE)?.value
     if (!raw) return false
 
-    const cookieUserId = verifyRecentAuthToken(raw)
-    if (!cookieUserId || cookieUserId !== userId) return false
+    const claim = verifyRecentAuthToken(raw)
+    if (!claim || claim.userId !== userId || (method && method !== 'ownership' && claim.method !== method)) return false
+    if (!claim.session || claim.session !== await securitySessionBinding()) return false
+    if (claim.iat > Date.now() || Date.now() - claim.iat >= RECENT_AUTH_WINDOW_MS) return false
 
     // DB is the canonical source — cookie alone is insufficient
-    const record = await prisma.recentAuthRecord.findUnique({ where: { userId } })
-    if (!record) return false
+    const record = await db.recentAuthRecord.findUnique({ where: { userId } })
+    if (!record || record.verifiedAt.getTime() !== claim.iat) return false
     if (record.expiresAt.getTime() <= Date.now()) return false
 
     return true
@@ -362,9 +366,9 @@ export async function checkRecentAuth(userId: string): Promise<boolean> {
  * The response shape matches RePIXL's `unauthorizedResponse()` so API routes
  * can use it with a simple null-check.
  */
-export async function requireRecentAuth(userId: string): Promise<{ status: 401; body: string } | null> {
-  const ok = await checkRecentAuth(userId)
-  if (!ok) return { status: 401, body: JSON.stringify({ success: false, error: 'Recent authentication required.', code: 'RECENT_AUTH_REQUIRED' }) }
+export async function requireRecentAuth(userId: string, method?: SecurityVerificationMethod | 'ownership'): Promise<{ status: 401; body: string } | null> {
+  const ok = await checkRecentAuth(userId, method)
+  if (!ok) return { status: 401, body: JSON.stringify({ success: false, error: 'For your security, verify your identity to continue.', code: 'RECENT_AUTH_REQUIRED' }) }
   return null
 }
 
@@ -373,38 +377,19 @@ export async function requireRecentAuth(userId: string): Promise<{ status: 401; 
  * Returns `{ locked: true }` if the budget is exhausted, `{ locked: false }` otherwise.
  */
 export async function recordRecentAuthFailure(userId: string): Promise<{ locked: boolean }> {
-  const now = new Date()
-  try {
-    const record = await prisma.recentAuthRecord.upsert({
-      where:  { userId },
-      create: {
-        userId,
-        verifiedAt: new Date(0), // sentinel — not actually verified
-        expiresAt:  new Date(0),
-        attempts:   1,
-        windowStart: now,
-      },
-      update: {},
-    })
-
-    const windowExpired = now.getTime() - record.windowStart.getTime() >= RECENT_AUTH_ATTEMPT_WINDOW_MS
-    if (windowExpired) {
-      await prisma.recentAuthRecord.update({
-        where: { userId },
-        data:  { attempts: 1, windowStart: now },
-      })
-      return { locked: false }
-    }
-
-    const newAttempts = record.attempts + 1
-    await prisma.recentAuthRecord.update({
+  return prisma.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT id FROM users WHERE id = ${userId} FOR UPDATE`
+    const now = new Date()
+    const record = await tx.recentAuthRecord.findUnique({ where: { userId } })
+    const windowExpired = !record || now.getTime() - record.windowStart.getTime() >= RECENT_AUTH_ATTEMPT_WINDOW_MS
+    const attempts = windowExpired ? 1 : record.attempts + 1
+    await tx.recentAuthRecord.upsert({
       where: { userId },
-      data:  { attempts: newAttempts },
+      create: { userId, verifiedAt: new Date(0), expiresAt: new Date(0), attempts, windowStart: now },
+      update: { attempts, ...(windowExpired ? { windowStart: now } : {}) },
     })
-    return { locked: newAttempts > RECENT_AUTH_MAX_ATTEMPTS }
-  } catch {
-    return { locked: false }
-  }
+    return { locked: attempts >= RECENT_AUTH_MAX_ATTEMPTS }
+  })
 }
 
 /**
@@ -418,33 +403,40 @@ export async function isRecentAuthLocked(userId: string): Promise<boolean> {
     if (windowExpired) return false
     return record.attempts >= RECENT_AUTH_MAX_ATTEMPTS
   } catch {
-    return false
+    return true
   }
 }
 
 // ── Token helpers ─────────────────────────────────────────────────────────────
 
-function createRecentAuthToken(userId: string): string {
-  const payload = Buffer.from(JSON.stringify({ userId, iat: Date.now() })).toString('base64url')
-  const sig = createHmac('sha256', getSecret()).update(payload).digest('base64url')
-  return `${payload}.${sig}`
+async function securitySessionBinding(): Promise<string> {
+  const token = (await cookies()).get(SESSION_COOKIE)?.value
+  return token ? createHash('sha256').update(token).digest('hex') : ''
 }
 
-function verifyRecentAuthToken(token: string): string | null {
+interface RecentAuthClaim {
+  userId: string
+  iat: number
+  method: SecurityVerificationMethod
+  session: string
+}
+function createRecentAuthToken(userId: string, method: SecurityVerificationMethod, iat: number, session: string): string {
+  const payload = Buffer.from(JSON.stringify({ userId, iat, method, session })).toString('base64url')
+  return `${payload}.${sign(payload)}`
+}
+
+function verifyRecentAuthToken(token: string): RecentAuthClaim | null {
   const parts = token.split('.')
   if (parts.length !== 2) return null
   const [payload, sig] = parts
-  const expected = createHmac('sha256', getSecret()).update(payload).digest('base64url')
+  const expected = sign(payload)
   const sigBuf = Buffer.from(sig)
   const expBuf = Buffer.from(expected)
   if (sigBuf.length !== expBuf.length || !timingSafeEqual(sigBuf, expBuf)) return null
   try {
     const parsed = JSON.parse(Buffer.from(payload, 'base64url').toString('utf-8'))
-    if (typeof parsed?.userId !== 'string') return null
-    return parsed.userId as string
-  } catch {
-    return null
-  }
+    if (typeof parsed?.userId !== 'string' || typeof parsed?.iat !== 'number' ||
+        typeof parsed?.session !== 'string' || !['password', 'email', 'google', 'totp'].includes(parsed?.method)) return null
+    return parsed
+  } catch { return null }
 }
-
-// getSecret() is defined earlier in this file; the recent-auth token helpers above use it.

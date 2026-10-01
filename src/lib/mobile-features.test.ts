@@ -121,7 +121,7 @@ describe('Mobile Recent Auth & Bearer Token Verification', () => {
       status: 401,
       body: JSON.stringify({
         success: false,
-        error: 'Recent authentication required.',
+        error: 'For your security, verify your identity to continue.',
         code: 'RECENT_AUTH_REQUIRED',
       }),
     })

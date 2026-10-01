@@ -10,13 +10,16 @@ export const accountNavigation: NavItem[] = [
   // ── My Account ────────────────────────────────────────────────────────────
   { href: '/account/profile',               label: 'Profile',               group: 'My Account' },
   { href: '/account/addresses',             label: 'Addresses',             group: 'My Account' },
-  { href: '/account/security/password',     label: 'Change Password',       group: 'My Account' },
   {
+    // Security is the single home for password + 2FA. Password is a child here
+    // rather than a separate top-level "Change Password" item (removed) so
+    // security management lives in one place.
     href: '/account/security',
     label: 'Security',
     group: 'My Account',
     children: [
-      { href: '/account/security/mfa', label: 'Two-Factor Auth', group: 'My Account' },
+      { href: '/account/security/password', label: 'Password',        group: 'My Account' },
+      { href: '/account/security/mfa',       label: 'Two-Factor Auth', group: 'My Account' },
     ],
   },
   { href: '/account/notification-settings', label: 'Notification Settings', group: 'My Account' },

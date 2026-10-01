@@ -1,6 +1,6 @@
 # RePXL — System Architecture Diagram
 
-> **Accuracy note (last reviewed during the documentation audit):** the stack, payment gateway (PayMongo), email (Gmail SMTP), image CDN (Cloudinary), and auth model shown below reflect the current implementation. The diagrams focus on the core browse/purchase path; additional implemented subsystems not drawn here include Returns & refunds, customer MFA (TOTP) and OTP-guarded sensitive changes, in-app + email notifications, the CMS (pages/banners/homepage blocks), order tracking (SSE), Supabase Row-Level Security (defense-in-depth), and the storefront floating **AI Concierge chat widget** (client-side, local rule-based logic shared with the mobile app — no chat backend; see [`chat-widget.md`](./chat-widget.md)). For the fullest, evidence-based map see [`kiro-repository-onboarding.md`](./kiro-repository-onboarding.md).
+> **Accuracy note (last reviewed during the documentation audit):** the stack, payment gateway (PayMongo), email (Gmail SMTP), image CDN (Cloudinary), and auth model shown below reflect the current implementation. The diagrams focus on the core browse/purchase path; additional implemented subsystems not drawn here include Returns & refunds, customer MFA (TOTP) and OTP-guarded sensitive changes, in-app + email notifications, the CMS (pages/banners/homepage blocks), order tracking (SSE), Supabase Row-Level Security (defense-in-depth), the storefront floating **AI Concierge chat widget** (client-side, local rule-based logic shared with the mobile app — no chat backend; see [`chat-widget.md`](./chat-widget.md)), and the **Cameras catalog** filtering/sorting/pagination UI (client-side, centralized in `src/lib/catalog-filters.ts`; dynamic-bounds dual-handle price slider, custom sort listbox, real review-backed Rating filter, 12/page pagination reflected in `?page=`; see [`catalog.md`](./catalog.md)). For the fullest, evidence-based map see [`kiro-repository-onboarding.md`](./kiro-repository-onboarding.md).
 
 ## High-Level Overview
 
@@ -251,3 +251,24 @@ External Integrations:
 | Images | Cloudinary |
 | Email | Gmail SMTP (Nodemailer) |
 | Mobile | Expo SDK 57 / React Native |
+
+
+### Security authentication boundary (2026-10-01)
+
+Normal password/Google login establishes the customer session and, when enabled,
+a separate MFA challenge. Sensitive web MFA management requires current-password
+step-up through `/api/auth/recent-auth`; its signed method/session/time claim and
+existing `RecentAuthRecord` are checked by both the HTTP guard and locked MFA
+service. Serialized MFA transactions use explicit bounded Prisma options
+(`maxWait` 10 seconds, `timeout` 30 seconds) because the Supabase pooler can
+exceed Prisma's five-second interactive default while remaining reachable.
+Passwordless customers prove ownership to Set Password first. Google
+login timestamps cannot authorize MFA changes. Email ownership challenges reuse
+the existing recent-auth record for attempts and consumption; no schema change.
+Security POSTs require a parseable browser Origin that matches the actual request
+origin. Development explicitly permits localhost ports 3000 and 3001;
+production permits only the canonical absolute HTTPS `NEXTAUTH_URL`. Invalid
+production URL configuration fails closed. No wildcard trusted origin or auth
+middleware bypass exists.
+See [Security authentication and verification](./security-step-up.md) for the
+complete execution trace, account-type handling and live-verification limits.

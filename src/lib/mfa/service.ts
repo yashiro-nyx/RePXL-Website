@@ -1,5 +1,5 @@
 import { randomBytes } from 'crypto'
-import bcrypt from 'bcryptjs'
+import { checkRecentAuth } from '@/lib/auth-helpers'
 import type { CustomerMfa, Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import {
@@ -16,6 +16,13 @@ import {
 
 const TTL = 5 * 60 * 1000
 const WINDOW = 15 * 60 * 1000
+// MFA uses serialized row locks and several security checks. Supabase pooler
+// round trips can exceed Prisma's 5-second interactive-transaction default
+// while the database remains reachable, so keep a bounded MFA-specific window.
+export const MFA_TRANSACTION_OPTIONS = {
+  maxWait: 10_000,
+  timeout: 30_000,
+} as const
 export const CHALLENGE_COOKIE = 'repixl-mfa-challenge'
 export type MfaAction =
   | 'begin'
@@ -24,10 +31,10 @@ export type MfaAction =
   | 'disable'
   | 'regenerate'
   | 'cancel'
-const denied = () => ({
+const denied = (error = "We couldn't verify your identity. Please try again.") => ({
   ok: false as const,
   status: 401,
-  error: 'Authentication could not be verified.',
+  error,
 })
 const limited = () => ({
   ok: false as const,
@@ -120,7 +127,7 @@ export async function primaryLogin(userId: string, primaryAt = Date.now(), expec
       },
     })
     return { ok: true as const, user, challenge: token, proof: null }
-  })
+  }, MFA_TRANSACTION_OPTIONS)
 }
 
 export async function completeChallenge(token: string, code: string) {
@@ -156,13 +163,13 @@ export async function completeChallenge(token: string, code: string) {
       proof: proof(mfa.version, challenge.primaryAt.getTime()),
       recoveryUsed: used === 'recovery',
     }
-  })
+  }, MFA_TRANSACTION_OPTIONS)
 }
 
 export async function manageMfa(
   userId: string,
   action: MfaAction,
-  input: { password?: string; code?: string; saved?: boolean },
+  input: { code?: string; saved?: boolean },
   primaryAt: number,
   sessionVersion: number
 ) {
@@ -175,12 +182,13 @@ export async function manageMfa(
     if (mfa.version !== sessionVersion) return denied()
     if (!(await attempt(tx, mfa))) return limited()
     if (['begin', 'disable', 'regenerate'].includes(action)) {
-      const recent = user.password
-        ? await bcrypt.compare(input.password ?? '', user.password)
-        : primaryAt > 0 &&
-          primaryAt <= Date.now() &&
-          Date.now() - primaryAt <= TTL
-      if (!recent) return denied()
+      if (!user.password) return {
+        ok: false as const, status: 403,
+        error: 'Set a RePXL password before changing two-factor authentication.',
+      }
+      // The same signed, session-bound verification used by the HTTP guard;
+      // recheck the canonical DB record under the account lock.
+      if (!await checkRecentAuth(userId, 'password', tx)) return denied('Enter your current password to continue.')
     }
     if (action === 'begin') {
       if (mfa.enabledAt) return denied()
@@ -217,10 +225,10 @@ export async function manageMfa(
         !mfa.pendingExpiresAt ||
         mfa.pendingExpiresAt.getTime() <= Date.now()
       )
-        return denied()
+        return denied('Authenticator setup has expired or is already complete. Refresh this page to continue.')
     } else if (!mfa.enabledAt) return denied()
     const used = await factor(tx, mfa, input.code ?? '')
-    if (!used) return denied()
+    if (!used) return denied('That code is incorrect, expired, or already used. Enter a new authenticator code or an unused recovery code.')
     const version = mfa.version + 1
     await tx.customerMfaChallenge.deleteMany({ where: { userId } })
     if (action === 'disable') {
@@ -264,5 +272,33 @@ export async function manageMfa(
         action === 'confirm' ? 'MFA enabled' : 'Recovery codes regenerated',
       recoveryUsed: used === 'recovery',
     }
-  })
+  }, MFA_TRANSACTION_OPTIONS)
+}
+
+/**
+ * Step-up TOTP verification for an MFA-enabled customer.
+ *
+ * Reuses the SAME row lock, rate-limit budget, and anti-replay `factor` used by
+ * login/challenge, so it cannot be replayed and cannot weaken MFA. It does NOT
+ * issue a login proof, change the MFA version, or alter enable/disable state —
+ * it only tells the caller whether the customer proved possession of their
+ * authenticator (or a recovery code). The caller (recent-auth route) issues the
+ * normal recent-auth window on success.
+ *
+ * Returns:
+ *   { ok: true, method: 'totp' | 'recovery' } on a valid code
+ *   { ok: false, status } otherwise (401 not verified, 429 rate-limited, 400 not enabled)
+ */
+export async function verifyStepUpTotp(userId: string, code: string) {
+  encryptionKey()
+  return prisma.$transaction(async (tx) => {
+    const user = await lockedCustomer(tx, userId)
+    if (!user) return { ok: false as const, status: 401 }
+    const mfa = await settings(tx, userId)
+    if (!mfa.enabledAt) return { ok: false as const, status: 400 } // 2FA not enabled
+    if (!(await attempt(tx, mfa))) return { ok: false as const, status: 429 }
+    const used = await factor(tx, mfa, code ?? '')
+    if (!used) return { ok: false as const, status: 401 }
+    return { ok: true as const, method: used }
+  }, MFA_TRANSACTION_OPTIONS)
 }

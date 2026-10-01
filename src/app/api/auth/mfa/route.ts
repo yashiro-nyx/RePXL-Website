@@ -23,7 +23,6 @@ const schema = z.object({
     'regenerate',
     'cancel',
   ]),
-  password: z.string().max(256).optional(),
   code: z.string().max(128).optional(),
   saved: z.boolean().optional(),
 })
@@ -63,7 +62,8 @@ export async function GET() {
         hasPassword: !!account?.password,
       },
     })
-  } catch {
+  } catch (error) {
+    console.error('[mfa] request failed', error)
     return mfaResponse(
       { success: false, error: 'MFA is temporarily unavailable.' },
       503
@@ -84,14 +84,16 @@ export async function POST(request: NextRequest) {
     if (!input.success)
       return mfaResponse({ success: false, error: 'Invalid request' }, 400)
 
-    // Sensitive MFA mutations require recent re-authentication in addition to
-    // the existing per-action password/primaryAt check inside manageMfa.
+    // Sensitive mutations use one authoritative password-verification record.
     const RECENT_AUTH_REQUIRED_ACTIONS = ['begin', 'disable', 'regenerate'] as const
     if ((RECENT_AUTH_REQUIRED_ACTIONS as readonly string[]).includes(input.data.action)) {
-      const recentAuthResult = await requireRecentAuth(user.id)
+      const account = await prisma.user.findUnique({ where: { id: user.id }, select: { password: true } })
+      if (!account?.password) return mfaResponse({ success: false,
+        error: 'Set a RePXL password before changing two-factor authentication.', code: 'PASSWORD_REQUIRED' }, 403)
+      const recentAuthResult = await requireRecentAuth(user.id, 'password')
       if (recentAuthResult) {
         return mfaResponse(
-          { success: false, error: 'Recent authentication required.', code: 'RECENT_AUTH_REQUIRED' },
+          { success: false, error: 'Enter your current password to continue.', code: 'RECENT_AUTH_REQUIRED' },
           recentAuthResult.status
         )
       }
@@ -130,11 +132,12 @@ export async function POST(request: NextRequest) {
       data:
         'codes' in result ? { recoveryCodes: result.codes } : { updated: true },
     })
-  } catch {
+  } catch (error) {
+    console.error('[mfa] request failed', error)
     return mfaResponse(
       {
         success: false,
-        error: 'MFA is temporarily unavailable. Please retry.',
+        error: "We couldn't update two-factor authentication right now. Please try again.",
       },
       503
     )

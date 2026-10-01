@@ -62,6 +62,27 @@ required no documentation change, state that explicitly and why.
 
 ---
 
+## Mandatory rule: Customer-facing messages
+
+**Customer-facing interfaces must never expose raw validation objects, stack
+traces, database errors, internal status messages, or implementation-specific
+exception text.** This includes Zod error objects/JSON, validation paths,
+HTTP status codes, Prisma/PostgreSQL/Supabase/SQL errors, exception class names,
+internal API names, and arbitrary `error.message` from unknown failures.
+
+- Route API validation failures through `validationError` / `zodToSafeBody`
+  (`src/lib/errors/api-errors.ts`) — never `errorResponse(\`Validation error: ${error.message}\`)`.
+- Map unknown server errors to an approved message (`src/lib/errors/messages.ts`);
+  keep full diagnostics in `console.error` / server logs only.
+- In the UI, translate failures with `toUserMessage` / `messageFromApiBody` /
+  `getFieldErrors` (`src/lib/errors/client-errors.ts`); do not render raw
+  `error.message` or `apiResponse.error` when it may be technical.
+- Messages should answer *what happened / what to do next / which field needs
+  attention*, and must not collapse every case into a generic "Something went
+  wrong." See `docs/error-handling.md`.
+
+---
+
 ## Key documentation map
 
 | File | Purpose |
@@ -75,6 +96,12 @@ required no documentation change, state that explicitly and why.
 | `docs/notifications.md` | In-app notification pipeline & formatting |
 | `docs/emails.md` | Outgoing email design system |
 | `docs/chat-widget.md` | Website floating AI Concierge chat widget |
+| `docs/catalog.md` | Cameras catalog (`/products`) UI, filters & brand selector |
+| `docs/product-detail-and-reviews.md` | Product detail ratings summary, Customer Reviews section, centralized rating aggregation & real sold count |
+| `docs/checkout.md` | Multi-step checkout flow (Information → Shipping → Payment → Review), step state/transitions & preserved PayMongo/dedup logic |
+| `docs/error-handling.md` | Customer-facing error/message system, safe API error contract & the no-raw-errors project rule |
+| `docs/security-step-up.md` | Current-password MFA step-up, session-bound verification, secure Set Password, login chunk repair, shared 6-box OTP, and actual verification limits |
+| `docs/fonts-and-images.md` | Website font-loading architecture (General Sans/Inter/JetBrains) + fix, and customer-facing `next/image` conversions |
 | `docs/mobile-app-development-plan.md` | React Native app plan |
 | `docs/kiro-repository-onboarding.md` | Repository onboarding |
 

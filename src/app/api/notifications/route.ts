@@ -5,10 +5,12 @@ import {
   successResponse,
   errorResponse,
   unauthorizedResponse,
+  validationError,
   parsePagination,
   paginatedResponse,
 } from '@/lib/api'
 import { toNotificationViews } from '@/lib/notification-view'
+import { MESSAGES } from '@/lib/errors/messages'
 import { z } from 'zod'
 
 /**
@@ -111,11 +113,8 @@ export async function PATCH(
   } catch (error) {
     console.error('Notification update error:', error)
     if (error instanceof z.ZodError) {
-      return errorResponse(`Validation error: ${error.message}`, 400)
+      return validationError(error)
     }
-    return errorResponse(
-      error instanceof Error ? error.message : 'Failed to update notification',
-      500
-    )
+    return errorResponse(MESSAGES.SERVER, 500)
   }
 }

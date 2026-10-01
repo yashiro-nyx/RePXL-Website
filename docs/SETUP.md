@@ -39,6 +39,13 @@ npm run dev
 
 The site runs at http://localhost:3000 using seed data + localStorage.
 
+If port 3000 is occupied, `npm run dev -- -p 3001` is supported by the custom
+security-origin guard. Password step-up works on either explicit localhost port;
+cross-port requests remain rejected. To test Google OAuth while the app itself
+runs on 3001, use a local-only `NEXTAUTH_URL=http://localhost:3001` override and
+register `http://localhost:3001/api/auth/callback/google` with Google. Do not add
+wildcard origins or commit the local override.
+
 ---
 
 ## Part 2 — Database (PostgreSQL)
@@ -177,7 +184,7 @@ keys, and register a live webhook — no code changes.
 | `NEXT_PUBLIC_PAYMONGO_PUBLIC_KEY` | payments | `pk_test_...` |
 | `PAYMONGO_WEBHOOK_SECRET` | payments | `whsk_...` |
 | `NEXT_PUBLIC_PAYMONGO_ENABLED` | payments | `true` to turn on the redirect flow |
-| `MFA_ENCRYPTION_KEY` | optional | `openssl rand -hex 32` (AES-256-GCM encryption for customer MFA) |
+| `MFA_ENCRYPTION_KEY` | required for 2FA | `openssl rand -hex 32` — 64 hex chars, AES-256-GCM key for customer MFA secrets. **Must be set (and stable) or Two-Factor Authentication cannot be enabled** (`encryptionKey()` throws). |
 | `SHIPPING_WEBHOOK_SECRET` | optional | `openssl rand -hex 32` (Bearer auth for `/api/webhooks/shipping`) |
 | `CLOUDINARY_CLOUD_NAME` / `API_KEY` / `API_SECRET` | optional | Image uploads for product/review photos |
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | optional | Google sign-in |
@@ -246,6 +253,8 @@ git add prisma/migrations && git commit -m "db: your_change" && git push
 | `Can't reach database server` | Check host/password; string must end with `?sslmode=require`. |
 | `too many connections` in production | `DATABASE_URL` must be the **pooled** string, not the direct one. |
 | Login/session breaks after deploy | `NEXTAUTH_SECRET` + `NEXTAUTH_URL` must be set in Vercel. |
+| Security POST returns 403 on localhost:3001 | Use the current source, which explicitly permits matching localhost:3000/3001 origins. Cross-port requests intentionally remain forbidden. |
+| Production security POST returns 500 / `ERR_INVALID_URL` | `NEXTAUTH_URL` must be a complete absolute HTTPS origin, including `https://`, with no path. Redeploy after correcting it. |
 | Checkout uses demo flow, not PayMongo | Set `NEXT_PUBLIC_PAYMONGO_ENABLED=true` **and** the `PAYMONGO_*` keys. |
 | Paid but order not confirmed | Webhook not reaching you: check the URL, that `PAYMONGO_WEBHOOK_SECRET` matches, and PayMongo Dashboard → Webhooks → delivery logs. |
 | Webhook returns 401 | `PAYMONGO_WEBHOOK_SECRET` is wrong, or test/live mode mismatch with your keys. |
@@ -313,3 +322,22 @@ push tokens. Set `EXPO_PUSH_ENABLED=true` on the server only after the
 `PushToken` migration is deployed and physical-device permissions have been
 tested. Push delivery is optional; in-app notifications remain the source of
 truth.
+
+
+### Development output and Security verification (2026-10-01)
+
+`npm run dev` uses `.next-dev`; `npm run build` and `npm start` use `.next`.
+Do not run two dev servers against the same output directory. If a dev page
+references missing `/_next/static/` files, stop that project's dev process,
+remove only its generated `.next-dev`, restart, and verify the exact resource.
+Do not remove source, migrations, or alter database configuration.
+
+Password-enabled customers verify their current RePXL password before MFA setup.
+A Google-only account must first complete ownership verification and Set Password.
+Normal Google login remains supported; it does not replace password step-up.
+MFA's locked interactive transactions use a 10-second acquisition and 30-second
+execution bound. If a request fails, inspect the server error code: `P2028`
+means the transaction expired, while `P1001` means the database was unreachable.
+Do not change database URLs or weaken MFA checks to mask either condition.
+See [Security/MFA verification results](./security-step-up.md). Live MFA must not
+be considered verified from a successful build or QR render alone.

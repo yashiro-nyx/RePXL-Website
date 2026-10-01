@@ -5,6 +5,8 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useAuthStore } from '@/stores/authStore'
 import { setLogoutPreference } from '@/lib/browser-storage'
+import { messageFromApiBody } from '@/lib/errors/client-errors'
+import { OtpInput } from '@/components/ui'
 
 export default function MfaLoginPage() {
   const router = useRouter()
@@ -24,14 +26,19 @@ export default function MfaLoginPage() {
         body: JSON.stringify({ code }),
       })
       const result = await response.json()
-      if (!response.ok || !result.success)
-        throw new Error(result.error ?? 'Unable to verify code.')
+      if (!response.ok || !result.success) {
+        setError(response.status === 429 || response.status >= 500
+          ? messageFromApiBody(result, response.status)
+          : recovery ? "That recovery code isn't valid or has already been used."
+            : 'The code is incorrect or expired. Enter the latest 6-digit code from your authenticator app.')
+        return
+      }
       setCode('')
       setLogoutPreference(false)
       await useAuthStore.getState().refreshSession()
       router.replace('/account')
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unable to verify code.')
+    } catch {
+      setError('We couldn’t verify that code. Please try again.')
     } finally {
       setBusy(false)
     }
@@ -45,26 +52,40 @@ export default function MfaLoginPage() {
           : 'Enter the 6-digit code from your authenticator app.'}
       </p>
       <form onSubmit={verify} className="space-y-4">
-        <label className="block text-sm" htmlFor="mfa-login-code">
-          {recovery ? 'Recovery code' : 'Authenticator code'}
-        </label>
-        <input
-          id="mfa-login-code"
-          value={code}
-          onChange={(event) => setCode(event.target.value)}
-          autoComplete="one-time-code"
-          inputMode={recovery ? 'text' : 'numeric'}
-          maxLength={recovery ? 64 : 6}
-          required
-          className="w-full rounded border border-repixl-muted/30 bg-transparent p-3 font-mono"
-        />
+        {recovery ? (
+          <>
+            <label className="block text-sm" htmlFor="mfa-login-code">Recovery code</label>
+            <input
+              id="mfa-login-code"
+              value={code}
+              onChange={(event) => setCode(event.target.value)}
+              autoComplete="one-time-code"
+              inputMode="text"
+              maxLength={64}
+              required
+              className="w-full rounded border border-repixl-muted/30 bg-transparent p-3 font-mono"
+            />
+          </>
+        ) : (
+          <>
+            <span className="block text-sm">Authenticator code</span>
+            <OtpInput
+              ariaLabel="6-digit authenticator code"
+              value={code}
+              onChange={setCode}
+              disabled={busy}
+              error={!!error}
+              autoFocus
+            />
+          </>
+        )}
         {error && (
           <p role="alert" className="text-sm text-red-400">
-            {error} If your challenge expired, sign in again.
+            {error}
           </p>
         )}
         <button
-          disabled={busy}
+          disabled={busy || (recovery ? !code.trim() : !/^\d{6}$/.test(code))}
           className="w-full rounded bg-repixl-red p-3 text-white disabled:opacity-50"
         >
           {busy ? 'Verifying…' : 'Verify and sign in'}

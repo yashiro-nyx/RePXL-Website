@@ -1,8 +1,9 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { signIn } from 'next-auth/react'
-import { Button } from '@/components/ui'
+import Link from 'next/link'
+import { messageFromApiBody } from '@/lib/errors/client-errors'
+import { OtpInput } from '@/components/ui'
 
 interface Status {
   enabled: boolean
@@ -17,12 +18,15 @@ export function MfaSettings() {
     null
   )
   const [codes, setCodes] = useState<string[]>([])
+  const [pendingAction, setPendingAction] = useState<string | null>(null)
+  const [recovery, setRecovery] = useState(false)
   const [password, setPassword] = useState('')
   const [code, setCode] = useState('')
   const [saved, setSaved] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
+  const [showKey, setShowKey] = useState(false)
   const load = async () => {
     const response = await fetch('/api/auth/mfa', {
       cache: 'no-store',
@@ -30,13 +34,13 @@ export function MfaSettings() {
     })
     const result = await response.json()
     if (!response.ok)
-      throw new Error(result.error ?? 'Unable to load MFA status.')
+      throw new Error(messageFromApiBody(result, response.status))
     setStatus(result.data)
   }
   useEffect(() => {
     load().catch(() => setError('Unable to load MFA status. Please refresh.'))
   }, [])
-  async function act(action: string) {
+  async function act(action: string, submittedCode = code) {
     setBusy(true)
     setError('')
     setMessage('')
@@ -45,14 +49,18 @@ export function MfaSettings() {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action, password, code: code.trim(), saved }),
+        body: JSON.stringify({ action, code: submittedCode.trim(), saved }),
       })
       const result = await response.json()
-      if (!response.ok || !result.success)
-        throw new Error(result.error ?? 'Unable to update MFA.')
+      if (!response.ok || !result.success) {
+        setError(messageFromApiBody(result, response.status))
+        if (result.code === 'RECENT_AUTH_REQUIRED') setPendingAction(action)
+        return
+      }
+      setPendingAction(null)
       setCode('')
       setPassword('')
-      if (result.data.secret) setSetup(result.data)
+      if (result.data.secret) { setSetup(result.data); setShowKey(false); setMessage('Identity verified.') }
       if (result.data.recoveryCodes) {
         setCodes(result.data.recoveryCodes)
         setSaved(false)
@@ -70,11 +78,41 @@ export function MfaSettings() {
       if (action === 'disable')
         setMessage('Two-factor authentication disabled.')
       await load()
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unable to update MFA.')
+    } catch {
+      setError("We couldn't update two-factor authentication right now. Please try again.")
     } finally {
       setBusy(false)
     }
+  }
+  function requestAction(action: string) {
+    setError('')
+    setPassword('')
+    setPendingAction(action)
+  }
+  async function verifyPassword(event: React.FormEvent) {
+    event.preventDefault()
+    if (!pendingAction || busy) return
+    setBusy(true)
+    setError('')
+    const action = pendingAction
+    try {
+      const response = await fetch('/api/auth/recent-auth', {
+        method: 'POST', credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ method: 'password', password }),
+      })
+      const result = await response.json()
+      setPassword('')
+      if (!response.ok || !result.success) {
+        setError(messageFromApiBody(result, response.status))
+        return
+      }
+      // act() makes a new request; the server verifies the HttpOnly cookie and
+      // canonical database record, independently of this component's state.
+      await act(action)
+    } catch {
+      setError("We couldn't verify your identity right now. Please try again.")
+    } finally { setPassword(''); setBusy(false) }
   }
   const input =
     'mt-2 w-full rounded border border-repixl-muted/30 bg-transparent p-3 text-repixl-text-light'
@@ -110,6 +148,7 @@ export function MfaSettings() {
                 ? 'Setup in progress — MFA is not enabled yet'
                 : 'MFA disabled'}
           </p>
+          {status.hasPassword && <p className="text-sm text-repixl-muted">For your security, verify your identity before changing two-factor authentication.</p>}
           {codes.length > 0 ? (
             <div className="space-y-4">
               <h4 className="font-medium">Save your recovery codes now</h4>
@@ -143,80 +182,97 @@ export function MfaSettings() {
           ) : (
             <>
               {setup ? (
-                <div className="space-y-4">
-                  <p className="text-sm">
-                    Scan this QR code in your authenticator. Setup expires in
-                    five minutes.
-                  </p>
-                  {/* QR is generated locally on the server; provisioning never goes to an external QR service. */}
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={setup.qrCode}
-                    width={256}
-                    height={256}
-                    alt="Authenticator setup QR code"
-                    className="max-w-full rounded"
-                  />
-                  <p className="text-sm">
-                    Manual setup key:{' '}
-                    <code className="select-all break-all">{setup.secret}</code>
-                  </p>
-                  <label className="block text-sm" htmlFor="mfa-setup-code">
-                    6-digit authenticator code
-                    <input
-                      id="mfa-setup-code"
-                      className={input}
-                      inputMode="numeric"
-                      autoComplete="one-time-code"
-                      maxLength={6}
-                      value={code}
-                      onChange={(event) => setCode(event.target.value)}
+                <div className="space-y-5">
+                  {/* STEP 1 — connect authenticator */}
+                  <div>
+                    <p className="font-mono text-[10px] uppercase tracking-widest text-repixl-muted">Step 1 — Connect your authenticator</p>
+                    <p className="mt-1 text-sm text-repixl-text-light/80">
+                      Open your authenticator app (Google Authenticator, Authy, 1Password…) and scan this QR code.
+                    </p>
+                    {/* QR is generated locally on the server; provisioning never goes to an external QR service. */}
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={setup.qrCode}
+                      width={200}
+                      height={200}
+                      alt="Authenticator setup QR code"
+                      className="mt-3 rounded-lg border border-repixl-muted/15 bg-white p-2"
                     />
-                  </label>
-                  <button
-                    disabled={busy || !/^\d{6}$/.test(code)}
-                    onClick={() => act('confirm')}
-                    className="rounded bg-repixl-red px-4 py-2 text-sm text-white disabled:opacity-50"
-                  >
-                    Verify and enable MFA
-                  </button>
-                  <button
-                    disabled={busy}
-                    onClick={() => act('cancel')}
-                    className="ml-4 text-sm underline"
-                  >
-                    Cancel setup
-                  </button>
+                    <div className="mt-2">
+                      <button
+                        type="button"
+                        onClick={() => setShowKey((v) => !v)}
+                        className="text-xs text-repixl-muted underline-offset-2 hover:text-repixl-text-light hover:underline"
+                        aria-expanded={showKey}
+                      >
+                        Can&apos;t scan the QR code?
+                      </button>
+                      {showKey && (
+                        <p className="mt-2 text-xs text-repixl-text-light/70">
+                          Enter this setup key manually:{' '}
+                          <code className="select-all break-all font-mono text-repixl-text-light">{setup.secret}</code>
+                        </p>
+                      )}
+                    </div>
+                    <p className="mt-2 text-[11px] text-repixl-muted/70">Setup expires in five minutes.</p>
+                  </div>
+
+                  {/* STEP 2 — enter the code */}
+                  <div>
+                    <p className="font-mono text-[10px] uppercase tracking-widest text-repixl-muted">Step 2 — Enter the 6-digit code</p>
+                    <p className="mt-1 text-sm text-repixl-text-light/80">Type the current 6-digit code shown in your authenticator app.</p>
+                    <div className="mt-3">
+                      <OtpInput
+                        ariaLabel="6-digit authenticator code"
+                        value={code}
+                        onChange={setCode}
+                        disabled={busy}
+                        error={!!error}
+                        onComplete={(completedCode) => { if (!busy) act('confirm', completedCode) }}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-4">
+                    <button
+                      disabled={busy || !/^\d{6}$/.test(code)}
+                      onClick={() => act('confirm')}
+                      className="rounded bg-repixl-red px-4 py-2 text-sm text-white disabled:opacity-50"
+                    >
+                      Verify and Enable
+                    </button>
+                    <button
+                      disabled={busy}
+                      onClick={() => act('cancel')}
+                      className="text-sm underline"
+                    >
+                      Cancel setup
+                    </button>
+                  </div>
                 </div>
               ) : (
                 <>
-                  {status.hasPassword ? (
-                    <label className="block text-sm" htmlFor="mfa-password">
-                      Confirm your current password
-                      <input
-                        id="mfa-password"
-                        type="password"
-                        autoComplete="current-password"
-                        value={password}
-                        onChange={(event) => setPassword(event.target.value)}
-                        className={input}
-                      />
-                    </label>
-                  ) : (
-                    <p className="text-sm text-repixl-muted">
-                      For changes, sign in with Google within the last five
-                      minutes.{' '}
-                      <button
-                        className="underline"
-                        onClick={() =>
-                          signIn('google', {
-                            callbackUrl: '/login?oauth=login',
-                          })
-                        }
-                      >
-                        Sign in again with Google
+                  {!status.hasPassword && (
+                    <div className="space-y-3 text-sm text-repixl-muted">
+                      <p>You currently sign in with Google. Set a RePXL password before changing two-factor authentication.</p>
+                      <Link href="/account/security/password" className="inline-block underline">Set Password</Link>
+                    </div>
+                  )}
+                  {pendingAction && status.hasPassword && (
+                    <form onSubmit={verifyPassword} aria-labelledby="mfa-verify-heading" className="space-y-3 rounded border border-repixl-muted/30 p-4">
+                      <h4 id="mfa-verify-heading" className="font-medium">VERIFY YOUR IDENTITY</h4>
+                      <p className="text-sm text-repixl-muted">For your security, enter your current password to continue.</p>
+                      <label className="block text-sm" htmlFor="mfa-password">
+                        Current password
+                        <input id="mfa-password" type="password" autoComplete="current-password" autoFocus
+                          value={password} onChange={(event) => setPassword(event.target.value)}
+                          disabled={busy} required className={input} />
+                      </label>
+                      <button disabled={busy || !password} className="rounded bg-repixl-red px-4 py-2 text-sm text-white disabled:opacity-50">
+                        {busy ? 'Verifying…' : 'Verify'}
                       </button>
-                    </p>
+                      <button type="button" disabled={busy} onClick={() => { setPendingAction(null); setPassword('') }} className="ml-4 text-sm underline">Cancel</button>
+                    </form>
                   )}
                   {status.enabled ? (
                     <>
@@ -226,20 +282,14 @@ export function MfaSettings() {
                           ? ''
                           : 'Recovery codes have not been acknowledged. Regenerate if you did not save them.'}
                       </p>
-                      <label
-                        className="block text-sm"
-                        htmlFor="mfa-manage-code"
-                      >
-                        Authenticator or unused recovery code
-                        <input
-                          id="mfa-manage-code"
-                          value={code}
-                          onChange={(event) => setCode(event.target.value)}
-                          autoComplete="one-time-code"
-                          className={input}
-                          maxLength={128}
-                        />
-                      </label>
+                      {recovery ? (
+                        <label className="block text-sm" htmlFor="mfa-manage-code">Unused recovery code
+                          <input id="mfa-manage-code" value={code} onChange={(event) => setCode(event.target.value)} className={input} maxLength={128} />
+                        </label>
+                      ) : <OtpInput value={code} onChange={setCode} disabled={busy} error={!!error} ariaLabel="6-digit authenticator code" />}
+                      <button type="button" className="text-sm underline" onClick={() => { setRecovery(!recovery); setCode('') }}>
+                        {recovery ? 'Use authenticator instead' : 'Use a recovery code'}
+                      </button>
                       <p className="text-xs text-repixl-muted">
                         Wait for a new authenticator code if you just used one
                         to sign in. Regenerating invalidates all previous
@@ -247,21 +297,21 @@ export function MfaSettings() {
                       </p>
                       <div className="flex flex-wrap gap-3">
                         <button
-                          disabled={busy || !code}
-                          onClick={() => act('regenerate')}
+                          disabled={busy || !!pendingAction || !status.hasPassword || (recovery ? !code : !/^\d{6}$/.test(code))}
+                          onClick={() => requestAction('regenerate')}
                           className="rounded bg-repixl-red px-4 py-2 text-sm text-white disabled:opacity-50"
                         >
                           Regenerate recovery codes
                         </button>
                         <button
-                          disabled={busy || !code}
+                          disabled={busy || !!pendingAction || !status.hasPassword || (recovery ? !code : !/^\d{6}$/.test(code))}
                           onClick={() => {
                             if (
                               window.confirm(
                                 'Disable two-factor authentication for your account?'
                               )
                             )
-                              act('disable')
+                              requestAction('disable')
                           }}
                           className="rounded border border-repixl-muted/30 bg-repixl-charcoal px-4 py-2 text-sm font-medium text-repixl-text-light disabled:opacity-50 hover:border-red-500/40 hover:text-red-400 transition-colors"
                         >
@@ -271,8 +321,8 @@ export function MfaSettings() {
                     </>
                   ) : (
                     <button
-                      disabled={busy || (status.hasPassword && !password)}
-                      onClick={() => act('begin')}
+                      disabled={busy || !!pendingAction || !status.hasPassword}
+                      onClick={() => requestAction('begin')}
                       className="rounded bg-repixl-red px-4 py-2 text-sm text-white disabled:opacity-50"
                     >
                       {status.setupPending

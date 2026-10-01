@@ -81,7 +81,8 @@ describe('/api/auth/recent-auth route security contracts', () => {
 
   it('POST google method validates primaryAt against RECENT_AUTH_WINDOW_MS — no client userId', () => {
     const src = readFileSync('src/app/api/auth/recent-auth/route.ts', 'utf8')
-    expect(src).toContain('customerPrimaryAuthTime')
+    expect(src).not.toContain('customerPrimaryAuthTime')
+    expect(src).toContain('!emailMatches')
     expect(src).toContain('RECENT_AUTH_WINDOW_MS')
     // primaryAt must NOT come from the request body
     expect(src).not.toContain('body.primaryAt')
@@ -136,25 +137,37 @@ describe('SecurityGate component', () => {
     expect(src).toContain("method: 'google'")
   })
 
-  it('shows Google re-auth path for Google-only accounts', () => {
+  it('offers a Google verification method', () => {
     const src = readFileSync('src/components/account/SecurityGate.tsx', 'utf8')
-    expect(src).toContain('gate-google')
     expect(src).toContain('Continue with Google')
+    expect(src).toContain("signIn('google'")
   })
 
-  it('shows password form for password accounts', () => {
+  it('offers a password verification method', () => {
     const src = readFileSync('src/components/account/SecurityGate.tsx', 'utf8')
-    expect(src).toContain('gate-password')
-    expect(src).toContain('Current Password')
+    expect(src).toContain('Current password')
+    expect(src).toContain("method: 'password'")
   })
 
-  it('wraps security pages: security, password, mfa', () => {
+  it('offers email-code + authenticator step-up methods (multi-method panel)', () => {
+    const src = readFileSync('src/components/account/SecurityGate.tsx', 'utf8')
+    expect(src).toContain('email-otp-send')
+    expect(src).toContain('email-otp-verify')
+    expect(src).toContain("method: 'totp'")
+    // Methods are chosen from the account's real configuration.
+    expect(src).toContain('data?.methods')
+  })
+
+  it('gates password management; MFA verifies on action rather than navigation', () => {
     const security  = readFileSync('src/app/(storefront)/account/security/page.tsx', 'utf8')
     const password  = readFileSync('src/app/(storefront)/account/security/password/page.tsx', 'utf8')
     const mfa       = readFileSync('src/app/(storefront)/account/security/mfa/page.tsx', 'utf8')
-    expect(security).toContain('SecurityGate')
+    // Viewing the Security overview must NOT trigger step-up verification.
+    expect(security).not.toContain('SecurityGate')
+    // The sensitive sub-pages remain gated (and their APIs enforce recent-auth).
     expect(password).toContain('SecurityGate')
-    expect(mfa).toContain('SecurityGate')
+    expect(mfa).not.toContain('SecurityGate')
+    expect(mfa).toContain('MfaSettings')
   })
 })
 

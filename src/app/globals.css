@@ -102,6 +102,44 @@
     to { opacity: 1; transform: translateY(0) scale(1); }
   }
 
+  /* Catalog dual-handle price slider — style the native range thumbs so two
+     overlaid inputs read as one premium control. The track itself is drawn by
+     the component; the inputs are transparent except for their thumbs. */
+  .range-thumb::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    pointer-events: auto;
+    height: 18px;
+    width: 18px;
+    border-radius: 9999px;
+    background: #f5f1ec;
+    border: 2px solid #c22c2c;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+    cursor: grab;
+    margin-top: 0; /* aligned via the 6px-tall input track */
+  }
+  .range-thumb::-webkit-slider-thumb:active { cursor: grabbing; transform: scale(1.08); }
+  .range-thumb::-moz-range-thumb {
+    pointer-events: auto;
+    height: 18px;
+    width: 18px;
+    border-radius: 9999px;
+    background: #f5f1ec;
+    border: 2px solid #c22c2c;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+    cursor: grab;
+  }
+  .range-thumb::-webkit-slider-runnable-track { background: transparent; height: 24px; }
+  .range-thumb::-moz-range-track { background: transparent; height: 24px; }
+  .range-thumb:focus-visible::-webkit-slider-thumb {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(194, 44, 44, 0.45);
+  }
+  .range-thumb:focus-visible::-moz-range-thumb {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(194, 44, 44, 0.45);
+  }
+
   @media (prefers-reduced-motion: reduce) {
     html { scroll-behavior: auto; }
     *, *::before, *::after {

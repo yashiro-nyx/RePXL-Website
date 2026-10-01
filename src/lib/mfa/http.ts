@@ -10,13 +10,40 @@ export function mfaResponse(data: unknown, status = 200) {
     headers: { 'Cache-Control': 'no-store', Pragma: 'no-cache' },
   })
 }
+
+const DEVELOPMENT_ORIGINS = new Set([
+  'http://localhost:3000',
+  'http://localhost:3001',
+])
+
+function parsedOrigin(value: string | null | undefined) {
+  if (!value) return null
+  try {
+    return new URL(value).origin
+  } catch {
+    return null
+  }
+}
+
 export function sameOrigin(request: NextRequest) {
-  const origin = request.headers.get('origin')
-  const expected = new URL(process.env.NEXTAUTH_URL ?? request.url).origin
-  return (
-    origin === expected &&
-    request.headers.get('sec-fetch-site') !== 'cross-site'
-  )
+  const origin = parsedOrigin(request.headers.get('origin'))
+  const requestOrigin = parsedOrigin(request.url)
+  if (
+    !origin ||
+    !requestOrigin ||
+    origin !== requestOrigin ||
+    request.headers.get('sec-fetch-site') === 'cross-site'
+  ) return false
+
+  // Local development may use either documented port when another process has
+  // 3000. Keep this explicit: no wildcard origins and no production fallback.
+  if (process.env.NODE_ENV !== 'production' && DEVELOPMENT_ORIGINS.has(origin))
+    return true
+
+  // Production accepts only the configured canonical origin. Invalid URL
+  // configuration fails closed instead of throwing an unhandled 500.
+  const configuredOrigin = parsedOrigin(process.env.NEXTAUTH_URL)
+  return configuredOrigin !== null && origin === configuredOrigin
 }
 export async function clearChallenge(): Promise<void> {
   const cookieStore = await cookies()

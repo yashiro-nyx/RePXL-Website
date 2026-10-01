@@ -82,7 +82,7 @@ function LoginContent() {
       } else {
         setOauthError(result.error || 'Google sign-in failed. Please try again.')
       }
-    }).finally(() => setOauthLoading(false))
+    }).catch(() => setOauthError('We could not complete sign-in. Please try again.')).finally(() => setOauthLoading(false))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [nextAuthStatus, nextAuthSession, searchParams])
 
@@ -232,7 +232,7 @@ function inputClass(error?: string): string {
 
 export default function LoginPage() {
   return (
-    <Suspense fallback={<div className="flex min-h-screen items-center justify-center bg-repixl-bg" />}>
+    <Suspense fallback={<div role="status" className="flex min-h-screen items-center justify-center bg-repixl-bg text-repixl-text-light">Loading sign-in…</div>}>
       <LoginContent />
     </Suspense>
   )

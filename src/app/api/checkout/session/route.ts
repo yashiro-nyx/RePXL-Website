@@ -180,9 +180,6 @@ export async function POST(request: NextRequest) {
     })
   } catch (error) {
     console.error('Create checkout session error:', error)
-    return errorResponse(
-      error instanceof Error ? error.message : 'Failed to start checkout',
-      500
-    )
+    return errorResponse('We couldn’t start checkout. Please try again in a moment.', 500)
   }
 }

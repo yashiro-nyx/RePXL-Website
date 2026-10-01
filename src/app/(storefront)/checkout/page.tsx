@@ -1,12 +1,28 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback, Suspense } from 'react'
 import dynamic from 'next/dynamic'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import Image from 'next/image'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { motion } from 'framer-motion'
 import { Container } from '@/components/layout/Container'
 import { Button, ConditionBadge, LegalModal, PageLoader, PageBackLink } from '@/components/ui'
+import { CheckoutStepper } from '@/components/checkout/CheckoutStepper'
+import { CheckoutOrderSummary, MobileOrderSummary } from '@/components/checkout/CheckoutOrderSummary'
+import {
+  STEP_META,
+  parseStep,
+  nextStep as getNextStep,
+  prevStep as getPrevStep,
+  stepIndex,
+  validateInformation,
+  validateShipping,
+  validatePayment,
+  computeCompletion,
+  canNavigateTo,
+  type CheckoutStep,
+} from '@/lib/checkout-steps'
 import { PhoneInput } from '@/components/ui/PhoneInput'
 import { emptyPHAddress, type PHAddressValue } from '@/components/ui/PHAddressSelect'
 import { MinimalFooter } from '@/components/layout/MinimalFooter'
@@ -108,7 +124,7 @@ const paymentLabels: Record<PaymentMethod, string> = {
   cod: 'Cash on Delivery',
 }
 
-export default function CheckoutPage() {
+function CheckoutFlow() {
   const isLoggedIn = useAuthStore((s) => s.isLoggedIn)
   const userName = `${useAuthStore((s) => s.firstName)} ${useAuthStore((s) => s.lastName)}`.trim()
   const userEmail = useAuthStore((s) => s.userEmail)
@@ -311,7 +327,36 @@ export default function CheckoutPage() {
 
   // ── Payment processor (PIPM embedded flow) ──
   const [paymentError, setPaymentError] = useState<string | null>(null)
-  const [checkoutStep, setCheckoutStep] = useState<'form' | 'review'>('form')
+
+  // ── Multi-step machine (Information → Shipping → Payment → Review) ──
+  // Step state lives here (same component), so ALL entered field state above is
+  // preserved automatically when moving between steps — nothing is reset. The
+  // active step is mirrored in the URL (?step=) so browser Back/Forward works;
+  // no sensitive data is placed in the query string.
+  const searchParams = useSearchParams()
+  const [step, setStep] = useState<CheckoutStep>(() => parseStep(searchParams.get('step')))
+  const stepContentRef = useRef<HTMLDivElement>(null)
+
+  const writeStepToUrl = useCallback((next: CheckoutStep) => {
+    const params = new URLSearchParams(searchParams.toString())
+    if (next === 'information') params.delete('step')
+    else params.set('step', next)
+    const qs = params.toString()
+    if (typeof window !== 'undefined') {
+      // pushState so browser Back returns to the previous step predictably.
+      window.history.pushState(null, '', qs ? `/checkout?${qs}` : '/checkout')
+    }
+  }, [searchParams])
+
+  // Follow browser Back/Forward between steps.
+  useEffect(() => {
+    const onPop = () => {
+      const sp = new URLSearchParams(window.location.search)
+      setStep(parseStep(sp.get('step')))
+    }
+    window.addEventListener('popstate', onPop)
+    return () => window.removeEventListener('popstate', onPop)
+  }, [])
 
   const { startPayment, isProcessing: paymentProcessing, authModal } = usePaymentProcessor({
     onSuccess: (orderNumber) => {
@@ -325,19 +370,92 @@ export default function CheckoutPage() {
     onProcessing: () => setPaymentError(null),
   })
 
-  // ── "Place Order" → validate → show review step ──
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    const newErrors = validate()
-    setErrors(newErrors)
-    if (Object.keys(newErrors).length > 0) { focusFirstError(newErrors); return }
-    // Validation passed — show order review
-    setCheckoutStep('review')
+  // ── Per-step validation (reuses the centralized pure validators) ──
+  const informationInput = () => ({
+    email, selectedAddressId, fullName, streetAddress, postalCode, phone,
+    phAddr: {
+      regionCode: phAddr.regionCode,
+      provinceCode: phAddr.provinceCode,
+      cityCode: phAddr.cityCode,
+      barangay: phAddr.barangay,
+    },
+  })
+  const paymentInput = () => ({
+    selectedCardId, paymentMethod,
+    cardNumber: cardNumber.replace(/\s/g, ''),
+    cardExpiry: cardExpiry.replace(/\s/g, ''),
+    cardCvc, agreeTerms,
+  })
+
+  const courierIds = couriers.map((c) => c.id)
+  const validateStep = (s: CheckoutStep): FormErrors => {
+    if (s === 'information') return validateInformation(informationInput()) as FormErrors
+    if (s === 'shipping') return validateShipping(selectedCourier, courierIds) as FormErrors
+    if (s === 'payment') return validatePayment(paymentInput()) as FormErrors
+    return {}
+  }
+
+  const completion = computeCompletion(informationInput(), selectedCourier, courierIds, paymentInput())
+  const canNavigate = (target: CheckoutStep) => canNavigateTo(target, step, completion)
+
+  const goToStep = (target: CheckoutStep, opts?: { skipValidation?: boolean }) => {
+    // Moving forward past the current step must pass this step's validation.
+    if (!opts?.skipValidation && stepIndex(target) > stepIndex(step)) {
+      const stepErrors = validateStep(step)
+      setErrors(stepErrors)
+      if (Object.keys(stepErrors).length > 0) { focusFirstError(stepErrors); return }
+    }
+    setErrors({})
+    setStep(target)
+    writeStepToUrl(target)
+    stepContentRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
+  // Advance one step forward (validates the current step first).
+  const handleContinue = () => {
+    const next = getNextStep(step)
+    if (next) goToStep(next)
+  }
+  const handleBack = () => {
+    const prev = getPrevStep(step)
+    if (prev) goToStep(prev, { skipValidation: true })
+  }
+
+  // Stepper click: forward navigation is gated; backward is free.
+  const handleStepperNavigate = (target: CheckoutStep) => {
+    if (stepIndex(target) <= stepIndex(step)) { goToStep(target, { skipValidation: true }); return }
+    goToStep(target)
+  }
+
+  // Legacy form submit (Enter key inside inputs) → advance instead of placing an order.
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (step !== 'review') handleContinue()
+  }
+
   // ── "Confirm & Pay" → actually fire the payment ──
+  // This is the ONLY place an order + PayMongo intent/session is created (via
+  // processPayment → /api/checkout/process-payment). It is reachable only from
+  // the Review step, so navigating between steps never creates orders/sessions.
   const handleConfirmAndPay = async () => {
+    // Final full-form guard before creating the order. If anything is somehow
+    // invalid, route the user back to the first offending step.
+    const allErrors = validate()
+    if (Object.keys(allErrors).length > 0) {
+      setErrors(allErrors)
+      const infoErr = validateStep('information')
+      const shipErr = validateStep('shipping')
+      const payErr = validateStep('payment')
+      if (Object.keys(infoErr).length > 0) goToStep('information', { skipValidation: true })
+      else if (Object.keys(shipErr).length > 0) goToStep('shipping', { skipValidation: true })
+      else if (Object.keys(payErr).length > 0) goToStep('payment', { skipValidation: true })
+      return
+    }
+
+    // Guard against duplicate submissions (double-click / re-entry).
+    if (submitting || paymentProcessing) return
+
     const form = formRef.current!
     const get = (id: string) => (form.querySelector(`#${id}`) as HTMLInputElement)?.value ?? ''
 
@@ -564,205 +682,89 @@ export default function CheckoutPage() {
 
   if (!hydrated || !isLoggedIn) return <PageLoader label="Loading checkout…" />
 
-  // ─── ORDER REVIEW STEP ───
-  if (checkoutStep === 'review') {
-    return (
-      <div className="burn-subtle min-h-screen pb-20 pt-24">
-        <Container>
-          <motion.div
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
-            className="mx-auto max-w-2xl"
-          >
-            {/* Header */}
-            <div className="mb-8 border-b border-repixl-muted/10 pb-6">
-              <span className="font-mono text-xs uppercase tracking-widest text-repixl-muted">— Review your order</span>
-              <h1 className="mt-2 font-display text-display-md text-repixl-text-light">Order Review</h1>
-              <p className="mt-1 text-sm text-repixl-muted">Please confirm your details before payment.</p>
-            </div>
+  // ── Per-step nav button row (Back / Continue) ──
+  const StepNav = ({ continueLabel, showBack = true }: { continueLabel: string; showBack?: boolean }) => (
+    <div className="mt-8 flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
+      {showBack ? (
+        <button
+          type="button"
+          onClick={handleBack}
+          className="rounded-xl border border-repixl-muted/20 px-6 py-3 text-sm text-repixl-text-light/70 transition-colors hover:border-repixl-muted/40 hover:text-repixl-text-light"
+        >
+          ← Back to {STEP_META[getPrevStep(step) ?? 'information'].label}
+        </button>
+      ) : <span className="hidden sm:block" />}
+      <Button type="button" variant="primary" size="lg" onClick={handleContinue} className="w-full sm:w-auto">
+        {continueLabel}
+      </Button>
+    </div>
+  )
 
-            {/* Items */}
-            <section className="mb-5 rounded-xl border border-repixl-muted/10 bg-repixl-charcoal/30 p-5">
-              <div className="mb-4 flex items-center justify-between">
-                <h2 className="font-display text-sm font-semibold text-repixl-text-light">Items</h2>
-                <Link href="/cart" className="font-mono text-[10px] uppercase tracking-wider text-repixl-muted transition-colors hover:text-repixl-text-light">
-                  Edit Cart →
-                </Link>
-              </div>
-              <ul className="space-y-3">
-                {cartItems.map((item) => (
-                  <li key={item.product.slug} className="flex items-center gap-3">
-                    <div className="h-14 w-14 flex-shrink-0 overflow-hidden rounded-lg border border-repixl-muted/10 bg-repixl-bg">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={item.product.image} alt={item.product.name} className="h-full w-full object-contain p-1" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-repixl-text-light truncate">{item.product.name}</p>
-                      <ConditionBadge condition={item.product.condition} className="mt-0.5 origin-left scale-90" />
-                      {item.quantity > 1 && <p className="font-mono text-[10px] text-repixl-muted">×{item.quantity}</p>}
-                    </div>
-                    <span className="font-mono text-sm font-semibold text-repixl-text-light flex-shrink-0">
-                      {formatPrice(item.product.price * item.quantity)}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </section>
+  const stepErrorSummary = Object.keys(errors).length > 0 && (
+    <div role="alert" aria-live="polite" className="mb-6 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3">
+      <p className="text-sm font-semibold text-red-400">Please fix the following to continue:</p>
+      <ul className="mt-1.5 list-inside list-disc space-y-0.5">
+        {(Object.values(errors).filter(Boolean) as string[]).map((msg) => (
+          <li key={msg} className="text-xs text-red-400/80">{msg}</li>
+        ))}
+      </ul>
+    </div>
+  )
 
-            {/* Shipping address */}
-            <section className="mb-5 rounded-xl border border-repixl-muted/10 bg-repixl-charcoal/30 p-5">
-              <div className="mb-3 flex items-center justify-between">
-                <h2 className="font-display text-sm font-semibold text-repixl-text-light">Shipping Address</h2>
-                <button
-                  type="button"
-                  onClick={() => { setCheckoutStep('form'); window.scrollTo({ top: 0 }) }}
-                  className="font-mono text-[10px] uppercase tracking-wider text-repixl-muted transition-colors hover:text-repixl-text-light"
-                >
-                  Edit →
-                </button>
-              </div>
-              <div className="space-y-0.5 text-sm text-repixl-text-light/80">
-                <p className="font-medium text-repixl-text-light">{fullName}</p>
-                <p>{streetAddress}</p>
-                {phAddr.barangay && <p>{phAddr.barangay}</p>}
-                <p>{phAddr.city}{phAddr.province ? `, ${phAddr.province}` : ''}</p>
-                <p>{postalCode}</p>
-                <p className="font-mono text-xs text-repixl-muted">{phone}</p>
-                <p className="font-mono text-xs text-repixl-muted">{email}</p>
-              </div>
-            </section>
+  const editLink = (target: CheckoutStep, label: string) => (
+    <button
+      type="button"
+      onClick={() => goToStep(target, { skipValidation: true })}
+      className="font-mono text-[10px] uppercase tracking-wider text-repixl-muted transition-colors hover:text-repixl-text-light"
+    >
+      {label}
+    </button>
+  )
 
-            {/* Courier + Payment */}
-            <section className="mb-5 rounded-xl border border-repixl-muted/10 bg-repixl-charcoal/30 p-5">
-              <div className="mb-3 flex items-center justify-between">
-                <h2 className="font-display text-sm font-semibold text-repixl-text-light">Delivery & Payment</h2>
-                <button
-                  type="button"
-                  onClick={() => { setCheckoutStep('form'); window.scrollTo({ top: 0 }) }}
-                  className="font-mono text-[10px] uppercase tracking-wider text-repixl-muted transition-colors hover:text-repixl-text-light"
-                >
-                  Edit →
-                </button>
-              </div>
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-repixl-text-light/70">Courier</span>
-                <span className="text-repixl-text-light">{courier.name} · {courier.estimate}</span>
-              </div>
-              <div className="mt-1 flex items-center justify-between text-sm">
-                <span className="text-repixl-text-light/70">Payment</span>
-                <span className="text-repixl-text-light">{paymentLabels[paymentMethod]}</span>
-              </div>
-            </section>
-
-            {/* Price breakdown */}
-            <section className="mb-6 rounded-xl border border-repixl-muted/10 bg-repixl-charcoal/30 p-5">
-              <h2 className="mb-3 font-display text-sm font-semibold text-repixl-text-light">Price Breakdown</h2>
-              <dl className="space-y-2">
-                <div className="flex justify-between text-sm">
-                  <dt className="text-repixl-text-light/70">Subtotal ({cartItems.length} {cartItems.length === 1 ? 'item' : 'items'})</dt>
-                  <dd className="font-mono text-repixl-text-light">{formatPrice(subtotal)}</dd>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <dt className="text-repixl-text-light/70">Shipping ({courier.name})</dt>
-                  <dd className="font-mono text-repixl-text-light">{formatPrice(courier.price)}</dd>
-                </div>
-                <div className="flex justify-between border-t border-repixl-muted/10 pt-2">
-                  <dt className="font-semibold text-repixl-text-light">Total</dt>
-                  <dd className="font-display text-xl font-bold text-repixl-text-light">{formatPrice(total)}</dd>
-                </div>
-              </dl>
-            </section>
-
-            {/* Error */}
-            {paymentError && (
-              <div className="mb-4 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3" role="alert">
-                <p className="text-sm text-red-400">{paymentError}</p>
-                <p className="mt-1 text-[10px] text-red-400/70">Please go back and check your payment details, then try again.</p>
-              </div>
-            )}
-
-            {/* Actions */}
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <button
-                type="button"
-                onClick={() => { setCheckoutStep('form'); window.scrollTo({ top: 0 }) }}
-                className="order-2 sm:order-1 rounded-xl border border-repixl-muted/20 px-6 py-3 text-sm text-repixl-text-light/70 transition-colors hover:border-repixl-muted/40 hover:text-repixl-text-light"
-              >
-                ← Back to Edit
-              </button>
-              <Button
-                type="button"
-                variant="primary"
-                size="lg"
-                onClick={() => void handleConfirmAndPay()}
-                disabled={submitting || paymentProcessing}
-                className="order-1 sm:order-2 disabled:opacity-60"
-              >
-                {(submitting || paymentProcessing) ? (
-                  <span className="flex items-center justify-center gap-2">
-                    <svg className="h-4 w-4 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" aria-hidden="true">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                    </svg>
-                    Processing…
-                  </span>
-                ) : `Confirm & Pay ${formatPrice(total)}`}
-              </Button>
-            </div>
-
-            <div className="mt-4 flex items-center justify-center gap-1.5">
-              <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-repixl-muted/50" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-              <span className="font-mono text-[9px] text-repixl-muted/50">Secure · 256-bit SSL Encrypted Payment</span>
-            </div>
-          </motion.div>
-        </Container>
-        {authModal}
-        <MinimalFooter />
-      </div>
-    )
+  const summaryProps = {
+    items: cartItems,
+    subtotal,
+    shippingLabel: courier.name,
+    shippingCost: courier.price,
+    total,
   }
 
   return (
     <div className="burn-subtle min-h-screen pb-20 pt-24">
       <Container>
         {/* Explicit Back to Cart — a plain link to /cart. Does not clear the cart,
-            cancel payment, or change order state (no order/session exists yet at
-            the form step). */}
+            cancel payment, or change order state (no order/session exists yet). */}
         <PageBackLink href="/cart" label="Back to Cart" />
 
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-          className="mb-8 border-b border-repixl-muted/10 pb-6"
+          className="mb-8"
         >
           <span className="font-mono text-xs uppercase tracking-widest text-repixl-muted">— Complete your order</span>
           <h1 className="mt-2 font-display text-display-md text-repixl-text-light md:text-display-lg">Checkout</h1>
         </motion.div>
 
-        <form ref={formRef} onSubmit={handleSubmit} noValidate className="mt-6 grid grid-cols-1 gap-8 lg:grid-cols-3">
-          {/* Validation error summary — shown when user hits submit with errors */}
-          {Object.keys(errors).length > 0 && (
-            <div
-              role="alert"
-              aria-live="polite"
-              className="lg:col-span-3 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3"
-            >
-              <p className="text-sm font-semibold text-red-400">Please fix the following before placing your order:</p>
-              <ul className="mt-1.5 list-inside list-disc space-y-0.5">
-                {(Object.values(errors).filter(Boolean) as string[]).map((msg) => (
-                  <li key={msg} className="text-xs text-red-400/80">{msg}</li>
-                ))}
-              </ul>
-            </div>
-          )}
-          <div className="space-y-8 lg:col-span-2">
-            {/* Shipping info */}
-            <section className="rounded-xl border border-repixl-muted/10 bg-repixl-charcoal/30 p-6">
+        {/* Progress stepper */}
+        <CheckoutStepper current={step} canNavigate={canNavigate} onNavigate={handleStepperNavigate} />
+
+        {/* Mobile collapsible order summary (above the step content) */}
+        <div className="mb-6 lg:hidden">
+          <MobileOrderSummary {...summaryProps} />
+        </div>
+
+        <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
+          {/* Left: current step content */}
+          <div ref={stepContentRef} className="scroll-mt-24 lg:col-span-2">
+            <form ref={formRef} onSubmit={handleSubmit} noValidate>
+              {stepErrorSummary}
+
+              {/* ─────────────── STEP 1: INFORMATION ─────────────── */}
+              <div className={step === 'information' ? '' : 'hidden'}>
+            <section className="rounded-2xl border border-repixl-muted/10 bg-repixl-charcoal/30 p-6">
               <div className="mb-5 flex items-center gap-3">
-                <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-repixl-red/15 font-mono text-xs font-bold text-repixl-red">1</div>
-                <h2 className="font-display text-base font-semibold text-repixl-text-light">Shipping Information</h2>
+                <h2 className="font-display text-base font-semibold text-repixl-text-light">Contact &amp; Delivery Information</h2>
               </div>
 
               {/* ── Saved address picker ── */}
@@ -915,12 +917,15 @@ export default function CheckoutPage() {
                 </div>
               )}
             </section>
+            <StepNav continueLabel="Continue to Shipping →" showBack={false} />
+              </div>{/* end STEP 1 */}
 
-            {/* Delivery courier */}
-            <section className="rounded-xl border border-repixl-muted/10 bg-repixl-charcoal/30 p-6">
+              {/* ─────────────── STEP 2: SHIPPING ─────────────── */}
+              <div className={step === 'shipping' ? '' : 'hidden'}>
+            {/* Delivery method */}
+            <section className="rounded-2xl border border-repixl-muted/10 bg-repixl-charcoal/30 p-6">
               <div className="mb-5 flex items-center gap-3">
-                <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-repixl-red/15 font-mono text-xs font-bold text-repixl-red">2</div>
-                <h2 className="font-display text-base font-semibold text-repixl-text-light">Delivery Courier</h2>
+                <h2 className="font-display text-base font-semibold text-repixl-text-light">Shipping Method</h2>
               </div>
               <fieldset>
                 <legend className="sr-only">Select delivery courier</legend>
@@ -943,14 +948,25 @@ export default function CheckoutPage() {
                 </div>
               </fieldset>
             </section>
+            <StepNav continueLabel="Continue to Payment →" />
+              </div>{/* end STEP 2 */}
 
+              {/* ─────────────── STEP 3: PAYMENT ─────────────── */}
+              <div className={step === 'payment' ? '' : 'hidden'}>
             {/* Payment method */}
-            <section className="rounded-xl border border-repixl-muted/10 bg-repixl-charcoal/30 p-6">
+            <section className="rounded-2xl border border-repixl-muted/10 bg-repixl-charcoal/30 p-6">
               <div className="mb-5 flex items-center justify-between gap-3">
                 <div className="flex items-center gap-3">
-                  <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-repixl-red/15 font-mono text-xs font-bold text-repixl-red">3</div>
                   <h2 className="font-display text-base font-semibold text-repixl-text-light">Payment Method</h2>
                 </div>
+              </div>
+
+              {/* How payment works — accurate to the PayMongo PIPM flow */}
+              <div className="mb-5 rounded-xl border border-repixl-muted/10 bg-repixl-charcoal/60 px-4 py-3">
+                <p className="text-xs leading-relaxed text-repixl-muted">
+                  Card and GCash payments are processed securely via PayMongo. If your bank or wallet requires
+                  confirmation (3-D Secure / GCash authorization), a secure window opens to complete it — you stay on RePXL.
+                </p>
               </div>
 
               {/* Saved card picker — shown when user has saved cards */}
@@ -1106,85 +1122,180 @@ export default function CheckoutPage() {
               </>
               )}
             </section>
-          </div>
 
-          {/* Order summary sidebar */}
-          <aside className="lg:col-span-1">
-            <div className="sticky top-24 overflow-hidden rounded-xl border border-repixl-muted/10 bg-repixl-charcoal">
-              {/* Sidebar header */}
-              <div className="border-b border-repixl-muted/10 px-6 py-4">
-                <div className="flex items-center gap-2">
-                  <div className="flex h-5 w-5 items-center justify-center rounded-full bg-repixl-red/15 font-mono text-[10px] font-bold text-repixl-red">4</div>
-                  <h2 className="font-display text-sm font-semibold text-repixl-text-light">Order Summary</h2>
+            {/* Terms agreement — the final gate before Review */}
+            <div className="mt-5 rounded-2xl border border-repixl-muted/10 bg-repixl-charcoal/30 p-5">
+              <label className="flex cursor-pointer items-start gap-2">
+                <input
+                  id="agree-terms"
+                  type="checkbox"
+                  checked={agreeTerms}
+                  onChange={(e) => {
+                    // Checking opens the Terms modal (its "I Agree" sets agreeTerms);
+                    // unchecking is allowed directly.
+                    if (e.target.checked) setTermsModalOpen(true)
+                    else setAgreeTerms(false)
+                  }}
+                  className="mt-0.5 h-3.5 w-3.5 rounded border-repixl-muted/30 bg-repixl-bg text-repixl-red focus:ring-repixl-red/30"
+                />
+                <span className="text-xs leading-tight text-repixl-muted">
+                  I agree to the{' '}
+                  <button type="button" onClick={() => setTermsModalOpen(true)} className="text-repixl-text-light/80 underline hover:text-repixl-text-light">Terms of Service</button>
+                  {' '}and{' '}
+                  <button type="button" onClick={() => setPrivacyModalOpen(true)} className="text-repixl-text-light/80 underline hover:text-repixl-text-light">Privacy Policy</button>.
+                </span>
+              </label>
+              {errors.agreeTerms && <p className="mt-1 text-xs text-red-400" role="alert">{errors.agreeTerms}</p>}
+            </div>
+            <StepNav continueLabel="Review Order →" />
+              </div>{/* end STEP 3 */}
+
+              {/* ─────────────── STEP 4: REVIEW ─────────────── */}
+              <div className={step === 'review' ? '' : 'hidden'}>
+            <section className="rounded-2xl border border-repixl-muted/10 bg-repixl-charcoal/30 p-6">
+              <h2 className="font-display text-base font-semibold text-repixl-text-light">Review your order</h2>
+              <p className="mt-1 text-sm text-repixl-muted">Confirm everything below before we place your order.</p>
+
+              {/* Contact */}
+              <div className="mt-6 border-t border-repixl-muted/10 pt-5">
+                <div className="mb-2 flex items-center justify-between">
+                  <h3 className="font-mono text-[10px] uppercase tracking-widest text-repixl-muted">Contact</h3>
+                  {editLink('information', 'Edit →')}
+                </div>
+                <p className="text-sm text-repixl-text-light">{fullName}</p>
+                <p className="text-sm text-repixl-text-light/70">{email}</p>
+                {phone && <p className="font-mono text-xs text-repixl-muted">{phone}</p>}
+              </div>
+
+              {/* Delivery address */}
+              <div className="mt-5 border-t border-repixl-muted/10 pt-5">
+                <div className="mb-2 flex items-center justify-between">
+                  <h3 className="font-mono text-[10px] uppercase tracking-widest text-repixl-muted">Delivery Address</h3>
+                  {editLink('information', 'Edit →')}
+                </div>
+                <div className="space-y-0.5 text-sm text-repixl-text-light/80">
+                  <p>{streetAddress}</p>
+                  {phAddr.barangay && <p>{phAddr.barangay}</p>}
+                  <p>{phAddr.city}{phAddr.province ? `, ${phAddr.province}` : ''}</p>
+                  <p>{postalCode}</p>
                 </div>
               </div>
-              <div className="p-6">
-              <ul className="space-y-3">
-                {cartItems.map((item) => (
-                  <li key={item.product.slug} className="flex items-center gap-3">
-                    <div className="h-12 w-12 flex-shrink-0 overflow-hidden rounded-lg bg-repixl-bg">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={item.product.image} alt={item.product.name} className="h-full w-full object-contain" />
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-xs font-medium text-repixl-text-light">{item.product.name}{item.quantity > 1 ? ` ×${item.quantity}` : ''}</p>
-                      <ConditionBadge condition={item.product.condition} className="mt-0.5 origin-left scale-90" />
-                    </div>
-                    <span className="font-mono text-sm text-repixl-text-light">{formatPrice(item.product.price * item.quantity)}</span>
-                  </li>
-                ))}
-              </ul>
-              <dl className="mt-5 space-y-2 border-t border-repixl-muted/10 pt-4">
-                <div className="flex justify-between text-sm"><dt className="text-repixl-text-light/70">Subtotal</dt><dd className="font-mono text-repixl-text-light">{formatPrice(subtotal)}</dd></div>
-                <div className="flex justify-between text-sm"><dt className="text-repixl-text-light/70">Shipping ({courier.name})</dt><dd className="font-mono text-repixl-text-light">{formatPrice(courier.price)}</dd></div>
-                <div className="flex justify-between border-t border-repixl-muted/10 pt-2"><dt className="text-sm font-medium text-repixl-text-light">Total</dt><dd className="font-display text-xl font-bold text-repixl-text-light">{formatPrice(total)}</dd></div>
-              </dl>
-              <Button type="submit" variant="primary" size="lg" disabled={submitting || paymentProcessing} className="mt-6 w-full disabled:opacity-60">
-                Review Order →
-              </Button>
-              {/* Security trust note */}
-              <div className="mt-3 flex items-center justify-center gap-1.5">
-                <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-repixl-muted/50" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-                <span className="font-mono text-[9px] text-repixl-muted/50">You'll review your order before payment</span>
+
+              {/* Shipping */}
+              <div className="mt-5 border-t border-repixl-muted/10 pt-5">
+                <div className="mb-2 flex items-center justify-between">
+                  <h3 className="font-mono text-[10px] uppercase tracking-widest text-repixl-muted">Shipping</h3>
+                  {editLink('shipping', 'Edit →')}
+                </div>
+                <p className="text-sm text-repixl-text-light">{courier.name} · {courier.estimate}</p>
               </div>
-              <div className="mt-4">
-                <label className="flex cursor-pointer items-start gap-2">
-                  <input
-                    id="agree-terms"
-                    type="checkbox"
-                    checked={agreeTerms}
-                    onChange={(e) => {
-                      // If checking: open the Terms modal instead of checking directly.
-                      // The modal's "I Agree" button is what actually sets agreeTerms=true.
-                      // If unchecking: allow directly.
-                      if (e.target.checked) {
-                        setTermsModalOpen(true)
-                      } else {
-                        setAgreeTerms(false)
-                      }
-                    }}
-                    className="mt-0.5 h-3.5 w-3.5 rounded border-repixl-muted/30 bg-repixl-bg text-repixl-red focus:ring-repixl-red/30"
-                  />
-                  <span className="text-[11px] leading-tight text-repixl-muted">
-                    I agree to the{' '}
-                    <button type="button" onClick={() => setTermsModalOpen(true)} className="text-repixl-text-light/80 underline hover:text-repixl-text-light">Terms of Service</button>
-                    {' '}and{' '}
-                    <button type="button" onClick={() => setPrivacyModalOpen(true)} className="text-repixl-text-light/80 underline hover:text-repixl-text-light">Privacy Policy</button>.
+
+              {/* Payment */}
+              <div className="mt-5 border-t border-repixl-muted/10 pt-5">
+                <div className="mb-2 flex items-center justify-between">
+                  <h3 className="font-mono text-[10px] uppercase tracking-widest text-repixl-muted">Payment</h3>
+                  {editLink('payment', 'Edit →')}
+                </div>
+                <p className="text-sm text-repixl-text-light">{paymentLabels[paymentMethod]}</p>
+              </div>
+
+              {/* Items + totals */}
+              <div className="mt-5 border-t border-repixl-muted/10 pt-5">
+                <div className="mb-3 flex items-center justify-between">
+                  <h3 className="font-mono text-[10px] uppercase tracking-widest text-repixl-muted">Order Summary</h3>
+                  <Link href="/cart" className="font-mono text-[10px] uppercase tracking-wider text-repixl-muted transition-colors hover:text-repixl-text-light">Edit Cart →</Link>
+                </div>
+                <ul className="space-y-3">
+                  {cartItems.map((item) => (
+                    <li key={item.product.slug} className="flex items-center gap-3">
+                      <div className="h-12 w-12 flex-shrink-0 overflow-hidden rounded-lg bg-repixl-bg">
+                        <Image src={item.product.image} alt={item.product.name} width={48} height={48} sizes="48px" className="h-full w-full object-contain" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-medium text-repixl-text-light">{item.product.name}{item.quantity > 1 ? ` ×${item.quantity}` : ''}</p>
+                        <ConditionBadge condition={item.product.condition} className="mt-0.5 origin-left scale-90" />
+                      </div>
+                      <span className="flex-shrink-0 font-mono text-sm text-repixl-text-light">{formatPrice(item.product.price * item.quantity)}</span>
+                    </li>
+                  ))}
+                </ul>
+                <dl className="mt-5 space-y-2 border-t border-repixl-muted/10 pt-4">
+                  <div className="flex justify-between text-sm"><dt className="text-repixl-text-light/70">Subtotal</dt><dd className="font-mono text-repixl-text-light">{formatPrice(subtotal)}</dd></div>
+                  <div className="flex justify-between text-sm"><dt className="text-repixl-text-light/70">Shipping ({courier.name})</dt><dd className="font-mono text-repixl-text-light">{formatPrice(courier.price)}</dd></div>
+                  <div className="flex justify-between border-t border-repixl-muted/10 pt-2"><dt className="font-semibold text-repixl-text-light">Total</dt><dd className="font-display text-xl font-bold text-repixl-text-light">{formatPrice(total)}</dd></div>
+                </dl>
+                <p className="mt-2 font-mono text-[10px] text-repixl-muted/70">Final total is confirmed by RePXL when your order is placed.</p>
+              </div>
+            </section>
+
+            {/* Payment error */}
+            {paymentError && (
+              <div className="mt-4 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3" role="alert" aria-live="assertive">
+                <p className="text-sm text-red-400">{paymentError}</p>
+                <p className="mt-1 text-[10px] text-red-400/70">Please check your details and try again. Review your order history before retrying if you were charged.</p>
+              </div>
+            )}
+
+            {/* Place Order actions */}
+            <div className="mt-8 flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <button
+                type="button"
+                onClick={handleBack}
+                disabled={submitting || paymentProcessing}
+                className="rounded-xl border border-repixl-muted/20 px-6 py-3 text-sm text-repixl-text-light/70 transition-colors hover:border-repixl-muted/40 hover:text-repixl-text-light disabled:opacity-50"
+              >
+                ← Back to Payment
+              </button>
+              <Button
+                type="button"
+                variant="primary"
+                size="lg"
+                onClick={() => void handleConfirmAndPay()}
+                disabled={submitting || paymentProcessing}
+                className="w-full disabled:opacity-60 sm:w-auto"
+                aria-live="polite"
+              >
+                {(submitting || paymentProcessing) ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <svg className="h-4 w-4 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" aria-hidden="true">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                    </svg>
+                    Placing your order…
                   </span>
-                </label>
-                {errors.agreeTerms && <p className="mt-1 text-xs text-red-400" role="alert">{errors.agreeTerms}</p>}
-              </div>
+                ) : `Place Order · ${formatPrice(total)}`}
+              </Button>
+            </div>
+            <div className="mt-4 flex items-center justify-center gap-1.5">
+              <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-repixl-muted/50" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+              <span className="font-mono text-[9px] text-repixl-muted/50">Secure · 256-bit SSL Encrypted Payment</span>
+            </div>
+              </div>{/* end STEP 4 */}
+
               <LegalModal isOpen={termsModalOpen} onClose={() => setTermsModalOpen(false)} title="Terms of Service" content={termsContent} onAgree={() => setAgreeTerms(true)} />
               <LegalModal isOpen={privacyModalOpen} onClose={() => setPrivacyModalOpen(false)} title="Privacy Policy" content={privacyContent} />
-              </div>{/* close p-6 */}
-            </div>
+            </form>
+          </div>
+
+          {/* Right: sticky desktop order summary */}
+          <aside className="hidden lg:col-span-1 lg:block">
+            <CheckoutOrderSummary {...summaryProps} />
           </aside>
-        </form>
+        </div>
       </Container>
       {/* 3DS / e-wallet auth modal — rendered as a portal over the full page */}
       {authModal}
       <MinimalFooter />
     </div>
+  )
+}
+
+export default function CheckoutPage() {
+  // useSearchParams (for ?step=) requires a Suspense boundary in the App Router.
+  return (
+    <Suspense fallback={<PageLoader label="Loading checkout…" />}>
+      <CheckoutFlow />
+    </Suspense>
   )
 }
 

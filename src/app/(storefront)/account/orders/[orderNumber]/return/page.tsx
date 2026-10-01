@@ -7,6 +7,7 @@ import { Button, PageBackLink, PageLoader, ImageUploader, type UploadedImage } f
 import { useAuthStore } from '@/stores/authStore'
 import { useOrderHistoryStore } from '@/stores/orderHistoryStore'
 import { REASON_OPTIONS, requiresEvidence } from '@/lib/returnReasons'
+import { toUserMessageFromResponse, getFieldErrors, type ApiErrorBody } from '@/lib/errors/client-errors'
 
 const RETURN_WINDOW_DAYS = 30
 
@@ -58,31 +59,43 @@ export default function ReturnRequestPage() {
     if (evidenceRequired && evidenceImages.filter((i) => i.uploaded).length === 0) {
       errs.evidence = `Photo evidence is required for "${selectedReasonOption?.label}". Please upload at least one image.`
     }
-    if (details.trim() && details.trim().length < 10) errs.details = 'Additional details must be at least 10 characters.'
+    if (details.trim() && details.trim().length < 10) errs.details = 'Please add a little more detail — at least 10 characters.'
     setErrors(errs)
     if (Object.keys(errs).length > 0) return
 
     setSubmitting(true)
     setSubmitError(null)
 
-    const res = await fetch('/api/returns', {
-      method: 'POST',
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        orderNumber,
-        reason,
-        details: details.trim() || undefined,
-        imagePublicIds: evidenceImages.filter((i) => i.uploaded).map((i) => i.publicId),
-      }),
-    })
-    const body = await res.json()
-    if (res.ok) {
-      setSuccess(true)
-    } else {
-      setSubmitError(body.error || 'Submission failed. Please try again.')
+    try {
+      const res = await fetch('/api/returns', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          orderNumber,
+          reason,
+          details: details.trim() || undefined,
+          imagePublicIds: evidenceImages.filter((i) => i.uploaded).map((i) => i.publicId),
+        }),
+      })
+      const body: ApiErrorBody | null = await res.json().catch(() => null)
+      if (res.ok) {
+        setSuccess(true)
+      } else {
+        // Map any server field errors back onto the form (safe messages only).
+        const fieldErrors = getFieldErrors(body)
+        if (fieldErrors.details) {
+          setErrors((prev) => ({ ...prev, details: fieldErrors.details }))
+        }
+        // Top-level banner uses a customer-safe message, never raw server text.
+        setSubmitError(toUserMessageFromResponse(res, body))
+      }
+    } catch (err) {
+      // Network/unexpected failure — never surface the raw error.
+      setSubmitError('We couldn’t submit your return request. Please check your connection and try again.')
+    } finally {
+      setSubmitting(false)
     }
-    setSubmitting(false)
   }
 
   if (!hydrated || !isLoggedIn) return <PageLoader label="Loading…" />
@@ -148,7 +161,8 @@ export default function ReturnRequestPage() {
           ) : (
             <div className="mx-auto max-w-xl">
               {submitError && (
-                <div className="mb-5 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3">
+                <div className="mb-5 flex items-start gap-2.5 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3" role="alert" aria-live="assertive">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="mt-0.5 flex-shrink-0 text-red-400" aria-hidden="true"><circle cx="12" cy="12" r="10" /><path d="M12 8v4" /><path d="M12 16h.01" /></svg>
                   <p className="text-sm text-red-400">{submitError}</p>
                 </div>
               )}
@@ -208,25 +222,35 @@ export default function ReturnRequestPage() {
                   {errors.reason && <p className="mt-2 text-xs text-red-400" role="alert">{errors.reason}</p>}
                 </div>
 
-                {/* Additional details (optional) */}
+                {/* Describe the issue (optional, but min 10 chars if provided) */}
                 {reason && (
                   <div className="rounded-2xl border border-repixl-muted/10 bg-repixl-charcoal p-5">
-                    <label htmlFor="return-details" className="mb-2 block font-mono text-[10px] uppercase tracking-widest text-repixl-muted">
-                      Additional Details <span className="text-repixl-text-light/40">(Optional)</span>
+                    <label htmlFor="return-details" className="mb-1 block font-mono text-[10px] uppercase tracking-widest text-repixl-muted">
+                      Describe the issue <span className="text-repixl-text-light/40">(Optional)</span>
                     </label>
+                    <p id="return-details-help" className="mb-2 text-xs text-repixl-muted">
+                      Tell us what happened and describe the condition of the item. If you add details, please use at least 10 characters.
+                    </p>
                     <textarea
                       id="return-details"
                       rows={4}
                       value={details}
                       onChange={(e) => setDetails(e.target.value)}
                       maxLength={1000}
-                      placeholder="Describe the issue in more detail…"
-                      className="w-full resize-y rounded-xl border border-repixl-muted/20 bg-repixl-bg px-4 py-3 text-sm text-repixl-text-light placeholder:text-repixl-muted/40 focus:border-repixl-muted/40 focus:outline-none"
+                      placeholder="For example: The lens has visible fungus that wasn’t in the listing photos."
+                      aria-invalid={errors.details ? true : undefined}
+                      aria-describedby={errors.details ? 'return-details-help return-details-error' : 'return-details-help'}
+                      className={`w-full resize-y rounded-xl border bg-repixl-bg px-4 py-3 text-sm text-repixl-text-light placeholder:text-repixl-muted/40 focus:outline-none ${errors.details ? 'border-red-400/60 focus:border-red-400' : 'border-repixl-muted/20 focus:border-repixl-muted/40'}`}
                     />
                     <div className="mt-1 flex justify-end">
                       <span className="font-mono text-[9px] text-repixl-muted">{details.length}/1000</span>
                     </div>
-                    {errors.details && <p className="mt-1 text-xs text-red-400" role="alert">{errors.details}</p>}
+                    {errors.details && (
+                      <p id="return-details-error" className="mt-1 flex items-center gap-1.5 text-xs text-red-400" role="alert">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" className="flex-shrink-0" aria-hidden="true"><circle cx="12" cy="12" r="10" /><path d="M12 8v4" /><path d="M12 16h.01" /></svg>
+                        {errors.details}
+                      </p>
+                    )}
                   </div>
                 )}
 
@@ -245,8 +269,8 @@ export default function ReturnRequestPage() {
                       label="Photo Evidence"
                       hint={
                         evidenceRequired
-                          ? 'At least 1 photo is required. Add clear photos showing the condition of the item or the issue.'
-                          : 'Optional. Add photos to support your return request. JPG, PNG, or WebP. Maximum 5 MB each.'
+                          ? 'Please upload clear photos showing the issue with the item. Up to 5 photos — JPG, PNG, or WebP, max 5 MB each.'
+                          : 'Optional. Add photos to help us review your request. Up to 5 photos — JPG, PNG, or WebP, max 5 MB each.'
                       }
                     />
                     {errors.evidence && (
