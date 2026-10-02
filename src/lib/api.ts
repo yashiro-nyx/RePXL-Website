@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { ZodError } from 'zod'
+import { zodToSafeBody } from '@/lib/errors/api-errors'
 
 // ─── Standard API Response Helpers ──────────────────────────────────────────────
 
@@ -11,12 +12,15 @@ export function errorResponse(message: string, status = 400) {
   return NextResponse.json({ success: false, error: message }, { status })
 }
 
+/**
+ * Customer-safe validation response (422). Returns a per-field map of friendly
+ * messages (`fieldErrors`) plus a top-level `error` set to the first field's
+ * message — NO Zod paths, codes, or numeric metadata. Detailed diagnostics are
+ * left to server logs. Use this everywhere a ZodError is caught; never render
+ * `zodError.message` to a customer.
+ */
 export function validationError(error: ZodError) {
-  const messages = error.errors.map((e) => `${e.path.join('.')}: ${e.message}`)
-  return NextResponse.json(
-    { success: false, error: 'Validation failed', details: messages },
-    { status: 422 }
-  )
+  return NextResponse.json(zodToSafeBody(error), { status: 422 })
 }
 
 export function unauthorizedResponse(message = 'Unauthorized') {

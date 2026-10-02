@@ -1,9 +1,10 @@
 'use client'
 
 import { reportActionFailure } from '@/lib/action-error'
-import { useState, useEffect } from 'react'
-import { useParams, useRouter } from 'next/navigation'
+import { useState, useEffect, useRef, Suspense } from 'react'
+import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
+import Image from 'next/image'
 import dynamic from 'next/dynamic'
 import { createPortal } from 'react-dom'
 import { motion } from 'framer-motion'
@@ -24,6 +25,21 @@ import { useProductStore } from '@/stores/productStore'
 import { useToastStore } from '@/stores/toastStore'
 import { useScrollLock } from '@/hooks/useScrollLock'
 import { formatPrice } from '@/lib/format'
+import { productService } from '@/lib/data/productService'
+import { Pagination } from '@/components/product/catalog/Pagination'
+import {
+  aggregateRatings,
+  formatAverage,
+  roundedStars,
+  ratingCountLabel,
+  filterReviewsByRating,
+  parseRatingFilter,
+  REVIEWS_PAGE_SIZE,
+  STAR_VALUES,
+  type RatingFilter,
+  type StarValue,
+} from '@/lib/rating-aggregate'
+import { paginate, clampPage } from '@/lib/catalog-filters'
 
 // Dynamically import the webcam-dependent component to avoid SSR issues
 const CameraFilterDemo = dynamic(
@@ -127,6 +143,9 @@ export default function ProductDetailPage() {
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
   const [selectedQty, setSelectedQty] = useState(1)
   const [compareModal, setCompareModal] = useState<'added' | 'full' | null>(null)
+  // Real units sold, fetched from GET /api/products/[slug] (DELIVERED/COMPLETED
+  // order-item quantities). null = not yet loaded → show nothing rather than 0.
+  const [soldCount, setSoldCount] = useState<number | null>(null)
 
   useEffect(() => {
     useProductStore.getState().hydrate()
@@ -136,6 +155,26 @@ export default function ProductDetailPage() {
     useReviewStore.getState().hydrate()
     useOrderHistoryStore.getState().hydrate()
   }, [])
+
+  // Fetch the real sold count for this product (single aggregate query server-
+  // side). Kept separate from the catalog product store so list views stay lean.
+  useEffect(() => {
+    let active = true
+    setSoldCount(null)
+    productService
+      .getBySlug(params.slug)
+      .then((p) => {
+        if (active) setSoldCount(typeof p.soldCount === 'number' ? p.soldCount : 0)
+      })
+      .catch(() => {
+        // Leave as null on failure — the UI simply omits "N sold" rather than
+        // showing a fabricated number.
+        if (active) setSoldCount(null)
+      })
+    return () => {
+      active = false
+    }
+  }, [params.slug])
 
   if (!product) {
     return (
@@ -203,12 +242,16 @@ export default function ProductDetailPage() {
               color="rgba(140, 133, 128, 0.3)"
               className="relative aspect-square overflow-hidden rounded-lg bg-repixl-charcoal p-6"
             >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={product.image}
-                alt={product.name}
-                className="h-full w-full object-contain transition-transform duration-500 hover:scale-105"
-              />
+              <div className="relative h-full w-full">
+                <Image
+                  src={product.image}
+                  alt={product.name}
+                  fill
+                  priority
+                  sizes="(min-width: 1024px) 45vw, 92vw"
+                  className="object-contain transition-transform duration-500 hover:scale-105"
+                />
+              </div>
               <div className="absolute right-8 top-8">
                 <ConditionBadge condition={product.condition} />
               </div>
@@ -242,7 +285,7 @@ export default function ProductDetailPage() {
                 {formatPrice(product.price)}
               </span>
               <ConditionBadge condition={product.condition} />
-              <ProductRatingSummary slug={product.slug} />
+              <ProductRatingSummary slug={product.slug} soldCount={soldCount} />
             </motion.div>
 
             {/* Stock status */}
@@ -484,7 +527,9 @@ export default function ProductDetailPage() {
           whileInView="show"
           viewport={viewport}
         >
-          <ProductReviews slug={product.slug} />
+          <Suspense fallback={<div className="mt-16 border-t border-repixl-muted/10 pt-12"><p className="text-sm text-repixl-muted">Loading reviews…</p></div>}>
+            <ProductReviews slug={product.slug} />
+          </Suspense>
         </motion.div>
 
         {/* Related products */}
@@ -561,10 +606,11 @@ function QuantitySelector({ value, max, onChange }: { value: number; max: number
 }
 
 function StarDisplay({ rating, size = 14 }: { rating: number; size?: number }) {
+  const filled = roundedStars(rating)
   return (
-    <div className="flex gap-0.5" aria-label={`${rating.toFixed(1)} out of 5 stars`}>
+    <div className="flex gap-0.5" aria-hidden="true">
       {Array.from({ length: 5 }, (_, i) => (
-        <svg key={i} xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill={i < Math.round(rating) ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="1.5" className={i < Math.round(rating) ? 'text-repixl-warning' : 'text-repixl-muted/40'}>
+        <svg key={i} xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill={i < filled ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="1.5" className={i < filled ? 'text-repixl-warning' : 'text-repixl-muted/40'}>
           <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
         </svg>
       ))}
@@ -572,109 +618,292 @@ function StarDisplay({ rating, size = 14 }: { rating: number; size?: number }) {
   )
 }
 
-function ProductRatingSummary({ slug }: { slug: string }) {
+/**
+ * Rating summary beside the product info:
+ *   4.9  ★★★★★  (128 ratings)  ·  342 sold
+ * Uses the centralized `aggregateRatings` so this matches the ProductCard, the
+ * catalog, and the Compare page exactly. Unrated → "No ratings yet". `soldCount`
+ * (real, from the API) is shown when known and > 0, independent of ratings.
+ */
+function ProductRatingSummary({ slug, soldCount }: { slug: string; soldCount: number | null }) {
   const reviews = useReviewStore((s) => s.reviews)
-  const productReviews = reviews.filter((r) => r.productSlug === slug)
-  const count = productReviews.length
-  const avg = count > 0 ? productReviews.reduce((sum, r) => sum + r.rating, 0) / count : 0
-  if (count === 0) return null
+  const summary = aggregateRatings(reviews.filter((r) => r.productSlug === slug))
+  const avgLabel = formatAverage(summary)
+
+  const soldNode =
+    soldCount != null && soldCount > 0 ? (
+      <>
+        <span aria-hidden="true" className="text-repixl-muted/50">·</span>
+        <span className="text-sm text-repixl-text-light/80">
+          <span className="font-semibold text-repixl-text-light">{soldCount.toLocaleString()}</span> sold
+        </span>
+      </>
+    ) : null
+
   return (
-    <div className="flex items-center gap-1.5">
-      <StarDisplay rating={avg} size={12} />
-      <span className="font-mono text-[10px] text-repixl-muted">({count})</span>
+    <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
+      {avgLabel ? (
+        <span className="flex items-center gap-1.5" aria-label={`Rated ${avgLabel} out of 5 stars from ${summary.count} ${summary.count === 1 ? 'rating' : 'ratings'}`}>
+          <span className="font-display text-sm font-semibold text-repixl-text-light">{avgLabel}</span>
+          <StarDisplay rating={summary.average} size={13} />
+          <span className="text-sm text-repixl-muted">({ratingCountLabel(summary.count)})</span>
+        </span>
+      ) : (
+        <span className="flex items-center gap-1.5">
+          <StarDisplay rating={0} size={13} />
+          <span className="text-sm text-repixl-muted">No ratings yet</span>
+        </span>
+      )}
+      {soldNode}
     </div>
   )
 }
 
+interface PdpReview {
+  id: string
+  reviewerName: string
+  rating: number
+  comment: string
+  createdAt: string
+  verifiedPurchase: boolean
+  images: { id: string; secureUrl: string }[]
+}
+
+/**
+ * Customer Reviews section.
+ *
+ * Data: fetches ALL of this product's reviews once (large limit), then derives
+ * the summary, per-star distribution, star filter, and pagination entirely on
+ * the client via the centralized `aggregateRatings` + `filterReviewsByRating` +
+ * `paginate`. Pipeline order is ALL → FILTER → PAGINATE, so the page numbers
+ * always reflect the selected star.
+ *
+ * URL state: the selected star (`?rating=`) and review page (`?reviewPage=`) are
+ * mirrored in the query string with `history.replaceState` so they don't add
+ * history entries or disturb existing product params. Changing the star filter
+ * resets the page to 1.
+ */
 function ProductReviews({ slug }: { slug: string }) {
-  const [reviews, setReviews] = useState<{
-    id: string
-    reviewerName: string
-    rating: number
-    comment: string
-    createdAt: string
-    verifiedPurchase: boolean
-    images: { id: string; secureUrl: string }[]
-    user?: { firstName: string; lastName: string; email: string }
-  }[]>([])
-  const [averageRating, setAverageRating] = useState(0)
-  const [totalReviews, setTotalReviews] = useState(0)
+  const searchParams = useSearchParams()
+  const [reviews, setReviews] = useState<PdpReview[]>([])
   const [loading, setLoading] = useState(true)
 
+  const [ratingFilter, setRatingFilter] = useState<RatingFilter>(() => parseRatingFilter(searchParams.get('rating')))
+  const [page, setPage] = useState<number>(() => {
+    const n = Number(searchParams.get('reviewPage') ?? '1')
+    return Number.isFinite(n) && n > 0 ? Math.floor(n) : 1
+  })
+  const headingRef = useRef<HTMLDivElement>(null)
+
   useEffect(() => {
-    fetch(`/api/reviews?productSlug=${encodeURIComponent(slug)}&limit=50`)
+    let active = true
+    setLoading(true)
+    // Fetch the full set so distribution + filtered pagination are accurate.
+    fetch(`/api/reviews?productSlug=${encodeURIComponent(slug)}&limit=1000`)
       .then((r) => r.json())
       .then((json) => {
-        setReviews(json.data ?? [])
-        setAverageRating(json.averageRating ?? 0)
-        setTotalReviews(json.totalReviews ?? 0)
+        if (!active) return
+        setReviews((json.data ?? []) as PdpReview[])
         setLoading(false)
       })
-      .catch(() => setLoading(false))
+      .catch(() => {
+        if (active) setLoading(false)
+      })
+    return () => {
+      active = false
+    }
   }, [slug])
 
+  // Reflect rating + page in the URL without touching other params or history.
+  const writeUrl = (nextRating: RatingFilter, nextPage: number) => {
+    const params = new URLSearchParams(searchParams.toString())
+    if (nextRating === null) params.delete('rating')
+    else params.set('rating', String(nextRating))
+    if (nextPage <= 1) params.delete('reviewPage')
+    else params.set('reviewPage', String(nextPage))
+    const qs = params.toString()
+    if (typeof window !== 'undefined') {
+      window.history.replaceState(null, '', qs ? `?${qs}` : window.location.pathname)
+    }
+  }
+
+  const summary = aggregateRatings(reviews)
+  const avgLabel = formatAverage(summary)
+
+  // ALL → FILTER → PAGINATE
+  const filtered = filterReviewsByRating(reviews, ratingFilter)
+  const totalPages = Math.max(1, Math.ceil(filtered.length / REVIEWS_PAGE_SIZE))
+  const safePage = clampPage(page, totalPages)
+  const pageData = paginate(filtered, safePage, REVIEWS_PAGE_SIZE)
+
+  const selectRating = (next: RatingFilter) => {
+    setRatingFilter(next)
+    setPage(1) // changing the filter always resets to page 1
+    writeUrl(next, 1)
+  }
+
+  const goToPage = (next: number) => {
+    const clamped = clampPage(next, totalPages)
+    setPage(clamped)
+    writeUrl(ratingFilter, clamped)
+    headingRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
+
+  const maxBar = Math.max(1, ...STAR_VALUES.map((s) => summary.distribution[s]))
+
   return (
-    <section className="mt-16 border-t border-repixl-muted/10 pt-12">
-      <div className="flex items-center justify-between">
-        <h2 className="font-display text-display-sm text-repixl-text-light">Reviews</h2>
-        {totalReviews > 0 && (
-          <div className="flex items-center gap-2">
-            <div className="flex gap-0.5">
-              {Array.from({ length: 5 }, (_, i) => (
-                <svg key={i} xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill={i < Math.round(averageRating) ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="1.5" className={i < Math.round(averageRating) ? 'text-repixl-warning' : 'text-repixl-muted/40'} aria-hidden="true">
-                  <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
-                </svg>
-              ))}
-            </div>
-            <span className="font-mono text-[10px] text-repixl-muted">{averageRating.toFixed(1)} ({totalReviews})</span>
-          </div>
-        )}
+    <section className="mt-16 border-t border-repixl-muted/10 pt-12" aria-labelledby="reviews-heading">
+      <div ref={headingRef} className="scroll-mt-28">
+        <h2 id="reviews-heading" className="font-mono text-[11px] uppercase tracking-[0.3em] text-repixl-muted">
+          Customer Reviews
+        </h2>
       </div>
 
-      {loading && (
-        <p className="mt-6 text-sm text-repixl-muted">Loading reviews…</p>
-      )}
+      {loading && <p className="mt-6 text-sm text-repixl-muted">Loading reviews…</p>}
 
-      {!loading && reviews.length === 0 && (
-        <p className="mt-6 text-sm text-repixl-muted">No reviews yet. Be the first to share your experience.</p>
-      )}
-
-      {!loading && reviews.length > 0 && (
-        <div className="mt-6 space-y-4">
-          {reviews.map((review) => (
-            <div key={review.id} className="rounded-lg border border-repixl-muted/10 bg-repixl-charcoal p-4">
-              <div className="flex items-start justify-between">
-                <div>
-                  <div className="flex gap-0.5">
-                    {Array.from({ length: 5 }, (_, i) => (
-                      <svg key={i} xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill={i < review.rating ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="1.5" className={i < review.rating ? 'text-repixl-warning' : 'text-repixl-muted/40'} aria-hidden="true">
-                        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
-                      </svg>
-                    ))}
-                  </div>
-                  <div className="mt-1 flex items-center gap-2">
-                    <span className="text-sm font-medium text-repixl-text-light">{review.reviewerName}</span>
-                    {review.verifiedPurchase && (
-                      <span className="rounded bg-repixl-success/15 px-1.5 py-0.5 font-mono text-[8px] uppercase tracking-wider text-repixl-success">Verified Purchase</span>
-                    )}
-                  </div>
-                </div>
-                <span className="font-mono text-[10px] text-repixl-muted">
-                  {new Date(review.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                </span>
-              </div>
-              <p className="mt-2 text-sm leading-relaxed text-repixl-text-light/70">{review.comment}</p>
-              {/* Review photos */}
-              {review.images && review.images.length > 0 && (
-                <ReviewImageThumbnails
-                  images={review.images.map((img, i) => ({ src: img.secureUrl, alt: `Review photo ${i + 1}` }))}
-                />
-              )}
-            </div>
-          ))}
+      {/* Empty: product has no reviews at all */}
+      {!loading && summary.count === 0 && (
+        <div className="mt-8 rounded-2xl border border-dashed border-repixl-muted/20 px-6 py-14 text-center">
+          <StarDisplay rating={0} size={20} />
+          <p className="mt-4 font-display text-display-sm text-repixl-text-light/70">No ratings yet</p>
+          <p className="mt-1.5 text-sm text-repixl-muted">Be the first to share your experience with this camera.</p>
         </div>
       )}
+
+      {!loading && summary.count > 0 && (
+        <>
+          {/* Summary + distribution + filters. Desktop: summary | distribution.
+              Mobile: stacks cleanly. */}
+          <div className="mt-8 grid grid-cols-1 gap-8 md:grid-cols-[minmax(0,220px)_1fr] md:items-start">
+            {/* Prominent average */}
+            <div className="flex flex-col items-center rounded-2xl border border-repixl-muted/10 bg-repixl-charcoal/50 px-6 py-7 text-center">
+              <p className="font-display text-5xl font-bold leading-none text-repixl-text-light">
+                {avgLabel}
+                <span className="text-2xl text-repixl-muted/70"> / 5</span>
+              </p>
+              <div className="mt-3">
+                <StarDisplay rating={summary.average} size={18} />
+              </div>
+              <p className="mt-2 text-sm text-repixl-muted">{ratingCountLabel(summary.count)}</p>
+            </div>
+
+            {/* Restrained distribution bars */}
+            <div>
+              <ul className="space-y-2" aria-label="Rating distribution">
+                {STAR_VALUES.map((star) => {
+                  const n = summary.distribution[star]
+                  const pct = Math.round((n / maxBar) * 100)
+                  return (
+                    <li key={star} className="flex items-center gap-3">
+                      <span className="w-10 shrink-0 font-mono text-xs text-repixl-muted">{star} ★</span>
+                      <div className="h-2 flex-1 overflow-hidden rounded-full bg-repixl-muted/10" aria-hidden="true">
+                        <div className="h-full rounded-full bg-repixl-warning/80 transition-all" style={{ width: `${pct}%` }} />
+                      </div>
+                      <span className="w-8 shrink-0 text-right font-mono text-xs tabular-nums text-repixl-muted">{n}</span>
+                    </li>
+                  )
+                })}
+              </ul>
+
+              {/* Segmented star filter — real counts */}
+              <div className="mt-5 flex flex-wrap gap-2" role="group" aria-label="Filter reviews by star rating">
+                <FilterPill
+                  label={`All (${summary.count})`}
+                  selected={ratingFilter === null}
+                  onClick={() => selectRating(null)}
+                />
+                {STAR_VALUES.map((star) => (
+                  <FilterPill
+                    key={star}
+                    label={`${star} Star (${summary.distribution[star]})`}
+                    selected={ratingFilter === star}
+                    onClick={() => selectRating(star)}
+                  />
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Review list (filtered + paginated) */}
+          <div className="mt-10">
+            {filtered.length === 0 ? (
+              <div className="rounded-2xl border border-dashed border-repixl-muted/20 px-6 py-12 text-center">
+                <p className="text-sm text-repixl-text-light/80">
+                  No {ratingFilter}-star reviews for this camera.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => selectRating(null)}
+                  className="mt-3 font-mono text-[11px] uppercase tracking-wider text-repixl-red underline-offset-2 transition-colors hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-repixl-red/40"
+                >
+                  Back to all reviews
+                </button>
+              </div>
+            ) : (
+              <>
+                <p className="sr-only" role="status">
+                  Showing page {pageData.page} of {pageData.totalPages}, {filtered.length} matching {filtered.length === 1 ? 'review' : 'reviews'}
+                </p>
+                <ul className="space-y-4">
+                  {pageData.items.map((review) => (
+                    <li key={review.id} className="rounded-xl border border-repixl-muted/10 bg-repixl-charcoal p-5">
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <StarDisplay rating={review.rating} size={13} />
+                            <span className="font-mono text-xs text-repixl-text-light/80" aria-label={`${review.rating} out of 5 stars`}>
+                              {review.rating.toFixed(1)}
+                            </span>
+                          </div>
+                          <div className="mt-1.5 flex items-center gap-2">
+                            <span className="text-sm font-medium text-repixl-text-light">{review.reviewerName}</span>
+                            {review.verifiedPurchase && (
+                              <span className="rounded bg-repixl-success/15 px-1.5 py-0.5 font-mono text-[8px] uppercase tracking-wider text-repixl-success">
+                                Verified Purchase
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <span className="shrink-0 font-mono text-[10px] text-repixl-muted">
+                          {new Date(review.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                        </span>
+                      </div>
+                      <p className="mt-3 text-sm leading-relaxed text-repixl-text-light/70">{review.comment}</p>
+                      {review.images && review.images.length > 0 && (
+                        <ReviewImageThumbnails
+                          images={review.images.map((img, i) => ({ src: img.secureUrl, alt: `Review photo ${i + 1}` }))}
+                        />
+                      )}
+                    </li>
+                  ))}
+                </ul>
+
+                <Pagination page={pageData.page} totalPages={pageData.totalPages} onPageChange={goToPage} />
+              </>
+            )}
+          </div>
+        </>
+      )}
     </section>
+  )
+}
+
+/** Modern segmented filter pill for the rating filter. */
+function FilterPill({ label, selected, onClick }: { label: string; selected: boolean; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={selected}
+      className={[
+        'rounded-full border px-3.5 py-1.5 text-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-repixl-red/40',
+        selected
+          ? 'border-repixl-red bg-repixl-red/10 font-semibold text-repixl-text-light'
+          : 'border-repixl-muted/25 text-repixl-text-light/80 hover:border-repixl-muted/45 hover:text-repixl-text-light',
+      ].join(' ')}
+    >
+      {label}
+    </button>
   )
 }
 

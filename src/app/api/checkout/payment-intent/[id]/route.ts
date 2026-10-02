@@ -47,9 +47,6 @@ export async function GET(
     })
   } catch (error) {
     console.error('Retrieve payment intent error:', error)
-    return errorResponse(
-      error instanceof Error ? error.message : 'Failed to retrieve payment status',
-      500
-    )
+    return errorResponse('We couldn’t check your payment status right now. Please try again in a moment.', 500)
   }
 }

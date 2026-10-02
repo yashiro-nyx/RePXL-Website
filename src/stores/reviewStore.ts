@@ -6,6 +6,7 @@ import { useAuthStore } from './authStore'
 import { reportActionFailure } from '@/lib/action-error'
 import { create } from 'zustand'
 import { reviewService } from '@/lib/data/reviewService'
+import { aggregateRatings } from '@/lib/rating-aggregate'
 
 export interface Review {
   id: string
@@ -79,13 +80,12 @@ export const useReviewStore = create<ReviewState>((set, get) => ({
     get().reviews.find(
       (r) => r.reviewerEmail === email && r.productSlug === slug
     ),
-  getAverageRating: (slug) => {
-    const pr = get().reviews.filter((r) => r.productSlug === slug)
-    if (pr.length === 0) return 0
-    return pr.reduce((sum, r) => sum + r.rating, 0) / pr.length
-  },
+  // Centralized aggregation (shared with ProductCard, catalog, PDP, Compare)
+  // so a product's average is identical everywhere it appears.
+  getAverageRating: (slug) =>
+    aggregateRatings(get().reviews.filter((r) => r.productSlug === slug)).average,
   getReviewCount: (slug) =>
-    get().reviews.filter((r) => r.productSlug === slug).length,
+    aggregateRatings(get().reviews.filter((r) => r.productSlug === slug)).count,
 
   hydrate: () => {
     // If reviews are already loaded and within freshness TTL, skip refetching

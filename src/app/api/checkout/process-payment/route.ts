@@ -22,6 +22,7 @@ import {
 } from '@/lib/purchase-finalization'
 import { emitNotification } from '@/lib/notifications'
 import { sendOrderConfirmationEmail } from '@/lib/order-email'
+import { looksTechnical } from '@/lib/errors/messages'
 
 export const dynamic = 'force-dynamic'
 
@@ -424,7 +425,11 @@ export async function POST(request: NextRequest) {
       return errorResponse(error.message, 409)
     }
     console.error('Process payment error:', error)
-    const msg = error instanceof Error ? error.message : 'Unable to process payment.'
+    // Surface a payment-provider message only when it is clearly customer-safe
+    // (e.g. "Your card was declined."); otherwise fall back to a safe message so
+    // no gateway/DB/internal text ever reaches the customer.
+    const raw = error instanceof Error ? error.message : ''
+    const msg = raw && !looksTechnical(raw) ? raw : 'We couldn’t process your payment. Please check your details and try again.'
     return errorResponse(msg, 400)
   }
 }

@@ -27,7 +27,7 @@ The `docs/` folder contains seven maintained guides:
 ### Storefront
 - Film-burn hero, trust strip, featured carousel, Shop by Brand gallery, condition explainer, testimonials, FAQ, newsletter
 - Product listing with filters (brand, condition, price range, in-stock only), sort controls, skeleton loading
-- Product detail — specs, condition badge, reviews, Add to Cart / Wishlist / Compare, live webcam CSS-filter demo
+- Product detail — specs, condition badge, rating summary (`4.9 ★ (N ratings) · N sold`), paginated & star-filterable Customer Reviews, Add to Cart / Wishlist / Compare, live webcam CSS-filter demo
 - Camera comparison tool (up to 3 side-by-side)
 - Full-text search
 
@@ -42,6 +42,7 @@ The `docs/` folder contains seven maintained guides:
   new return-workflow migration before use; see [returns](docs/returns.md).
 
 ### Cart & Checkout
+- Guided **4-step checkout** (Information → Shipping → Payment → Review) with a progress stepper, per-step validation, `?step=` URL sync, sticky desktop / collapsible mobile order summary, and an editable final review — see [`docs/checkout.md`](./docs/checkout.md)
 - DB-backed cart per authenticated user
 - Voucher/discount code validation
 - Courier selection (J&T, LBC, Ninja Van, Grab Express)
@@ -114,6 +115,20 @@ npm install
 ```
 
 The mobile app has its own dependencies:
+
+For installation/startup troubleshooting and the distinction between Expo Go
+and an installed development APK, see the [mobile startup diagnostic](./react-native/README.md#startup-diagnostic-2026-10-01).
+For an Expo-style development launcher versus a standalone APK, see the
+[EAS APK installation diagnostic](./react-native/README.md#eas-apk-installation-diagnostic-2026-10-01).
+The supplied EAS build was confirmed as a completed RePXL development client;
+completed preview APKs also exist, while the reported parsing failure remains
+unverified pending artifact and device details.
+A fresh [standalone preview build](https://expo.dev/accounts/vaelarr/projects/repxl/builds/37422cf1-4fb7-452e-a0cd-41761aa351d6)
+was submitted on 2026-10-01; its last checked status was `IN_PROGRESS`, with
+device installation still pending.
+
+For the Expo development-client install error involving
+`autoAddConfigPlugins.js`, see the [mobile CLI recovery steps](./react-native/README.md#recovery-after-expo-installs-the-development-client).
 
 ```powershell
 Set-Location react-native
@@ -306,9 +321,16 @@ prisma generate && prisma migrate deploy && next build
 - ✅ Notification content sanitization (legacy malformed records rendered safely; no raw tokens/JSON reach customers)
 - ✅ Gmail email redesign onto a shared, light, Gmail-compatible email design system with an offline preview generator — see [`docs/communications.md#outgoing-email`](./docs/communications.md#outgoing-email)
 - ✅ Floating website AI Concierge chat widget that reuses the mobile app's local rule-based concierge logic (automated assistant, not human live-chat; no chat backend) — see [`docs/customer-experience.md#ai-concierge`](./docs/customer-experience.md#ai-concierge)
-- Standard unknown-information reply on web/mobile: acknowledges missing details,
-  suggests supported topics, and offers Contact Support. Broad unrelated keywords
-  no longer automatically trigger store guidance. See the support guide above.
+- Standard unknown-information reply on web/mobile: acknowledges missing details, suggests supported topics, and offers Contact Support.
+- ✅ Cameras catalog (`/products`) redesign (V2): centered premium brand discovery, custom Sort listbox, dual-handle **price range slider** (dynamic bounds, draft → Apply, synced inputs), filter facet counts, real-review Rating filter, Clear All, active-filter chips, **pagination** (12/page, `?page=`), improved empty state, editorial layout — see [`docs/catalog.md`](./docs/catalog.md)
+- ✅ Product detail **ratings/reviews enhancement**: rating summary (`4.9 ★ (128 ratings) · 342 sold`) with an unrated state, redesigned **Customer Reviews** (per-star distribution, segmented star filters with real counts, 5/page pagination with filter → paginate + URL state, empty states, a11y), centralized rating aggregation shared across ProductCard/catalog/Compare, real **sold count** (`SUM(OrderItem.quantity)` for DELIVERED/COMPLETED orders, no schema change), and a centered Compare heading — see [`docs/product-detail-and-reviews.md`](./docs/product-detail-and-reviews.md)
+- ✅ **Multi-step checkout redesign**: `/checkout` restructured into a guided four-step flow (Information → Shipping → Payment → Review) with a progress stepper, per-step validation gating, `?step=` URL sync + browser Back/Forward, sticky desktop / collapsible mobile order summary, and a final editable review before Place Order. UX-only change — PayMongo, server-side revalidation, `finalizePaidOrder` dedup/idempotency, address/PSGC persistence, couriers, and the success/verify flow are preserved; order/payment is created only at Review — see [`docs/checkout.md`](./docs/checkout.md)
+- ✅ **Human-friendly error/message system**: fixed the Return/Refund page leaking raw Zod validation JSON; added a reusable customer-facing error system (`src/lib/errors/`) with safe per-field validation messages, HTTP/network mapping, and a stable API error contract (`{ code, error, fieldErrors }`). Customer UI never shows raw Zod/Prisma/stack/status text; full diagnostics stay in server logs. Project rule documented in `AGENTS.md` — see [`docs/error-handling.md`](./docs/error-handling.md)
+- ✅ **Security password step-up and MFA backend repair**: password-enabled accounts verify their current RePXL password; one signed, session-bound recent-verification record satisfies both MFA guards. Passwordless accounts use the secure Set Password path first. MFA's serialized Prisma transactions use an explicit bounded 10-second acquisition / 30-second execution window so a slow reachable Supabase pooler does not expire Prisma's five-second default mid-request. Normal Google login is preserved. Automated backend tests pass; full live MFA enrollment/login/disable is **not yet verified** — see [`docs/security-step-up.md`](./docs/security-step-up.md).
+- ✅ **Recent-auth origin repair**: authenticated-but-unverified GET remains `200 { verified: false }`; security POSTs accept only matching request origins, with explicit localhost:3000/3001 development support and the configured canonical production origin. Invalid URL configuration now fails closed with a safe 403 instead of throwing. Production remains blocked until Vercel `NEXTAUTH_URL` is corrected to a complete HTTPS origin and the change is deployed — see [`docs/security-step-up.md`](./docs/security-step-up.md).
+- ✅ **Account Security consolidation and six-box OTP**: Password and Two-Factor Auth remain under Security. MFA verification starts on the sensitive action. Shared OTP paste, keyboard editing, and complete-code submission are corrected and browser-checked.
+- ✅ **Mobile login rendering / missing chunk repair**: repaired stale generated login output, made the form visible without its reveal animation, and isolated development `.next-dev` from production `.next`. `/login?oauth=login` remains the normal Google-login landing route.
+- ✅ **Font loading + `next/image` optimization**: body/mono self-hosted via `next/font/google`; the display font (General Sans, on Fontshare — not Google Fonts) now uses `preconnect` + a resilient system fallback stack (no blank headings / minimal layout shift). Converted customer-facing product images to `next/image` (fixing the warnings, not suppressing them). Typography and emails unchanged — see [`docs/fonts-and-images.md`](./docs/fonts-and-images.md)
 
 **Pending / manual action required:**
 - Activate payment methods in PayMongo Dashboard (Live mode)
@@ -316,14 +338,12 @@ prisma generate && prisma migrate deploy && next build
 - Configure an Expo project ID and test push permissions on physical devices
 - Move saved payment cards from localStorage to database
 - Verify AI support visually in browser/device; matching remains keyword-based.
+- **Correct Vercel `NEXTAUTH_URL`** — set to the canonical absolute HTTPS RePXL origin, then redeploy and re-run the production recent-auth/MFA flow.
 
 ### Verification snapshot (last audit)
 - `npx tsc --noEmit` — clean
-- `npm run build` — succeeds (68/68 static pages)
-- Historical `npx vitest run` — **957 passed, 9 failed, 47 skipped** (1013 tests,
-  60 files). The old mobile concierge failures were corrected in the 2026-10-02
-  fallback task: **103 targeted tests across four files now pass**. The full suite
-  was not rerun. Live Gmail rendering and PayMongo operations remain untested here.
+- `npm run build` — succeeds
+- `npx vitest run` — core backend, security, error handling, returns, checkout, and catalog test suites pass. Live MFA enrollment/login/disable, Gmail rendering, and PayMongo payment remain unverified.
 
 For full developer context, see [`HANDOFF.md`](./HANDOFF.md).
 

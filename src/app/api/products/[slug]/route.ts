@@ -17,7 +17,14 @@ interface RouteParams {
   params: Promise<{ slug: string }>
 }
 
-// GET /api/products/[slug] — Get single product by slug
+// Order statuses that represent a GENUINE completed sale. This mirrors the
+// verified-purchase definition already used by POST /api/reviews, so "sold"
+// and "verified purchase" stay consistent across the app. PROCESSING (paid but
+// not yet delivered), CANCELLED, and unpaid/failed orders are intentionally
+// excluded — a sold count must reflect real, fulfilled transactions.
+const SOLD_ORDER_STATUSES = ['DELIVERED', 'COMPLETED'] as const
+
+// GET /api/products/[slug] — Get single product by slug (+ real sold count)
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
     const { slug } = await params
@@ -29,7 +36,19 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       return notFoundResponse('Product not found')
     }
 
-    return successResponse(product)
+    // Real units sold: SUM of OrderItem.quantity across this product's items
+    // whose parent order is DELIVERED or COMPLETED. A single aggregate query
+    // (no per-order loop / N+1); returns 0 when the product has never sold.
+    const soldAgg = await prisma.orderItem.aggregate({
+      _sum: { quantity: true },
+      where: {
+        productId: product.id,
+        order: { status: { in: [...SOLD_ORDER_STATUSES] } },
+      },
+    })
+    const soldCount = soldAgg._sum.quantity ?? 0
+
+    return successResponse({ ...product, soldCount })
   } catch (error) {
     console.error('Get product error:', error)
     return errorResponse('Internal server error', 500)

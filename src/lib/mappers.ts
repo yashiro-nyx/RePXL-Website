@@ -31,6 +31,8 @@ export interface ApiProduct {
   year: number
   createdAt?: string
   updatedAt?: string
+  /** Real units sold — only returned by GET /api/products/[slug]. */
+  soldCount?: number
 }
 
 const CONDITION_TO_CLIENT: Record<ApiProduct['condition'], ConditionGrade> = {
@@ -81,6 +83,8 @@ export function apiToClientProduct(p: ApiProduct): Product {
     status: STATUS_TO_CLIENT[p.status] ?? 'active',
     serialNumber: p.serialNumber ?? undefined,
     conditionNotes: p.conditionNotes ?? undefined,
+    // Present only on the single-product detail response; undefined elsewhere.
+    soldCount: typeof p.soldCount === 'number' ? p.soldCount : undefined,
   }
 }
 

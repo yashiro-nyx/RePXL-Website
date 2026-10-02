@@ -25,6 +25,13 @@ export interface Product {
   status: ProductStatus
   serialNumber?: string
   conditionNotes?: string
+  /**
+   * Real units sold — SUM of OrderItem.quantity across DELIVERED/COMPLETED
+   * orders. Only present on the single-product detail fetch
+   * (`GET /api/products/[slug]`); list endpoints omit it (leaving it undefined).
+   * Never fabricated: a product that has never sold reports 0.
+   */
+  soldCount?: number
 }
 
 export interface CartItem {

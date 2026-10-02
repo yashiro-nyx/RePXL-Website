@@ -2,9 +2,8 @@
 
 RePXL has two customer clients (Next.js website and Expo/React Native app) and
 a web admin dashboard. All commerce/account mutations use the Next.js API and
-PostgreSQL through server-side Prisma. This guide includes the lasting technical
-material from the former onboarding audit; point-in-time Git findings and stale
-feature inventories have been removed.
+PostgreSQL through server-side Prisma. The stack, payment gateway (PayMongo),
+email (Gmail SMTP), image CDN (Cloudinary), and auth model reflect the current implementation.
 
 ## System overview
 
@@ -115,6 +114,40 @@ on an old fixed migration count. Setup and migration commands live in
    Expo push accompanies the notification pipeline. Rendering and delivery details
    are in [communications.md](./communications.md).
 
+| Layer | Technology |
+|-------|-----------|
+| Framework | Next.js 15 (App Router) |
+| Language | TypeScript (strict) |
+| Styling | Tailwind CSS (custom design tokens) |
+| Animation | Framer Motion |
+| State | Zustand |
+| Auth | Custom HMAC cookie sessions + NextAuth (Google OAuth) + mobile bearer tokens; customer MFA (TOTP) |
+| ORM | Prisma |
+| Database | PostgreSQL (Supabase; RLS enabled as defense-in-depth) |
+| Validation | Zod |
+| Deployment | Vercel |
+| Payment | PayMongo Hosted Checkout |
+| Images | Cloudinary |
+| Email | Gmail SMTP (Nodemailer) |
+| Mobile | Expo SDK 57 / React Native |
+
+### Security authentication boundary
+
+Normal password/Google login establishes the customer session and, when enabled,
+a separate MFA challenge. Sensitive web MFA management requires current-password
+step-up through `/api/auth/recent-auth`; its signed method/session/time claim and
+existing `RecentAuthRecord` are checked by both the HTTP guard and locked MFA
+service. Serialized MFA transactions use explicit bounded Prisma options
+(`maxWait` 10 seconds, `timeout` 30 seconds) because the Supabase pooler can
+exceed Prisma's five-second interactive default while remaining reachable.
+Passwordless customers prove ownership to Set Password first. Google
+login timestamps cannot authorize MFA changes. Email ownership challenges reuse
+the existing recent-auth record for attempts and consumption; no schema change.
+Security POSTs require a parseable browser Origin that matches the actual request
+origin. Development explicitly permits localhost ports 3000 and 3001;
+production permits only the canonical absolute HTTPS `NEXTAUTH_URL`. Invalid
+production URL configuration fails closed.
+
 Other shared API areas include CMS/pages/banners, newsletter double opt-in,
 contact/support, and account security. Cloudinary, PayMongo, Gmail, and database
 credentials stay on the server. The AI Concierge is local rule-based logic,
@@ -122,14 +155,12 @@ with no chat backend; see [customer-experience.md](./customer-experience.md#ai-c
 
 ## Stack and maintenance references
 
-Declared versions and scripts are authoritative in the root and native
+Declaring versions and scripts are authoritative in the root and native
 `package.json` files. The website uses Next.js App Router, TypeScript, React,
 Tailwind, Framer Motion, Zustand, Zod, and Prisma. The maintained native workspace
 uses Expo SDK 57, Expo Router, React Native, and SecureStore.
 
 - [Setup, environment, deployment, and troubleshooting](./SETUP.md)
+- [Security authentication and verification](./security-step-up.md)
 - [Native implementation and release work](./mobile-app-development-plan.md)
 - [Actual progress, dated verification, and unresolved limits](./Group2_ProjectChecklist.md)
-
-Documentation consolidation checked source paths/configuration and local links;
-it did not repeat application tests, builds, provider checks, or device checks.

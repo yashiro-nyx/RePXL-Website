@@ -13,6 +13,7 @@ import { useThemeStore } from '@/stores/themeStore'
 import { useReducedMotion } from '@/hooks/useReducedMotion'
 import { reportActionFailure } from '@/lib/action-error'
 import { formatPrice } from '@/lib/format'
+import { aggregateRatings } from '@/lib/rating-aggregate'
 import type { Product } from '@/types'
 
 export interface ProductCardProps {
@@ -274,17 +275,13 @@ export function ProductCard({
   const removeFromWishlist = useWishlistStore((s) => s.removeFromWishlist)
   const inWishlist = useWishlistStore((s) => s.isInWishlist(product.slug))
 
-  // Real reviews integration (bulk hydrated, 0 extra API calls)
+  // Real reviews integration (bulk hydrated, 0 extra API calls). Uses the
+  // centralized aggregation so this matches the catalog, PDP, and Compare.
   const allReviews = useReviewStore((s) => s.reviews)
-  const productReviews = useMemo(
-    () => allReviews.filter((r) => r.productSlug === product.slug),
-    [allReviews, product.slug]
-  )
-  const reviewCount = productReviews.length
-  const avgRating =
-    reviewCount > 0
-      ? productReviews.reduce((sum, r) => sum + r.rating, 0) / reviewCount
-      : 0
+  const { reviewCount, avgRating } = useMemo(() => {
+    const summary = aggregateRatings(allReviews.filter((r) => r.productSlug === product.slug))
+    return { reviewCount: summary.count, avgRating: summary.average }
+  }, [allReviews, product.slug])
 
   // Stock clamping
   const stock = Math.max(0, product.stock ?? 0)

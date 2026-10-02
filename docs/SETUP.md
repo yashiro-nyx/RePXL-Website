@@ -34,6 +34,15 @@ browser storage can replace failed API mutations.
 
 ## Server environment
 
+If port 3000 is occupied, `npm run dev -- -p 3001` is supported by the custom
+security-origin guard. Password step-up works on either explicit localhost port;
+cross-port requests remain rejected. To test Google OAuth while the app itself
+runs on 3001, use a local-only `NEXTAUTH_URL=http://localhost:3001` override and
+register `http://localhost:3001/api/auth/callback/google` with Google. Do not add
+wildcard origins or commit the local override.
+
+---
+
 Keep actual values in ignored environment files or hosting/CI secret settings.
 The table lists configuration names, not credentials.
 
@@ -116,7 +125,12 @@ local website build alone does not verify migration or live provider operation.
 
 ## Mobile setup and release
 
-Run the website API first when using a local backend. In a second terminal:
+The customer mobile app is in `react-native/` and uses the same deployed Next.js API,
+Prisma business rules, and PostgreSQL database as the website. Do not put a
+database URL or payment secret in the mobile app.
+
+Run the website API first when using a local backend (`npm run dev`). In a second terminal:
+
 
 ```powershell
 Set-Location react-native
@@ -178,3 +192,31 @@ provider check, or application build was performed for documentation consolidati
 | Email unavailable | Gmail SMTP configuration and server logs; actual delivery requires a live check |
 | Native API unreachable | Device-reachable API origin and network configuration |
 | Native module missing | Rebuild/install the native app after dependency/configuration changes |
+
+### 8.3 Push notifications
+
+Set `EXPO_PUBLIC_EXPO_PROJECT_ID` in the mobile environment to register Expo
+push tokens. Set `EXPO_PUSH_ENABLED=true` on the server only after the
+`PushToken` migration is deployed and physical-device permissions have been
+tested. Push delivery is optional; in-app notifications remain the source of
+truth.
+
+
+### Development output and Security verification (2026-10-01)
+
+`npm run dev` uses `.next-dev`; `npm run build` and `npm start` use `.next`.
+Do not run two dev servers against the same output directory. If a dev page
+references missing `/_next/static/` files, stop that project's dev process,
+remove only its generated `.next-dev`, restart, and verify the exact resource.
+Do not remove source, migrations, or alter database configuration.
+
+Password-enabled customers verify their current RePXL password before MFA setup.
+A Google-only account must first complete ownership verification and Set Password.
+Normal Google login remains supported; it does not replace password step-up.
+MFA's locked interactive transactions use a 10-second acquisition and 30-second
+execution bound. If a request fails, inspect the server error code: `P2028`
+means the transaction expired, while `P1001` means the database was unreachable.
+Do not change database URLs or weaken MFA checks to mask either condition.
+See [Security/MFA verification results](./security-step-up.md). Live MFA must not
+be considered verified from a successful build or QR render alone.
+

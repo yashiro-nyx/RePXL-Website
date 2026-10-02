@@ -3,6 +3,7 @@
 import { reportActionFailure } from '@/lib/action-error'
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
+import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import { createPortal } from 'react-dom'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -243,8 +244,7 @@ export default function CartPage() {
 
                       {/* Product image */}
                       <Link href={`/products/${product.slug}`} className="h-16 w-16 flex-shrink-0 overflow-hidden rounded-lg bg-repixl-bg p-1 transition-opacity hover:opacity-80 sm:h-20 sm:w-20">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={product.image} alt={product.name} className="h-full w-full object-contain" />
+                        <Image src={product.image} alt={product.name} width={80} height={80} sizes="80px" className="h-full w-full object-contain" />
                       </Link>
 
                       {/* Details */}

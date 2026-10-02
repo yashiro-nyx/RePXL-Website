@@ -410,9 +410,15 @@ describe('Back navigation integration — intentional, hierarchy-based placement
     expect(src).not.toMatch(/PageBackLink[^>]*clearCart/)
   })
 
-  it('checkout keeps its multi-step "Back to Edit" navigation intact', () => {
+  it('checkout keeps its multi-step back navigation intact', () => {
     const src = readFileSync('src/app/(storefront)/checkout/page.tsx', 'utf8')
-    expect(src).toContain('Back to Edit')
+    // The 4-step flow provides per-step Back navigation (Back to <previous step>)
+    // plus a dedicated "Back to Payment" on the Review step, and follows browser
+    // Back/Forward between steps via popstate.
+    expect(src).toContain('handleBack')
+    expect(src).toContain('← Back to Payment')
+    expect(src).toMatch(/Back to \{STEP_META\[getPrevStep\(step\)/)
+    expect(src).toContain("addEventListener('popstate'")
   })
 })
 

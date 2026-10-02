@@ -50,6 +50,18 @@ export const productService = {
     return apiProducts.map(apiToClientProduct)
   },
 
+  /**
+   * Fetch a SINGLE product by slug. Unlike the list endpoints, this response
+   * includes the real `soldCount` aggregate (units sold across DELIVERED/
+   * COMPLETED orders) computed server-side. Used by the product detail page to
+   * show "N sold" without scanning orders on the client.
+   */
+  async getBySlug(slug: string): Promise<Product> {
+    const apiProduct = await apiClient.get<ApiProduct>(`/api/products/${slug}`)
+    slugToId.set(apiProduct.slug, apiProduct.id)
+    return apiToClientProduct(apiProduct)
+  },
+
   async create(product: Product): Promise<Product> {
     const created = await apiClient.post<ApiProduct>(
       '/api/products',

@@ -58,6 +58,117 @@ refreshed native build remain pending.
 
 ## Development commands
 
+### Startup diagnostic (2026-10-01)
+
+The installed app dependencies passed `npx.cmd expo install --check` and all
+21 `npx.cmd expo-doctor` checks. Mobile `npx.cmd tsc --noEmit` passed. An isolated
+`npx.cmd expo start --offline --port 8099` started Metro successfully; Android
+production export to `.expo/startup-audit` passed (1,536 modules). This verifies
+JavaScript bundling, not APK installation or device execution. No source code
+changed; Vitest and the separate root Next.js build were not run.
+
+Because `expo-dev-client` is installed, `npm start` defaults to a development
+build. Install the development APK before using that mode. For an Expo Go
+preview with a compatible SDK, explicitly run `npx.cmd expo start --go --clear`;
+Google OAuth requires the custom build. See the
+[Expo CLI launch-target documentation](https://docs.expo.dev/more/expo-cli/).
+For the installed development APK, use `npx.cmd expo start --dev-client --clear`.
+Use `--tunnel` if the phone cannot reach Metro over the local network.
+
+The inspected machine had no device listed by `adb devices`. Start an Android
+emulator or connect and authorize a USB-debugging phone before local installation.
+`JAVA_HOME` resolved to JDK 17, but `java` on PATH resolved to Java 8; Gradle's
+native execution was not tested. No `react-native/.env` or `.env.local` existed,
+so the app used its hosted API fallback. The root website `.env` does not
+configure the mobile project. Copy this directory's `.env.example` to
+`.env.local` only when selecting a different public API origin, then restart
+Metro. Device connectivity, SDK compatibility of the installed Expo Go client,
+and the user's exact original failure remain unverified.
+
+### EAS APK installation diagnostic (2026-10-01)
+
+A new standalone Android preview build was submitted at the user's request
+with `eas.cmd build --platform android --profile preview --non-interactive
+--no-wait`: [build 37422cf1](https://expo.dev/accounts/vaelarr/projects/repxl/builds/37422cf1-4fb7-452e-a0cd-41761aa351d6).
+Upload and fingerprinting succeeded; EAS subsequently reported `IN_PROGRESS`,
+profile `preview`, package `com.repxl.mobile`, version code 1. Existing remote
+signing credentials were reused. No preview environment variables were present,
+so the hosted API fallback applies. Mobile `npx.cmd tsc --noEmit` passed and
+`npx.cmd expo install --check` reported compatible dependencies. Cloud completion,
+APK download/install, and device execution are pending; no source changes,
+Vitest run, or separate root Next.js build were required for this submission.
+
+EAS CLI inspection subsequently confirmed that build
+`653750f0-8473-4805-997f-76ba679b0e97` finished with profile `development`,
+package `com.repxl.mobile`, SDK 57, app version 1.0.0, and version code 1.
+Its Expo-style launcher is expected. The five most recent Android builds
+included completed production and preview APKs; the latest listed preview was
+`2f51f577-aa78-4e6e-a4e8-98a5c1bdb1db`. Build metadata was inspected through
+`eas.cmd build:view` / `build:list`; downloading the development APK was stopped
+after slow transfer, so its manifest, signature, ZIP integrity, and device
+installation were not verified. Partial downloads under `.expo/apk-audit`
+are diagnostic artifacts and must not be installed. The failing APK's build
+identity and the phone Android version remain unknown. Existing preview
+artifacts can be tested before starting a new cloud build.
+
+`eas.json` intentionally enables the Expo development launcher in the
+`development` profile. An Expo-style launcher in a RePXL development APK is
+expected; it is not evidence that the artifact is Expo Go. The `preview`
+profile already produces a standalone APK without enabling the development
+client. Build it from this directory with
+`npx.cmd eas-cli build --platform android --profile preview` and download the
+APK artifact from that completed build. An Android App Bundle (`.aab`) cannot
+be installed directly as an APK. See [Expo APK guidance](https://docs.expo.dev/build-reference/apk/).
+
+A reported "parsing failed" installation remains unresolved: no APK was found
+in the repository or the machine's Downloads directory, and `adb devices`
+listed no device. The actual EAS artifact, phone Android version, package
+metadata, and signature must be inspected before attributing the failure.
+The installed React Native dependency declares a minimum API level of 24;
+the final APK manifest remains unverified. Root `.env` settings and Metro
+launch mode do not repair an Android package parsing failure. No source/config
+changes, new EAS build, or APK installation were performed for this diagnostic;
+TypeScript, tests, and production builds were not rerun for documentation-only
+changes.
+
+### Recovery after Expo installs the development client
+
+If installation finishes but the running CLI reports missing
+`./utils/autoAddConfigPlugins.js`, retry from a fresh terminal in `react-native`.
+On 2026-10-01, npm had relocated `@expo/cli` from the top-level `node_modules`
+into `node_modules/expo/node_modules`; the new CLI contained the missing file.
+The failed plugin-application step passed when invoked in a fresh Node process.
+`expo-dev-client` is already recorded in `package.json` and `package-lock.json`.
+
+```powershell
+cd D:\Development\RePXL-Website\react-native
+npx.cmd expo install expo-dev-client
+npx.cmd eas-cli build --platform android --profile development
+```
+
+The second command starts a cloud development build. For a local Android build
+with the Android SDK installed, use `npm.cmd run android` instead. The `.cmd`
+suffix avoids PowerShell's disabled-script error for npm/npx wrappers.
+If a fresh process still reports missing installed files, stop Metro and run
+`npm.cmd ci` in this directory to restore dependencies from the existing lockfile.
+The deprecation and audit warnings are separate from this CLI error; do not use
+`npm audit fix --force` as a missing-module repair.
+
+The SDK compatibility check on 2026-10-01 reported newer patches for `expo`
+(`~57.0.26`), `expo-camera` (`~57.0.6`), `expo-constants` (`~57.0.20`), and
+`expo-router` (`~57.0.24`). These updates and vulnerability remediation remain
+pending; the recovery does not upgrade dependencies or verify an EAS native build.
+
+Verification: the original plugin-application step passed. Mobile
+`npx.cmd tsc --noEmit` passed after regenerating the ignored `.expo/types` route
+declarations using Expo's installed route generator (the initial check had four
+stale-route errors). Android production export passed with 1,536 modules:
+`npx.cmd expo export --platform android --output-dir .expo/dev-client-check`
+with `EXPO_OFFLINE=1`. No application code changed, so Vitest and the separate
+root Next.js production build were not run. Device testing remains pending.
+
+### Local commands
+
 ```sh
 npm install
 npm run typecheck

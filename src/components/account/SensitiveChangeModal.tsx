@@ -5,7 +5,7 @@ import { signOut } from 'next-auth/react'
 import { useAuthStore } from '@/stores/authStore'
 
 import { useEffect, useRef, useState } from 'react'
-import { Button, PasswordInput } from '@/components/ui'
+import { Button, PasswordInput, OtpInput } from '@/components/ui'
 import { PhoneInput } from '@/components/ui/PhoneInput'
 import { validatePHPhone } from '@/components/ui/PhoneInput'
 
@@ -62,21 +62,13 @@ export function SensitiveChangeModal({
   const [busy, setBusy]           = useState(false)
   const [error, setError]         = useState('')
   const [cooldown, setCooldown]   = useState(0)
-  const otpRef                    = useRef<HTMLInputElement>(null)
-  const newOtpRef                 = useRef<HTMLInputElement>(null)
-
   // Resend countdown
   useEffect(() => {
     if (cooldown <= 0) return
     const id = setInterval(() => setCooldown((c) => Math.max(0, c - 1)), 1000)
     return () => clearInterval(id)
   }, [cooldown])
-
-  // Auto-focus OTP fields
-  useEffect(() => {
-    if (step === 'enter-otp')     setTimeout(() => otpRef.current?.focus(), 50)
-    if (step === 'enter-new-otp') setTimeout(() => newOtpRef.current?.focus(), 50)
-  }, [step])
+  // OtpInput handles its own auto-focus via autoFocus per step.
 
   // ── Handlers ─────────────────────────────────────────────────────────────
 
@@ -311,19 +303,14 @@ export function SensitiveChangeModal({
                 A 6-digit code was sent to <strong className="text-repixl-text-light">{sentTo}</strong>. Enter it below.
               </p>
               <div>
-                <label htmlFor="sc-otp" className="mb-1.5 block text-xs text-repixl-text-light/70">Verification Code</label>
-                <input
-                  ref={otpRef}
-                  id="sc-otp"
-                  type="text"
-                  inputMode="numeric"
-                  maxLength={6}
+                <span className="mb-1.5 block text-xs text-repixl-text-light/70">Verification Code</span>
+                <OtpInput
+                  ariaLabel="6-digit verification code"
                   value={otp}
-                  onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
-                  onKeyDown={(e) => e.key === 'Enter' && verifyOtp()}
-                  className="w-full rounded-xl border border-repixl-muted/20 bg-repixl-charcoal px-3 py-2.5 text-center font-mono text-xl tracking-widest text-repixl-text-light focus:border-repixl-muted/40 focus:outline-none"
-                  placeholder="000000"
-                  autoComplete="one-time-code"
+                  onChange={setOtp}
+                  error={!!error}
+                  autoFocus
+                  onComplete={() => { if (!busy) verifyOtp() }}
                 />
                 <p className="mt-1 text-[10px] text-repixl-muted/60">Code expires in 8 minutes.</p>
               </div>
@@ -397,19 +384,14 @@ export function SensitiveChangeModal({
                 A confirmation code was sent to <strong className="text-repixl-text-light">{newSentTo}</strong>. Enter it to confirm your new email.
               </p>
               <div>
-                <label htmlFor="sc-new-otp" className="mb-1.5 block text-xs text-repixl-text-light/70">Confirmation Code</label>
-                <input
-                  ref={newOtpRef}
-                  id="sc-new-otp"
-                  type="text"
-                  inputMode="numeric"
-                  maxLength={6}
+                <span className="mb-1.5 block text-xs text-repixl-text-light/70">Confirmation Code</span>
+                <OtpInput
+                  ariaLabel="6-digit confirmation code"
                   value={newOtp}
-                  onChange={(e) => setNewOtp(e.target.value.replace(/\D/g, ''))}
-                  onKeyDown={(e) => e.key === 'Enter' && verifyNewEmailOtp()}
-                  className="w-full rounded-xl border border-repixl-muted/20 bg-repixl-charcoal px-3 py-2.5 text-center font-mono text-xl tracking-widest text-repixl-text-light focus:border-repixl-muted/40 focus:outline-none"
-                  placeholder="000000"
-                  autoComplete="one-time-code"
+                  onChange={setNewOtp}
+                  error={!!error}
+                  autoFocus
+                  onComplete={() => { if (!busy) verifyNewEmailOtp() }}
                 />
               </div>
               <Button variant="primary" size="md" className="w-full" disabled={busy || newOtp.length !== 6} loading={busy} onClick={verifyNewEmailOtp}>

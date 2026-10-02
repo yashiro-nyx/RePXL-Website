@@ -5,9 +5,11 @@ import {
   successResponse,
   errorResponse,
   unauthorizedResponse,
+  validationError,
   parsePagination,
   paginatedResponse,
 } from '@/lib/api'
+import { MESSAGES } from '@/lib/errors/messages'
 import { MAX_IMAGES } from '@/lib/cloudinary'
 import { emitNotification } from '@/lib/notifications'
 import { isWithinReturnWindow } from '@/lib/returns'
@@ -34,7 +36,13 @@ const submitReturnSchema = z.object({
   reason: z.enum(ALL_REASONS, {
     errorMap: () => ({ message: 'Please select a valid return reason.' }),
   }),
-  details: z.string().trim().min(10, 'Details must be at least 10 characters').max(1000).optional(),
+  details: z
+    .string()
+    .trim()
+    .min(10, 'Please describe the issue in at least 10 characters.')
+    .max(1000, 'Please keep your description under 1000 characters.')
+    .optional()
+    .default(''),
   selectedItemIds: z.array(z.string().min(1)).min(1).optional(),
   // publicIds of images already uploaded to Cloudinary
   imagePublicIds: z
@@ -68,11 +76,9 @@ export async function GET(request: NextRequest) {
 
     return paginatedResponse(returns, total, pagination)
   } catch (error) {
+    // Full diagnostics stay in the server log; the customer gets a safe message.
     console.error('Customer returns list error:', error)
-    return errorResponse(
-      error instanceof Error ? error.message : 'Failed to fetch returns',
-      500
-    )
+    return errorResponse(MESSAGES.SERVER, 500)
   }
 }
 
@@ -85,7 +91,12 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const input = submitReturnSchema.parse(body)
+    const parsed = submitReturnSchema.safeParse(body)
+    if (!parsed.success) {
+      // Safe, field-level validation messages — no raw Zod metadata reaches the client.
+      return validationError(parsed.error)
+    }
+    const input = parsed.data
 
     // Server-side enforcement: evidence required for damage-type reasons
     if (requiresEvidence(input.reason) && input.imagePublicIds.length === 0) {
@@ -202,13 +213,11 @@ export async function POST(request: NextRequest) {
 
     return successResponse(returnRequest, 201)
   } catch (error) {
+    // Full diagnostics stay in the server log; the customer gets a safe message.
     console.error('Customer return submission error:', error)
     if (error instanceof z.ZodError) {
-      return errorResponse(`Validation error: ${error.message}`, 400)
+      return validationError(error)
     }
-    return errorResponse(
-      error instanceof Error ? error.message : 'Failed to submit return request',
-      500
-    )
+    return errorResponse(MESSAGES.SERVER, 500)
   }
 }

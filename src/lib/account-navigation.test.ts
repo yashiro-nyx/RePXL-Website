@@ -41,7 +41,9 @@ describe('customer account navigation', () => {
     const labels = accountNavigation.map((item) => item.label)
     expect(labels).toContain('Profile')
     expect(labels).toContain('Addresses')
-    expect(labels).toContain('Change Password')
+    // Password management is consolidated INSIDE Security (a child), not a
+    // separate top-level "Change Password" nav item.
+    expect(labels).not.toContain('Change Password')
     expect(labels).toContain('Security')
     expect(labels).toContain('Notification Settings')
     expect(labels).toContain('My Purchases')
@@ -91,9 +93,13 @@ describe('customer account navigation', () => {
     expect(panel).not.toMatch(/<input|localStorage\.(setItem|getItem)|router\.(push|replace)|signOut\(/)
   })
 
-  it('Security item has MFA as a child', () => {
+  it('Security item has Password and MFA as children (consolidated)', () => {
     const security = accountNavigation.find((i) => i.href === '/account/security')
-    expect(security?.children?.map((c) => c.label)).toContain('Two-Factor Auth')
+    const childLabels = security?.children?.map((c) => c.label) ?? []
+    expect(childLabels).toContain('Password')
+    expect(childLabels).toContain('Two-Factor Auth')
+    // The password sub-page is still reachable (no broken link).
+    expect(security?.children?.map((c) => c.href)).toContain('/account/security/password')
   })
 
   // ── Notification subroutes ────────────────────────────────────────────────

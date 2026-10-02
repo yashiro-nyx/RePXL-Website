@@ -3,6 +3,7 @@
 import { Suspense, useState, useMemo, useEffect, useRef } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
+import Image from 'next/image'
 import { motion } from 'framer-motion'
 import { Container } from '@/components/layout/Container'
 import { Button, ConditionBadge } from '@/components/ui'
@@ -131,11 +132,13 @@ function CompareContent() {
   return (
     <div className="burn-subtle min-h-screen pb-20 pt-24">
       <Container>
-        {/* Page header */}
-        <motion.div variants={fadeUp} initial="hidden" animate="show" className="mb-10 border-b border-repixl-muted/10 pb-8">
-          <span className="font-mono text-xs uppercase tracking-widest text-repixl-muted">— Side by side</span>
-          <h1 className="mt-2 font-display text-display-md text-repixl-text-light md:text-display-lg">Compare Cameras</h1>
-          <p className="mt-1 text-sm text-repixl-muted">Select up to {MAX_COMPARE} cameras to compare specifications side by side.</p>
+        {/* Page header — centered to match the Cameras page heading */}
+        <motion.div variants={fadeUp} initial="hidden" animate="show" className="mx-auto mb-10 max-w-2xl text-center">
+          <span className="font-mono text-[11px] uppercase tracking-[0.3em] text-repixl-muted">Side by side</span>
+          <h1 className="mt-3 font-display text-display-lg text-repixl-text-light">Compare Cameras</h1>
+          <p className="mx-auto mt-3 max-w-xl text-sm leading-relaxed text-repixl-muted">
+            Select up to {MAX_COMPARE} cameras to compare specifications side by side.
+          </p>
         </motion.div>
 
         {/* Empty state */}
@@ -169,8 +172,7 @@ function CompareContent() {
                     <div key={product.slug} className="rounded-2xl border border-repixl-muted/10 bg-repixl-charcoal p-4 text-center">
                       <Link href={`/products/${product.slug}`} className="group block">
                         <div className="mx-auto h-28 w-28 overflow-hidden rounded-xl border border-repixl-muted/10 bg-repixl-bg p-2 transition-all duration-300 group-hover:border-repixl-muted/30 group-hover:shadow-lg">
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img src={product.image} alt={product.name} className="h-full w-full object-contain transition-transform duration-300 group-hover:scale-105" />
+                          <Image src={product.image} alt={product.name} width={112} height={112} sizes="112px" className="h-full w-full object-contain transition-transform duration-300 group-hover:scale-105" />
                         </div>
                       </Link>
                       <div className="mt-3 space-y-1">
@@ -317,8 +319,7 @@ function CompareContent() {
                   <button type="button" onClick={() => addCamera(product.slug)}
                     className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-colors hover:bg-repixl-bg/60">
                     <div className="h-10 w-10 flex-shrink-0 overflow-hidden rounded-lg bg-repixl-bg p-1">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={product.image} alt={product.name} className="h-full w-full object-contain" />
+                      <Image src={product.image} alt={product.name} width={40} height={40} sizes="40px" className="h-full w-full object-contain" />
                     </div>
                     <div className="flex-1">
                       <p className="text-sm font-medium text-repixl-text-light">{product.name}</p>

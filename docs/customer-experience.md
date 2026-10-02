@@ -244,6 +244,21 @@ only produces a link and never bypasses authentication or ownership checks. The
 concierge never fabricates order/tracking/account data; order questions return
 guidance that points to the authenticated Orders page.
 
+### 2a. Mobile AI Concierge UI/UX and Expanded Knowledge Base
+
+The native mobile AI assistant (`react-native/app/support.tsx`) provides an enhanced,
+app-tailored support experience:
+
+- **Live status bar:** Displays an online status indicator ("Online • Instant Replies") and a quick "Restart" action to clear the local session.
+- **Categorized quick prompts:** 7 topic pills across camera optics, styles, accessories, orders, policies, and vouchers with Feather icons.
+- **Welcome Hero Card:** For new conversations, provides clear guidance on what the concierge can assist with, plus quick-tap starting queries.
+- **Rich message formatting (`FormattedAiMessage`):** Parses assistant replies into structured elements: bold headers, styled red bullet points, numbered step badges, callout tip boxes (`💡`, `⚠️`), and inline code chips.
+- **Interactive action buttons:** Prominent action cards rendered inside assistant bubbles (e.g., *Track My Orders*, *Explore CCD Cameras*, *Read Return FAQs*, *Contact Human Support*) for one-tap navigation.
+- **Contextual suggested follow-ups:** Dynamic follow-up suggestion chips rendered below assistant messages to encourage deeper discovery.
+- **Message helpfulness feedback:** Thumbs up / thumbs down buttons allowing customers to acknowledge helpful advice.
+- **Storefront integration:** Direct deep-link shortcuts into AI Concierge from the Product Details screen (`product.tsx` — *"Ask AI Concierge About This Camera"*) and Account screen (`account.tsx`).
+- **Knowledge base expansion:** Over 35 targeted camera and service domains in `react-native/data/ai-concierge.ts` (CCD vs CMOS sensor color science, Y2K flash look, budget recommendations, SD card compatibility limits, photo transfer to iPhone/Android, battery maintenance, delivery timelines, return guarantees, voucher codes).
+
 ### 3. Components
 
 | File | Role |

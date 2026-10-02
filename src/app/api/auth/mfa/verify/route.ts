@@ -20,7 +20,10 @@ export async function POST(request: NextRequest) {
       .safeParse(await request.json())
     if (!parsed.success)
       return mfaResponse(
-        { success: false, error: 'Authentication could not be verified.' },
+        {
+          success: false,
+          error: 'Enter an authenticator code or an unused recovery code.',
+        },
         400
       )
     const cookieStore = await cookies()

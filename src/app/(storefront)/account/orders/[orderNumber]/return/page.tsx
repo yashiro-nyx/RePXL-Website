@@ -18,6 +18,11 @@ import {
   type ReturnWorkflow,
 } from '@/lib/return-workflow'
 import { formatPrice } from '@/lib/format'
+import {
+  toUserMessageFromResponse,
+  getFieldErrors,
+  type ApiErrorBody,
+} from '@/lib/errors/client-errors'
 
 interface ReturnOrder {
   orderNumber: string
@@ -36,12 +41,14 @@ interface ReturnOrder {
     product: { name: string }
   }[]
 }
+
 interface CustomerReturn extends ReturnWorkflow {
   id: string
   reason: string
   items: { orderItemId: string; quantity: number }[]
   refundQuote?: ReturnType<typeof calculateReturnQuote>
 }
+
 const panel = 'rounded-2xl border border-repixl-muted/20 bg-repixl-charcoal p-5'
 const inputClass =
   'w-full rounded-xl border border-repixl-muted/20 bg-repixl-bg px-4 py-3 text-sm text-repixl-text-light focus:outline-none focus:ring-2 focus:ring-repixl-red/40'
@@ -54,6 +61,7 @@ export default function ReturnRequestPage() {
   const [request, setRequest] = useState<CustomerReturn | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [errors, setErrors] = useState<{ details?: string }>({})
   const [step, setStep] = useState(1)
   const [selectedItems, setSelectedItems] = useState<string[]>([])
   const [reason, setReason] = useState('')
@@ -65,6 +73,7 @@ export default function ReturnRequestPage() {
   const [trackingNumber, setTrackingNumber] = useState('')
   const [notice, setNotice] = useState('')
   const actionLock = useRef(false)
+
   const load = useCallback(async () => {
     try {
       setError('')
@@ -79,19 +88,21 @@ export default function ReturnRequestPage() {
         }),
       ])
       const [orderBody, returnBody] = await Promise.all([
-        orderRes.json(),
-        returnRes.json(),
+        orderRes.json().catch(() => null),
+        returnRes.json().catch(() => null),
       ])
-      if (!orderRes.ok)
-        throw new Error(orderBody.error || 'Unable to load this order.')
+      if (!orderRes.ok) {
+        throw new Error(toUserMessageFromResponse(orderRes, orderBody))
+      }
       if (
         !returnRes.ok &&
         !(
           returnRes.status === 404 &&
-          returnBody.error === 'No return request found for this order'
+          returnBody?.error === 'No return request found for this order'
         )
-      )
-        throw new Error(returnBody.error || 'Unable to load return details.')
+      ) {
+        throw new Error(toUserMessageFromResponse(returnRes, returnBody))
+      }
       setOrder(orderBody.data)
       setRequest(returnRes.ok ? returnBody.data : null)
     } catch (err) {
@@ -102,6 +113,7 @@ export default function ReturnRequestPage() {
       setLoading(false)
     }
   }, [orderNumber])
+
   useEffect(() => {
     void hydrate().then(() => {
       if (!useAuthStore.getState().isLoggedIn) {
@@ -111,6 +123,7 @@ export default function ReturnRequestPage() {
       void load()
     })
   }, [hydrate, load, router])
+
   useEffect(() => {
     if (
       !request ||
@@ -156,6 +169,7 @@ export default function ReturnRequestPage() {
       : null
   const uploaded = images.filter((image) => image.uploaded)
   const uploading = images.some((image) => !image.uploaded)
+
   const validate = () => {
     if (!selectedItems.length) return 'Select at least one item to return.'
     if (!reason) return 'Choose a reason for your return.'
@@ -164,11 +178,20 @@ export default function ReturnRequestPage() {
     if (uploading) return 'Please wait for all photos to finish uploading.'
     if (
       details.trim() &&
-      (details.trim().length < 10 || details.trim().length > 1000)
-    )
-      return 'Additional details must be between 10 and 1000 characters.'
+      details.trim().length < 10
+    ) {
+      setErrors((prev) => ({
+        ...prev,
+        details: 'Please add a little more detail — at least 10 characters.',
+      }))
+      return 'Please describe the issue in at least 10 characters.'
+    }
+    if (details.trim().length > 1000) {
+      return 'Please keep your description under 1000 characters.'
+    }
     return ''
   }
+
   const next = () => {
     const message =
       step === 1
@@ -179,6 +202,7 @@ export default function ReturnRequestPage() {
     setError(message)
     if (!message) setStep((value) => value + 1)
   }
+
   const submit = async () => {
     if (actionLock.current) return
     const validation = validate()
@@ -202,27 +226,32 @@ export default function ReturnRequestPage() {
           imagePublicIds: uploaded.map((image) => image.publicId),
         }),
       })
-      const body = await res.json()
-      if (!res.ok)
-        throw new Error(body.error || 'Unable to submit your return.')
-      setRequest(body.data)
+      const body: ApiErrorBody | null = await res.json().catch(() => null)
+      if (!res.ok) {
+        const serverFieldErrors = getFieldErrors(body)
+        if (serverFieldErrors.details) {
+          setErrors((prev) => ({ ...prev, details: serverFieldErrors.details }))
+        }
+        setError(toUserMessageFromResponse(res, body))
+        return
+      }
+      setRequest((body as any)?.data)
       setRetrying(false)
       setImages([])
       setNotice(
         'Your request has been received. Wait for approval and return instructions before sending any items.'
       )
       await load()
-    } catch (err) {
+    } catch {
       setError(
-        err instanceof Error
-          ? err.message
-          : 'Submission failed. Your entries are saved here; please try again.'
+        'We couldn’t submit your return request. Please check your connection and try again.'
       )
     } finally {
       actionLock.current = false
       setSubmitting(false)
     }
   }
+
   const saveTracking = async (event: React.FormEvent) => {
     event.preventDefault()
     if (actionLock.current || !request) return
@@ -243,24 +272,25 @@ export default function ReturnRequestPage() {
           }),
         }
       )
-      const body = await res.json()
-      if (!res.ok) throw new Error(body.error || 'Unable to save tracking.')
+      const body: ApiErrorBody | null = await res.json().catch(() => null)
+      if (!res.ok) {
+        setError(toUserMessageFromResponse(res, body))
+        return
+      }
       setNotice(
         'Return tracking saved. Our team will update this page when the items arrive.'
       )
       await load()
-    } catch (err) {
-      setError(
-        err instanceof Error
-          ? err.message
-          : 'Unable to save tracking. Please try again.'
-      )
+    } catch {
+      setError('Unable to save tracking. Please try again.')
     } finally {
       actionLock.current = false
       setSubmitting(false)
     }
   }
+
   if (loading) return <PageLoader label="Loading return details..." />
+
   return (
     <div className="space-y-6">
       <PageBackLink href={`/account/orders/${orderNumber}`} label="Order" />
@@ -280,14 +310,32 @@ export default function ReturnRequestPage() {
           Refresh status
         </Button>
       </div>
+
       {error && (
         <div
           role="alert"
-          className="rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-400"
+          aria-live="assertive"
+          className="flex items-start gap-2.5 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-400"
         >
-          {error}
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            className="mt-0.5 flex-shrink-0 text-red-400"
+            aria-hidden="true"
+          >
+            <circle cx="12" cy="12" r="10" />
+            <path d="M12 8v4" />
+            <path d="M12 16h.01" />
+          </svg>
+          <p className="text-sm text-red-400">{error}</p>
         </div>
       )}
+
       {notice && (
         <p
           role="status"
@@ -296,6 +344,7 @@ export default function ReturnRequestPage() {
           {notice}
         </p>
       )}
+
       {!order ? (
         <p className="text-repixl-muted">
           Unable to load this order. Use Refresh status to try again.
@@ -583,22 +632,40 @@ export default function ReturnRequestPage() {
               <section className={`${panel} space-y-3`}>
                 <label
                   htmlFor="return-details"
-                  className="text-sm text-repixl-text-light"
+                  className="mb-1 block font-mono text-[10px] uppercase tracking-widest text-repixl-muted"
                 >
-                  Additional details (optional)
+                  Describe the issue <span className="text-repixl-text-light/40">(Optional)</span>
                 </label>
+                <p id="return-details-help" className="mb-2 text-xs text-repixl-muted">
+                  Tell us what happened and describe the condition of the item. If you add details, please use at least 10 characters.
+                </p>
                 <textarea
                   id="return-details"
                   rows={4}
                   maxLength={1000}
-                  className={inputClass}
+                  className={`w-full resize-y rounded-xl border bg-repixl-bg px-4 py-3 text-sm text-repixl-text-light placeholder:text-repixl-muted/40 focus:outline-none ${errors.details ? 'border-red-400/60 focus:border-red-400' : 'border-repixl-muted/20 focus:border-repixl-muted/40'}`}
                   value={details}
-                  onChange={(event) => setDetails(event.target.value)}
-                  placeholder="Describe what happened and the condition of the items."
+                  onChange={(event) => {
+                    setDetails(event.target.value)
+                    if (errors.details) {
+                      setErrors((prev) => ({ ...prev, details: undefined }))
+                    }
+                  }}
+                  placeholder="For example: The lens has visible fungus that wasn’t in the listing photos."
+                  aria-invalid={errors.details ? true : undefined}
+                  aria-describedby={errors.details ? 'return-details-help return-details-error' : 'return-details-help'}
                 />
-                <p className="text-right text-xs text-repixl-muted">
-                  {details.length}/1000
-                </p>
+                <div className="flex items-center justify-between">
+                  {errors.details && (
+                    <p id="return-details-error" className="flex items-center gap-1.5 text-xs text-red-400" role="alert">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" className="flex-shrink-0" aria-hidden="true"><circle cx="12" cy="12" r="10" /><path d="M12 8v4" /><path d="M12 16h.01" /></svg>
+                      {errors.details}
+                    </p>
+                  )}
+                  <p className="ml-auto text-xs text-repixl-muted">
+                    {details.length}/1000
+                  </p>
+                </div>
                 <ImageUploader
                   images={images}
                   onChange={setImages}
@@ -606,8 +673,12 @@ export default function ReturnRequestPage() {
                   deleteEndpoint="/api/upload/return-image"
                   maxImages={5}
                   required={evidenceRequired}
-                  label="Photo evidence"
-                  hint="JPG, PNG, or WebP. Up to 5 photos, 5 MB each. Show the issue clearly."
+                  label="Photo Evidence"
+                  hint={
+                    evidenceRequired
+                      ? 'Please upload clear photos showing the issue with the item. Up to 5 photos — JPG, PNG, or WebP, max 5 MB each.'
+                      : 'Optional. Add photos to help us review your request. Up to 5 photos — JPG, PNG, or WebP, max 5 MB each.'
+                  }
                 />
               </section>
             </div>

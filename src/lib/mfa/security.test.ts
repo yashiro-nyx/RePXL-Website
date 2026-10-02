@@ -80,12 +80,13 @@ async function customer(oauth = false) {
     },
   })
   await setSessionCookie(user.id)
+  if (oauth) mocks.google.mockResolvedValue({ user: { email: user.email }, primaryAuthenticatedAt: Date.now() })
   const reauth = await recentAuth(request({method: oauth ? 'google' : 'password', password}))
   expect(reauth.status).toBe(200)
   return user
 }
 async function begin() {
-  const response = await manage(request({ action: 'begin', password }))
+  const response = await manage(request({ action: 'begin' }))
   expect(response.status).toBe(200)
   return (await response.json()).data as { secret: string; qrCode: string }
 }
@@ -126,13 +127,13 @@ describe.skipIf(!databaseUrl)('customer MFA security with PostgreSQL', () => {
   })
 
   it('requires authentication, password confirmation, and same-origin enrollment', async () => {
-    expect((await manage(request({ action: 'begin', password }))).status).toBe(
+    expect((await manage(request({ action: 'begin' }))).status).toBe(
       401
     )
     await customer()
-    expect(
-      (await manage(request({ action: 'begin', password: 'wrong' }))).status
-    ).toBe(401)
+    mocks.cookies.delete('repixl-recent-auth')
+    expect((await recentAuth(request({ method: 'password', password: 'wrong' }))).status).toBe(401)
+    expect((await manage(request({ action: 'begin' }))).status).toBe(401)
     expect(
       (
         await manage(
@@ -272,6 +273,7 @@ describe.skipIf(!databaseUrl)('customer MFA security with PostgreSQL', () => {
   })
   it('regeneration invalidates every old code and old session', async () => {
     const { user, codes } = await enroll()
+    await recentAuth(request({ method: 'password', password }))
     const oldCookie = mocks.cookies.get('repixl-session-token')!
     const response = await manage(
       request({ action: 'regenerate', password, code: codes[0] })
@@ -294,6 +296,7 @@ describe.skipIf(!databaseUrl)('customer MFA security with PostgreSQL', () => {
         )
       ).status
     ).toBe(401)
+    await recentAuth(request({ method: 'password', password }))
     expect(
       (await manage(request({ action: 'disable', password, code: 'wrong' })))
         .status
@@ -344,12 +347,10 @@ describe.skipIf(!databaseUrl)('customer MFA security with PostgreSQL', () => {
     })
     expect((await verify(request({ code: codes[0] }))).status).toBe(200)
   })
-  it('requires recent Google authentication for Google-only enrollment', async () => {
+  it('requires Set Password for Google-only enrollment even after fresh Google login', async () => {
     const user = await customer(true)
-    await setSessionCookie(user.id, { primaryAt: Date.now() - 6 * 60000 })
-    expect((await manage(request({ action: 'begin' }))).status).toBe(401)
     await setSessionCookie(user.id, { primaryAt: Date.now() })
-    expect((await manage(request({ action: 'begin' }))).status).toBe(200)
+    expect((await manage(request({ action: 'begin' }))).status).toBe(403)
   })
   it('rejects expired setup and expired challenges', async () => {
     const { user, codes } = await enroll()
@@ -382,7 +383,7 @@ describe.skipIf(!databaseUrl)('customer MFA security with PostgreSQL', () => {
     })
     expect((await passwordLogin()).status).toBe(200)
     expect((await getCurrentAdmin())?.id).toBe(user.id)
-    expect((await manage(request({ action: 'begin', password }))).status).toBe(
+    expect((await manage(request({ action: 'begin' }))).status).toBe(
       401
     )
   })
@@ -462,7 +463,7 @@ describe.skipIf(!databaseUrl)('customer MFA security with PostgreSQL', () => {
     expect(await getCurrentUser()).toBeNull()
   })
   it('enforces MFA on a Google-only account and preserves recent primary auth time', async () => {
-    const user = await customer(true)
+    const user = await customer()
     const setup = await begin()
     const enrolled = await manage(
       request({
@@ -471,6 +472,7 @@ describe.skipIf(!databaseUrl)('customer MFA security with PostgreSQL', () => {
       })
     )
     const codes = (await enrolled.json()).data.recoveryCodes
+    await prisma.user.update({ where: { id: user.id }, data: { password: '' } })
     mocks.cookies.clear()
     mocks.google.mockResolvedValue({
       user: { email: user.email },
@@ -484,6 +486,6 @@ describe.skipIf(!databaseUrl)('customer MFA security with PostgreSQL', () => {
     // Completing MFA must not turn an old Google primary factor into a recent one.
     expect(
       (await manage(request({ action: 'disable', code: codes[1] }))).status
-    ).toBe(401)
+    ).toBe(403)
   })
 })
