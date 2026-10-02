@@ -45,6 +45,24 @@ Prisma. Vercel runs your API as serverless functions, so the database needs
 2. Toggle "Pooled connection" to get:
    - Pooled (host contains `-pooler`) → `DATABASE_URL`
    - Direct (no `-pooler`) → `DIRECT_URL`
+3. **One-time compatibility step for Prisma migrations:**
+   Because RePXL includes Supabase RLS policy migrations (`20260924130000_add_supabase_rls_policies`), run this snippet in your **Neon SQL Editor** before running `prisma migrate deploy`:
+   ```sql
+   DO $$
+   BEGIN
+     IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'anon') THEN
+       CREATE ROLE anon NOLOGIN;
+     END IF;
+     IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'authenticated') THEN
+       CREATE ROLE authenticated NOLOGIN;
+     END IF;
+   END $$;
+
+   CREATE SCHEMA IF NOT EXISTS auth;
+   CREATE OR REPLACE FUNCTION auth.uid() RETURNS uuid AS $$
+     SELECT null::uuid;
+   $$ LANGUAGE sql STABLE;
+   ```
 </details>
 
 ---

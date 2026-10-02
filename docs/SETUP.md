@@ -186,6 +186,7 @@ provider check, or application build was performed for documentation consolidati
 |---|---|
 | Missing Prisma environment variables | Prisma CLI configuration in `.env`, including both connection URLs |
 | Connection failures/exhaustion | Correct project credentials, SSL/pooler parameters, runtime pool limits |
+| Migration fails on Neon: `role "anon" does not exist` | Run the compatibility SQL (create roles anon/authenticated and auth.uid stub) in Neon SQL Editor, then resolve with `--rolled-back` |
 | Login breaks after deployment | Session secret and public origins in the target environment |
 | Paid checkout remains pending | Signed webhook URL, mode/secret, and provider delivery logs |
 | Upload fails | Cloudinary configuration, image format/size, and customer authorization |
