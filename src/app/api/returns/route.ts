@@ -8,8 +8,9 @@ import {
   parsePagination,
   paginatedResponse,
 } from '@/lib/api'
-import { deleteFromCloudinary, MAX_IMAGES } from '@/lib/cloudinary'
+import { MAX_IMAGES } from '@/lib/cloudinary'
 import { emitNotification } from '@/lib/notifications'
+import { isWithinReturnWindow } from '@/lib/returns'
 import {
   ALL_REASONS,
   REASON_LABELS,
@@ -33,7 +34,8 @@ const submitReturnSchema = z.object({
   reason: z.enum(ALL_REASONS, {
     errorMap: () => ({ message: 'Please select a valid return reason.' }),
   }),
-  details: z.string().min(10, 'Details must be at least 10 characters').max(1000).optional().default(''),
+  details: z.string().trim().min(10, 'Details must be at least 10 characters').max(1000).optional(),
+  selectedItemIds: z.array(z.string().min(1)).min(1).optional(),
   // publicIds of images already uploaded to Cloudinary
   imagePublicIds: z
     .array(z.string().min(1).max(300))
@@ -103,10 +105,22 @@ export async function POST(request: NextRequest) {
     // Verify order exists and belongs to customer
     const order = await prisma.order.findUnique({
       where: { orderNumber: input.orderNumber },
+      include: { items: true },
     })
 
     if (!order || order.userId !== user.id) {
       return errorResponse('Order not found', 404)
+    }
+
+    if (!isWithinReturnWindow(order, new Date())) {
+      return errorResponse('Returns are accepted within 30 days of delivery or completion.', 409)
+    }
+    if (order.paymentStatus === 'REFUNDED') {
+      return errorResponse('This order has already been refunded.', 409)
+    }
+    const selectedItemIds = [...new Set(input.selectedItemIds ?? order.items.map((item) => item.id))]
+    if (selectedItemIds.some((id) => !order.items.some((item) => item.id === id))) {
+      return errorResponse('Selected items must belong to this order.', 422)
     }
 
     // Check for existing active return request
@@ -121,10 +135,6 @@ export async function POST(request: NextRequest) {
     })
 
     if (existingReturn) {
-      // Clean up orphan uploads since we won't create a new request
-      for (const pid of input.imagePublicIds) {
-        await deleteFromCloudinary(pid, 'authenticated')
-      }
       return errorResponse('An active return request already exists for this order', 400)
     }
 
@@ -142,6 +152,12 @@ export async function POST(request: NextRequest) {
           orderId: order.id,
           reason: fullReason,
           status: 'REQUESTED',
+          items: {
+            create: order.items.filter((item) => selectedItemIds.includes(item.id)).map((item) => ({
+              orderItemId: item.id,
+              quantity: item.quantity,
+            })),
+          },
         },
       })
 
@@ -179,6 +195,7 @@ export async function POST(request: NextRequest) {
       body: `Your return request for order ${input.orderNumber} has been received and is under review.`,
       channel: 'BOTH',
       recipientEmail: user.email,
+      context: { orderNumber: order.orderNumber, returnId: returnRequest.id, reason: fullReason },
     }).catch((err) => {
       console.error('[returns] RETURN_RECEIVED notification failed (non-fatal):', err)
     })

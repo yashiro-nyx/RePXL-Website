@@ -30,7 +30,8 @@ function authHeader(): string {
 async function paymongoRequest<T>(
   path: string,
   method: 'GET' | 'POST',
-  body?: unknown
+  body?: unknown,
+  extraHeaders: Record<string, string> = {}
 ): Promise<T> {
   const res = await fetch(`${PAYMONGO_API}${path}`, {
     method,
@@ -38,6 +39,7 @@ async function paymongoRequest<T>(
       Authorization: authHeader(),
       'Content-Type': 'application/json',
       Accept: 'application/json',
+      ...extraHeaders,
     },
     body: body ? JSON.stringify(body) : undefined,
     cache: 'no-store',
@@ -525,6 +527,7 @@ export interface RefundInput {
   reason?: 'requested_by_customer' | 'others'
   /** Optional free-text note stored on the refund. */
   notes?: string
+  idempotencyKey?: string
 }
 
 export interface RefundResult {
@@ -551,7 +554,7 @@ export async function createRefund(input: RefundInput): Promise<RefundResult> {
 
   const res = await paymongoRequest<{
     data: { id: string; attributes: { status: string } }
-  }>('/refunds', 'POST', payload)
+  }>('/refunds', 'POST', payload, input.idempotencyKey ? { 'Idempotency-Key': input.idempotencyKey } : {})
 
   return { id: res.data.id, status: res.data.attributes.status }
 }

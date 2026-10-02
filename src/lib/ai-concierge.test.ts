@@ -4,6 +4,7 @@ import {
   webActionHref,
   QUICK_PROMPTS,
   PROMPT_CATEGORIES,
+  FALLBACK_REPLY,
   type AiAction,
 } from './ai-concierge'
 // The mobile source is the origin of this logic — we import it directly to
@@ -51,6 +52,36 @@ const SAMPLE_QUERIES = [
   'how can I sell or trade my camera?',
   'what is the meaning of life in vintage photography?', // fallback
 ]
+
+describe('AI concierge standard unknown-information fallback', () => {
+  it.each([
+    '', '   ', 'asdfghjkl', '???', 'Tell me a joke', 'What is the weather today?',
+    'How long does pasta take to cook?', 'Where is the moon?', 'Write Python code',
+    'Recommend a restaurant', 'Plan a budget vacation', 'What is a good recipe?',
+    'Explain power generation', 'Tell me about a warm soup', 'Compare two laptops',
+    'Hello, what is the weather?', 'What is the capital of Australia?',
+    'What is the RePXL founder birthday?', 'What is the current price of a Canon IXY 930?',
+    'Does RePXL accept cryptocurrency?', 'Does my camera support quantum teleportation?',
+    'Write Python code for my camera', 'Hello RePXL, can my camera teleport?',
+    'What are you wearing?',
+  ])('uses the same honest fallback on both platforms for %j', (query) => {
+    const response = generateAiResponse(query)
+    expect(response.text).toBe(FALLBACK_REPLY)
+    expect(response.action).toEqual({ type: 'contact', label: 'Contact Support' })
+    expect(response.suggestedFollowUps?.length).toBeGreaterThan(0)
+    expect(mobileGenerate(query)).toEqual(response)
+  })
+  it('keeps every built-in suggested topic answerable on both platforms', () => {
+    for (const prompt of PROMPT_CATEGORIES.flatMap((category) => category.prompts)) {
+      const response = generateAiResponse(prompt)
+      expect(response.text, prompt).not.toBe(FALLBACK_REPLY)
+      expect(mobileGenerate(prompt)).toEqual(response)
+    }
+  })
+  it.each(['hello', 'thanks', 'Contact human team', 'where is my order?', 'What payment methods do you accept?', 'What is your return policy?', 'How to transfer photos to phone?'])('preserves supported response for %j', (query) => {
+    expect(generateAiResponse(query).text).not.toBe(FALLBACK_REPLY)
+  })
+})
 
 describe('AI concierge — parity with the mobile source', () => {
   it('exposes the same quick prompts as mobile', () => {

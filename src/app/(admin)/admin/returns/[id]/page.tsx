@@ -1,306 +1,598 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useParams } from 'next/navigation'
-import { ImageLightbox, PageBackLink } from '@/components/ui'
+import { Button, ImageLightbox, PageBackLink } from '@/components/ui'
+import { ReturnProgress } from '@/components/account/ReturnProgress'
 import { formatPrice } from '@/lib/format'
+import type { ReturnWorkflow } from '@/lib/return-workflow'
 
-interface ReturnDetail {
+interface ReturnDetail extends ReturnWorkflow {
   id: string
-  orderNumber: string
-  customerName: string
   reason: string
-  status: string
-  rejectionReason?: string | null
-  createdAt: string
+  refundStatus: string | null
+  items: { orderItemId: string; quantity: number }[]
+  user: { firstName: string; lastName: string; email: string }
   order: {
+    orderNumber: string
     total: number
     paymentStatus: string
-    items: { name: string; condition: string; quantity: number }[]
+    paymentMethod: string
+    items: {
+      id: string
+      quantity: number
+      product: { name: string; condition: string }
+    }[]
+  }
+  refundQuote: {
+    itemsAmount: number
+    shippingAmount: number
+    maxAmount: number
+    includesAllItems: boolean
   }
 }
-
 interface EvidenceImage {
   id: string
-  sortOrder: number
   signedUrl: string
 }
-
-const statusStyles: Record<string, string> = {
-  REQUESTED: 'bg-amber-500/15 text-amber-400 border-amber-500/30',
-  UNDER_REVIEW: 'bg-blue-500/15 text-blue-400 border-blue-500/30',
-  APPROVED: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30',
-  REJECTED: 'bg-red-500/15 text-red-400 border-red-500/30',
-  REFUNDED: 'bg-purple-500/15 text-purple-400 border-purple-500/30',
-}
+const panel = 'rounded-2xl border border-repixl-muted/20 bg-repixl-charcoal p-5'
+const inputClass =
+  'w-full rounded-xl border border-repixl-muted/20 bg-repixl-bg px-3 py-2 text-sm text-repixl-text-light focus:outline-none focus:ring-2 focus:ring-repixl-red/40'
 
 export default function ReturnDetailPage() {
   const { id } = useParams<{ id: string }>()
   const [detail, setDetail] = useState<ReturnDetail | null>(null)
   const [loading, setLoading] = useState(true)
-  const [actionMsg, setActionMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
-  const [rejectOpen, setRejectOpen] = useState(false)
-  const [rejectReason, setRejectReason] = useState('')
-  const [submitting, setSubmitting] = useState(false)
-  const [evidenceImages, setEvidenceImages] = useState<EvidenceImage[]>([])
-  const [evidenceLightboxIndex, setEvidenceLightboxIndex] = useState<number | null>(null)
-
-  const load = async () => {
-    const res = await fetch(`/api/admin/returns/${id}`, { credentials: 'include' })
-    const body = await res.json()
-    if (res.ok) {
+  const [error, setError] = useState('')
+  const [notice, setNotice] = useState('')
+  const [busy, setBusy] = useState(false)
+  const lock = useRef(false)
+  const [instructions, setInstructions] = useState('')
+  const [rejection, setRejection] = useState('')
+  const [inspection, setInspection] = useState('')
+  const [restock, setRestock] = useState(false)
+  const [includeShipping, setIncludeShipping] = useState(false)
+  const [manualReference, setManualReference] = useState('')
+  const [confirmRefund, setConfirmRefund] = useState(false)
+  const [images, setImages] = useState<EvidenceImage[]>([])
+  const [activeImage, setActiveImage] = useState<number | null>(null)
+  const load = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/admin/returns/${id}`, {
+        credentials: 'include',
+        cache: 'no-store',
+      })
+      const body = await res.json()
+      if (!res.ok) throw new Error(body.error || 'Unable to load this return.')
       setDetail(body.data)
-      // Fetch signed URLs for evidence images after loading the return detail
-      const imgRes = await fetch(`/api/upload/return-image/signed?returnRequestId=${id}`, { credentials: 'include' })
-      if (imgRes.ok) {
-        const imgBody = await imgRes.json()
-        setEvidenceImages(imgBody.data?.images ?? [])
-      }
+      const evidenceRes = await fetch(
+        `/api/upload/return-image/signed?returnRequestId=${id}`,
+        { credentials: 'include', cache: 'no-store' }
+      )
+      if (evidenceRes.ok)
+        setImages((await evidenceRes.json()).data?.images ?? [])
+      else
+        setError(
+          'Return loaded, but evidence could not be loaded. Refresh before reviewing it.'
+        )
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : 'Unable to load this return.'
+      )
+    } finally {
+      setLoading(false)
     }
-    setLoading(false)
-  }
-
-  useEffect(() => { void load() }, [id])
-
-  const patch = async (payload: object) => {
-    setSubmitting(true)
-    setActionMsg(null)
-    const res = await fetch(`/api/admin/returns/${id}`, {
-      method: 'PATCH', credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    })
-    const body = await res.json()
-    if (res.ok) {
-      setActionMsg({ type: 'success', text: 'Status updated.' })
+  }, [id])
+  useEffect(() => {
+    void load()
+  }, [load])
+  const mutate = async (payload: object, refund = false) => {
+    if (lock.current) return
+    lock.current = true
+    setBusy(true)
+    setError('')
+    setNotice('')
+    try {
+      const res = await fetch(
+        `/api/admin/returns/${id}${refund ? '/refund' : ''}`,
+        {
+          method: refund ? 'POST' : 'PATCH',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        }
+      )
+      const body = await res.json()
+      if (!res.ok)
+        throw new Error(body.error || 'Unable to complete this action.')
+      setDetail(body.data)
+      setConfirmRefund(false)
+      setNotice(
+        refund
+          ? body.data.status === 'REFUNDED'
+            ? 'Refund completed.'
+            : 'Refund status updated. Completion depends on the provider response.'
+          : 'Return updated.'
+      )
       await load()
-      setRejectOpen(false)
-      setRejectReason('')
-    } else {
-      setActionMsg({ type: 'error', text: body.error || 'Action failed.' })
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : 'Action failed. Refresh and try again.'
+      )
+    } finally {
+      lock.current = false
+      setBusy(false)
     }
-    setSubmitting(false)
   }
-
-  const processRefund = async () => {
-    setSubmitting(true)
-    setActionMsg(null)
-    const res = await fetch(`/api/admin/returns/${id}/refund`, {
-      method: 'POST', credentials: 'include',
-    })
-    const body = await res.json()
-    if (res.ok) {
-      setActionMsg({ type: 'success', text: 'Refund processed successfully.' })
-      await load()
-    } else {
-      setActionMsg({ type: 'error', text: body.error || 'Refund failed.' })
-    }
-    setSubmitting(false)
-  }
-
-  if (loading) {
-    return <div className="py-12 text-center text-sm text-repixl-muted">Loading…</div>
-  }
-  if (!detail) {
-    return (
-      <div className="py-12 text-center">
-        <p className="text-sm text-repixl-muted">Return request not found.</p>
-      </div>
+  useEffect(() => {
+    if (
+      !detail?.refundId ||
+      detail.status !== 'APPROVED' ||
+      detail.refundStatus === 'failed'
     )
-  }
-
-  const { status } = detail
-  const canUnderReview = status === 'REQUESTED'
-  const canApprove = status === 'REQUESTED' || status === 'UNDER_REVIEW'
-  const canReject = status === 'REQUESTED' || status === 'UNDER_REVIEW'
-  const canRefund = status === 'APPROVED' && detail.order.paymentStatus === 'PAID'
-
+      return
+    const timer = setInterval(() => {
+      if (document.visibilityState === 'visible' && !lock.current)
+        void mutate({ checkOnly: true }, true)
+    }, 15000)
+    return () => clearInterval(timer)
+  }, [detail?.refundId, detail?.status, detail?.refundStatus])
+  if (loading)
+    return (
+      <p className="py-12 text-center text-sm text-repixl-muted">
+        Loading return...
+      </p>
+    )
+  const isCod = Boolean(
+    detail &&
+      /^(cod|cash on delivery)$/i.test(detail.order.paymentMethod.trim())
+  )
+  const reviewable =
+    detail && ['REQUESTED', 'UNDER_REVIEW'].includes(detail.status)
+  const approved = detail?.status === 'APPROVED'
+  const amount =
+    detail?.refundAmount ??
+    (detail?.refundQuote.itemsAmount ?? 0) +
+      (includeShipping ? (detail?.refundQuote.shippingAmount ?? 0) : 0)
   return (
-    <>
     <div className="space-y-6">
-      {/* Contextual Back to the Returns list (nested detail page) */}
       <PageBackLink href="/admin/returns" label="Returns" />
-
-      {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <h1 className="font-display text-xl font-bold text-repixl-text-light">Return #{detail.id.slice(-8).toUpperCase()}</h1>
-          <span className={`rounded-full border px-2.5 py-1 font-mono text-[10px] uppercase tracking-wider ${statusStyles[status] ?? ''}`}>
-            {status.replace('_', ' ')}
-          </span>
-        </div>
+        <h1 className="font-display text-2xl text-repixl-text-light">
+          Return #{id.slice(-8).toUpperCase()}
+        </h1>
+        <Button
+          variant="secondary"
+          size="sm"
+          disabled={busy}
+          onClick={() => {
+            setError('')
+            void load()
+          }}
+        >
+          Refresh details & evidence
+        </Button>
       </div>
-
-      {/* Action feedback */}
-      {actionMsg && (
-        <div className={`rounded-xl border px-4 py-3 text-sm ${actionMsg.type === 'success' ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-400' : 'border-red-500/30 bg-red-500/10 text-red-400'}`}>
-          {actionMsg.text}
-        </div>
+      {error && (
+        <p
+          role="alert"
+          className="rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-400"
+        >
+          {error}
+        </p>
       )}
-
-      <div className="grid grid-cols-1 gap-5 xl:grid-cols-3">
-        {/* Left: details */}
-        <div className="space-y-5 xl:col-span-2">
-          {/* Order info */}
-          <div className="rounded-2xl border border-repixl-muted/20 bg-repixl-charcoal p-5">
-            <p className="mb-3 font-mono text-[10px] uppercase tracking-widest text-repixl-muted">Order Details</p>
-            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
-              <div>
-                <p className="text-[10px] uppercase tracking-wider text-repixl-muted/60">Order #</p>
-                <p className="mt-0.5 font-mono text-sm font-semibold text-repixl-red">#{detail.orderNumber}</p>
-              </div>
-              <div>
-                <p className="text-[10px] uppercase tracking-wider text-repixl-muted/60">Customer</p>
-                <p className="mt-0.5 text-sm text-repixl-text-light">{detail.customerName}</p>
-              </div>
-              <div>
-                <p className="text-[10px] uppercase tracking-wider text-repixl-muted/60">Order Total</p>
-                <p className="mt-0.5 font-mono text-sm text-repixl-text-light">{formatPrice(detail.order.total)}</p>
-              </div>
-              <div>
-                <p className="text-[10px] uppercase tracking-wider text-repixl-muted/60">Payment</p>
-                <p className="mt-0.5 font-mono text-sm text-repixl-text-light/70">{detail.order.paymentStatus}</p>
-              </div>
-              <div>
-                <p className="text-[10px] uppercase tracking-wider text-repixl-muted/60">Requested</p>
-                <p className="mt-0.5 font-mono text-xs text-repixl-text-light/70">{new Date(detail.createdAt).toLocaleDateString()}</p>
-              </div>
-            </div>
-          </div>
-
-          {/* Items */}
-          <div className="rounded-2xl border border-repixl-muted/20 bg-repixl-charcoal p-5">
-            <p className="mb-3 font-mono text-[10px] uppercase tracking-widest text-repixl-muted">Items in Request</p>
-            <div className="space-y-2">
-              {detail.order.items.map((item, i) => (
-                <div key={i} className="flex items-center justify-between rounded-lg bg-repixl-bg/50 px-4 py-3">
-                  <span className="text-sm text-repixl-text-light">{item.name}</span>
-                  <div className="flex items-center gap-3">
-                    <span className="font-mono text-xs text-repixl-muted">{item.condition}</span>
-                    <span className="font-mono text-xs text-repixl-text-light/70">×{item.quantity}</span>
+      {notice && (
+        <p
+          role="status"
+          className="rounded-xl bg-emerald-500/10 p-4 text-sm text-emerald-400"
+        >
+          {notice}
+        </p>
+      )}
+      {detail && (
+        <>
+          <ReturnProgress request={detail} />
+          <div className="grid gap-5 xl:grid-cols-3">
+            <div className="space-y-5 xl:col-span-2">
+              <section className={panel}>
+                <h2 className="font-display text-lg text-repixl-text-light">
+                  Request details
+                </h2>
+                <dl className="mt-4 grid gap-4 text-sm sm:grid-cols-2">
+                  <div>
+                    <dt className="text-repixl-muted">Order</dt>
+                    <dd className="mt-1 text-repixl-text-light">
+                      {detail.order.orderNumber}
+                    </dd>
                   </div>
-                </div>
-              ))}
+                  <div>
+                    <dt className="text-repixl-muted">Customer</dt>
+                    <dd className="mt-1 text-repixl-text-light">
+                      {`${detail.user.firstName} ${detail.user.lastName}`.trim() ||
+                        detail.user.email}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-repixl-muted">Payment</dt>
+                    <dd className="mt-1 text-repixl-text-light">
+                      {detail.order.paymentMethod} /{' '}
+                      {detail.order.paymentStatus}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-repixl-muted">Order total</dt>
+                    <dd className="mt-1 text-repixl-text-light">
+                      {formatPrice(detail.order.total)}
+                    </dd>
+                  </div>
+                </dl>
+                <h3 className="mt-5 text-sm font-medium text-repixl-text-light">
+                  Reason
+                </h3>
+                <p className="mt-2 whitespace-pre-wrap text-sm text-repixl-muted">
+                  {detail.reason}
+                </p>
+                <h3 className="mt-5 text-sm font-medium text-repixl-text-light">
+                  Selected items
+                </h3>
+                <ul className="mt-2 space-y-2 text-sm text-repixl-muted">
+                  {detail.order.items
+                    .filter(
+                      (item) =>
+                        !detail.items.length ||
+                        detail.items.some(
+                          (selected) => selected.orderItemId === item.id
+                        )
+                    )
+                    .map((item) => (
+                      <li key={item.id}>
+                        {item.product.name} / {item.product.condition} ? Qty{' '}
+                        {detail.items.find(
+                          (selected) => selected.orderItemId === item.id
+                        )?.quantity ?? item.quantity}
+                      </li>
+                    ))}
+                </ul>
+              </section>
+              <section className={panel}>
+                <h2 className="font-display text-lg text-repixl-text-light">
+                  Photo evidence
+                </h2>
+                {images.length ? (
+                  <div className="mt-4 flex flex-wrap gap-3">
+                    {images.map((image, index) => (
+                      <button
+                        key={image.id}
+                        onClick={() => setActiveImage(index)}
+                        aria-label={`Open evidence photo ${index + 1}`}
+                        className="overflow-hidden rounded-xl border border-repixl-muted/20"
+                      >
+                        <img
+                          src={image.signedUrl}
+                          alt={`Return evidence ${index + 1}`}
+                          className="h-28 w-28 object-cover"
+                        />
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="mt-3 text-sm text-repixl-muted">
+                    No evidence photos loaded. Check the reason and refresh if
+                    evidence is required.
+                  </p>
+                )}
+              </section>
+              {detail.returnInstructions && (
+                <section className={panel}>
+                  <h2 className="font-display text-lg text-repixl-text-light">
+                    Return instructions sent to customer
+                  </h2>
+                  <p className="mt-3 whitespace-pre-wrap text-sm text-repixl-muted">
+                    {detail.returnInstructions}
+                  </p>
+                </section>
+              )}
+              {detail.returnTrackingNumber && (
+                <section className={panel}>
+                  <h2 className="font-display text-lg text-repixl-text-light">
+                    Return shipment
+                  </h2>
+                  <p className="mt-3 text-sm text-repixl-muted">
+                    {detail.returnCarrier} / {detail.returnTrackingNumber}
+                  </p>
+                </section>
+              )}
+              {detail.inspectionNotes && (
+                <section className={panel}>
+                  <h2 className="font-display text-lg text-repixl-text-light">
+                    Inspection record
+                  </h2>
+                  <p className="mt-3 whitespace-pre-wrap text-sm text-repixl-muted">
+                    {detail.inspectionNotes}
+                  </p>
+                </section>
+              )}
             </div>
-          </div>
-
-          {/* Reason */}
-          <div className="rounded-2xl border border-repixl-muted/20 bg-repixl-charcoal p-5">
-            <p className="mb-2 font-mono text-[10px] uppercase tracking-widest text-repixl-muted">Customer Reason</p>
-            <p className="text-sm leading-relaxed text-repixl-text-light/80">{detail.reason}</p>
-          </div>
-
-          {/* Customer Evidence Images */}
-          {evidenceImages.length > 0 && (
-            <div className="rounded-2xl border border-repixl-muted/20 bg-repixl-charcoal p-5">
-              <p className="mb-3 font-mono text-[10px] uppercase tracking-widest text-repixl-muted">
-                Customer Evidence ({evidenceImages.length} photo{evidenceImages.length !== 1 ? 's' : ''})
-              </p>
-              <div className="grid grid-cols-3 gap-2 sm:grid-cols-5">
-                {evidenceImages.map((img, i) => (
-                  <button
-                    key={img.id}
-                    type="button"
-                    onClick={() => setEvidenceLightboxIndex(i)}
-                    aria-label={`View evidence photo ${i + 1}`}
-                    className="aspect-square overflow-hidden rounded-lg border border-repixl-muted/20 bg-repixl-bg transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-repixl-red/50"
-                  >
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={img.signedUrl}
-                      alt={`Evidence ${i + 1}`}
-                      className="h-full w-full object-cover"
+            <aside className="space-y-5">
+              {(reviewable || (approved && !detail.receivedAt)) && (
+                <section className={`${panel} space-y-4`}>
+                  <h2 className="font-display text-lg text-repixl-text-light">
+                    Review request
+                  </h2>
+                  {detail.status === 'REQUESTED' && (
+                    <Button
+                      variant="secondary"
+                      disabled={busy}
+                      onClick={() => void mutate({ action: 'review' })}
+                    >
+                      Start review
+                    </Button>
+                  )}
+                  <label className="block space-y-2 text-sm text-repixl-muted">
+                    <span>Return address / pickup instructions</span>
+                    <textarea
+                      rows={5}
+                      maxLength={2000}
+                      className={inputClass}
+                      value={instructions}
+                      onChange={(event) => setInstructions(event.target.value)}
+                      disabled={busy}
+                      placeholder="Provide the actual return address or pickup arrangement, packaging requirements, and who covers return shipping."
                     />
-                  </button>
-                ))}
-              </div>
-              <p className="mt-2 font-mono text-[9px] text-repixl-muted/50">
-                Images use 90-second signed access. Reload page if images expire.
-              </p>
-            </div>
-          )}
-
-          {/* Rejection reason (if rejected) */}
-          {status === 'REJECTED' && detail.rejectionReason && (
-            <div className="rounded-2xl border border-red-500/20 bg-red-500/5 p-5">
-              <p className="mb-2 font-mono text-[10px] uppercase tracking-widest text-red-400/70">Rejection Reason</p>
-              <p className="text-sm leading-relaxed text-red-400/80">{detail.rejectionReason}</p>
-            </div>
-          )}
-        </div>
-
-        {/* Right: actions */}
-        <div className="space-y-4">
-          <div className="rounded-2xl border border-repixl-muted/20 bg-repixl-charcoal p-5">
-            <p className="mb-4 font-mono text-[10px] uppercase tracking-widest text-repixl-muted">Actions</p>
-            <div className="space-y-2.5">
-              {canUnderReview && (
-                <button onClick={() => patch({ status: 'UNDER_REVIEW' })} disabled={submitting}
-                  className="w-full rounded-xl border border-blue-500/30 bg-blue-500/10 px-4 py-2.5 text-sm font-medium text-blue-400 transition-colors hover:bg-blue-500/20 disabled:opacity-50">
-                  Mark Under Review
-                </button>
+                  </label>
+                  <Button
+                    disabled={busy || instructions.trim().length < 10}
+                    onClick={() =>
+                      void mutate({
+                        action: approved ? 'instructions' : 'approve',
+                        returnInstructions: instructions.trim(),
+                      })
+                    }
+                  >
+                    {approved
+                      ? 'Update return instructions'
+                      : 'Approve & send instructions'}
+                  </Button>
+                </section>
               )}
-              {canApprove && (
-                <button onClick={() => patch({ status: 'APPROVED' })} disabled={submitting}
-                  className="w-full rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-2.5 text-sm font-medium text-emerald-400 transition-colors hover:bg-emerald-500/20 disabled:opacity-50">
-                  Approve
-                </button>
+              {(reviewable ||
+                (approved &&
+                  !detail.inspectedAt &&
+                  !detail.refundStartedAt)) && (
+                <section className={`${panel} space-y-3`}>
+                  <label className="block space-y-2 text-sm text-repixl-muted">
+                    <span>Decline reason</span>
+                    <textarea
+                      className={inputClass}
+                      rows={3}
+                      maxLength={500}
+                      value={rejection}
+                      onChange={(event) => setRejection(event.target.value)}
+                      disabled={busy}
+                    />
+                  </label>
+                  <Button
+                    variant="secondary"
+                    disabled={busy || !rejection.trim()}
+                    onClick={() =>
+                      void mutate({
+                        action: 'reject',
+                        rejectionReason: rejection.trim(),
+                      })
+                    }
+                  >
+                    Decline return
+                  </Button>
+                </section>
               )}
-              {canReject && !rejectOpen && (
-                <button onClick={() => setRejectOpen(true)} disabled={submitting}
-                  className="w-full rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-2.5 text-sm font-medium text-red-400 transition-colors hover:bg-red-500/20 disabled:opacity-50">
-                  Reject
-                </button>
+              {approved && !detail.receivedAt && (
+                <section className={`${panel} space-y-3`}>
+                  <h2 className="font-display text-lg text-repixl-text-light">
+                    Receive return
+                  </h2>
+                  <p className="text-sm text-repixl-muted">
+                    Record receipt only when the selected items have physically
+                    arrived.
+                  </p>
+                  <Button
+                    disabled={busy}
+                    onClick={() => void mutate({ action: 'receive' })}
+                  >
+                    Confirm items received
+                  </Button>
+                </section>
               )}
-              {canRefund && (
-                <button onClick={processRefund} disabled={submitting}
-                  className="w-full rounded-xl bg-repixl-red px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-red-700 disabled:opacity-50">
-                  {submitting ? 'Processing…' : 'Process Refund'}
-                </button>
+              {approved && detail.receivedAt && !detail.inspectedAt && (
+                <section className={`${panel} space-y-4`}>
+                  <h2 className="font-display text-lg text-repixl-text-light">
+                    Inspect items
+                  </h2>
+                  <label className="block space-y-2 text-sm text-repixl-muted">
+                    <span>Condition and inspection result</span>
+                    <textarea
+                      className={inputClass}
+                      rows={4}
+                      maxLength={1000}
+                      value={inspection}
+                      onChange={(event) => setInspection(event.target.value)}
+                      disabled={busy}
+                      placeholder="Check serials, condition, parts/accessories, and the reported issue."
+                    />
+                  </label>
+                  <label className="flex items-start gap-2 text-sm text-repixl-muted">
+                    <input
+                      type="checkbox"
+                      checked={restock}
+                      onChange={(event) => setRestock(event.target.checked)}
+                      disabled={busy}
+                    />
+                    <span>
+                      All selected units are fit for resale. Restore their
+                      inventory once.
+                    </span>
+                  </label>
+                  <Button
+                    disabled={busy || inspection.trim().length < 10}
+                    onClick={() =>
+                      void mutate({
+                        action: 'inspect',
+                        inspectionNotes: inspection.trim(),
+                        restock,
+                      })
+                    }
+                  >
+                    Accept inspection
+                  </Button>
+                  <p className="text-xs text-repixl-muted">
+                    Use Decline return above if inspection does not support
+                    acceptance.
+                  </p>
+                </section>
               )}
-              {status === 'APPROVED' && detail.order.paymentStatus !== 'PAID' && (
-                <p className="text-center text-xs text-repixl-muted">Order is not eligible for refund (payment status: {detail.order.paymentStatus})</p>
+              {approved && detail.inspectedAt && (
+                <section className={`${panel} space-y-4`}>
+                  <h2 className="font-display text-lg text-repixl-text-light">
+                    Issue refund
+                  </h2>
+                  <p className="text-sm text-repixl-muted">
+                    Selected items after discounts:{' '}
+                    {formatPrice(detail.refundQuote.itemsAmount)}
+                  </p>
+                  {detail.refundQuote.includesAllItems &&
+                    !detail.refundStartedAt && (
+                      <label className="flex items-start gap-2 text-sm text-repixl-muted">
+                        <input
+                          type="checkbox"
+                          checked={includeShipping}
+                          onChange={(event) =>
+                            setIncludeShipping(event.target.checked)
+                          }
+                          disabled={busy}
+                        />
+                        <span>
+                          Also refund original shipping:{' '}
+                          {formatPrice(detail.refundQuote.shippingAmount)}
+                        </span>
+                      </label>
+                    )}
+                  <p className="text-lg font-semibold text-repixl-text-light">
+                    Refund: {formatPrice(amount)}
+                  </p>
+                  <p className="text-xs text-repixl-muted">
+                    {isCod
+                      ? 'Complete the actual COD repayment first, then record its transaction/receipt reference below.'
+                      : 'Sent back through PayMongo to the original payment method. Pending provider responses stay in processing.'}
+                  </p>
+                  {isCod && (
+                    <label className="block space-y-2 text-sm text-repixl-muted">
+                      <span>Completed COD repayment reference</span>
+                      <input
+                        className={inputClass}
+                        maxLength={150}
+                        value={manualReference}
+                        onChange={(event) =>
+                          setManualReference(event.target.value)
+                        }
+                        disabled={busy}
+                      />
+                    </label>
+                  )}
+                  {detail.refundId && detail.refundStatus !== 'failed' ? (
+                    <Button
+                      disabled={busy}
+                      onClick={() => void mutate({ checkOnly: true }, true)}
+                    >
+                      Check refund status
+                    </Button>
+                  ) : (
+                    <>
+                      {!confirmRefund ? (
+                        <Button
+                          disabled={
+                            busy ||
+                            detail.order.paymentStatus !== 'PAID' ||
+                            (isCod && manualReference.trim().length < 3)
+                          }
+                          onClick={() => setConfirmRefund(true)}
+                        >
+                          {detail.refundStartedAt
+                            ? 'Retry same refund'
+                            : 'Review refund'}
+                        </Button>
+                      ) : (
+                        <div className="space-y-3 rounded-xl border border-amber-500/30 p-3">
+                          <p className="text-sm text-amber-400">
+                            Confirm {formatPrice(amount)} to the original
+                            payment method. This financial action cannot be
+                            undone once processed.
+                          </p>
+                          <Button
+                            disabled={busy}
+                            loading={busy}
+                            onClick={() =>
+                              void mutate(
+                                {
+                                  includeShipping:
+                                    detail.refundAmount != null
+                                      ? detail.refundAmount >
+                                        detail.refundQuote.itemsAmount
+                                      : includeShipping,
+                                  manualReference: isCod
+                                    ? manualReference.trim()
+                                    : undefined,
+                                },
+                                true
+                              )
+                            }
+                          >
+                            Confirm refund
+                          </Button>
+                          <Button
+                            variant="secondary"
+                            disabled={busy}
+                            onClick={() => setConfirmRefund(false)}
+                          >
+                            Cancel
+                          </Button>
+                        </div>
+                      )}
+                    </>
+                  )}
+                  {detail.refundStatus && (
+                    <p className="text-xs text-repixl-muted">
+                      Refund status: {detail.refundStatus}
+                    </p>
+                  )}
+                </section>
               )}
-            </div>
-
-            {/* Reject modal inline */}
-            {rejectOpen && (
-              <div className="mt-4 space-y-3 rounded-xl border border-red-500/20 bg-red-500/5 p-4">
-                <p className="text-sm font-medium text-red-400">Provide rejection reason</p>
-                <textarea
-                  value={rejectReason}
-                  onChange={(e) => setRejectReason(e.target.value)}
-                  rows={3}
-                  maxLength={500}
-                  placeholder="Enter reason (1–500 characters)…"
-                  className="w-full rounded-xl border border-repixl-muted/20 bg-repixl-bg px-3 py-2 text-sm text-repixl-text-light placeholder:text-repixl-muted/50 focus:border-repixl-muted/40 focus:outline-none"
-                />
-                <p className="text-right font-mono text-[9px] text-repixl-muted">{rejectReason.length}/500</p>
-                <div className="flex gap-2">
-                  <button onClick={() => patch({ status: 'REJECTED', rejectionReason: rejectReason })}
-                    disabled={submitting || !rejectReason.trim()}
-                    className="flex-1 rounded-xl bg-red-500 px-3 py-2 text-sm font-medium text-white hover:bg-red-600 disabled:opacity-50">
-                    Confirm Rejection
-                  </button>
-                  <button onClick={() => { setRejectOpen(false); setRejectReason('') }}
-                    className="flex-1 rounded-xl border border-repixl-muted/20 px-3 py-2 text-sm text-repixl-muted hover:text-repixl-text-light">
-                    Cancel
-                  </button>
-                </div>
-              </div>
-            )}
+              {detail.status === 'REFUNDED' && (
+                <section className={panel}>
+                  <h2 className="font-display text-lg text-emerald-400">
+                    Refund complete
+                  </h2>
+                  <p className="mt-3 text-sm text-repixl-text-light">
+                    {formatPrice(detail.refundAmount ?? detail.order.total)}
+                  </p>
+                  <p className="mt-2 break-all text-xs text-repixl-muted">
+                    {detail.refundId}
+                  </p>
+                </section>
+              )}
+            </aside>
           </div>
-        </div>
-      </div>
+        </>
+      )}
+      <ImageLightbox
+        images={images.map((image, index) => ({
+          src: image.signedUrl,
+          alt: `Evidence ${index + 1}`,
+        }))}
+        activeIndex={activeImage}
+        onClose={() => setActiveImage(null)}
+        onNavigate={setActiveImage}
+      />
     </div>
-
-    {/* Evidence lightbox */}
-    <ImageLightbox
-      images={evidenceImages.map((img, i) => ({ src: img.signedUrl, alt: `Evidence ${i + 1}` }))}
-      activeIndex={evidenceLightboxIndex}
-      onClose={() => setEvidenceLightboxIndex(null)}
-      onNavigate={setEvidenceLightboxIndex}
-    />
-    </>
   )
 }

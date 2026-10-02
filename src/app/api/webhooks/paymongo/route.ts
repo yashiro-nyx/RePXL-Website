@@ -5,6 +5,7 @@ import {
   type PaymongoWebhookEvent,
 } from '@/lib/paymongo'
 import { finalizePaidOrder } from '@/lib/purchase-finalization'
+import { reconcileReturnRefund } from '@/lib/return-service'
 
 // Webhooks must run per-request and read the raw body for signature verification.
 export const dynamic = 'force-dynamic'
@@ -48,7 +49,11 @@ export async function POST(request: NextRequest) {
   console.log(`[paymongo webhook] event id=${eventId} type=${type}`)
 
   try {
-    if (type === 'checkout_session.payment.paid' || type === 'payment.paid') {
+    if (type === 'refund.succeeded' || type === 'payment.refunded' || type === 'payment.refund.updated') {
+      const resource = event.data.attributes.data
+      const refundIds: string[] = resource.id?.startsWith('re_') ? [resource.id] : ((resource.attributes as any).refunds ?? []).map((refund: { id: string }) => refund.id).filter((id: string) => id?.startsWith('re_')).slice(0, 20)
+      for (const refundId of refundIds) await reconcileReturnRefund(refundId)
+    } else if (type === 'checkout_session.payment.paid' || type === 'payment.paid') {
       const resource = event.data.attributes.data.attributes
       const descMatch = typeof resource.description === 'string' ? resource.description.match(/RPX-[A-Z0-9-]+/i) : null
       const orderNumber =

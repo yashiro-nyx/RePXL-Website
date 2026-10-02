@@ -200,41 +200,39 @@ describe('Mobile AI Concierge & Support Features', () => {
 
   it('responds with condition grading details for grading queries', () => {
     const query = 'How do you grade the condition of cameras?'
-    const reply = generateAiResponse(query)
-    expect(reply).toContain('Mint')
-    expect(reply).toContain('Excellent')
-    expect(reply).toContain('Good')
-    expect(reply).toContain('Fair')
+    const reply = generateAiResponse(query).text.toLowerCase()
+    expect(reply).toContain('mint')
+    expect(reply).toContain('excellent')
+    expect(reply).toContain('good')
+    expect(reply).toContain('fair')
   })
 
   it('responds with tracking guidelines for shipping and order queries', () => {
-    const query = 'Where is my order? How long does delivery take?'
-    const reply = generateAiResponse(query)
-    expect(reply).toContain('Purchases tab')
-    expect(reply).toContain('3–5 business days')
-    expect(reply).toContain('push notifications')
+    expect(generateAiResponse('Where is my order?').action?.type).toBe('orders')
+    const reply = generateAiResponse('How long does shipping take?').text
+    expect(reply).toContain('business days')
+    expect(reply).toContain('Orders')
   })
 
   it('responds with return policy information for return and refund queries', () => {
     const query = 'What is your refund and return policy?'
     const reply = generateAiResponse(query)
-    expect(reply).toContain('14-day return window')
-    expect(reply).toContain('100% free')
-    expect(reply).toContain('5–7 business days')
+    expect(reply.action?.type).toBe('faq')
+    expect(reply.text).toContain('original payment method')
   })
 
   it('responds with CCD vintage recommendations for camera advice queries', () => {
-    const query = 'Can you recommend a CCD camera for a beginner?'
-    const reply = generateAiResponse(query)
+    const query = 'Can you recommend a camera?'
+    const reply = generateAiResponse(query).text
     expect(reply).toContain('Canon IXY')
     expect(reply).toContain('Kodak EasyShare')
     expect(reply).toContain('Sony Cyber-shot')
-    expect(reply).toContain('Try the Look')
+    expect(generateAiResponse(query).action?.type).toBe('browse')
   })
 
   it('responds with supported payment methods for payment queries', () => {
-    const query = 'Do you accept GCash or COD for orders?'
-    const reply = generateAiResponse(query)
+    const query = 'What payment methods do you accept?'
+    const reply = generateAiResponse(query).text
     expect(reply).toContain('Visa')
     expect(reply).toContain('GCash')
     expect(reply).toContain('Cash on Delivery')
@@ -243,7 +241,7 @@ describe('Mobile AI Concierge & Support Features', () => {
 
   it('directs user to contact tab or email for human agent escalations', () => {
     const query = 'Can I speak to a human representative?'
-    const reply = generateAiResponse(query)
+    const reply = generateAiResponse(query).text
     expect(reply).toContain('Contact Us')
     expect(reply).toContain('support@repxl.com')
   })
@@ -251,14 +249,15 @@ describe('Mobile AI Concierge & Support Features', () => {
   it('responds to consignment/trade queries with submission guidance', () => {
     const query = 'How can I sell or trade my old camera?'
     const reply = generateAiResponse(query)
-    expect(reply).toContain('RePXL buys vintage digicams')
-    expect(reply).toContain('Contact Us')
+    expect(reply.action?.type).toBe('contact')
+    expect(reply.text).toContain('Contact Us')
   })
 
-  it('provides a helpful general overview for unknown prompts', () => {
+  it('acknowledges unknown information and offers support for unknown prompts', () => {
     const query = 'What is the meaning of life in vintage photography?'
     const reply = generateAiResponse(query)
-    expect(reply).toContain('RePXL is your curated home for vintage digital cameras')
+    expect(reply.text).toContain("don't have enough information")
+    expect(reply.action?.type).toBe('contact')
   })
 })
 

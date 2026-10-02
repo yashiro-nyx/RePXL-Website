@@ -113,11 +113,34 @@ export const PROMPT_CATEGORIES: PromptCategory[] = [
 
 export const QUICK_PROMPTS = PROMPT_CATEGORIES[0].prompts;
 
+/** Standard response when no supported RePXL answer can be identified. */
+export const FALLBACK_REPLY = "Thanks for your question. I don't have enough information to answer that accurately. I can help with RePXL cameras, condition grading, orders, shipping, payments, and returns. Please rephrase your question or choose a suggested topic. If you still need help, contact our support team through Contact Us.";
+
+function fallbackResponse(): AiResponseResult {
+  return {
+    text: FALLBACK_REPLY,
+    suggestedFollowUps: ['How does condition grading work?', 'Where is my order?', 'What payment methods do you accept?'],
+    action: { type: 'contact', label: 'Contact Support' },
+  };
+}
+
+function hasSupportContext(query: string): boolean {
+  // Broad words such as "good", "code", "where is", and "how long" alone
+  // are not evidence that a question concerns this store or vintage cameras.
+  const conversation = /^(?:hi|hello|hey|kamusta|musta|sup|yo|greetings|good\s*(?:morning|day|afternoon|evening)|thanks?(?: you)?|salamat|matsala|awesome|cool|that(?: was| is)? helpful)[\s!?.]*$/i;
+  const identityOrSupport = /\b(who are you|what are you|what can you do|are you ai|are you a bot|bot info|human support|support team|customer service|contact us|contact support|contact human|real person|speak (?:to|with) (?:an? )?(?:human|agent|representative)|talk to (?:an? )?(?:human|agent|representative))\b/i;
+  const topics = /\b(repxl|repixl|cameras?|digicams?|ccd|cmos|photos?|photography|canon|ixy|ixus|powershot|sony|cyber[ -]?shot|kodak|easyshare|fujifilm|finepix|nikon|coolpix|olympus|camedia|casio|exilim|batter(?:y|ies)|chargers?|memory card|sd cards?|sdhc|sdxc|memory stick|xd card|card reader|condition|grading|fungus|haze|lcd|sensor|lens|lenses|try the look|compare tool|orders?|purchases|packages?|parcels?|shipping|ship|lead time|transit time|delivery|courier|tracking|gcash|maya|paymongo|cod|cash on delivery|payment methods?|voucher|promo|coupon|return policy|return request|refund policy|refund status|refund processing|refunds|warranty|consignment|trade-in)\b/i;
+  const shortTopic = /^(?:returns?|refund|payments?|shipping|delivery|grading|mint|excellent|good|fair|authenticity|international shipping|video capabilities|can it shoot video)[\s!?.]*$/i;
+  return conversation.test(query) || identityOrSupport.test(query) || topics.test(query) || shortTopic.test(query)
+    || PROMPT_CATEGORIES.some((category) => category.prompts.some((prompt) => prompt.trim().toLowerCase() === query));
+}
+
 export function generateAiResponse(input: string): AiResponseResult {
   const query = input.trim().toLowerCase();
+  if (!hasSupportContext(query)) return fallbackResponse();
 
   // 1. Greetings & Small Talk
-  if (/^(hi|hello|hey|kamusta|musta|good\s*(morning|day|afternoon|evening)|sup|yo|greetings)(\b|\s)/i.test(query) || query === 'hi' || query === 'hello' || query === 'hey' || query === 'kamusta') {
+  if (/^(hi|hello|hey|kamusta|musta|good\s*(morning|day|afternoon|evening)|sup|yo|greetings)[\s!?.]*$/i.test(query) || query === 'hi' || query === 'hello' || query === 'hey' || query === 'kamusta') {
     return {
       text: `👋 Kumusta! Welcome to RePXL, your curated home for vintage digital cameras.
 
@@ -156,7 +179,7 @@ If you have more questions about camera specs, accessories, or tracking an order
   }
 
   // 3. Bot Identity & About RePXL
-  if (/\b(who are you|what are you|what can you do|about repxl|what is repxl|are you ai|are you a bot|bot info)\b/i.test(query)) {
+  if (/\b(who are you|what are you(?=[\s?!.]*$)|what can you do|about repxl|what is repxl|are you ai|are you a bot|bot info)\b/i.test(query)) {
     return {
       text: `🤖 I am the **RePXL AI Concierge**!
 
@@ -336,7 +359,7 @@ For a camera that slides effortlessly into a jacket or jeans pocket:
   }
 
   // 11. Brand Comparisons
-  if (/\b(canon vs sony|sony vs canon|fuji vs canon|nikon vs canon|compare brands|which brand)\b/i.test(query)) {
+  if (/\b(canon(?: ixy)? vs sony(?: cyber-shot)?|sony vs canon|fuji vs canon|nikon vs canon|compare brands|which brand)\b/i.test(query)) {
     return {
       text: `⚖️ **Vintage Camera Brand Comparison:**
 
@@ -658,7 +681,7 @@ Some vintage LCD screens from 2002–2008 show slight edge yellowing or darkenin
   }
 
   // 26. Shipping Timeframes & Packaging
-  if (/\b(shipping|delivery|how long|lead time|transit time|courier|metro manila|provincial|ship)\b/i.test(query)) {
+  if (/\b(shipping|delivery|lead time|transit time|courier|metro manila|provincial|ship)\b/i.test(query)) {
     return {
       text: `🚚 **Shipping Times & Domestic Delivery:**
 
@@ -714,7 +737,7 @@ Need your camera today for a shoot or weekend event?
   }
 
   // 29. Order Tracking
-  if (/\b(order|track|where is|order status|tracking number|status of my package|purchases)\b/i.test(query)) {
+  if (/\b(order|track|order status|tracking number|status of my package|purchases)\b/i.test(query)) {
     return {
       text: `📦 **Tracking Your RePXL Order:**
 
@@ -773,7 +796,7 @@ We never store raw card credentials or sensitive payment tokens.`,
   }
 
   // 32. Promo Codes, Vouchers & Discounts
-  if (/\b(voucher|promo|discount|coupon|code|sale|welcome10|cheaper|voucher code)\b/i.test(query)) {
+  if (/\b(voucher|promo|discount|coupon|promo code|discount code|sale|welcome10|cheaper|voucher code)\b/i.test(query)) {
     return {
       text: `🎟️ **Vouchers & Discount Codes:**
 
@@ -790,7 +813,7 @@ We never store raw card credentials or sensitive payment tokens.`,
   }
 
   // 33. Returns, Refunds & 14-Day Guarantee
-  if (/\b(return|refund|warranty|exchange|money back|guarantee|mismatch)\b/i.test(query)) {
+  if (/\b(returns?|refunds?|warranty|exchange|money back|guarantee|mismatch)\b/i.test(query)) {
     return {
       text: `🔄 **14-Day Return & Condition Guarantee:**
 
@@ -809,7 +832,7 @@ Your purchase is 100% protected:
   }
 
   // 34. Damaged in Transit
-  if (/\b(damaged in transit|broken on arrival|package broken|box crushed|damaged package|broken camera)\b/i.test(query)) {
+  if (/\b(damaged in transit|arrives damaged|broken on arrival|package broken|box crushed|damaged package|broken camera)\b/i.test(query)) {
     return {
       text: `🚨 **What If My Camera Arrives Damaged?**
 
@@ -848,20 +871,6 @@ Got vintage digicams sitting in your drawer? We buy them!
     };
   }
 
-  // Fallback
-  return {
-    text: `I'm here to help with all things vintage digital cameras! 📷
-
-Could you rephrase your question or tap one of the suggested topics below?
-• **Camera Advice**: "Recommend a CCD camera" or "Best camera for Y2K flash"
-• **Tech Help**: "What memory card size to use?" or "How to transfer photos to phone"
-• **Orders & Store**: "Where is my order?" or "What is your return policy?"`,
-    suggestedFollowUps: [
-      'Recommend a CCD camera',
-      'How does condition grading work?',
-      'Where is my order?',
-      'How to transfer photos to phone?',
-    ],
-    action: { type: 'browse', label: 'Browse Full Catalog' },
-  };
+  // Unknown store questions and unrelated topics use the same honest reply.
+  return fallbackResponse();
 }

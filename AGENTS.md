@@ -28,9 +28,9 @@ kind of change:
    what was actually implemented and verified (check off completed items; do not
    check items that were not truly finished).
 2. **README & docs** — update `README.md` and any affected files under `docs/`
-   (e.g. `docs/system-architecture.md`, `docs/deployment.md`, `docs/SETUP.md`,
-   `docs/back-navigation.md`, `docs/notifications.md`, `docs/emails.md`) so they
-   match the change.
+   (e.g. `docs/system-architecture.md`, `docs/SETUP.md`,
+   `docs/customer-experience.md`, `docs/communications.md`, `docs/returns.md`)
+   so they match the change.
 3. **Actual progress & verification** — record the real implementation status and
    the verification performed (TypeScript check, tests, production build, and any
    manual/browser checks). Do not describe work as verified if it was not.
@@ -68,15 +68,12 @@ required no documentation change, state that explicitly and why.
 |---|---|
 | `docs/Group2_ProjectChecklist.md` | RePXL Project Progress Checklist — update every task |
 | `README.md` | Product overview, features, setup pointers |
-| `docs/system-architecture.md` | System architecture |
-| `docs/deployment.md` | Deployment process |
-| `docs/SETUP.md` | Local setup |
-| `docs/back-navigation.md` | Back-navigation design |
-| `docs/notifications.md` | In-app notification pipeline & formatting |
-| `docs/emails.md` | Outgoing email design system |
-| `docs/chat-widget.md` | Website floating AI Concierge chat widget |
-| `docs/mobile-app-development-plan.md` | React Native app plan |
-| `docs/kiro-repository-onboarding.md` | Repository onboarding |
+| `docs/system-architecture.md` | Architecture, repository map, authentication, data ownership |
+| `docs/SETUP.md` | Local setup, environment, migrations, deployment, troubleshooting |
+| `docs/customer-experience.md` | Back navigation and website AI Concierge |
+| `docs/communications.md` | In-app notifications and outgoing email design/delivery |
+| `docs/mobile-app-development-plan.md` | Native implementation status and remaining release work |
+| `docs/returns.md` | Shared cancellation, returns, refunds, verification, release checks |
 
 ---
 

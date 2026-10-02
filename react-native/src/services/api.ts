@@ -117,7 +117,11 @@ async function request<T>(path: string, init: RequestInit = {}, timeoutMs = DEFA
       cache: 'no-store',
       ...init,
       signal: init.signal || controller.signal,
-      headers: { Accept: 'application/json', 'Content-Type': 'application/json', ...init.headers },
+      headers: {
+        Accept: 'application/json',
+        ...(init.body instanceof FormData ? {} : { 'Content-Type': 'application/json' }),
+        ...init.headers,
+      },
     });
     const body = (await response.json().catch(() => null)) as any;
     if (!response.ok) {
@@ -139,7 +143,7 @@ async function request<T>(path: string, init: RequestInit = {}, timeoutMs = DEFA
     const isCancelOrTimeout =
       error?.name === 'AbortError' ||
       error?.name === 'FetchRequestCanceledException' ||
-      /cancel|abort/i.test(errText);
+      (!(error instanceof ApiError) && /cancel|abort/i.test(errText));
 
     if (isCancelOrTimeout) {
       throw new ApiError('Request timed out or was cancelled. Please check your connection and try again.', 408);
@@ -330,6 +334,28 @@ export const api = {
     return orders.map(mapOrder);
   },
   order: async (orderNumber: string) => mapOrder(await authorized<RawOrder>(`/api/orders/${encodeURIComponent(orderNumber)}`)),
+  returnRequest: async (orderNumber: string) => {
+    try {
+      return await authorized<import('../utils/returns').ReturnRequest>(`/api/returns/${encodeURIComponent(orderNumber)}`);
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 404 && error.message === 'No return request found for this order') return null;
+      throw error;
+    }
+  },
+  submitReturn: (input: import('../utils/returns').ReturnInput) =>
+    authorized<import('../utils/returns').ReturnRequest>('/api/returns', {
+      method: 'POST', body: JSON.stringify(input),
+    }),
+  uploadReturnImage: (form: FormData) => authorized<{ publicId: string }>('/api/upload/return-image', {
+    method: 'POST', body: form,
+  }),
+  recordReturnShipment: (orderNumber: string, input: import('../utils/returns').ReturnShipment) =>
+    authorized<{ recorded: boolean }>(`/api/returns/${encodeURIComponent(orderNumber)}`, {
+      method: 'PATCH', body: JSON.stringify(input),
+    }),
+  deleteReturnImage: (publicId: string) => authorized<{ deleted: boolean }>('/api/upload/return-image', {
+    method: 'DELETE', body: JSON.stringify({ publicId }),
+  }),
   cancelOrder: async (orderNumber: string): Promise<Order> => {
     await authorized<{ orderNumber: string; status: string }>(
       `/api/orders/${encodeURIComponent(orderNumber)}/cancel`,

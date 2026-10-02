@@ -1,315 +1,180 @@
-# RePXL — Complete Setup Guide
+# RePXL ? Setup and Deployment
 
-Everything you need to take RePXL from a fresh clone to a live site with a real
-database and working payments. Follow the parts in order. Total time: ~30 min.
+The canonical guide for local setup, server configuration, database migrations,
+Vercel deployment, and native release prerequisites. This combines the former
+setup and deployment guides. Implementation status is in the
+[progress checklist](./Group2_ProjectChecklist.md); native device instructions
+are in [react-native/README.md](../react-native/README.md).
 
-- **Part 1** — Local project setup
-- **Part 2** — Database (PostgreSQL)
-- **Part 3** — Payments (PayMongo)
-- **Part 4** — Environment variables reference
-- **Part 5** — Deploy to Vercel
-- **Part 6** — Automatic migrations (GitHub Actions)
-- **Part 7** — Everyday workflow & troubleshooting
+## Local setup
 
-> **Good to know:** RePXL has a **localStorage fallback** — if the database or an
-> API is briefly unreachable, the storefront keeps working from browser storage.
-> And **payments are optional**: with no PayMongo keys, checkout uses a built-in
-> demo flow; add the keys and it becomes real hosted payments. Nothing breaks
-> while you set things up incrementally.
-
----
-
-## Part 1 — Local project setup
-
-Requirements: **Node 18+** and **npm**.
+Use Node/npm compatible with both project manifests; the database migration
+workflow uses Node 22. Install root dependencies:
 
 ```powershell
 npm install
-# There is no tracked .env.local.example. Start from the reference backup,
-# then edit values (or create .env.local from the Part 4 variable list):
-Copy-Item .env.local.neon.bak .env.local
 ```
 
-You'll fill in `.env.local` as you go through Parts 2–3. For a quick local run
-with no database or payments yet:
+Create an ignored `.env.local` using the variable names below. There is no tracked
+root `.env.local.example`; do not depend on another developer's local backup.
+Next.js reads `.env.local`; Prisma CLI reads `.env`, so configure both for the
+intended local database. If they should contain the same configuration:
 
 ```powershell
+Copy-Item .env.local .env -Force
+npm run db:setup
 npm run dev
 ```
 
-The site runs at http://localhost:3000 using seed data + localStorage.
+`db:setup` applies committed migrations and runs the seed script. Seed accounts
+are defined in `prisma/seed.ts`; use them only for development and replace default
+credentials for a real deployment. The website runs at `http://localhost:3000`.
+Account/commerce workflows require a reachable configured database; do not assume
+browser storage can replace failed API mutations.
 
----
+## Server environment
 
-## Part 2 — Database (PostgreSQL)
+Keep actual values in ignored environment files or hosting/CI secret settings.
+The table lists configuration names, not credentials.
 
-RePXL uses PostgreSQL via Prisma. On Vercel (serverless) you need **connection
-pooling**, so every provider gives you two strings:
+| Names | Purpose |
+|---|---|
+| `DATABASE_URL`, `DIRECT_URL` | Pooled runtime and direct/migration PostgreSQL connections |
+| `NEXTAUTH_SECRET` | Session/OAuth signing; required in production |
+| `NEXTAUTH_URL`, `NEXT_PUBLIC_SITE_URL` | Correct public origin for auth, email, and redirects |
+| `PAYMONGO_SECRET_KEY`, `NEXT_PUBLIC_PAYMONGO_PUBLIC_KEY`, `PAYMONGO_WEBHOOK_SECRET`, `NEXT_PUBLIC_PAYMONGO_ENABLED` | Payment configuration and website checkout switch |
+| `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | Google OAuth |
+| `GMAIL_USER`, `GMAIL_APP_PASSWORD` | Gmail SMTP |
+| `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET` | Product/review uploads and protected return evidence |
+| `MFA_ENCRYPTION_KEY` | Customer MFA encryption; 64 hex characters |
+| `SHIPPING_WEBHOOK_SECRET` | Shipping webhook authentication |
+| `EXPO_PUSH_ENABLED` | Optional server push delivery switch |
+| `PRISMA_CONNECTION_LIMIT`, `PRISMA_POOL_TIMEOUT` | Optional Prisma pool tuning |
 
-| Env var | Which string | Used for |
-| --- | --- | --- |
-| `DATABASE_URL` | **Pooled** (host has `-pooler`, or Supabase port `6543`) | App at runtime |
-| `DIRECT_URL` | **Direct** (no pooler, port `5432`) | Migrations |
+Additional feature-specific settings are read by their server modules. See
+[system architecture](./system-architecture.md) and
+[notifications/email](./communications.md) before changing auth or delivery.
 
-### 2.1 Create a database (Supabase — recommended)
+## Database and migrations
 
-1. Sign up at **https://supabase.com** → **New Project** named `repixl`, region
-   closest to your users (e.g. Singapore or Sydney).
-2. Go to **Project Settings** → **Database** → **Connection string**:
-   - **Transaction** pooler (port `6543`) + `?pgbouncer=true` → `DATABASE_URL`
-   - **Session** pooler / direct (port `5432`) → `DIRECT_URL`
+The schema uses PostgreSQL. For Supabase, use a transaction-pooled connection
+for runtime and a migration-capable direct/session connection for Prisma CLI.
+Use the connection parameters provided for your project, including the pooler
+and SSL requirements; avoid hardcoded hostnames or credentials in docs.
 
-<details><summary>Using Neon instead?</summary>
+| Command | Actual behavior |
+|---|---|
+| `npm run prisma:generate` | Generate Prisma Client |
+| `npm run prisma:migrate` / `npm run prisma:deploy` | Apply committed migrations with `prisma migrate deploy` |
+| `npx prisma migrate dev --name describe_change` | Create/apply a new migration against a development database |
+| `npm run db:seed` | Run `prisma/seed.ts` |
+| `npm run db:setup` | Deploy migrations and seed |
+| `npm run prisma:studio` | Inspect database records |
+| `npm run db:reset` | Reset the configured database; destructive |
 
-1. Sign up at **https://neon.tech** → **Create project**.
-2. Open **Connection Details** and copy BOTH strings:
-   - Pooled (contains `-pooler`) → `DATABASE_URL`
-   - Direct (without `-pooler`) → `DIRECT_URL`
-</details>
+Keep schema changes and generated migrations together for review. Use development
+migration commands against a development database. `prisma:migrate -- --name`
+does not create a migration: the npm script runs the deploy command.
 
-### 2.2 Configure and initialize
+## Payments and Google OAuth
 
-1. Put the two strings and a secret in `.env.local`:
-   ```powershell
-   npx auth secret        # copy output into NEXTAUTH_SECRET
-   ```
-2. The Prisma CLI reads `.env` (not `.env.local`), so mirror it:
-   ```powershell
-   Copy-Item .env.local .env -Force
-   ```
-3. Create the tables + load starter data in one command:
-   ```powershell
-   npm run db:setup
-   ```
-   This runs `prisma migrate deploy` (builds all tables from
-   `prisma/migrations/`) then `prisma db seed` (admin, demo customer, 12 cameras,
-   vouchers, reviews).
+Configure PayMongo keys for the intended test/live mode and register the public
+`/api/webhooks/paymongo` URL. The handler supports signed
+`checkout_session.payment.paid`, `payment.paid`, and `payment.failed` events.
+Set the webhook signing secret on the server and enable the configured website
+payment flow. Native hosted checkout requires the server payment configuration;
+a missing gateway configuration is an API error, not a successful payment.
 
-   **Seeded logins** (from `prisma/seed.ts`):
-   - Admin: `admin@repixl-admin.com` / `RePIXL2026!`
-   - Customer: `demo@repxl.com` / `customer123`
+Test with the provider's test-mode checkout, confirm the order's PAID status,
+inventory/cart changes, and webhook delivery. Live account/payment activation
+and a real refund require separate verification. Refund limits are documented in
+[returns.md](./returns.md).
 
-   > Rotate the admin password after first login in any real deployment.
+For Google OAuth, configure the website origin and
+`/api/auth/callback/google` redirect URI. The native app first opens the website
+bridge, then returns to its registered `repxl` scheme; follow
+[react-native/README.md](../react-native/README.md) for local/dev-build setup.
 
-4. (Optional) Browse the data: `npm run prisma:studio`
+## Deployment
 
----
+The website deploys on Vercel; the native app is built/released separately.
+`vercel.json` selects `npm run vercel-build`, which runs Prisma generation,
+`prisma migrate deploy`, and `next build`. Local `npm run build` generates the
+client and builds the website without deploying migrations.
 
-## Part 3 — Payments (PayMongo)
+1. Configure the target database and hosting environment before deployment.
+2. Import the repository into Vercel and use the tracked build configuration.
+3. Set the appropriate public origins, server credentials, and webhook settings
+   for each environment. Use isolated resources for staging/preview testing.
+4. Deploy reviewed code and verify authentication, catalog, checkout/webhooks,
+   uploads, and notification delivery against that environment.
 
-PayMongo is the Philippine gateway used for card, GCash, Maya, and GrabPay via a
-**hosted checkout** page. Flow: your server creates a checkout session → the
-customer pays on PayMongo's page → PayMongo redirects back and sends a signed
-**webhook** that finalizes the order (marks it paid, decrements stock, clears the
-cart).
+The tracked `.github/workflows/db-migrate.yml` also deploys migrations on relevant
+`main` pushes (`prisma/**` or workflow changes), and supports manual dispatch.
+It validates both `DATABASE_URL` and `DIRECT_URL` repository secrets. A successful
+local website build alone does not verify migration or live provider operation.
 
-> Skip this whole part to launch without real payments — checkout falls back to
-> the demo flow automatically.
+## Mobile setup and release
 
-### 3.1 Get your keys
-
-1. Create an account at **https://dashboard.paymongo.com** and stay in **Test mode**.
-2. Go to **Developers → API keys**. Copy:
-   - **Secret key** (`sk_test_...`) → `PAYMONGO_SECRET_KEY`
-   - **Public key** (`pk_test_...`) → `NEXT_PUBLIC_PAYMONGO_PUBLIC_KEY`
-
-### 3.2 Register the webhook
-
-The webhook confirms payment. You need a public URL, so do this **after** your
-first Vercel deploy (Part 5), or use a tunnel (e.g. `ngrok http 3000`) for local
-testing.
-
-1. Dashboard → **Developers → Webhooks → Create webhook**.
-2. URL: `https://your-app.vercel.app/api/webhooks/paymongo`
-3. Events: select at least **`checkout_session.payment.paid`**, plus
-   **`payment.paid`** and **`payment.failed`**.
-4. After creating it, copy the **webhook signing secret** (`whsk_...`) →
-   `PAYMONGO_WEBHOOK_SECRET`.
-
-<details><summary>Registering the webhook via API (alternative)</summary>
-
-```bash
-curl https://api.paymongo.com/v1/webhooks \
-  -u sk_test_your_secret_key: \
-  -H "Content-Type: application/json" \
-  -d '{"data":{"attributes":{"url":"https://your-app.vercel.app/api/webhooks/paymongo","events":["checkout_session.payment.paid","payment.paid","payment.failed"]}}}'
-```
-The response includes `attributes.secret_key` — that's your `PAYMONGO_WEBHOOK_SECRET`.
-</details>
-
-### 3.3 Enable it
-
-Set these (locally in `.env.local`, and in Vercel for production):
-
-```
-PAYMONGO_SECRET_KEY=sk_test_...
-NEXT_PUBLIC_PAYMONGO_PUBLIC_KEY=pk_test_...
-PAYMONGO_WEBHOOK_SECRET=whsk_...
-NEXT_PUBLIC_PAYMONGO_ENABLED=true
-```
-
-`NEXT_PUBLIC_PAYMONGO_ENABLED=true` is the switch that tells the checkout page to
-redirect to PayMongo. Leave it `false` (or unset) to keep the demo flow.
-
-### 3.4 Test a payment
-
-1. Add an item to the cart and go through checkout → you're redirected to PayMongo.
-2. Use a **test card**: `4343 4343 4343 4345`, any future expiry, any CVC.
-   (GCash/Maya test flows have an "Authorize/Success" button on the test page.)
-3. After paying you land on `/checkout/success`; the webhook marks the order
-   paid, decrements stock, and clears your cart.
-
-**Go live later:** switch the dashboard to Live mode, swap in `sk_live_`/`pk_live_`
-keys, and register a live webhook — no code changes.
-
----
-
-## Part 4 — Environment variables reference
-
-| Name | Required | Example / notes |
-| --- | --- | --- |
-| `DATABASE_URL` | ✅ | Pooled Postgres string |
-| `DIRECT_URL` | ✅ | Direct Postgres string (migrations) |
-| `NEXTAUTH_SECRET` | ✅ | `npx auth secret` |
-| `NEXTAUTH_URL` | ✅ | `http://localhost:3000` / `https://your-app.vercel.app` |
-| `NEXT_PUBLIC_SITE_URL` | ✅ | same as `NEXTAUTH_URL` (used in emails + payment redirects) |
-| `PAYMONGO_SECRET_KEY` | payments | `sk_test_...` / `sk_live_...` |
-| `NEXT_PUBLIC_PAYMONGO_PUBLIC_KEY` | payments | `pk_test_...` |
-| `PAYMONGO_WEBHOOK_SECRET` | payments | `whsk_...` |
-| `NEXT_PUBLIC_PAYMONGO_ENABLED` | payments | `true` to turn on the redirect flow |
-| `MFA_ENCRYPTION_KEY` | optional | `openssl rand -hex 32` (AES-256-GCM encryption for customer MFA) |
-| `SHIPPING_WEBHOOK_SECRET` | optional | `openssl rand -hex 32` (Bearer auth for `/api/webhooks/shipping`) |
-| `CLOUDINARY_CLOUD_NAME` / `API_KEY` / `API_SECRET` | optional | Image uploads for product/review photos |
-| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | optional | Google sign-in |
-| `GMAIL_USER` / `GMAIL_APP_PASSWORD` | optional | reset/newsletter/contact emails |
-
-Files: `.env.local` (local dev), `.env` (Prisma CLI — mirror of `.env.local`),
-Vercel Environment Variables (production). All `.env*` files are gitignored.
-
----
-
-## Part 5 — Deploy to Vercel
-
-1. Push to GitHub:
-   ```powershell
-   git add .
-   git commit -m "chore: setup db + paymongo"
-   git branch -M main
-   git remote add origin https://github.com/<you>/repixl.git
-   git push -u origin main
-   ```
-2. **https://vercel.com → Add New → Project** → import the repo. Vercel detects
-   Next.js; `vercel.json` sets the build to `npm run vercel-build`
-   (`prisma generate && prisma migrate deploy && next build`), so **migrations
-   apply automatically on every deploy**.
-3. **Settings → Environment Variables** → add everything from Part 4 for
-   **Production**, **Preview**, and **Development**. Set the URL vars to your real
-   `https://your-app.vercel.app`.
-4. **Deploy.**
-5. Now finish **Part 3.2** (register the webhook against your live URL) and add
-   `PAYMONGO_WEBHOOK_SECRET` + set `NEXT_PUBLIC_PAYMONGO_ENABLED=true` in Vercel,
-   then redeploy.
-
----
-
-## Part 6 — Automatic migrations (GitHub Actions)
-
-`.github/workflows/db-migrate.yml` also runs `prisma migrate deploy` on every push
-to `main` that changes `prisma/**`. This is complementary to the Vercel build
-(both are idempotent). One-time setup:
-
-- GitHub repo → **Settings → Secrets and variables → Actions → New repository secret**
-- Add **both** `DATABASE_URL` (pooled) and `DIRECT_URL` (direct) — the workflow validates both are present before running.
-
-If you skip them, the Actions job fails but deploys still work (Vercel migrates too).
-
----
-
-## Part 7 — Everyday workflow & troubleshooting
-
-**Ship code:** `git push` — Vercel rebuilds, migrates, and redeploys.
-
-**Change the schema:**
-```powershell
-# edit prisma/schema.prisma, then:
-npm run prisma:migrate -- --name your_change   # create migration locally
-git add prisma/migrations && git commit -m "db: your_change" && git push
-```
-
-**Reset the DB (wipes data!):** `npm run db:reset`
-
-### Troubleshooting
-
-| Symptom | Fix |
-| --- | --- |
-| `Environment variable not found: DIRECT_URL` | Copy `.env.local` → `.env` (Prisma CLI reads `.env`). |
-| `Can't reach database server` | Check host/password; string must end with `?sslmode=require`. |
-| `too many connections` in production | `DATABASE_URL` must be the **pooled** string, not the direct one. |
-| Login/session breaks after deploy | `NEXTAUTH_SECRET` + `NEXTAUTH_URL` must be set in Vercel. |
-| Checkout uses demo flow, not PayMongo | Set `NEXT_PUBLIC_PAYMONGO_ENABLED=true` **and** the `PAYMONGO_*` keys. |
-| Paid but order not confirmed | Webhook not reaching you: check the URL, that `PAYMONGO_WEBHOOK_SECRET` matches, and PayMongo Dashboard → Webhooks → delivery logs. |
-| Webhook returns 401 | `PAYMONGO_WEBHOOK_SECRET` is wrong, or test/live mode mismatch with your keys. |
-| Emails not sending | Expected without `GMAIL_USER`/`GMAIL_APP_PASSWORD`; the message logs to the server console instead. |
-
-### How payment confirmation works (reference)
-
-1. Checkout → `POST /api/checkout/session` creates a **PENDING** order (no stock
-   change yet) and a PayMongo session; returns the `checkout_url`.
-2. Customer pays on PayMongo → redirected to `/checkout/success?order=RPX-…`.
-3. PayMongo sends a signed webhook to `POST /api/webhooks/paymongo`. The handler
-   verifies the signature, then (idempotently) marks the order **PAID**,
-   decrements stock, increments voucher usage, and clears the cart.
-
-This means stock is never reduced for unpaid orders, and duplicate webhook
-deliveries are safe.
-
----
-
-## Part 8 — React Native mobile app
-
-The customer mobile app is in `react-native/` and uses the same deployed Next.js API,
-Prisma business rules, and PostgreSQL database as the website. Do not put a
-database URL or payment secret in the mobile app.
-
-### 8.1 Install and run
-
-Start the website API first:
-
-```powershell
-npm run dev
-```
-
-Then, in a second terminal:
+Run the website API first when using a local backend. In a second terminal:
 
 ```powershell
 Set-Location react-native
 npm install
-$env:EXPO_PUBLIC_API_BASE_URL = "http://localhost:3000"
-npm run start
+Copy-Item .env.example .env.local
+npm run typecheck
+npm start
 ```
 
-Use `http://10.0.2.2:3000` from an Android emulator. For a physical device,
-use the development machine's LAN IP and ensure both devices are on the same
-network.
+Set `EXPO_PUBLIC_API_BASE_URL` to the reachable API origin: `http://10.0.2.2:3000`
+for an Android emulator, or the development machine's LAN address for a physical
+device. `EXPO_PUBLIC_EXPO_PROJECT_ID` enables push-token registration; enable
+server push only after physical-device registration/permission checks.
 
-### 8.2 Mobile database and authentication
+Deploy the mobile-session and push-token migrations before relying on those
+features. Mobile uses shared customer APIs and SecureStore; it never needs
+PostgreSQL, PayMongo, Gmail, or Cloudinary secrets.
 
-Before testing native login against a real database, deploy the committed
-migrations from the repository root:
+Native dependencies such as the camera and return image picker require a new
+native build; Metro reload alone does not add native modules. Build profiles live
+in `react-native/eas.json`; the current production Android profile requests an
+APK. Store-distribution readiness, signing, payment return handling, provider
+checks, and device acceptance remain release work. See the
+[mobile plan](./mobile-app-development-plan.md) and
+[returns release checks](./returns.md#remaining-limitations-and-release-checks).
+
+## Verification and troubleshooting
+
+The web return workflow requires migration `20261002000000_return_workflow` before
+using the updated return APIs/UI. It was prepared but not applied during development.
+Apply pending migrations to the intended database with `npx prisma migrate deploy`
+as part of release. Configure signed PayMongo refund events (`refund.succeeded`,
+and supported `payment.refunded` / `payment.refund.updated` events) on
+`/api/webhooks/paymongo`. Test captured payment references and pending/success/failure
+refunds in test mode. Existing approved returns need actual receipt and inspection
+records before issuing refunds; COD repayments occur outside the application.
+See [returns release checks](./returns.md#remaining-limitations-and-release-checks).
+
+For application changes, run the applicable checks:
 
 ```powershell
-Set-Location ..
-npm run prisma:migrate
+npx tsc --noEmit
+npx vitest run
+npm run build
 ```
 
-The mobile app uses opaque access/refresh tokens stored as hashes in
-`MobileSession`. Existing customer APIs accept the native bearer token, so web
-and mobile carts, wishlists, addresses, orders, and account data stay in sync.
+Run native TypeScript and Expo bundle/build checks from `react-native/` separately.
+The latest dated results and known failures live in the
+[checklist](./Group2_ProjectChecklist.md). No setup, deployment, database mutation,
+provider check, or application build was performed for documentation consolidation.
 
-### 8.3 Push notifications
-
-Set `EXPO_PUBLIC_EXPO_PROJECT_ID` in the mobile environment to register Expo
-push tokens. Set `EXPO_PUSH_ENABLED=true` on the server only after the
-`PushToken` migration is deployed and physical-device permissions have been
-tested. Push delivery is optional; in-app notifications remain the source of
-truth.
+| Symptom | Check |
+|---|---|
+| Missing Prisma environment variables | Prisma CLI configuration in `.env`, including both connection URLs |
+| Connection failures/exhaustion | Correct project credentials, SSL/pooler parameters, runtime pool limits |
+| Login breaks after deployment | Session secret and public origins in the target environment |
+| Paid checkout remains pending | Signed webhook URL, mode/secret, and provider delivery logs |
+| Upload fails | Cloudinary configuration, image format/size, and customer authorization |
+| Email unavailable | Gmail SMTP configuration and server logs; actual delivery requires a live check |
+| Native API unreachable | Device-reachable API origin and network configuration |
+| Native module missing | Rebuild/install the native app after dependency/configuration changes |

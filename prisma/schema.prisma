@@ -488,6 +488,20 @@ model ReturnRequest {
   reason          String // 10–1000 chars (validated in app layer)
   rejectionReason String?      @map("rejection_reason") // 1–500 chars when REJECTED
   refundId        String?      @map("refund_id") // PayMongo refund id
+  returnInstructions   String?   @map("return_instructions")
+  approvedAt           DateTime? @map("approved_at")
+  returnCarrier        String?   @map("return_carrier")
+  returnTrackingNumber String?   @map("return_tracking_number")
+  shippedAt            DateTime? @map("shipped_at")
+  receivedAt           DateTime? @map("received_at")
+  inspectedAt          DateTime? @map("inspected_at")
+  inspectionNotes      String?   @map("inspection_notes")
+  restockedAt          DateTime? @map("restocked_at")
+  refundAmount         Float?    @map("refund_amount")
+  refundStatus         String?   @map("refund_status")
+  refundAttemptKey     String?   @map("refund_attempt_key")
+  refundStartedAt      DateTime? @map("refund_started_at")
+  refundedAt           DateTime? @map("refunded_at")
   createdAt       DateTime     @default(now()) @map("created_at")
   updatedAt       DateTime     @updatedAt @map("updated_at")
 

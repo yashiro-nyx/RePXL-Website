@@ -38,6 +38,7 @@
         }
       ],
       "expo-router",
+      ["expo-image-picker", { "photosPermission": "Allow RePXL to select photos for return evidence.", "cameraPermission": false, "microphonePermission": false }],
       "expo-notifications",
       [
         "expo-splash-screen",

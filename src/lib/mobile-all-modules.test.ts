@@ -467,12 +467,12 @@ describe('Module 11: Customer Support Hub (AI Assistant, FAQs, Contact Form)', (
   })
 
   it('AI concierge accurately answers condition, tracking, returns, recommendations, and payments', () => {
-    expect(generateAiResponse('Tell me about your condition grading')).toContain('Mint')
-    expect(generateAiResponse('Where is my order?')).toContain('Purchases tab')
-    expect(generateAiResponse('What is your refund policy?')).toContain('14-day return window')
-    expect(generateAiResponse('Recommend a camera for vintage photos')).toContain('Canon IXY')
-    expect(generateAiResponse('What payment methods do you accept?')).toContain('GCash')
-    expect(generateAiResponse('I want to speak with an agent')).toContain('Contact Us')
+    expect(generateAiResponse('Tell me about your condition grading').text.toLowerCase()).toContain('mint')
+    expect(generateAiResponse('Where is my order?').action?.type).toBe('orders')
+    expect(generateAiResponse('What is your refund policy?').text).toContain('original payment method')
+    expect(generateAiResponse('Recommend a camera for vintage photos').text).toContain('Canon IXY')
+    expect(generateAiResponse('What payment methods do you accept?').text).toContain('GCash')
+    expect(generateAiResponse('I want to speak with an agent').text).toContain('Contact Us')
   })
 
   it('allows filtering and searching bundled FAQs', () => {

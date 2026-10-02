@@ -43,6 +43,7 @@ export default function OrderScreen() {
   const [error, setError] = useState('');
   const [refreshing, setRefreshing] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
+  const [returnRequest, setReturnRequest] = useState<import('../src/utils/returns').ReturnRequest | null>(null);
 
   const fetchOrder = useCallback(async () => {
     if (!orderNumber) return;
@@ -51,6 +52,7 @@ export default function OrderScreen() {
       setError('');
       const data = await api.order(orderNumber);
       setOrder(data);
+      setReturnRequest(await api.returnRequest(orderNumber));
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'Unable to load this order.');
     } finally {
@@ -584,6 +586,15 @@ export default function OrderScreen() {
           )}
 
           {/* Items List Card */}
+          {(normStatus === 'DELIVERED' || normStatus === 'COMPLETED' || returnRequest) && (
+            <View style={styles.card}>
+              <Text style={styles.cardSectionTitle}>Returns & Refunds</Text>
+              {!!error && <Text style={styles.error}>{error}</Text>}
+              <TouchableOpacity style={styles.confirmBtn} disabled={actionLoading} onPress={() => router.push({ pathname: '/return-request', params: { orderNumber: order.orderNumber } })}>
+                <Text style={styles.confirmBtnText}>{returnRequest ? 'View Return / Refund Status' : 'Request Return / Refund'}</Text>
+              </TouchableOpacity>
+            </View>
+          )}
           <View style={styles.card}>
             <Text style={styles.cardSectionTitle}>Purchased Items ({order.items.length})</Text>
             {order.items.map((item) => (

@@ -72,6 +72,12 @@ describe('paymongo refunds', () => {
     expect(body.data.attributes.notes).toBe('damaged in transit')
   })
 
+  it('sends a stable idempotency key for retryable refund creation', async () => {
+    const fetchMock = mockFetchOnce({ ok: true, status: 200, json: { data: { id: 're_safe', attributes: { status: 'pending' } } } })
+    await createRefund({ paymentId: 'pay_1', amount: 100, idempotencyKey: 'return-attempt-123' })
+    expect(fetchMock.mock.calls[0][1].headers['Idempotency-Key']).toBe('return-attempt-123')
+  })
+
   it('retrieveRefund fetches the refund by id via GET', async () => {
     const fetchMock = mockFetchOnce({
       ok: true,

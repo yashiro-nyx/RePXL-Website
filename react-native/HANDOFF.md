@@ -16,7 +16,8 @@ The native client encapsulates its secure session and server communications in:
   - Vouchers: `validateVoucher`
   - Checkout: `checkout` (accepts selected items, address, voucherCode, shippingCost)
   - Wishlist: `getWishlist`, `addToWishlist`, `removeFromWishlist`
-  - Orders: `getOrders`, `getOrder`
+  - Orders: `orders`, `order`, `cancelOrder`, `confirmReceipt`
+  - Returns: `returnRequest`, `submitReturn`, `uploadReturnImage`, `deleteReturnImage` (shared website routes, bearer authentication, multipart uploads)
   - Reviews: `getReviews`, `createReview`, `deleteReview`
   - Notifications: `getNotifications`, `markNotificationRead`
   - Push Tokens: `registerPushToken`, `unregisterPushToken`
@@ -42,6 +43,7 @@ The native client encapsulates its secure session and server communications in:
    - Full-text search with URL parameter synchronization, "In Stock Only" toggle, and price bracket filters.
 4. **Order Tracking (`app/order.tsx`)**:
    - Visual multi-step tracking status timeline (Placed → Confirmed → Shipped → Delivered) with live status refresh.
+   - Website cancellation endpoint and entry point to `app/return-request.tsx` for item selection, reasons/details, protected evidence uploads, and return/refund status. See [workflow and verification](../docs/returns.md). Native rebuild and server deployment are required; device/provider E2E checks remain pending.
 
 ### Build & Workspace Isolation
 

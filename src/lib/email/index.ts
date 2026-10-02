@@ -2,7 +2,7 @@
  * RePXL email design system — public surface.
  *
  * Import from '@/lib/email' to compose branded, Gmail-compatible customer
- * emails from reusable components. See docs/emails.md for the design rules.
+ * emails from reusable components. See docs/communications.md#outgoing-email for the design rules.
  */
 
 export * from './tokens'

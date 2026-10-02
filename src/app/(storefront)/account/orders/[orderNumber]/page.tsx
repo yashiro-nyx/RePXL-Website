@@ -728,7 +728,7 @@ export default function OrderDetailPage() {
                   className="inline-flex items-center gap-2 rounded-xl border border-repixl-muted/20 px-4 py-2.5 font-mono text-sm text-repixl-muted transition-colors hover:border-repixl-muted/40 hover:text-repixl-text-light"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" /><path d="M3 3v5h5" /></svg>
-                  Request Return / Refund
+                  Returns & Refunds
                 </Link>
               )}
 

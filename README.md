@@ -6,6 +6,20 @@ RePXL is a curated marketplace for vintage digital cameras — condition-graded,
 
 Live at: **https://repxlph.vercel.app**
 
+## Documentation
+
+The `docs/` folder contains seven maintained guides:
+
+| Guide | Covers |
+|---|---|
+| [Setup and deployment](./docs/SETUP.md) | Local setup, environment, migrations, Vercel and native release prerequisites |
+| [System architecture](./docs/system-architecture.md) | Repository map, authentication, database, shared API and integrations |
+| [Notifications and email](./docs/communications.md) | In-app pipeline, formatting/preferences, outgoing email system and previews |
+| [Navigation and support](./docs/customer-experience.md) | Back-navigation rules and website AI Concierge |
+| [Mobile implementation and release](./docs/mobile-app-development-plan.md) | Implemented native workflows and remaining acceptance/release work |
+| [Returns and refunds](./docs/returns.md) | Shared cancellation/return/refund flow and verification limits |
+| [Project progress checklist](./docs/Group2_ProjectChecklist.md) | Completion status, dated checks and known limitations |
+
 ---
 
 ## Features
@@ -22,6 +36,10 @@ Live at: **https://repxlph.vercel.app**
 - Google OAuth (NextAuth + DB upsert)
 - Account dashboard: Profile, Orders, Addresses, Payment Methods, Reviews, Security
 - Order history with print receipt
+- Guided returns: item selection, reasons/photos, review, approval instructions,
+  shipment tracking, receipt/inspection, and refund progress. Admin refunds use
+  selected items after discounts and wait for provider confirmation. Apply the
+  new return-workflow migration before use; see [returns](docs/returns.md).
 
 ### Cart & Checkout
 - DB-backed cart per authenticated user
@@ -50,6 +68,9 @@ Live at: **https://repxlph.vercel.app**
 - Checkout with inline Philippine address creation modal and hosted PayMongo payments via Expo WebBrowser
 - Account dashboard with full in-app Address Management (CRUD + set default) and dedicated Wishlist sub-view
 - Order history with visual multi-step tracking timeline and live refresh
+- Website-aligned cancellation and guided native returns: item selection, reasons/photos,
+  refund estimate and review, approval instructions, shipment tracking, and receipt/
+  inspection/refund milestones ([workflow and verification](docs/returns.md))
 - In-app review submission with star ratings and review deletion
 - In-app notification polling and optional Expo push-token registration
 
@@ -278,25 +299,31 @@ prisma generate && prisma migrate deploy && next build
 
 **Recent refinements (completed):**
 - Mobile FAQ layout: content-sized category row, centered touch targets, and a question list with bottom safe-area padding. Mobile typecheck and 3 focused FAQ data tests passed; native visual verification remains pending. See [`react-native/README.md`](./react-native/README.md#customer-support-layout).
-- ✅ Context-aware Back navigation on the Cameras catalog (`from=home`) and removed the generic About Back button — see [`docs/back-navigation.md`](./docs/back-navigation.md)
+- ✅ Context-aware Back navigation on the Cameras catalog (`from=home`) and removed the generic About Back button — see [`docs/customer-experience.md#back-navigation`](./docs/customer-experience.md#back-navigation)
 - ✅ Navbar avatar synchronization from `authStore`
 - ✅ Payment success navigation (success page fetches the real order from the API)
-- ✅ In-app notification redesign with concise, human-readable content and shared dropdown/page components — see [`docs/notifications.md`](./docs/notifications.md)
+- ✅ In-app notification redesign with concise, human-readable content and shared dropdown/page components — see [`docs/communications.md#in-app-notifications`](./docs/communications.md#in-app-notifications)
 - ✅ Notification content sanitization (legacy malformed records rendered safely; no raw tokens/JSON reach customers)
-- ✅ Gmail email redesign onto a shared, light, Gmail-compatible email design system with an offline preview generator — see [`docs/emails.md`](./docs/emails.md)
-- ✅ Floating website AI Concierge chat widget that reuses the mobile app's local rule-based concierge logic (automated assistant, not human live-chat; no chat backend) — see [`docs/chat-widget.md`](./docs/chat-widget.md)
+- ✅ Gmail email redesign onto a shared, light, Gmail-compatible email design system with an offline preview generator — see [`docs/communications.md#outgoing-email`](./docs/communications.md#outgoing-email)
+- ✅ Floating website AI Concierge chat widget that reuses the mobile app's local rule-based concierge logic (automated assistant, not human live-chat; no chat backend) — see [`docs/customer-experience.md#ai-concierge`](./docs/customer-experience.md#ai-concierge)
+- Standard unknown-information reply on web/mobile: acknowledges missing details,
+  suggests supported topics, and offers Contact Support. Broad unrelated keywords
+  no longer automatically trigger store guidance. See the support guide above.
 
 **Pending / manual action required:**
 - Activate payment methods in PayMongo Dashboard (Live mode)
 - Deploy the mobile session and push-token migrations before native production testing
 - Configure an Expo project ID and test push permissions on physical devices
 - Move saved payment cards from localStorage to database
-- **Fix the mobile AI concierge tests** — 9 tests in `src/lib/mobile-features.test.ts` and `src/lib/mobile-all-modules.test.ts` currently fail (`generateAiResponse` content mismatches)
+- Verify AI support visually in browser/device; matching remains keyword-based.
 
 ### Verification snapshot (last audit)
 - `npx tsc --noEmit` — clean
 - `npm run build` — succeeds (68/68 static pages)
-- `npx vitest run` — **957 passed, 9 failed, 47 skipped** (1013 tests, 60 files). The 9 failures are isolated to the mobile AI concierge content-assertion tests noted above (pre-existing; not affected by the chat widget); live Gmail rendering and live PayMongo payments were not tested.
+- Historical `npx vitest run` — **957 passed, 9 failed, 47 skipped** (1013 tests,
+  60 files). The old mobile concierge failures were corrected in the 2026-10-02
+  fallback task: **103 targeted tests across four files now pass**. The full suite
+  was not rerun. Live Gmail rendering and PayMongo operations remain untested here.
 
 For full developer context, see [`HANDOFF.md`](./HANDOFF.md).
 

@@ -1,0 +1,15 @@
+ALTER TABLE "return_requests"
+  ADD COLUMN "return_instructions" TEXT,
+  ADD COLUMN "approved_at" TIMESTAMP(3),
+  ADD COLUMN "return_carrier" TEXT,
+  ADD COLUMN "return_tracking_number" TEXT,
+  ADD COLUMN "shipped_at" TIMESTAMP(3),
+  ADD COLUMN "received_at" TIMESTAMP(3),
+  ADD COLUMN "inspected_at" TIMESTAMP(3),
+  ADD COLUMN "inspection_notes" TEXT,
+  ADD COLUMN "restocked_at" TIMESTAMP(3),
+  ADD COLUMN "refund_amount" DOUBLE PRECISION,
+  ADD COLUMN "refund_status" TEXT,
+  ADD COLUMN "refund_attempt_key" TEXT,
+  ADD COLUMN "refund_started_at" TIMESTAMP(3),
+  ADD COLUMN "refunded_at" TIMESTAMP(3);

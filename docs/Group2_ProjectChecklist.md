@@ -160,25 +160,83 @@ Deployment: live on Vercel at `https://repxlph.vercel.app`; database on Supabase
 
 ### Recent refinements (verified in code)
 
+- [x] Standard AI support fallback (2026-10-02): identical website/mobile replies
+  acknowledge missing information, list supported RePXL topics, suggest rephrasing,
+  and provide Contact Support. Topic guards reduce unrelated keyword matches;
+  preserved built-in prompts and corrected old mobile response-shape expectations.
+  - Verification: root/mobile TypeScript passed; **103 tests across four files
+    passed**, covering fallback/parity/widget and the two existing mobile feature
+    suites. Root `npm run build` passed (70/70 static pages). Android/iOS production
+    exports passed (1,543/1,417 modules), from `react-native` using
+    `npx expo export --platform android --output-dir .expo/support-fallback-android`
+    and `npx expo export --platform ios --output-dir .expo/support-fallback-ios`.
+    These are JavaScript/Hermes bundles, not APK/IPA builds. No full-suite rerun performed.
+  - Limits: keyword-based classification, no live knowledge lookup or automatic
+    human handoff; ambiguous mixed-topic queries can still match canned replies.
+    Browser/device rendering was not checked. No deployment/commit/push performed.
+
+- [x] Mobile return/refund workflow extension (2026-10-02): three-step selection/
+  reason-and-evidence/review wizard, discounted item refund estimate, approval
+  instructions, customer carrier/tracking entry and correction before receipt,
+  actual lifecycle milestones, pending/failed/uncertain refund messaging, explicit
+  rejected-case retry, and native support navigation. Existing cancellation and
+  shared admin receipt/inspection/refund safeguards remain intact.
+  - Verification: root/native `npx tsc --noEmit` passed; **214 tests across 13 files
+    passed**, including mobile/web pricing/stage/timeline parity and authenticated
+    shipment transport/validation. Android/iOS exports passed (1,543/1,417 modules).
+    Web build was not repeated because application changes
+    are confined to native sources; prior web build evidence remains below.
+  - Limits: physical-device rendering, keyboard/picker behavior, live uploads/
+    provider refunds, and actual webhook delivery unverified. Shared migration
+    prepared but not applied; backend release required. No deployment, APK/IPA/EAS
+    build, commit, or push performed. See [returns.md](./returns.md).
+
+- [x] Web return/refund lifecycle (2026-10-02): guided item/reason/evidence/review
+  submission; approval instructions and customer shipment tracking; actual milestone
+  progress; admin receipt/inspection and optional one-time restocking; selected-item
+  refunds after discounts, optional original shipping for whole returns, COD repayment
+  reference recording, provider pending/failure/reconciliation, durable idempotent
+  retries, and signed refund webhook handling. Native displays shared instructions,
+  refund state, and amount. See [returns.md](./returns.md).
+  - Verification: root/native `npx tsc --noEmit`, `npx prisma validate`, and Prisma
+    client generation passed; **198 tests across 12 files passed**; root `npm run build`
+    passed (70/70 static pages). Financial/database calls in tests are mocked.
+    All 49 checked local documentation file destinations exist; whitespace checks passed.
+  - Release limits: new migration prepared but not applied; browser/device UI,
+    live uploads/refunds/webhook delivery, and database contention unverified.
+    Apply migration and deploy API/UI before use. Multiple accepted cases per order,
+    per-line quantity selection, exchanges/labels, and paid-cancellation refunds
+    remain deferred. No deployment, native build, commit, or push performed.
+
+- [x] Documentation consolidation (2026-10-02): reduced `docs/` from 11 files to seven maintained guides. Combined setup/deployment, notifications/email, and navigation/support; folded durable onboarding material into architecture; shortened the mobile plan; preserved returns and the progress checklist. Updated README, handoff references, and the AGENTS documentation map without changing its operating rules.
+  - Verification: 50 local Markdown destinations/anchors across 12 repository Markdown files passed; retained literal source paths, references to removed guides, and whitespace checked. This task changed documentation and one source comment; application tests, TypeScript checks, production builds, browser/device checks, deployments, and provider operations were not rerun. Existing task verification below remains dated evidence, not a new full-suite result.
+
+- [x] Mobile website-flow parity (2026-10-02): cancellation uses the existing customer endpoint; native return requests support purchased-item selection, six reasons, optional details, protected photo evidence, and review/rejection/refund status. Shared API fixes enforce the 30-day delivery/completion window, persist selected items, accept omitted optional details, connect the missing admin `/refund` route, and include order references in return/refund notifications. See [returns.md](./returns.md).
+  - Verification: root and mobile `npx tsc --noEmit` passed; targeted Vitest run passed **152 tests across 9 files**; root `npm run build` passed (70/70 static pages); Android and iOS Expo production exports passed (1,542 / 1,416 modules).
+  - Historical limitations: native device/UI, live Cloudinary uploads, and real PayMongo refunds remain unverified; native rebuild and backend deployment required. `--platform all` export failed due to existing missing `react-native-web`. Paid cancellations do not automatically refund. Full-order-only refunds at that point were replaced by the expanded web workflow above. No deployment/commit/push performed.
+
 - [x] Mobile FAQ layout fix (2026-09-29): prevent the horizontal category scroller from growing vertically, center category labels with 44-point minimum touch targets, and reserve remaining space for the question list with bottom safe-area padding. Filtering/expansion taps work with the search keyboard open; list dragging dismisses it.
   - Verification: `cd react-native; npx tsc --noEmit` passed. `npx vitest run src/lib/mobile-features.test.ts -t 'Mobile Bundled FAQs Data Integrity'`: 3 passed, 16 skipped. Broader `npx vitest run src/lib/mobile-features.test.ts src/lib/mobile-all-modules.test.ts -t 'FAQ'`: 6 passed, 1 existing AI concierge failure, 39 skipped (the support group name also matches FAQ).
   - Android production export passed: from `react-native`, `npx expo export --platform android --output-dir .expo/support-layout-check` (1,536 modules). Native layout/large-font/keyboard visual checks remain pending; the data tests do not verify rendering. Root `npm run build` was not run because it does not compile the mobile app.
 
-- Context-aware Back navigation on the Cameras catalog + About Back button removed — `docs/back-navigation.md`.
+- Context-aware Back navigation on the Cameras catalog + About Back button removed — `docs/customer-experience.md#back-navigation`.
 - Navbar avatar synchronization from `authStore`.
 - Payment success navigation reads the real order from the API.
-- In-app notification redesign (concise content, shared dropdown/page components, category system) — `docs/notifications.md`.
-- Notification content sanitization for legacy/malformed records — `docs/notifications.md`.
-- Gmail email redesign onto a shared, Gmail-compatible design system with an offline preview generator — `docs/emails.md`.
-- Floating website AI Concierge chat widget reusing the mobile app's local rule-based concierge logic (automated assistant, no chat backend) — `docs/chat-widget.md`. Note: this addresses the storefront side of the "Live Chat or AI" item; no cross-device conversation history (see doc).
+- In-app notification redesign (concise content, shared dropdown/page components, category system) — `docs/communications.md#in-app-notifications`.
+- Notification content sanitization for legacy/malformed records — `docs/communications.md#in-app-notifications`.
+- Gmail email redesign onto a shared, Gmail-compatible design system with an offline preview generator — `docs/communications.md#outgoing-email`.
+- Floating website AI Concierge chat widget reusing the mobile app's local rule-based concierge logic (automated assistant, no chat backend) — `docs/customer-experience.md#ai-concierge`. Note: this addresses the storefront side of the "Live Chat or AI" item; no cross-device conversation history (see doc).
 
 ### Known limitations / pending (not marked complete)
 
-- **Mobile AI concierge tests failing (9):** `src/lib/mobile-features.test.ts` (8) and `src/lib/mobile-all-modules.test.ts` (1) — the "Live Chat or AI" support assistant's `generateAiResponse` output no longer matches expected support copy. This is the one area above whose automated tests do not currently pass and should be treated as in-progress.
+- **Historical mobile concierge failures:** the nine response-contract/copy
+  expectations in the older audit were updated and verified by the fallback task
+  above. Both mobile feature suites now pass in the targeted run; the historical
+  full-suite snapshot has not been rerun.
 - **PayMongo (Live):** at least one payment method must be activated in the PayMongo Dashboard; a live end-to-end payment has not been re-verified here.
 - **Live Gmail rendering:** not verified in a real email client (built to Gmail-safe spec only).
 - **Mobile push notifications:** require `EXPO_PUBLIC_EXPO_PROJECT_ID` + `EXPO_PUSH_ENABLED=true` and physical-device permission testing.
-- **Native returns with image upload** and **EAS/app-store release config:** future mobile work.
+- **Native returns with image upload:** implemented and covered by targeted tests/native bundle checks; physical-device and provider E2E checks pending (see [returns.md](./returns.md)). **EAS/app-store release config:** future mobile work.
 - **Saved payment cards:** stored in localStorage, not the database.
 
 > Status is based on the actual codebase and the verification commands above — not on plans or unverified reports. Re-run the commands after any change and update this section (per `AGENTS.md`).

@@ -47,6 +47,7 @@ export default function RootLayout() {
           <Stack.Screen name="checkout" />
           <Stack.Screen name="order-confirm" />
           <Stack.Screen name="order" />
+          <Stack.Screen name="return-request" />
           <Stack.Screen name="notifications" />
           <Stack.Screen name="forgot-password" />
           <Stack.Screen name="support" />

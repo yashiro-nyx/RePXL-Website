@@ -424,12 +424,12 @@ These are confirmed in the current codebase and do not need revisiting:
 - **Product listing** — awaits DB hydration before showing results; "In Stock Only" filter added; count reflects filtered set
 - **PayMongo redirect URLs** — trailing slash stripped from `NEXT_PUBLIC_SITE_URL`
 - **Mobile integration** — native sessions, bearer access across customer APIs, checkout, orders, returns, reviews, and notifications
-- **Context-aware Back navigation** — the Cameras catalog shows a Back button only when reached from a homepage promo (`from=home`); About no longer shows a generic Back button (`docs/back-navigation.md`)
+- **Context-aware Back navigation** — the Cameras catalog shows a Back button only when reached from a homepage promo (`from=home`); About no longer shows a generic Back button (`docs/customer-experience.md#back-navigation`)
 - **Navbar avatar sync** — the navbar avatar reflects the current `authStore` user
 - **Payment success navigation** — the success page fetches the real order from the API (no localStorage reliance)
-- **In-app notification redesign** — concise, human-readable in-app content with a shared dropdown/page row component and category system (`docs/notifications.md`)
+- **In-app notification redesign** — concise, human-readable in-app content with a shared dropdown/page row component and category system (`docs/communications.md#in-app-notifications`)
 - **Notification content sanitization** — legacy malformed notification records are rendered safely at read time; no raw tokens/JSON reach customers
-- **Gmail email redesign** — all outgoing emails share a light, Gmail-compatible design system (`src/lib/email`) with an offline preview generator (`scripts/email-previews.mjs`); see `docs/emails.md`
+- **Gmail email redesign** — all outgoing emails share a light, Gmail-compatible design system (`src/lib/email`) with an offline preview generator (`scripts/email-previews.mjs`); see `docs/communications.md#outgoing-email`
 
 ---
 
@@ -439,7 +439,14 @@ These are confirmed in the current codebase and do not need revisiting:
 - **PayMongo payment methods** — at least one method must be activated in PayMongo Dashboard → Settings → Payment Methods (Live mode). If none are active, the checkout page shows "No payment methods available" — this is a PayMongo account configuration issue, not a code bug
 - **Mobile migrations** — deploy `20260910000000_add_mobile_sessions` and `20260910000001_add_push_tokens` before native login or push registration can work against a real database
 - **Saved payment cards** — stored in localStorage per user (`repixl-payments-{email}`), not in the database
-- **Mobile AI concierge tests failing** — 9 tests in `src/lib/mobile-features.test.ts` (8) and `src/lib/mobile-all-modules.test.ts` (1) fail because `generateAiResponse` output no longer matches the expected support copy (condition grading, tracking, returns, recommendations, payments, escalation, consignment, general). Pre-existing; the rest of the suite passes
+- **AI concierge fallback update (2026-10-02):** web/mobile now use a standard
+  missing-information reply, supported follow-ups, and Contact Support action.
+  Topic guards reduce unrelated keyword matches. Older response-shape/copy tests
+  were corrected: all 103 targeted tests across four files pass, including both
+  mobile feature suites that previously accounted for nine failures. Root/native
+  TypeScript, 70-page web build, and Android/iOS exports passed. The full suite
+  and browser/device rendering were not rerun/checked. See
+  [customer experience](./docs/customer-experience.md#ai-concierge).
 - **Admin `/products` page** — renders a stub "Product management coming soon" — the actual camera management is at `/admin/cameras`
 - **Compare page keyboard accessibility** — picker dialog lacks `aria-modal` and a complete focus trap
 - **`setHydrated` timing in admin dashboard** — now fixed with `await` but the `customerCount` fetch is fire-and-forget; in slow networks the count shows `—` briefly

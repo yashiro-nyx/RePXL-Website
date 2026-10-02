@@ -114,6 +114,39 @@ to the same public origin as the server's `NEXTAUTH_URL`. Google Cloud must have
 `<NEXTAUTH_URL origin>/api/auth/callback/google` as an authorized redirect URI;
 Google returns to the website first, which then returns the ticket to the app.
 
-Return submission with signed
-image uploads, payment deep-link return handling, and app-store/EAS configuration
-remain future mobile work.
+## AI support fallback
+
+Unknown or unrelated questions now receive the same standard missing-information
+reply as the website, supported follow-up questions, and a Contact Support button.
+The button opens the existing Contact Us tab; no ticket or human handoff is created
+automatically. A topic guard reduces false answers caused by generic words such as
+`good`, `code`, or `how long`. This remains a local keyword responder, with no live
+knowledge lookup. Root/native TypeScript and 103 tests across four support suites
+passed; device rendering was not checked. Native export results are in the
+[checklist](../docs/Group2_ProjectChecklist.md).
+
+## Returns, cancellations, and refunds
+
+Order Details opens `app/return-request.tsx` for native item selection, return
+reasons, optional details, and photo evidence. The app uses the same customer
+APIs and admin review/refund workflow as the website. Return status refreshes
+on focus, foreground, manually, and every 15 seconds while a nonterminal
+request is visible. Rejected requests can be resubmitted within the return window.
+
+Photo selection uses `expo-image-picker`; rebuild the native app after pulling
+this dependency/configuration change (`npm run android` locally, or a new EAS
+build). Deploy shared APIs alongside the mobile update and apply the new
+`20261002000000_return_workflow` migration before use. The app displays return
+instructions, refund status, and actual amount. Native now includes the three-step
+request wizard and discounted estimate/review, shipment tracking entry/correction,
+and actual submission/approval/shipment/receipt/inspection/refund milestones.
+Rejected cases offer an explicit revised request. Refunds cover selected items after
+discounts and require receipt/inspection; pending provider responses remain pending.
+Root/native TypeScript and 214 targeted tests passed. Android/iOS exports passed
+(1,543/1,417 modules). Device UI/live provider checks remain
+pending. These exports are Hermes bundles, not APK/IPA releases. The live
+deployment was not changed by this task.
+
+See [the shared workflow](../docs/returns.md) for verification and the remaining
+physical-device, Cloudinary, and PayMongo checks. Payment deep-link return
+handling, review image uploads, and app-store/EAS configuration remain future work.

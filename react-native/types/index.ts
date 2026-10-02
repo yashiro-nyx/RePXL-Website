@@ -337,6 +337,8 @@ export interface Order {
   trackingProgress: number;
   trackingDescription: string;
   createdAt: string;
+  deliveredAt?: string | null;
+  completedAt?: string | null;
   items: Array<{ id: string; quantity: number; price: number; product: Product }>;
 }
 
