@@ -2,11 +2,14 @@
 
 import { useRef, useState, useEffect } from 'react'
 import Link from 'next/link'
+import Image from 'next/image'
 import { motion, useScroll, useTransform, useInView, AnimatePresence } from 'framer-motion'
 import { Container } from '@/components/layout/Container'
 import { Button, CornerBracket, ConditionBadge } from '@/components/ui'
 import { RevealText } from '@/components/ui/RevealText'
 import { useReducedMotion } from '@/hooks/useReducedMotion'
+import { useThemeStore } from '@/stores/themeStore'
+import { TrustStrip } from '@/components/landing/TrustStrip'
 import { products } from '@/data/products'
 import { CmsPageLayout } from '@/components/layout/CmsPageLayout'
 import { DEFAULT_ABOUT_BODY } from '@/lib/cms-defaults'
@@ -83,6 +86,7 @@ export default function AboutPage() {
   return (
     <div>
       <AboutHero reducedMotion={reducedMotion} />
+      <TrustStrip />
       <OurStory reducedMotion={reducedMotion} />
       <HowWeGrade reducedMotion={reducedMotion} container={container} item={item} />
       <WhatWeBelieve reducedMotion={reducedMotion} container={container} item={item} />
@@ -90,7 +94,6 @@ export default function AboutPage() {
       <StatsRow reducedMotion={reducedMotion} container={container} item={item} />
       <TheTeam reducedMotion={reducedMotion} container={container} item={item} />
       <WhereHeaded reducedMotion={reducedMotion} />
-
     </div>
   )
 }
@@ -101,6 +104,9 @@ export default function AboutPage() {
 
 function AboutHero({ reducedMotion }: { reducedMotion: boolean }) {
   const sectionRef = useRef<HTMLDivElement>(null)
+  const theme = useThemeStore((s) => s.theme)
+  const isLight = theme === 'light'
+
   const { scrollYProgress } = useScroll({
     target: sectionRef,
     offset: ['start start', 'end start'],
@@ -112,35 +118,65 @@ function AboutHero({ reducedMotion }: { reducedMotion: boolean }) {
 
   return (
     <section ref={sectionRef} className="relative overflow-hidden pb-20 pt-32 md:pb-28 md:pt-40">
-      {/* Oversized watermark type, echoing the homepage hero */}
+      {/* 1 — Theme-specific photographic environment matching homepage hero */}
+      <div className="pointer-events-none absolute inset-0 -z-20 overflow-hidden" aria-hidden="true">
+        <Image
+          src={isLight ? '/images/lightmodebg.png' : '/images/darkmodebg.png'}
+          alt=""
+          fill
+          priority
+          sizes="100vw"
+          className="object-cover opacity-20 transition-opacity duration-500"
+        />
+        <div
+          className={`absolute inset-0 ${
+            isLight
+              ? 'bg-gradient-to-b from-[#F5F1EC]/85 via-[#F5F1EC]/95 to-[#F5F1EC]'
+              : 'bg-gradient-to-b from-repixl-bg/85 via-repixl-bg/95 to-repixl-bg'
+          }`}
+        />
+      </div>
+
+      {/* 2 — Viewfinder corner accents matching homepage hero and deal banner */}
+      <div className="pointer-events-none absolute inset-4 z-0 md:inset-8" aria-hidden="true">
+        <span className={`absolute left-0 top-0 h-6 w-6 sm:h-10 sm:w-10 border-l border-t ${isLight ? 'border-neutral-400/30' : 'border-white/15'}`} />
+        <span className={`absolute right-0 top-0 h-6 w-6 sm:h-10 sm:w-10 border-r border-t ${isLight ? 'border-neutral-400/30' : 'border-white/15'}`} />
+        <span className={`absolute bottom-0 left-0 h-6 w-6 sm:h-10 sm:w-10 border-b border-l ${isLight ? 'border-neutral-400/30' : 'border-white/15'}`} />
+        <span className={`absolute bottom-0 right-0 h-6 w-6 sm:h-10 sm:w-10 border-b border-r ${isLight ? 'border-neutral-400/30' : 'border-white/15'}`} />
+      </div>
+
+      {/* 3 — Oversized watermark type echoing the homepage hero */}
       <motion.div
         style={{ y: reducedMotion ? 0 : watermarkY, opacity: watermarkOpacity }}
         className="pointer-events-none absolute inset-0 -z-10 flex select-none items-center justify-center"
         aria-hidden="true"
       >
         <span
-          className="whitespace-nowrap font-display font-bold uppercase leading-none tracking-tighter text-white/[0.04]"
-          style={{ fontSize: 'clamp(10rem, 20vw, 22rem)' }}
+          className={`whitespace-nowrap font-display font-bold uppercase leading-none tracking-normal ${
+            isLight ? 'text-black/[0.03]' : 'text-white/[0.04]'
+          }`}
+          style={{ fontSize: 'clamp(8rem, 18vw, 20rem)' }}
         >
-          TRUST
+          REPIXL
         </span>
       </motion.div>
 
-      <Container>
+      <Container className="relative z-10">
         <motion.div
           variants={container}
           initial="hidden"
           animate="show"
           className="mx-auto max-w-2xl text-center"
         >
-          <motion.span
-            variants={item}
-            className="mb-5 block font-mono text-xs uppercase tracking-widest text-repixl-muted"
-          >
-            — About RePXL
-          </motion.span>
+          <motion.div variants={item} className="mb-4 flex items-center justify-center gap-2.5">
+            <span className="h-px w-8 bg-repixl-red" aria-hidden="true" />
+            <span className="font-mono text-xs uppercase tracking-widest text-repixl-muted">
+              About RePXL
+            </span>
+            <span className="h-px w-8 bg-repixl-red" aria-hidden="true" />
+          </motion.div>
           <motion.div variants={item}>
-            <CornerBracket size={14} color="rgba(245, 241, 236, 0.25)" className="inline-block px-6 py-4">
+            <CornerBracket size={14} color={isLight ? 'rgba(26, 22, 16, 0.2)' : 'rgba(245, 241, 236, 0.25)'} className="inline-block px-6 py-4">
               <h1 className="font-display text-display-lg text-repixl-text-light md:text-display-xl">
                 <RevealText text="By collectors," as="span" className="block" />
                 <span className="block italic text-repixl-rose">
@@ -166,7 +202,7 @@ function AboutHero({ reducedMotion }: { reducedMotion: boolean }) {
               <a
                 key={chip.href}
                 href={chip.href}
-                className="rounded-full border border-repixl-muted/20 px-3.5 py-1.5 font-mono text-[10px] uppercase tracking-widest text-repixl-muted transition-colors duration-200 hover:border-repixl-red/40 hover:text-repixl-red"
+                className="rounded-full border border-repixl-muted/20 px-3.5 py-1.5 font-mono text-[10px] uppercase tracking-widest text-repixl-muted transition-colors duration-200 hover:border-repixl-red/40 hover:text-repixl-red hover:bg-repixl-red/5"
               >
                 {chip.label}
               </a>
@@ -184,60 +220,117 @@ function AboutHero({ reducedMotion }: { reducedMotion: boolean }) {
 
 function OurStory({ reducedMotion }: { reducedMotion: boolean }) {
   const sectionRef = useRef<HTMLDivElement>(null)
+  const theme = useThemeStore((s) => s.theme)
+  const isLight = theme === 'light'
+
   const { scrollYProgress } = useScroll({
     target: sectionRef,
     offset: ['start end', 'end start'],
   })
 
-  const backImgY = useTransform(scrollYProgress, [0, 1], reducedMotion ? [0, 0] : [30, -70])
-  const frontImgY = useTransform(scrollYProgress, [0, 1], reducedMotion ? [0, 0] : [60, -30])
-  const textY = useTransform(scrollYProgress, [0, 1], reducedMotion ? [0, 0] : [40, -40])
+  const backImgY = useTransform(scrollYProgress, [0, 1], reducedMotion ? [0, 0] : [20, -40])
+  const frontImgY = useTransform(scrollYProgress, [0, 1], reducedMotion ? [0, 0] : [45, -20])
+  const textY = useTransform(scrollYProgress, [0, 1], reducedMotion ? [0, 0] : [20, -20])
 
   const { container, item } = useVariants(reducedMotion)
 
   return (
     <section id="our-story" ref={sectionRef} className="py-20 md:py-32">
       <Container>
-        <div className="grid grid-cols-1 items-center gap-12 md:grid-cols-2">
-          {/* Left: parallax stacked imagery */}
-          <div className="relative flex items-center justify-center">
-            <div className="relative h-[360px] w-full max-w-[320px] md:h-[420px]">
+        <div className="grid grid-cols-1 items-center gap-12 lg:grid-cols-12 lg:gap-14">
+          {/* Left: Overlapping archival photographic collage matching EditorialSection */}
+          <div className="relative flex items-center justify-center lg:col-span-6 xl:col-span-5">
+            <div className="relative mx-auto w-full max-w-[380px] sm:max-w-[420px] md:max-w-[440px]">
+              {/* Decorative top-left archive metadata */}
+              <div
+                className="pointer-events-none absolute -top-8 left-1 z-0 flex items-center gap-2 select-none"
+                aria-hidden="true"
+              >
+                <span className="h-1.5 w-1.5 rounded-full bg-[#EF4444] animate-pulse" />
+                <span
+                  className={`font-mono text-[9px] uppercase tracking-widest ${
+                    isLight ? 'text-neutral-500' : 'text-neutral-400'
+                  }`}
+                >
+                  DIGICAM ARCHIVE // REF. 01 — CANON A520
+                </span>
+              </div>
+
+              {/* Decorative corner brackets matching EditorialSection */}
+              <div
+                className={`pointer-events-none absolute -top-4 -left-4 h-6 w-6 border-t border-l ${
+                  isLight ? 'border-neutral-400/40' : 'border-white/20'
+                }`}
+                aria-hidden="true"
+              />
+              <div
+                className={`pointer-events-none absolute -bottom-6 -right-4 h-6 w-6 border-b border-r ${
+                  isLight ? 'border-neutral-400/40' : 'border-white/20'
+                }`}
+                aria-hidden="true"
+              />
+
+              {/* Rear Card: Canon PowerShot 2003 (digicamera1.png) */}
               <motion.div
                 style={{ y: reducedMotion ? 0 : backImgY }}
-                className="absolute left-0 top-4 z-0 w-[72%] opacity-70"
+                className="group/card1 relative z-10 w-[82%] sm:w-[80%] -rotate-[4deg] transition-all duration-500 ease-out hover:-translate-y-2 hover:rotate-[-1deg]"
               >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src="/images/editorial-1.svg" alt="" className="h-auto w-full rounded-lg" />
+                <Image
+                  src="/images/digicamera1.png"
+                  alt="Vintage Canon PowerShot digital camera archival card"
+                  width={1374}
+                  height={1145}
+                  sizes="(max-width: 640px) 75vw, (max-width: 1024px) 45vw, 420px"
+                  quality={90}
+                  className="h-auto w-full object-contain drop-shadow-[0_16px_32px_rgba(0,0,0,0.65)] drop-shadow-[0_4px_12px_rgba(239,68,68,0.12)] select-none"
+                  priority={false}
+                />
               </motion.div>
 
+              {/* Foreground Card: Authentic CCD Sample Print in Polaroid Mount */}
               <motion.div
                 style={{ y: reducedMotion ? 0 : frontImgY }}
                 whileHover={reducedMotion ? undefined : { rotate: 0, scale: 1.03 }}
                 initial={{ rotate: 3 }}
                 transition={{ duration: 0.3, ease: 'easeOut' }}
-                className="absolute bottom-4 right-0 z-10 overflow-hidden rounded-sm bg-white p-2 shadow-xl"
+                className="absolute -bottom-6 right-0 z-20 w-[62%] sm:w-[58%] overflow-hidden rounded-sm bg-white p-2.5 sm:p-3 shadow-2xl drop-shadow-[0_24px_48px_rgba(0,0,0,0.85)] drop-shadow-[0_8px_20px_rgba(239,68,68,0.18)]"
               >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src="/images/hero-sample-photo.svg"
-                  alt="A photo from our collection"
-                  className="h-32 w-32 object-cover md:h-40 md:w-40"
-                />
-                <p className="mt-1 text-center font-mono text-[9px] text-repixl-text-dark/50">
-                  The first camera we graded · 2024
-                </p>
+                <div className="relative aspect-square w-full overflow-hidden rounded-sm bg-neutral-900">
+                  <Image
+                    src="/images/canonsample.png"
+                    alt="Authentic 2004 CCD point-and-shoot direct-flash sample photograph"
+                    fill
+                    sizes="(max-width: 640px) 45vw, 220px"
+                    quality={90}
+                    className="object-cover"
+                  />
+                </div>
+                <div className="mt-2 flex items-center justify-between px-0.5">
+                  <p className="font-mono text-[9px] uppercase tracking-wider text-neutral-800 font-medium">
+                    First camera graded · 2024
+                  </p>
+                  <span className="font-mono text-[8px] uppercase tracking-widest text-neutral-500">
+                    CANON A520
+                  </span>
+                </div>
               </motion.div>
 
+              {/* Decorative bottom metadata mark */}
               <div
-                className="absolute -left-3 -top-3 z-20 h-14 w-14"
+                className="pointer-events-none absolute -bottom-10 left-2 flex items-center gap-2 select-none"
                 aria-hidden="true"
-                style={{ borderLeft: '1px solid rgba(140, 133, 128, 0.3)', borderTop: '1px solid rgba(140, 133, 128, 0.3)' }}
-              />
-              <div
-                className="absolute -bottom-3 -right-3 z-20 h-14 w-14"
-                aria-hidden="true"
-                style={{ borderRight: '1px solid rgba(140, 133, 128, 0.3)', borderBottom: '1px solid rgba(140, 133, 128, 0.3)' }}
-              />
+              >
+                <span className={`font-mono text-[10px] ${isLight ? 'text-neutral-400' : 'text-white/30'}`}>
+                  +
+                </span>
+                <span
+                  className={`font-mono text-[9px] uppercase tracking-wider ${
+                    isLight ? 'text-neutral-500' : 'text-neutral-400'
+                  }`}
+                >
+                  HISTORIC PROVENANCE [4.0MP · CCD · 2004]
+                </span>
+              </div>
             </div>
           </div>
 
@@ -248,10 +341,14 @@ function OurStory({ reducedMotion }: { reducedMotion: boolean }) {
             initial="hidden"
             whileInView="show"
             viewport={{ once: true, margin: '-80px' }}
+            className="lg:col-span-6 xl:col-span-7 lg:pl-6"
           >
-            <motion.span variants={item} className="font-mono text-[10px] uppercase tracking-widest text-repixl-muted">
-              — Our Story
-            </motion.span>
+            <motion.div variants={item} className="flex items-center gap-2 mb-2">
+              <span className="h-px w-8 bg-repixl-red" aria-hidden="true" />
+              <span className="font-mono text-[10px] uppercase tracking-widest text-repixl-muted">
+                Our Story
+              </span>
+            </motion.div>
             <motion.h2 variants={item} className="mt-3 font-display text-display-md text-repixl-text-light">
               Built from frustration.
             </motion.h2>
@@ -291,24 +388,50 @@ const processSteps = [
     title: 'Sourcing',
     description:
       'We track down units from estate sales, camera shops, and fellow collectors — every camera is inspected in person before it enters our pipeline.',
+    icon: (
+      <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <circle cx="11" cy="11" r="8" />
+        <path d="m21 21-4.3-4.3" />
+      </svg>
+    ),
   },
   {
     number: '02',
     title: 'Inspection & Grading',
     description:
       'Every function is tested, every mark documented. Each unit is graded against our four-tier standard — Mint, Excellent, Good, or Fair — the same way, every time.',
+    icon: (
+      <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+        <path d="m9 12 2 2 4-4" />
+      </svg>
+    ),
   },
   {
     number: '03',
     title: 'Photography',
     description:
       'Multi-angle shots under consistent lighting, no filters or touch-ups. What you see on the listing is exactly what ships.',
+    icon: (
+      <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z" />
+        <circle cx="12" cy="13" r="3" />
+      </svg>
+    ),
   },
   {
     number: '04',
     title: 'Packing & Shipping',
     description:
       'Anti-static wrap, foam padding, double-boxed. Vintage electronics are fragile — we treat every shipment accordingly.',
+    icon: (
+      <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <path d="m7.5 4.27 9 5.15" />
+        <path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z" />
+        <path d="m3.3 7 8.7 5 8.7-5" />
+        <path d="M12 22V12" />
+      </svg>
+    ),
   },
 ]
 
@@ -331,9 +454,13 @@ function HowWeGrade({
           transition={{ duration: reducedMotion ? 0 : 0.6, ease: 'easeOut' }}
           className="mb-14 text-center md:mb-20"
         >
-          <span className="font-mono text-[10px] uppercase tracking-widest text-repixl-muted">
-            — Our Process
-          </span>
+          <div className="mb-2 flex items-center justify-center gap-2">
+            <span className="h-px w-8 bg-repixl-red" aria-hidden="true" />
+            <span className="font-mono text-[10px] uppercase tracking-widest text-repixl-muted">
+              Our Process
+            </span>
+            <span className="h-px w-8 bg-repixl-red" aria-hidden="true" />
+          </div>
           <h2 className="mt-3 font-display text-display-md text-repixl-text-light md:text-display-lg">
             How we grade
           </h2>
@@ -363,9 +490,14 @@ function HowWeGrade({
               transition={{ duration: 0.25, ease: 'easeOut' }}
               className="group relative rounded-lg border border-repixl-muted/10 bg-repixl-charcoal p-5 transition-all duration-300 hover:border-repixl-red/30 hover:shadow-[0_16px_36px_rgba(0,0,0,0.35)]"
             >
-              <span className="relative z-10 flex h-10 w-10 items-center justify-center rounded-full border border-repixl-muted/30 bg-repixl-charcoal font-mono text-xs text-repixl-muted transition-colors duration-300 group-hover:border-repixl-red group-hover:text-repixl-red">
-                {step.number}
-              </span>
+              <div className="flex items-center justify-between">
+                <span className="relative z-10 flex h-10 w-10 items-center justify-center rounded-full border border-repixl-muted/30 bg-repixl-charcoal font-mono text-xs text-repixl-muted transition-colors duration-300 group-hover:border-repixl-red group-hover:text-repixl-red">
+                  {step.number}
+                </span>
+                <span className="text-repixl-muted/50 transition-colors duration-300 group-hover:text-repixl-red">
+                  {step.icon}
+                </span>
+              </div>
               <h3 className="mt-4 font-display text-base font-semibold text-repixl-text-light">
                 {step.title}
               </h3>
@@ -427,9 +559,13 @@ function WhatWeBelieve({
           className="mx-auto max-w-3xl"
         >
           <div className="mb-12 text-center">
-            <span className="font-mono text-[10px] uppercase tracking-widest text-repixl-muted">
-              — What We Believe
-            </span>
+            <div className="mb-2 flex items-center justify-center gap-2">
+              <span className="h-px w-8 bg-repixl-red" aria-hidden="true" />
+              <span className="font-mono text-[10px] uppercase tracking-widest text-repixl-muted">
+                What We Believe
+              </span>
+              <span className="h-px w-8 bg-repixl-red" aria-hidden="true" />
+            </div>
             <h2 className="mt-3 font-display text-display-md text-repixl-text-light">
               Condition should mean something.
             </h2>
@@ -483,6 +619,11 @@ function WhatWeBelieve({
               <ConditionBadge condition="good" />
               <ConditionBadge condition="fair" />
             </motion.div>
+
+            {/* Bottom note matching 14-day trust policy */}
+            <p className="mt-8 text-center font-mono text-[10px] uppercase tracking-widest text-repixl-muted">
+              Serial numbers verified · Multi-angle photos · 14-day return window
+            </p>
           </CornerBracket>
         </motion.div>
       </Container>
@@ -545,9 +686,13 @@ function Milestones({ reducedMotion }: { reducedMotion: boolean }) {
           transition={{ duration: reducedMotion ? 0 : 0.6, ease: 'easeOut' }}
           className="mb-14 text-center md:mb-20"
         >
-          <span className="font-mono text-[10px] uppercase tracking-widest text-repixl-muted">
-            — Milestones
-          </span>
+          <div className="mb-2 flex items-center justify-center gap-2">
+            <span className="h-px w-8 bg-repixl-red" aria-hidden="true" />
+            <span className="font-mono text-[10px] uppercase tracking-widest text-repixl-muted">
+              Milestones
+            </span>
+            <span className="h-px w-8 bg-repixl-red" aria-hidden="true" />
+          </div>
           <h2 className="mt-3 font-display text-display-md text-repixl-text-light md:text-display-lg">
             How we got here
           </h2>
@@ -596,6 +741,15 @@ function Milestones({ reducedMotion }: { reducedMotion: boolean }) {
 /*  Stats row — count-up animation when scrolled into view             */
 /* ================================================================== */
 
+const catalogBrands = [
+  { name: 'Canon', slug: 'canon', family: 'POWERSHOT', accentColor: '#EF4444' },
+  { name: 'Nikon', slug: 'nikon', family: 'COOLPIX', accentColor: '#F59E0B' },
+  { name: 'Sony', slug: 'sony', family: 'CYBERSHOT', accentColor: '#38BDF8' },
+  { name: 'Kodak', slug: 'kodak', family: 'EASYSHARE', accentColor: '#F97316' },
+  { name: 'Panasonic', slug: 'panasonic', family: 'LUMIX', accentColor: '#14B8A6' },
+  { name: 'Fujifilm', slug: 'fujifilm', family: 'FINEPIX', accentColor: '#22C55E' },
+]
+
 function useCountUp(target: number, active: boolean, duration = 1.4) {
   const [count, setCount] = useState(0)
 
@@ -641,7 +795,7 @@ function StatCard({
       variants={item}
       whileHover={reducedMotion ? undefined : { y: -4 }}
       transition={{ duration: 0.25, ease: 'easeOut' }}
-      className="rounded-lg border border-repixl-muted/10 bg-repixl-charcoal p-5 text-center transition-shadow duration-300 hover:shadow-[0_12px_30px_rgba(0,0,0,0.3)]"
+      className="rounded-lg border border-repixl-muted/10 bg-repixl-charcoal p-5 text-center transition-shadow duration-300 hover:border-repixl-red/30 hover:shadow-[0_12px_30px_rgba(0,0,0,0.3)]"
     >
       <p className="font-display text-display-md font-bold text-repixl-text-light">
         {displayValue.toLocaleString()}
@@ -671,12 +825,52 @@ function StatsRow({
           initial="hidden"
           whileInView="show"
           viewport={{ once: true, margin: '-60px' }}
-          className="mx-auto grid max-w-3xl grid-cols-2 gap-6 md:grid-cols-4"
+          className="mx-auto max-w-3xl"
         >
-          <StatCard target={2400} suffix="+" label="Collectors" reducedMotion={reducedMotion} item={item} />
-          <StatCard target={totalCameras} label="Cameras in stock" reducedMotion={reducedMotion} item={item} />
-          <StatCard target={totalBrands} label="Brands" reducedMotion={reducedMotion} item={item} />
-          <StatCard target={4} label="Condition grades" reducedMotion={reducedMotion} item={item} />
+          <div className="grid grid-cols-2 gap-6 md:grid-cols-4">
+            <StatCard target={2400} suffix="+" label="Collectors" reducedMotion={reducedMotion} item={item} />
+            <StatCard target={totalCameras} label="Cameras in stock" reducedMotion={reducedMotion} item={item} />
+            <StatCard target={totalBrands} label="Brands" reducedMotion={reducedMotion} item={item} />
+            <StatCard target={4} label="Condition grades" reducedMotion={reducedMotion} item={item} />
+          </div>
+
+          {/* Catalogued Brands Strip — mirroring BrandGallery from homepage */}
+          <motion.div
+            variants={item}
+            className="mt-10 rounded-xl border border-repixl-muted/10 bg-repixl-charcoal/40 p-5 sm:p-6 backdrop-blur-sm"
+          >
+            <div className="mb-4 flex items-center justify-between border-b border-repixl-muted/10 pb-3">
+              <div className="flex items-center gap-2">
+                <span className="h-1.5 w-1.5 rounded-full bg-repixl-red" aria-hidden="true" />
+                <span className="font-mono text-[10px] uppercase tracking-widest text-repixl-muted">
+                  Catalogued Lineages
+                </span>
+              </div>
+              <span className="font-mono text-[9px] uppercase tracking-widest text-repixl-muted/60">
+                CCD & Vintage Digital
+              </span>
+            </div>
+            <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 md:grid-cols-6">
+              {catalogBrands.map((b) => (
+                <Link
+                  key={b.slug}
+                  href={`/products?brand=${b.slug}`}
+                  className="group flex flex-col items-center justify-center rounded-lg border border-repixl-muted/10 bg-repixl-charcoal/60 px-3 py-3 text-center transition-all duration-300 hover:border-repixl-red/40 hover:bg-repixl-charcoal hover:shadow-md"
+                >
+                  <span
+                    className="h-1.5 w-1.5 rounded-full transition-transform duration-200 group-hover:scale-125"
+                    style={{ backgroundColor: b.accentColor }}
+                  />
+                  <span className="mt-1.5 font-display text-xs font-semibold text-repixl-text-light group-hover:text-repixl-red transition-colors">
+                    {b.name}
+                  </span>
+                  <span className="font-mono text-[8px] uppercase tracking-wider text-repixl-muted/70">
+                    {b.family}
+                  </span>
+                </Link>
+              ))}
+            </div>
+          </motion.div>
         </motion.div>
       </Container>
     </section>
@@ -727,9 +921,13 @@ function TheTeam({
           transition={{ duration: reducedMotion ? 0 : 0.6, ease: 'easeOut' }}
           className="mb-12 text-center md:mb-16"
         >
-          <span className="font-mono text-[10px] uppercase tracking-widest text-repixl-muted">
-            — Behind RePXL
-          </span>
+          <div className="mb-2 flex items-center justify-center gap-2">
+            <span className="h-px w-8 bg-repixl-red" aria-hidden="true" />
+            <span className="font-mono text-[10px] uppercase tracking-widest text-repixl-muted">
+              Behind RePXL
+            </span>
+            <span className="h-px w-8 bg-repixl-red" aria-hidden="true" />
+          </div>
           <h2 className="mt-3 font-display text-display-md text-repixl-text-light md:text-display-lg">
             A small, collector-run team
           </h2>
@@ -754,7 +952,7 @@ function TheTeam({
               transition={{ duration: 0.25, ease: 'easeOut' }}
               className="rounded-lg border border-repixl-muted/10 bg-repixl-charcoal p-5 text-center transition-shadow duration-300 hover:border-repixl-red/30 hover:shadow-[0_12px_30px_rgba(0,0,0,0.3)]"
             >
-              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full border border-repixl-muted/30 font-mono text-xs font-medium text-repixl-muted">
+              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full border border-repixl-muted/30 font-mono text-xs font-medium text-repixl-muted transition-colors duration-300 group-hover:border-repixl-red group-hover:text-repixl-red">
                 {role.initials}
               </div>
               <h3 className="mt-4 font-display text-sm font-semibold text-repixl-text-light">
@@ -776,6 +974,9 @@ function TheTeam({
 /* ================================================================== */
 
 function WhereHeaded({ reducedMotion }: { reducedMotion: boolean }) {
+  const theme = useThemeStore((s) => s.theme)
+  const isLight = theme === 'light'
+
   return (
     <section className="border-t border-repixl-muted/10 py-20 md:py-28">
       <Container>
@@ -786,9 +987,13 @@ function WhereHeaded({ reducedMotion }: { reducedMotion: boolean }) {
           transition={{ duration: reducedMotion ? 0 : 0.6, ease: 'easeOut' }}
           className="mx-auto max-w-2xl text-center"
         >
-          <span className="font-mono text-[10px] uppercase tracking-widest text-repixl-muted">
-            — Where We&apos;re Headed
-          </span>
+          <div className="mb-3 flex items-center justify-center gap-2">
+            <span className="h-px w-8 bg-repixl-red" aria-hidden="true" />
+            <span className="font-mono text-[10px] uppercase tracking-widest text-repixl-muted">
+              Where We&apos;re Headed
+            </span>
+            <span className="h-px w-8 bg-repixl-red" aria-hidden="true" />
+          </div>
           <p className="mt-5 text-sm leading-relaxed text-repixl-text-light/75">
             RePXL is still young — we&apos;re a small, collector-run team, and every
             camera that passes through our hands gets the same care whether it&apos;s a
@@ -796,15 +1001,41 @@ function WhereHeaded({ reducedMotion }: { reducedMotion: boolean }) {
             stays the same:{' '}
             <strong className="text-repixl-text-light">transparency first, always.</strong>
           </p>
-          <Link href="/products" className="mt-8 inline-block">
-            <motion.div whileHover={reducedMotion ? undefined : { scale: 1.03 }} whileTap={reducedMotion ? undefined : { scale: 0.98 }}>
-              <CornerBracket size={10} color="rgba(194, 44, 44, 0.4)" className="px-1 py-1">
-                <Button variant="primary" size="lg">
-                  Browse the Collection
-                </Button>
-              </CornerBracket>
-            </motion.div>
-          </Link>
+          <div className="mt-8 flex justify-center">
+            <Link
+              href="/products"
+              className={`group/btn inline-flex items-center justify-between gap-3.5 rounded-full border px-7 py-3.5 font-mono text-xs font-semibold uppercase tracking-wider transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#EF4444] focus-visible:ring-offset-2 ${
+                isLight
+                  ? 'border-neutral-300 bg-white text-neutral-900 shadow-sm hover:border-[#B91C1C] hover:bg-[#B91C1C] hover:text-white hover:shadow-[0_0_20px_rgba(185,28,28,0.25)] focus-visible:border-[#B91C1C] focus-visible:bg-[#B91C1C] focus-visible:text-white focus-visible:ring-offset-white'
+                  : 'border-white/20 bg-white text-neutral-950 hover:border-[#EF4444] hover:bg-[#EF4444] hover:text-white hover:shadow-[0_0_24px_rgba(239,68,68,0.4)] focus-visible:border-[#EF4444] focus-visible:bg-[#EF4444] focus-visible:text-white focus-visible:ring-offset-black'
+              }`}
+            >
+              <span>Browse the Collection</span>
+              <span
+                className={`flex h-6 w-6 items-center justify-center rounded-full transition-colors duration-300 ${
+                  isLight
+                    ? 'bg-neutral-100 text-neutral-900 group-hover/btn:bg-white/20 group-hover/btn:text-white'
+                    : 'bg-black/10 text-neutral-950 group-hover/btn:bg-white/20 group-hover/btn:text-white'
+                }`}
+              >
+                <svg
+                  width="12"
+                  height="12"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="transition-transform duration-200 group-hover/btn:translate-x-0.5"
+                  aria-hidden="true"
+                >
+                  <path d="M5 12h14" />
+                  <path d="m12 5 7 7-7 7" />
+                </svg>
+              </span>
+            </Link>
+          </div>
         </motion.div>
       </Container>
     </section>

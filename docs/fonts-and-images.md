@@ -123,13 +123,22 @@ warning was silenced rather than fixed.
   `width`/`height` + `sizes` matching their containers:
   - Cart line item (`80`), Compare header card (`112`) + compare spec row (`40`),
     Checkout review summary (`48`), `CheckoutOrderSummary` (`48`).
+- **About page editorial & hero assets** (migrated 2026-10-02) — converted from
+  outdated placeholder SVGs (`editorial-1.svg` and `hero-sample-photo.svg`) and raw
+  `<img>` tags with eslint suppressions to authentic photographic digicam assets:
+  - Archival rear card: `/images/digicamera1.png` (Canon PowerShot 2003) with `next/image`,
+    `width={1374}`, `height={1145}`, `quality={90}`, and drop shadows with red ambient glow.
+  - Archival front print: `/images/canonsample.png` (authentic 2004 CCD direct-flash photo)
+    in a polaroid mount with `next/image` (`fill`, `sizes`, `quality={90}`).
+  - Atmospheric environment: `/images/lightmodebg.png` and `/images/darkmodebg.png`
+    with `next/image` (`fill`, `priority`) in `AboutHero`.
+  - All eslint suppressions removed from `src/app/(storefront)/about/page.tsx`.
 
 ### Intentionally left as raw `<img>` (out of the product-image scope)
 - Review-photo thumbnails (`ReviewsPanel`, `ReviewImageThumbnails`) and the
   `GlobalToast` image — user-uploaded/transient content; keeping their
   suppressions avoids remote-loader churn for this task.
-- `about` editorial SVG (decorative) and admin dashboard `<img>` (admin-only).
-These can be migrated in a follow-up if desired.
+- Admin dashboard `<img>` (admin-only).
 
 ### Config
 `next.config.mjs` already enables `dangerouslyAllowSVG` (product art includes
@@ -139,5 +148,5 @@ optimization was not disabled globally.**
 
 ### Verification
 `npx tsc --noEmit` clean; `npm run build` exit 0 with **0 warnings**;
-`/products`, `/products/[slug]`, `/cart`, `/compare`, `/checkout` all build. No
+`/products`, `/products/[slug]`, `/about`, `/cart`, `/compare`, `/checkout` all build. No
 browser verification performed.
