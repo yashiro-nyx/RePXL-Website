@@ -3,6 +3,7 @@
 import { useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useReducedMotion } from '@/hooks/useReducedMotion'
+import { useFocusTrap } from '@/hooks/useFocusTrap'
 import { FilterSidebar, type FilterSidebarProps } from './FilterSidebar'
 
 /**
@@ -22,6 +23,8 @@ export function MobileFilterDrawer({
 }) {
   const reducedMotion = useReducedMotion()
   const panelRef = useRef<HTMLDivElement>(null)
+
+  useFocusTrap({ active: open, containerRef: panelRef })
 
   // Escape closes; move focus into the panel on open; lock background scroll.
   useEffect(() => {
@@ -63,13 +66,17 @@ export function MobileFilterDrawer({
             role="dialog"
             aria-modal="true"
             aria-label="Filter cameras"
+            aria-describedby="filter-drawer-description"
           >
             <div className="flex items-center justify-between border-b border-repixl-muted/15 px-5 py-4">
-              <p className="font-display text-base font-semibold text-repixl-text-light">Filters</p>
+              <div>
+                <p className="font-display text-base font-semibold text-repixl-text-light">Filters</p>
+                <p id="filter-drawer-description" className="sr-only">Refine the cameras shown in the collection.</p>
+              </div>
               <button
                 type="button"
                 onClick={onClose}
-                className="flex h-8 w-8 items-center justify-center rounded-full text-repixl-muted hover:bg-repixl-bg hover:text-repixl-text-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-repixl-red/40"
+                className="flex h-11 w-11 items-center justify-center rounded-full text-repixl-muted hover:bg-repixl-bg hover:text-repixl-text-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-repixl-red/40"
                 aria-label="Close filters"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden="true"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg>
@@ -84,7 +91,7 @@ export function MobileFilterDrawer({
               <button
                 type="button"
                 onClick={onClose}
-                className="w-full rounded-xl bg-repixl-red px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-repixl-red/50 focus-visible:ring-offset-2 focus-visible:ring-offset-repixl-charcoal"
+                className="min-h-11 w-full rounded-xl bg-repixl-red px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-repixl-red/50 focus-visible:ring-offset-2 focus-visible:ring-offset-repixl-charcoal"
               >
                 Show {resultCount} {resultCount === 1 ? 'camera' : 'cameras'}
               </button>

@@ -138,7 +138,7 @@ function CanonSpotlight({ spotlight }: { spotlight: (typeof spotlights)[number] 
       ref={sectionRef}
       initial={reducedMotion ? { opacity: 1 } : { opacity: 0, y: 28 }}
       whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: false, margin: '-60px' }}
+      viewport={{ once: true, margin: '-60px' }}
       transition={{ duration: reducedMotion ? 0 : 0.6, ease: [0.22, 1, 0.36, 1] }}
       className="grid grid-cols-1 items-center gap-10 lg:grid-cols-12 lg:gap-12"
     >
@@ -330,7 +330,7 @@ function SonySpotlight({ spotlight }: { spotlight: (typeof spotlights)[number] }
       ref={sectionRef}
       initial={reducedMotion ? { opacity: 1 } : { opacity: 0, y: 28 }}
       whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: false, margin: '-60px' }}
+      viewport={{ once: true, margin: '-60px' }}
       transition={{ duration: reducedMotion ? 0 : 0.6, ease: [0.22, 1, 0.36, 1] }}
       className="grid grid-cols-1 items-center gap-10 lg:grid-cols-12 lg:gap-12"
     >
@@ -519,7 +519,7 @@ function KodakSpotlight({ spotlight }: { spotlight: (typeof spotlights)[number] 
       ref={sectionRef}
       initial={reducedMotion ? { opacity: 1 } : { opacity: 0, y: 28 }}
       whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: false, margin: '-60px' }}
+      viewport={{ once: true, margin: '-60px' }}
       transition={{ duration: reducedMotion ? 0 : 0.6, ease: [0.22, 1, 0.36, 1] }}
       className="grid grid-cols-1 items-center gap-10 lg:grid-cols-12 lg:gap-12"
     >
@@ -735,7 +735,7 @@ function BrandSpotlight({ spotlight, index }: { spotlight: (typeof spotlights)[n
       ref={sectionRef}
       initial={reducedMotion ? { opacity: 1 } : { opacity: 0, y: 30 }}
       whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: false, margin: '-80px' }}
+      viewport={{ once: true, margin: '-80px' }}
       transition={{ duration: reducedMotion ? 0 : 0.6, ease: [0.22, 1, 0.36, 1] }}
       className="grid grid-cols-1 items-center gap-10 md:grid-cols-12 md:gap-10"
     >
@@ -1346,7 +1346,7 @@ export function BrandGallery() {
           variants={container}
           initial="hidden"
           whileInView="show"
-          viewport={{ once: false, margin: '-80px' }}
+          viewport={{ once: true, margin: '-80px' }}
           className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3"
         >
           {brands.map((brand) => {

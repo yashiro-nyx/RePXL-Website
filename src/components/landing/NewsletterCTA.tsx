@@ -68,7 +68,7 @@ export function NewsletterCTA() {
         <motion.div
           initial={reducedMotion ? { opacity: 1 } : { opacity: 0, y: 16 }}
           whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: false, margin: '-40px' }}
+          viewport={{ once: true, margin: '-40px' }}
           transition={{ duration: reducedMotion ? 0 : 0.6, ease: 'easeOut' }}
           className="mx-auto max-w-lg text-center"
         >

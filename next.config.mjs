@@ -4,6 +4,9 @@ const nextConfig = {
   distDir: process.env.NODE_ENV === 'development' ? '.next-dev' : '.next',
   images: {
     formats: ['image/avif', 'image/webp'],
+    // Keep the existing editorial image quality while making the explicit
+    // quality=90 usage compatible with Next's quality allowlist.
+    qualities: [75, 90],
     dangerouslyAllowSVG: true,
     contentDispositionType: 'attachment',
     contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",

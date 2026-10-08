@@ -48,7 +48,7 @@ export function BackButton({ href, fallback, label = 'Back', className = '' }: B
 
   const baseClass = `group inline-flex items-center gap-2 rounded-lg border border-repixl-muted/25
     bg-repixl-charcoal/60 px-4 py-2.5 font-mono text-xs uppercase tracking-wider
-    text-repixl-muted transition-all min-h-[40px]
+    text-repixl-muted transition-all min-h-11
     hover:border-repixl-muted/50 hover:bg-repixl-charcoal hover:text-repixl-text-light
     focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-repixl-red/50
     focus-visible:ring-offset-2 focus-visible:ring-offset-repixl-bg

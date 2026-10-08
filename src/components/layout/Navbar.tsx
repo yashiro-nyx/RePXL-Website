@@ -1,10 +1,10 @@
 'use client'
 
 import { reportActionFailure } from '@/lib/action-error'
-import { useState, useRef, useEffect, useCallback } from 'react'
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
-import { useRouter } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import { signOut } from 'next-auth/react'
 import { LoginRequiredModal } from '@/components/ui'
 import { LogoutConfirmModal } from '@/components/ui/LogoutConfirmModal'
@@ -15,6 +15,7 @@ import { useAuthStore } from '@/stores/authStore'
 import { useCartStore } from '@/stores/cartStore'
 import { useWishlistStore } from '@/stores/wishlistStore'
 import { useToastStore } from '@/stores/toastStore'
+import { useProductStore } from '@/stores/productStore'
 import { useNotificationCount } from '@/hooks/useNotificationCount'
 
 export function Navbar() {
@@ -24,16 +25,22 @@ export function Navbar() {
   const [loginModalOpen, setLoginModalOpen] = useState(false)
   const [logoutModalOpen, setLogoutModalOpen] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [highlightedSuggestion, setHighlightedSuggestion] = useState(-1)
+  const [suggestionsOpen, setSuggestionsOpen] = useState(true)
   const [authHydrated, setAuthHydrated] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
   const profileRef = useRef<HTMLDivElement>(null)
   const router = useRouter()
+  const pathname = usePathname()
 
   const { isLoggedIn, firstName, lastName, userEmail, avatarUrl, logout, hydrate } = useAuthStore()
   const addToast = useToastStore((s) => s.addToast)
 
   const cartCount = useCartStore((s) => s.items.reduce((sum, i) => sum + i.quantity, 0))
   const wishlistCount = useWishlistStore((s) => s.slugs.length)
+  const products = useProductStore((s) => s.products)
+  const productsLoading = useProductStore((s) => s.loading)
+  const productsError = useProductStore((s) => s.error)
 
   // Shared notification count — eliminates a second independent 60-second poller
   const { state: notifState, refresh: refreshUnreadCount, decrementCount: decrementNavCount } =
@@ -78,8 +85,36 @@ export function Navbar() {
     if (searchOpen && inputRef.current) inputRef.current.focus()
   }, [searchOpen])
 
+  useEffect(() => {
+    if (searchOpen && products.length === 0 && !productsLoading && !productsError) {
+      void useProductStore.getState().hydrate()
+    }
+  }, [searchOpen, products.length, productsLoading, productsError])
+
+  const searchSuggestions = useMemo(() => {
+    const normalized = query.trim().toLowerCase()
+    if (normalized.length < 2) return []
+
+    return products
+      .filter((product) => product.status === 'active')
+      .filter((product) => [product.name, product.brand, product.series].some((value) => value.toLowerCase().includes(normalized)))
+      .slice(0, 6)
+  }, [products, query])
+
+  useEffect(() => {
+    setHighlightedSuggestion(-1)
+    setSuggestionsOpen(true)
+  }, [query, searchOpen])
+
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault()
+    const suggestion = searchSuggestions[highlightedSuggestion]
+    if (suggestion) {
+      router.push(`/products/${suggestion.slug}`)
+      setSearchOpen(false)
+      setQuery('')
+      return
+    }
     if (query.trim()) {
       router.push(`/search?q=${encodeURIComponent(query.trim())}`)
       setSearchOpen(false)
@@ -94,6 +129,18 @@ export function Navbar() {
       setLoginModalOpen(true)
     }
   }
+
+  const isNavActive = (href: string) => {
+    if (href === '/') return pathname === '/'
+    return pathname === href || pathname.startsWith(`${href}/`)
+  }
+
+  const navLinkClass = (href: string) => [
+    'relative inline-flex min-h-11 items-center text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-repixl-red/50',
+    isNavActive(href)
+      ? 'text-repixl-text-light'
+      : 'text-repixl-text-light/80 hover:text-repixl-text-light',
+  ].join(' ')
 
   /**
    * Called when the user confirms logout in the modal.
@@ -122,20 +169,20 @@ export function Navbar() {
 
   return (
     <>
-      <header className="fixed left-0 right-0 top-0 z-50 bg-gradient-to-b from-repixl-bg/80 to-transparent backdrop-blur-sm">
+      <header className="site-header fixed left-0 right-0 top-0 z-50">
         <nav className="mx-auto flex max-w-container items-center justify-between px-4 py-4 sm:px-6 md:px-10 lg:px-16">
           {/* Logo */}
-          <Link href="/" className="text-repixl-text-light">
+          <Link href="/" className="rounded text-repixl-text-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-repixl-red/50">
             <span className="sm:hidden"><Logo size="sm" accentXL /></span>
             <span className="hidden sm:inline-flex"><Logo size="md" accentXL /></span>
           </Link>
 
           {/* Nav links */}
           <ul className="hidden items-center gap-8 md:flex">
-            <li><Link href="/" className="text-sm text-repixl-text-light/80 transition-colors hover:text-repixl-text-light">Home</Link></li>
-            <li><Link href="/products" className="text-sm text-repixl-text-light/80 transition-colors hover:text-repixl-text-light">Cameras</Link></li>
-            <li><Link href="/compare" className="text-sm text-repixl-text-light/80 transition-colors hover:text-repixl-text-light">Compare</Link></li>
-            <li><Link href="/about" className="text-sm text-repixl-text-light/80 transition-colors hover:text-repixl-text-light">About</Link></li>
+            <li><Link href="/" className={navLinkClass('/')} aria-current={isNavActive('/') ? 'page' : undefined}>Home</Link></li>
+            <li><Link href="/products" className={navLinkClass('/products')} aria-current={isNavActive('/products') ? 'page' : undefined}>Cameras</Link></li>
+            <li><Link href="/compare" className={navLinkClass('/compare')} aria-current={isNavActive('/compare') ? 'page' : undefined}>Compare</Link></li>
+            <li><Link href="/about" className={navLinkClass('/about')} aria-current={isNavActive('/about') ? 'page' : undefined}>About</Link></li>
           </ul>
 
           {/* Icon cluster */}
@@ -146,22 +193,60 @@ export function Navbar() {
             {/* Search */}
             <div className="relative flex items-center">
               {searchOpen && (
-                <form onSubmit={handleSearchSubmit} className="fixed left-4 right-4 top-[4.5rem] sm:absolute sm:left-auto sm:right-10 sm:top-1/2 sm:-translate-y-1/2">
+                <form onSubmit={handleSearchSubmit} className="fixed left-4 right-4 top-[4.5rem] z-10 sm:absolute sm:left-auto sm:right-10 sm:top-1/2 sm:w-56 sm:-translate-y-1/2 md:w-64" role="search">
                   <label htmlFor="nav-search" className="sr-only">Search cameras</label>
                   <input
                     ref={inputRef}
                     id="nav-search"
                     type="search"
                     value={query}
-                    onChange={(e) => setQuery(e.target.value)}
+                    onChange={(e) => { setQuery(e.target.value); setSuggestionsOpen(true) }}
+                    role="combobox"
+                    aria-autocomplete="list"
+                    aria-expanded={suggestionsOpen && searchSuggestions.length > 0}
+                    aria-controls="nav-search-suggestions"
+                    aria-activedescendant={highlightedSuggestion >= 0 ? `nav-search-option-${highlightedSuggestion}` : undefined}
                     onBlur={() => { if (!query.trim()) setSearchOpen(false) }}
-                    onKeyDown={(e) => { if (e.key === 'Escape') { setSearchOpen(false); setQuery('') } }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'ArrowDown' && searchSuggestions.length > 0) {
+                        e.preventDefault()
+                        setHighlightedSuggestion((current) => (current + 1) % searchSuggestions.length)
+                      } else if (e.key === 'ArrowUp' && searchSuggestions.length > 0) {
+                        e.preventDefault()
+                        setHighlightedSuggestion((current) => (current <= 0 ? searchSuggestions.length - 1 : current - 1))
+                      } else if (e.key === 'Escape') {
+                        e.preventDefault()
+                        if (searchSuggestions.length > 0) { setHighlightedSuggestion(-1); setSuggestionsOpen(false) }
+                        else { setSearchOpen(false); setQuery('') }
+                      }
+                    }}
                     placeholder="Search cameras..."
-                    className="w-full rounded border border-repixl-muted/30 bg-repixl-bg/95 px-3 py-2.5 text-sm text-repixl-text-light shadow-xl placeholder:text-repixl-muted/60 backdrop-blur-md focus:border-repixl-muted/50 focus:outline-none sm:w-48 sm:py-1.5 sm:shadow-none md:w-56"
+                    className="w-full rounded border border-repixl-muted/30 bg-repixl-bg/95 px-3 py-2.5 text-sm text-repixl-text-light shadow-xl placeholder:text-repixl-muted/60 backdrop-blur-md focus:border-repixl-muted/50 focus:outline-none focus:ring-2 focus:ring-repixl-red/40 sm:py-2 sm:shadow-none"
                   />
+                  {suggestionsOpen && searchSuggestions.length > 0 && (
+                    <ul id="nav-search-suggestions" role="listbox" aria-label="Camera suggestions" className="mt-2 max-h-72 overflow-y-auto rounded border border-repixl-muted/20 bg-repixl-bg/95 p-1 shadow-xl backdrop-blur-md">
+                      {searchSuggestions.map((product, index) => (
+                        <li key={product.slug} id={`nav-search-option-${index}`} role="option" aria-selected={index === highlightedSuggestion}>
+                          <button
+                            type="button"
+                            onMouseDown={(event) => event.preventDefault()}
+                            onClick={() => {
+                              router.push(`/products/${product.slug}`)
+                              setSearchOpen(false)
+                              setQuery('')
+                            }}
+                            className={`flex min-h-11 w-full items-center justify-between gap-3 rounded px-3 py-2 text-left text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-repixl-red/50 ${index === highlightedSuggestion ? 'bg-repixl-charcoal text-repixl-text-light' : 'text-repixl-text-light/85 hover:bg-repixl-charcoal/70'}`}
+                          >
+                            <span className="min-w-0 truncate">{product.name}</span>
+                            <span className="shrink-0 font-mono text-[10px] uppercase tracking-wide text-repixl-muted">{product.brand}</span>
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
                 </form>
               )}
-              <button type="button" aria-label="Search" onClick={() => setSearchOpen((prev) => !prev)} className="flex h-10 w-10 items-center justify-center text-repixl-text-light/80 transition-colors hover:text-repixl-text-light">
+              <button type="button" aria-label="Search" onClick={() => setSearchOpen((prev) => !prev)} className="flex h-11 w-11 items-center justify-center text-repixl-text-light/80 transition-colors hover:text-repixl-text-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-repixl-red/50">
                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" /></svg>
               </button>
             </div>
@@ -174,7 +259,7 @@ export function Navbar() {
                 if (!isLoggedIn) { e.preventDefault(); setLoginModalOpen(true) }
                 else router.push('/wishlist')
               }}
-              className="relative hidden h-10 w-10 items-center justify-center text-repixl-text-light/80 transition-colors hover:text-repixl-text-light sm:inline-flex"
+              className="relative hidden h-11 w-11 items-center justify-center text-repixl-text-light/80 transition-colors hover:text-repixl-text-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-repixl-red/50 sm:inline-flex"
             >
               <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z" /></svg>
               {wishlistCount > 0 && (
@@ -201,7 +286,7 @@ export function Navbar() {
                 if (!isLoggedIn) setLoginModalOpen(true)
                 else router.push('/cart')
               }}
-              className="relative flex h-10 w-10 items-center justify-center text-repixl-text-light/80 transition-colors hover:text-repixl-text-light"
+              className="relative flex h-11 w-11 items-center justify-center text-repixl-text-light/80 transition-colors hover:text-repixl-text-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-repixl-red/50"
             >
               <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="8" cy="21" r="1" /><circle cx="19" cy="21" r="1" /><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12" /></svg>
               {cartCount > 0 && (
@@ -212,7 +297,7 @@ export function Navbar() {
             </button>
 
             {/* Profile / Account — neutral placeholder until auth hydrates */}
-            <div className="relative flex h-10 w-10 items-center justify-center" ref={profileRef}>
+              <div className="relative flex h-11 w-11 items-center justify-center" ref={profileRef}>
               {!authHydrated ? (
                 // Neutral skeleton — prevents logged-out icon flash on refresh
                 <div className="h-8 w-8 rounded-full bg-repixl-muted/10" aria-hidden="true" />
@@ -221,7 +306,7 @@ export function Navbar() {
                   type="button"
                   aria-label={isLoggedIn ? 'Account menu' : 'Sign in'}
                   onClick={handleProfileClick}
-                  className={`relative flex h-8 w-8 items-center justify-center overflow-hidden rounded-full transition-colors ${
+                  className={`relative flex h-11 w-11 items-center justify-center overflow-hidden rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-repixl-red/50 ${
                     isLoggedIn
                       ? 'bg-repixl-red/20'
                       : 'text-repixl-text-light/80 hover:text-repixl-text-light'
@@ -269,17 +354,17 @@ export function Navbar() {
                   </div>
                   <ul className="space-y-1">
                     <li>
-                      <Link href="/account" onClick={() => setProfileOpen(false)} className="block rounded px-2 py-1.5 text-sm text-repixl-text-light/80 hover:bg-repixl-charcoal hover:text-repixl-text-light">
+                      <Link href="/account" onClick={() => setProfileOpen(false)} className="flex min-h-11 items-center rounded px-2 py-1.5 text-sm text-repixl-text-light/80 hover:bg-repixl-charcoal hover:text-repixl-text-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-repixl-red/50">
                         My Account
                       </Link>
                     </li>
                     <li>
-                      <Link href="/account/orders" onClick={() => setProfileOpen(false)} className="block rounded px-2 py-1.5 text-sm text-repixl-text-light/80 hover:bg-repixl-charcoal hover:text-repixl-text-light">
+                      <Link href="/account/orders" onClick={() => setProfileOpen(false)} className="flex min-h-11 items-center rounded px-2 py-1.5 text-sm text-repixl-text-light/80 hover:bg-repixl-charcoal hover:text-repixl-text-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-repixl-red/50">
                         My Purchases
                       </Link>
                     </li>
                     <li>
-                      <Link href="/account/notifications" onClick={() => setProfileOpen(false)} className="flex items-center justify-between rounded px-2 py-1.5 text-sm text-repixl-text-light/80 hover:bg-repixl-charcoal hover:text-repixl-text-light">
+                      <Link href="/account/notifications" onClick={() => setProfileOpen(false)} className="flex min-h-11 items-center justify-between rounded px-2 py-1.5 text-sm text-repixl-text-light/80 hover:bg-repixl-charcoal hover:text-repixl-text-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-repixl-red/50">
                         Notifications
                         {navUnreadCount > 0 && (
                           <span className="flex h-4 min-w-[16px] items-center justify-center rounded-full bg-repixl-red px-1 font-mono text-[8px] font-bold text-white">
@@ -289,7 +374,7 @@ export function Navbar() {
                       </Link>
                     </li>
                     <li>
-                      <Link href="/account/vouchers" onClick={() => setProfileOpen(false)} className="block rounded px-2 py-1.5 text-sm text-repixl-text-light/80 hover:bg-repixl-charcoal hover:text-repixl-text-light">
+                      <Link href="/account/vouchers" onClick={() => setProfileOpen(false)} className="flex min-h-11 items-center rounded px-2 py-1.5 text-sm text-repixl-text-light/80 hover:bg-repixl-charcoal hover:text-repixl-text-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-repixl-red/50">
                         My Vouchers
                       </Link>
                     </li>
@@ -297,7 +382,7 @@ export function Navbar() {
                       <button
                         type="button"
                         onClick={() => { setProfileOpen(false); setLogoutModalOpen(true) }}
-                        className="block w-full rounded px-2 py-1.5 text-left text-sm text-repixl-red hover:bg-repixl-charcoal"
+                        className="flex min-h-11 w-full items-center rounded px-2 py-1.5 text-left text-sm text-repixl-red hover:bg-repixl-charcoal focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-repixl-red/50"
                       >
                         Log Out
                       </button>
@@ -308,7 +393,7 @@ export function Navbar() {
             </div>
 
             {/* Mobile menu toggle */}
-            <button type="button" aria-label="Menu" onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="flex h-10 w-10 items-center justify-center text-repixl-text-light/80 transition-colors hover:text-repixl-text-light md:hidden">
+            <button type="button" aria-label={mobileMenuOpen ? 'Close menu' : 'Open menu'} aria-expanded={mobileMenuOpen} aria-controls="mobile-navigation" onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="flex h-11 w-11 items-center justify-center text-repixl-text-light/80 transition-colors hover:text-repixl-text-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-repixl-red/50 md:hidden">
               {mobileMenuOpen ? (
                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg>
               ) : (
@@ -320,12 +405,12 @@ export function Navbar() {
 
         {/* Mobile menu drawer */}
         {mobileMenuOpen && (
-          <div className="border-t border-repixl-muted/10 bg-repixl-charcoal px-6 py-4 md:hidden">
+          <div id="mobile-navigation" className="border-t border-repixl-muted/10 bg-repixl-charcoal px-6 py-4 md:hidden">
             <ul className="space-y-3">
-              <li><Link href="/" onClick={() => setMobileMenuOpen(false)} className="block text-sm text-repixl-text-light/80 transition-colors hover:text-repixl-text-light">Home</Link></li>
-              <li><Link href="/products" onClick={() => setMobileMenuOpen(false)} className="block text-sm text-repixl-text-light/80 transition-colors hover:text-repixl-text-light">Cameras</Link></li>
-              <li><Link href="/compare" onClick={() => setMobileMenuOpen(false)} className="block text-sm text-repixl-text-light/80 transition-colors hover:text-repixl-text-light">Compare</Link></li>
-              <li><Link href="/about" onClick={() => setMobileMenuOpen(false)} className="block text-sm text-repixl-text-light/80 transition-colors hover:text-repixl-text-light">About</Link></li>
+              <li><Link href="/" onClick={() => setMobileMenuOpen(false)} aria-current={isNavActive('/') ? 'page' : undefined} className={`${navLinkClass('/')} w-full`}>Home</Link></li>
+              <li><Link href="/products" onClick={() => setMobileMenuOpen(false)} aria-current={isNavActive('/products') ? 'page' : undefined} className={`${navLinkClass('/products')} w-full`}>Cameras</Link></li>
+              <li><Link href="/compare" onClick={() => setMobileMenuOpen(false)} aria-current={isNavActive('/compare') ? 'page' : undefined} className={`${navLinkClass('/compare')} w-full`}>Compare</Link></li>
+              <li><Link href="/about" onClick={() => setMobileMenuOpen(false)} aria-current={isNavActive('/about') ? 'page' : undefined} className={`${navLinkClass('/about')} w-full`}>About</Link></li>
               <li className="flex items-center justify-between text-sm text-repixl-text-light/80 sm:hidden">
                 <span>Appearance</span>
                 <ThemeToggle />

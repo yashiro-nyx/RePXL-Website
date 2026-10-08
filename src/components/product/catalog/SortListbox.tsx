@@ -103,7 +103,7 @@ export function SortListbox({
         aria-haspopup="listbox"
         aria-expanded={open}
         aria-label={`Sort by: ${labelFor(value)}`}
-        className="flex min-w-[11.5rem] items-center justify-between gap-3 rounded-lg border border-repixl-muted/25 bg-repixl-charcoal px-3.5 py-2.5 text-sm text-repixl-text-light transition-colors hover:border-repixl-muted/45 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-repixl-red/40"
+        className="repixl-control flex min-h-11 min-w-[11.5rem] items-center justify-between gap-3 rounded-lg px-3.5 py-2.5 text-sm transition-colors hover:border-repixl-muted/45 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-repixl-red/40"
       >
         <span className="truncate">{labelFor(value)}</span>
         <svg

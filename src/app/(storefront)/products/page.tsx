@@ -5,7 +5,7 @@ import { useSearchParams, useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
 import { Container } from '@/components/layout/Container'
 import { ProductCard } from '@/components/product/ProductCard'
-import { PageBackLink, Skeleton } from '@/components/ui'
+import { Button, FeedbackState, PageBackLink, Skeleton } from '@/components/ui'
 import { Footer } from '@/components/layout/Footer'
 import { BrandSelector } from '@/components/product/catalog/BrandSelector'
 import { CatalogToolbar } from '@/components/product/catalog/CatalogToolbar'
@@ -50,6 +50,8 @@ function ProductsContent() {
   const router = useRouter()
   const { fadeUp, staggerContainer, reducedMotion } = useRevealAnimation()
   const allProducts = useProductStore((s) => s.products)
+  const productLoading = useProductStore((s) => s.loading)
+  const productError = useProductStore((s) => s.error)
   const allReviews = useReviewStore((s) => s.reviews)
   const [hydrated, setHydrated] = useState(false)
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false)
@@ -61,6 +63,11 @@ function ProductsContent() {
     void useReviewStore.getState().hydrate()
     p.finally(() => setHydrated(true))
   }, [])
+
+  const retryProducts = () => {
+    setHydrated(false)
+    void useProductStore.getState().hydrate().finally(() => setHydrated(true))
+  }
 
   // from=home contextual Back — URL-derived; never mutated by filter/sort/page ops.
   const cameFromHome = hasHomeNavContext(searchParams)
@@ -235,20 +242,24 @@ function ProductsContent() {
             variants={fadeUp} initial="hidden" animate="show" transition={{ delay: reducedMotion ? 0 : 0.1 }}
             className="hidden w-64 shrink-0 lg:block"
           >
-            <div className="sticky top-24">
+            <div className="sticky top-24 max-h-[calc(100vh-7rem)] overflow-y-auto pb-4">
               <FilterSidebar {...sidebarProps} />
             </div>
           </motion.aside>
 
           {/* Product grid (right) */}
-          <div className="min-w-0 flex-1">
-            <CatalogToolbar
-              count={filteredSorted.length}
-              sort={sort}
-              onSortChange={changeSort}
-              onOpenFilters={() => setMobileFiltersOpen(true)}
-              activeFilterCount={activeCount}
-            />
+          <section aria-labelledby="camera-results-heading" className="min-w-0 flex-1">
+            <div className="sticky top-16 z-20 -mx-2 bg-repixl-bg/95 px-2 py-3 backdrop-blur-md lg:top-20">
+              <CatalogToolbar
+                count={filteredSorted.length}
+                sort={sort}
+                onSortChange={changeSort}
+                onOpenFilters={() => setMobileFiltersOpen(true)}
+                activeFilterCount={activeCount}
+              />
+            </div>
+
+            <h2 id="camera-results-heading" className="sr-only">Camera results</h2>
 
             <div className="mt-5">
               <ActiveFilterChips
@@ -264,7 +275,7 @@ function ProductsContent() {
               />
             </div>
 
-            {!hydrated ? (
+            {!hydrated || productLoading ? (
               <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3">
                 {Array.from({ length: 6 }).map((_, i) => (
                   <div key={i} className="overflow-hidden rounded-2xl border border-repixl-muted/10 bg-repixl-charcoal">
@@ -280,6 +291,13 @@ function ProductsContent() {
                   </div>
                 ))}
               </div>
+            ) : productError ? (
+              <FeedbackState
+                kind="error"
+                title="We couldn't load the camera collection"
+                message="The collection is temporarily unavailable. Please try again, or return to the collection later."
+                action={<Button type="button" variant="primary" size="sm" onClick={retryProducts}>Try again</Button>}
+              />
             ) : pageData.total > 0 ? (
               <>
                 <motion.div
@@ -299,9 +317,9 @@ function ProductsContent() {
                 <Pagination page={pageData.page} totalPages={pageData.totalPages} onPageChange={goToPage} />
               </>
             ) : (
-              <CatalogEmptyState onClearFilters={clearAll} />
+              <CatalogEmptyState onClearFilters={clearAll} hasFilters={hasFilters} />
             )}
-          </div>
+          </section>
         </div>
       </Container>
 
@@ -321,7 +339,7 @@ export default function ProductsPage() {
     <>
       <Suspense fallback={
         <div className="burn-subtle min-h-screen pb-20 pt-24">
-          <Container><p className="text-sm text-repixl-muted">Loading…</p></Container>
+          <Container><FeedbackState kind="loading" title="Loading the camera collection" message="Preparing the archive…" /></Container>
         </div>
       }>
         <ProductsContent />

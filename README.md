@@ -30,6 +30,45 @@ The `docs/` folder contains seven maintained guides:
 - Product detail — specs, condition badge, rating summary (`4.9 ★ (N ratings) · N sold`), paginated & star-filterable Customer Reviews, Add to Cart / Wishlist / Compare, live webcam CSS-filter demo
 - Camera comparison tool (up to 3 side-by-side)
 - Full-text search
+- Shared storefront UI system with dark/light RePXL tokens, consistent controls,
+  keyboard focus states, responsive framing, and refined product-card surfaces
+  — see [`docs/ui-ux-design-system.md`](./docs/ui-ux-design-system.md). Browser
+  QA passed on desktop/mobile smoke routes; populated product-detail QA remains
+  database-dependent locally.
+- **UI/UX audit:** the current identity, discovery, accessibility, mobile,
+  performance, and phased improvement priorities are documented in
+  [`docs/ui-ux-audit-2026-10.md`](./docs/ui-ux-audit-2026-10.md). This is an
+  analysis baseline. Phase 1 accessibility and interaction fundamentals are now
+  implemented and verified through focused headless Chrome desktop/mobile QA;
+  authenticated logout and populated review-photo lightbox click-through remain
+  deferred limitations. Phase 2 search and product-discovery improvements are
+  implemented; populated search-result QA remains pending a healthy local
+  product data source. Phase 3 loading, error, empty, and retry states are now
+  implemented across the main customer-facing data surfaces; populated and
+  authenticated route QA remains database-dependent. Phase 4 commerce IA and
+  mobile UX now connect New Arrivals, editorial text-led brand discovery, local Continue
+  browsing, sticky catalog context, mobile cart/purchase affordances, and
+  checkout trust cues without changing RePXL's identity or commerce logic.
+  The focused homepage refinement also removes the persistent navbar trail and
+  uses a compact multi-card New Arrivals treatment with shared reduced-motion
+  reveal behavior.
+- Light-mode contrast refinements now adapt account film loading surfaces,
+  navbar-adjacent controls, catalog sort/filter surfaces, and the All Cameras
+  selector without changing the dark theme or commerce behavior.
+  The shared navbar now uses a restrained theme-token translucent surface with
+  stable appearance while account content is loading.
+- Phase 5 performance refinements preserve the existing image quality while
+  explicitly allowing the current `quality={90}` values in Next.js, and
+  homepage reveal animations now run once per page visit instead of replaying
+  on every scroll re-entry.
+- Phase 6 navigation clarity keeps Home, Cameras, Compare, and About as the
+  primary navigation while adding only semantic/context cues: subtle active
+  link emphasis, a current product breadcrumb, a named camera-results region,
+  and stronger mobile account navigation targets.
+- Final regression polish corrected several remaining 32–40px customer-facing
+  controls, including back, pagination, lightbox, modal-close, carousel,
+  cart-quantity, notification, and account-menu controls, while preserving
+  existing styling and behavior.
 
 ### User Accounts
 - Register, Login, Logout (with confirmation), Forgot/Reset Password
@@ -315,6 +354,7 @@ prisma generate && prisma migrate deploy && next build
 **Recent refinements (completed):**
 - Mobile FAQ layout: content-sized category row, centered touch targets, and a question list with bottom safe-area padding. Mobile typecheck and 3 focused FAQ data tests passed; native visual verification remains pending. See [`react-native/README.md`](./react-native/README.md#customer-support-layout).
 - ✅ Context-aware Back navigation on the Cameras catalog (`from=home`) and removed the generic About Back button — see [`docs/customer-experience.md#back-navigation`](./docs/customer-experience.md#back-navigation)
+- ✅ BackButton touch-target regression test now reflects the existing `min-h-11` (44px) implementation; focused and full test suites pass.
 - ✅ Navbar avatar synchronization from `authStore`
 - ✅ Payment success navigation (success page fetches the real order from the API)
 - ✅ In-app notification redesign with concise, human-readable content and shared dropdown/page components — see [`docs/communications.md#in-app-notifications`](./docs/communications.md#in-app-notifications)
@@ -328,6 +368,9 @@ prisma generate && prisma migrate deploy && next build
 - ✅ **Human-friendly error/message system**: fixed the Return/Refund page leaking raw Zod validation JSON; added a reusable customer-facing error system (`src/lib/errors/`) with safe per-field validation messages, HTTP/network mapping, and a stable API error contract (`{ code, error, fieldErrors }`). Customer UI never shows raw Zod/Prisma/stack/status text; full diagnostics stay in server logs. Project rule documented in `AGENTS.md` — see [`docs/error-handling.md`](./docs/error-handling.md)
 - ✅ **Security password step-up and MFA backend repair**: password-enabled accounts verify their current RePXL password; one signed, session-bound recent-verification record satisfies both MFA guards. Passwordless accounts use the secure Set Password path first. MFA's serialized Prisma transactions use an explicit bounded 10-second acquisition / 30-second execution window so a slow reachable Supabase pooler does not expire Prisma's five-second default mid-request. Normal Google login is preserved. Automated backend tests pass; full live MFA enrollment/login/disable is **not yet verified** — see [`docs/security-step-up.md`](./docs/security-step-up.md).
 - ✅ **Recent-auth origin repair**: authenticated-but-unverified GET remains `200 { verified: false }`; security POSTs accept only matching request origins, with explicit localhost:3000/3001 development support and the configured canonical production origin. Invalid URL configuration now fails closed with a safe 403 instead of throwing. Production remains blocked until Vercel `NEXTAUTH_URL` is corrected to a complete HTTPS origin and the change is deployed — see [`docs/security-step-up.md`](./docs/security-step-up.md).
+- ✅ **Security/MFA diagnostic validation (2026-10-08)**: current source and focused auth/MFA tests reconfirm the 401 unauthenticated versus 200 authenticated recent-auth contract; TypeScript, production build, and diff checks pass. Live MFA enrollment/login/disable remains explicitly unverified because the authenticated browser/database test environment was unavailable.
+- ✅ **Live MFA verification preflight (2026-10-08)**: local required configuration was checked without exposing values; `TEST_MFA_DATABASE_URL` was missing and the database was unavailable, so live enrollment/login/disable testing was safely not started. No database or account state was changed.
+- ✅ **Return/refund validation compatibility (2026-10-08)**: optional return details may be omitted while supplied details remain trimmed and constrained to 10–1000 characters. Shared validation continues to use safe `422` responses; the focused returns route suite passes 21/21.
 - ✅ **Account Security consolidation and six-box OTP**: Password and Two-Factor Auth remain under Security. MFA verification starts on the sensitive action. Shared OTP paste, keyboard editing, and complete-code submission are corrected and browser-checked.
 - ✅ **Mobile login rendering / missing chunk repair**: repaired stale generated login output, made the form visible without its reveal animation, and isolated development `.next-dev` from production `.next`. `/login?oauth=login` remains the normal Google-login landing route.
 - ✅ **Font loading + `next/image` optimization**: body/mono self-hosted via `next/font/google`; the display font (General Sans, on Fontshare — not Google Fonts) now uses `preconnect` + a resilient system fallback stack (no blank headings / minimal layout shift). Converted customer-facing product images to `next/image` (fixing the warnings, not suppressing them). Typography and emails unchanged — see [`docs/fonts-and-images.md`](./docs/fonts-and-images.md)

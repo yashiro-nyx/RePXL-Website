@@ -2,16 +2,15 @@
 
 import { useEffect, useMemo } from 'react'
 import Link from 'next/link'
-import Image from 'next/image'
 import { motion } from 'framer-motion'
 import { Container } from '@/components/layout/Container'
+import { ProductCard } from '@/components/product/ProductCard'
 import { useProductStore } from '@/stores/productStore'
-import { useReducedMotion } from '@/hooks/useReducedMotion'
-import { formatPrice } from '@/lib/format'
+import { useRevealAnimation } from '@/hooks/useRevealAnimation'
 import { withHomeContext } from '@/lib/back-navigation'
 
 export function NewArrivals() {
-  const reducedMotion = useReducedMotion()
+  const { staggerContainer, staggerItem, viewport } = useRevealAnimation()
   const allProducts = useProductStore((s) => s.products)
 
   useEffect(() => {
@@ -20,66 +19,38 @@ export function NewArrivals() {
 
   const arrivals = useMemo(() => {
     const active = allProducts.filter((p) => p.status === 'active')
-    return [...active].sort((a, b) => b.specs.year - a.specs.year).slice(0, 2)
+    return [...active].sort((a, b) => b.specs.year - a.specs.year).slice(0, 4)
   }, [allProducts])
-
-  const container = {
-    hidden: {},
-    show: { transition: { staggerChildren: reducedMotion ? 0 : 0.1 } },
-  }
-  const item = {
-    hidden: reducedMotion ? { opacity: 1, y: 0 } : { opacity: 0, y: 24 },
-    show: { opacity: 1, y: 0, transition: { duration: reducedMotion ? 0 : 0.55, ease: [0.22, 1, 0.36, 1] } },
-  }
 
   if (arrivals.length === 0) return null
 
   return (
-    <section className="py-16 md:py-20">
+    <section className="py-14 md:py-20">
       <Container>
-        <div className="mb-10 flex items-center justify-between">
-          <h2 className="font-display text-display-md text-repixl-text-light md:text-display-lg">
-            New Arrivals
-          </h2>
+        <div className="mb-8 flex items-end justify-between gap-4 md:mb-10">
+          <div>
+            <span className="font-mono text-[10px] uppercase tracking-[0.24em] text-repixl-muted">Fresh from the archive</span>
+            <h2 className="mt-2 font-display text-display-sm text-repixl-text-light md:text-display-md">New Arrivals</h2>
+          </div>
           <Link
             href={withHomeContext('/products?sort=newest')}
-            className="hidden rounded-full border border-repixl-muted/25 px-5 py-2 font-mono text-[11px] uppercase tracking-wider text-repixl-text-light/80 transition-colors hover:border-repixl-red/50 hover:text-repixl-text-light md:inline-block"
+            className="rounded-full border border-repixl-muted/25 px-4 py-2 font-mono text-[10px] uppercase tracking-wider text-repixl-text-light/80 transition-colors hover:border-repixl-red/50 hover:text-repixl-text-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-repixl-red/50 md:px-5 md:text-[11px]"
           >
             View All
           </Link>
         </div>
 
         <motion.div
-          variants={container}
+          variants={staggerContainer}
           initial="hidden"
           whileInView="show"
-          viewport={{ once: true, margin: '-60px' }}
-          className="grid grid-cols-1 gap-4 md:grid-cols-2"
+          viewport={viewport}
+          className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4"
         >
           {arrivals.map((product) => (
-            <motion.div key={product.slug} variants={item}>
-              <Link href={`/products/${product.slug}`} className="group relative block overflow-hidden rounded-lg border border-repixl-muted/15 bg-repixl-charcoal">
-                {product.stock > 0 && (
-                  <span className="absolute left-4 top-4 z-10 rounded-full bg-repixl-text-light px-3 py-1 font-mono text-[10px] uppercase tracking-wider text-repixl-text-dark">
-                    New
-                  </span>
-                )}
-                <div className="relative aspect-[4/3] p-10 flex items-center justify-center">
-                  <Image
-                    src={product.image}
-                    alt={product.name}
-                    width={400}
-                    height={300}
-                    sizes="(max-width: 768px) 100vw, 50vw"
-                    quality={90}
-                    className="h-full w-full object-contain transition-transform duration-500 group-hover:scale-105"
-                  />
-                </div>
-                <div className="border-t border-repixl-muted/10 p-5">
-                  <h3 className="font-display text-lg font-semibold text-repixl-text-light">{product.name}</h3>
-                  <p className="mt-1 font-display text-base font-bold text-repixl-text-light/80">{formatPrice(product.price)}</p>
-                </div>
-              </Link>
+            <motion.div key={product.slug} variants={staggerItem} className="relative">
+              {product.stock > 0 && <span className="pointer-events-none absolute left-1/2 top-3 z-20 -translate-x-1/2 rounded-full border border-repixl-text-light/20 bg-repixl-bg/80 px-2.5 py-1 font-mono text-[9px] uppercase tracking-wider text-repixl-text-light backdrop-blur-sm">New</span>}
+              <ProductCard product={product} compact />
             </motion.div>
           ))}
         </motion.div>

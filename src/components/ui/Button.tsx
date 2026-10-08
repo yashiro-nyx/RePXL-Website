@@ -14,7 +14,7 @@ export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 
 const variantStyles: Record<ButtonVariant, string> = {
   primary:
-    'bg-repixl-red text-white border border-transparent hover:bg-red-700 active:bg-red-800',
+    'bg-repixl-red text-white border border-transparent shadow-sm hover:bg-red-700 hover:shadow-md active:bg-red-800',
   secondary:
     'bg-transparent text-repixl-text-light border border-repixl-muted/50 hover:border-repixl-text-light hover:bg-repixl-charcoal active:bg-white/5',
   ghost:
@@ -26,8 +26,8 @@ const variantStyles: Record<ButtonVariant, string> = {
 }
 
 const sizeStyles: Record<ButtonSize, string> = {
-  // sm: min 36px — py-2 + text-sm (line-height ~20px) = 36px
-  sm: 'h-9 px-4 text-sm',
+  // Preserve the compact visual treatment while keeping a 44px touch target.
+  sm: 'min-h-11 px-4 text-sm',
   // md: min 40px — py-2.5 + text-sm = 40px
   md: 'h-10 px-5 text-sm',
   // lg: min 48px — py-3 + text-base = 48px
@@ -68,7 +68,7 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
         disabled={isDisabled}
         aria-busy={loading || undefined}
         className={`
-          inline-flex items-center justify-center gap-2 rounded font-body font-medium
+          inline-flex items-center justify-center gap-2 rounded-md font-body font-medium tracking-[-0.01em]
           transition-colors duration-200
           focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-repixl-red/50 focus-visible:ring-offset-2 focus-visible:ring-offset-repixl-bg
           disabled:cursor-not-allowed disabled:opacity-40

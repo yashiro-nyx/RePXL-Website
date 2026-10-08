@@ -64,7 +64,10 @@ export function useRevealAnimation() {
   }
 
   /** Standard viewport trigger settings used across all landing sections */
-  const viewport = { once: false, margin: '-60px' } as const
+  // A reveal is a page-arrival cue, not a scroll-loop. Keeping it once per
+  // page visit avoids replaying opacity/transform work during long browsing
+  // sessions while preserving the cinematic entrance.
+  const viewport = { once: true, margin: '-60px' } as const
 
   return { fadeUp, fadeIn, staggerContainer, staggerItem, scaleIn, viewport, reducedMotion }
 }

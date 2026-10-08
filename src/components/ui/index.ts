@@ -4,6 +4,7 @@ export { Button, type ButtonProps, type ButtonVariant, type ButtonSize } from '.
 export { ConditionBadge, type Condition, type ConditionBadgeProps } from './ConditionBadge'
 export { CornerBracket, type CornerBracketProps } from './CornerBracket'
 export { FilmStripLoader } from './FilmStripLoader'
+export { FeedbackState } from './FeedbackState'
 export { ImageLightbox } from './ImageLightbox'
 export { ImageUploader, type UploadedImage } from './ImageUploader'
 export { LegalModal } from './LegalModal'

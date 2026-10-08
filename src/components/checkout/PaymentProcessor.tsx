@@ -20,6 +20,7 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { createPortal } from 'react-dom'
+import { toUserMessage } from '@/lib/errors/client-errors'
 
 const PAYMONGO_API = 'https://api.paymongo.com/v1'
 
@@ -201,7 +202,7 @@ function AuthModal({
             type="button"
             onClick={onClose}
             aria-label="Close authentication window"
-            className="flex h-8 w-8 items-center justify-center rounded-lg text-repixl-muted transition-colors hover:bg-repixl-bg hover:text-repixl-text-light"
+            className="flex h-11 w-11 items-center justify-center rounded-lg text-repixl-muted transition-colors hover:bg-repixl-bg hover:text-repixl-text-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-repixl-red/50"
           >
             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"
               fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
@@ -359,13 +360,13 @@ export function usePaymentProcessor({
           const msg = intent.last_payment_error?.failed_message
             ?? 'Payment was declined. Please try a different card or payment method.'
           setIsProcessing(false)
-          onError(msg)
+          onError(toUserMessage(msg, 'SERVER'))
         } else {
           pollUntilResolved(intentId, orderNumber)
         }
       } catch (err) {
         setIsProcessing(false)
-        onError(err instanceof Error ? err.message : 'Payment failed. Please try again.')
+        onError(toUserMessage(err, 'SERVER'))
       }
     },
     [onSuccess, onError, onProcessing, pollUntilResolved]

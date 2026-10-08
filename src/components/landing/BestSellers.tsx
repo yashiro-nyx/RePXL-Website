@@ -66,7 +66,7 @@ export function BestSellers() {
           variants={container}
           initial="hidden"
           whileInView="show"
-          viewport={{ once: false, margin: '-60px' }}
+          viewport={{ once: true, margin: '-60px' }}
           className="mx-auto grid max-w-7xl grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4"
         >
           {bestSellers.map((product, index) => (

@@ -39,8 +39,10 @@ const submitReturnSchema = z.object({
   details: z
     .string()
     .trim()
-    .min(10, 'Please describe the issue in at least 10 characters.')
     .max(1000, 'Please keep your description under 1000 characters.')
+    .refine((value) => value.length === 0 || value.length >= 10, {
+      message: 'Please describe the issue in at least 10 characters.',
+    })
     .optional()
     .default(''),
   selectedItemIds: z.array(z.string().min(1)).min(1).optional(),

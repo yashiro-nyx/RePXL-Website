@@ -1,10 +1,10 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
 import { Container } from '@/components/layout/Container'
-import { Button } from '@/components/ui'
+import { Button, FeedbackState } from '@/components/ui'
 import { ProductCard } from '@/components/product/ProductCard'
 import { Footer } from '@/components/layout/Footer'
 import { useWishlistStore } from '@/stores/wishlistStore'
@@ -15,21 +15,38 @@ import { useRevealAnimation } from '@/hooks/useRevealAnimation'
 
 export default function WishlistPage() {
   const wishlistSlugs = useWishlistStore((s) => s.slugs)
+  const wishlistLoading = useWishlistStore((s) => s.loading)
+  const wishlistError = useWishlistStore((s) => s.error)
   const allProducts = useProductStore((s) => s.products)
+  const productsLoading = useProductStore((s) => s.loading)
+  const productsError = useProductStore((s) => s.error)
+  const [hydrated, setHydrated] = useState(false)
   const { fadeUp, staggerContainer, staggerItem, viewport, reducedMotion } = useRevealAnimation()
 
   useEffect(() => {
-    if (useWishlistStore.getState().slugs.length === 0) {
-      useWishlistStore.getState().hydrate()
-    }
-    if (useProductStore.getState().products.length === 0) {
-      useProductStore.getState().hydrate()
-    }
+    const wishlist = useWishlistStore.getState().slugs.length === 0 ? useWishlistStore.getState().hydrate() : Promise.resolve()
+    const products = useProductStore.getState().products.length === 0 ? useProductStore.getState().hydrate() : Promise.resolve()
+    void Promise.all([wishlist, products]).finally(() => setHydrated(true))
   }, [])
 
   const items = wishlistSlugs
     .map((slug) => allProducts.find((p) => p.slug === slug))
     .filter(Boolean) as typeof allProducts
+
+  const retryWishlist = () => {
+    void Promise.all([
+      useWishlistStore.getState().hydrate(),
+      useProductStore.getState().hydrate(),
+    ])
+  }
+
+  if (!hydrated || wishlistLoading || productsLoading) {
+    return <div className="burn-subtle min-h-screen pb-20 pt-24"><Container><FeedbackState kind="loading" title="Loading your wishlist" message="Checking your saved cameras…" /></Container></div>
+  }
+
+  if (wishlistError || productsError) {
+    return <div className="burn-subtle min-h-screen pb-20 pt-24"><Container><FeedbackState kind="error" title="We couldn't load your wishlist" message="Your saved cameras are temporarily unavailable. Please try again." action={<Button type="button" variant="primary" size="sm" onClick={retryWishlist}>Try again</Button>} /></Container></div>
+  }
 
   // ── Empty state ──
   if (items.length === 0) {

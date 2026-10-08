@@ -41,7 +41,7 @@ export function TrustStrip() {
     <motion.div
       initial={reducedMotion ? { opacity: 1 } : { opacity: 0 }}
       whileInView={{ opacity: 1 }}
-      viewport={{ once: false, margin: '-40px' }}
+      viewport={{ once: true, margin: '-40px' }}
       transition={{ duration: reducedMotion ? 0 : 0.6, ease: 'easeOut' }}
       className="relative z-10 overflow-hidden border-y border-repixl-muted/10 bg-repixl-charcoal/40 py-3 backdrop-blur-sm">
       {/* Left/right fade masks */}

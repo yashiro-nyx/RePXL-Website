@@ -34,6 +34,10 @@ JPG/PNG/WebP photos use protected Cloudinary assets via `/api/upload/return-imag
 with server-enforced 5 MB and file-content checks. Unfinished uploads block
 submission; failures preserve form entries.
 
+The returns API accepts omitted details and returns the shared `422` validation
+status for invalid details or selections. Optional details are trimmed before
+the 10–1000 character rule is applied.
+
 ### API and native app
 
 - `POST /api/returns`: ownership, date, item, details, and evidence validation;

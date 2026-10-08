@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Button, PageLoader } from '@/components/ui'
+import { Button, FeedbackState, PageLoader } from '@/components/ui'
 import { useAuthStore } from '@/stores/authStore'
 import { useOrderHistoryStore } from '@/stores/orderHistoryStore'
 import { purchaseFilters, matchesPurchaseFilter, type PurchaseFilter } from '@/lib/account-navigation'
@@ -82,7 +82,7 @@ export default function OrderHistoryPage() {
 
   if (!hydrated || !isLoggedIn) return <OrdersSkeleton />
 
-  if (loadError) return <p role="alert" className="text-red-400">Unable to load purchases. Please refresh to retry.</p>
+  if (loadError) return <FeedbackState kind="error" title="We couldn't load your purchases" message="Your order history is temporarily unavailable. Please try again." action={<Button type="button" variant="primary" size="sm" onClick={() => { setLoadError(false); setHydrated(false); void hydrate().then(() => useOrderHistoryStore.getState().hydrate()).catch(() => setLoadError(true)).finally(() => setHydrated(true)) }}>Try again</Button>} />
 
   const orders = [...allOrders]
     .filter((o) => o.userEmail === userEmail && matchesPurchaseFilter(o, filter))

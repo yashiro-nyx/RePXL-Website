@@ -62,7 +62,7 @@ export function Pagination({
           onClick={() => onPageChange(currentPage - 1)}
           disabled={currentPage === 1}
           aria-label="Previous page"
-          className="rounded-lg border border-repixl-muted/20 px-3 py-1.5 text-xs text-repixl-text-light/70 transition-colors hover:bg-repixl-charcoal disabled:cursor-not-allowed disabled:opacity-30"
+          className="min-h-11 rounded-lg border border-repixl-muted/20 px-3 py-1.5 text-xs text-repixl-text-light/70 transition-colors hover:bg-repixl-charcoal focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-repixl-red/50 disabled:cursor-not-allowed disabled:opacity-30"
         >
           ← Prev
         </button>
@@ -82,7 +82,7 @@ export function Pagination({
               onClick={() => onPageChange(page)}
               aria-label={`Page ${page}`}
               aria-current={page === currentPage ? 'page' : undefined}
-              className={`flex h-8 w-8 items-center justify-center rounded-lg text-xs font-medium transition-colors ${
+              className={`flex h-11 w-11 items-center justify-center rounded-lg text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-repixl-red/50 ${
                 page === currentPage
                   ? 'bg-repixl-red text-white'
                   : 'border border-repixl-muted/20 text-repixl-text-light/70 hover:bg-repixl-charcoal'
@@ -97,7 +97,7 @@ export function Pagination({
           onClick={() => onPageChange(currentPage + 1)}
           disabled={currentPage === totalPages}
           aria-label="Next page"
-          className="rounded-lg border border-repixl-muted/20 px-3 py-1.5 text-xs text-repixl-text-light/70 transition-colors hover:bg-repixl-charcoal disabled:cursor-not-allowed disabled:opacity-30"
+          className="min-h-11 rounded-lg border border-repixl-muted/20 px-3 py-1.5 text-xs text-repixl-text-light/70 transition-colors hover:bg-repixl-charcoal focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-repixl-red/50 disabled:cursor-not-allowed disabled:opacity-30"
         >
           Next →
         </button>

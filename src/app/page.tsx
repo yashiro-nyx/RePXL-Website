@@ -12,6 +12,8 @@ import { Testimonials } from '@/components/landing/Testimonials'
 import { HomeFAQ } from '@/components/landing/HomeFAQ'
 import { NewsletterCTA } from '@/components/landing/NewsletterCTA'
 import { Footer } from '@/components/layout/Footer'
+import { NewArrivals } from '@/components/landing/NewArrivals'
+import { RecentlyViewed } from '@/components/product/RecentlyViewed'
 
 
 export default function HomePage() {
@@ -21,9 +23,11 @@ export default function HomePage() {
      <TrustStrip />
      <EditorialSection />
      <BrandGallery />
+     <NewArrivals />
      <FeaturedCarousel />
      <PromoDuo />
      <BestSellers />
+     <RecentlyViewed />
      <WhyUs />
      <DealBanner />
      <ConditionExplainer />
@@ -34,6 +38,5 @@ export default function HomePage() {
    </main>
  )
 }
-
 
 

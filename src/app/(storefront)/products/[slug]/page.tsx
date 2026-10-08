@@ -10,7 +10,7 @@ import { createPortal } from 'react-dom'
 import { motion } from 'framer-motion'
 import { Container } from '@/components/layout/Container'
 import { Footer } from '@/components/layout/Footer'
-import { Accordion, PageBackLink, Button, ConditionBadge, CornerBracket, LoginRequiredModal, ReviewImageThumbnails } from '@/components/ui'
+import { Accordion, FeedbackState, InlineLoader, PageBackLink, Button, ConditionBadge, CornerBracket, LoginRequiredModal, ReviewImageThumbnails } from '@/components/ui'
 import { useRevealAnimation } from '@/hooks/useRevealAnimation'
 import { CompareToast } from '@/components/ui/CompareToast'
 import { ProductCard } from '@/components/product/ProductCard'
@@ -40,6 +40,8 @@ import {
   type StarValue,
 } from '@/lib/rating-aggregate'
 import { paginate, clampPage } from '@/lib/catalog-filters'
+import { RecentlyViewed } from '@/components/product/RecentlyViewed'
+import { useRecentlyViewedStore } from '@/stores/recentlyViewedStore'
 
 // Dynamically import the webcam-dependent component to avoid SSR issues
 const CameraFilterDemo = dynamic(
@@ -100,7 +102,7 @@ function FilterDemoButton({ brand, model, slug }: { brand: string; model: string
               <button
                 onClick={() => setOpen(false)}
                 aria-label="Close filter demo"
-                className="flex h-8 w-8 items-center justify-center rounded-lg text-repixl-muted transition-colors hover:bg-repixl-bg hover:text-repixl-text-light"
+                className="flex h-11 w-11 items-center justify-center rounded-lg text-repixl-muted transition-colors hover:bg-repixl-bg hover:text-repixl-text-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-repixl-red/50"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                   <path d="M18 6 6 18" /><path d="m6 6 12 12" />
@@ -120,6 +122,10 @@ function FilterDemoButton({ brand, model, slug }: { brand: string; model: string
   )
 }
 
+function MobilePurchaseBar({ disabled, label, onAdd }: { disabled: boolean; label: string; onAdd: () => void }) {
+  return <div className="fixed inset-x-0 bottom-0 z-30 border-t border-repixl-muted/15 bg-repixl-charcoal/95 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] shadow-[0_-12px_28px_rgba(0,0,0,0.35)] backdrop-blur-md lg:hidden"><Button variant="primary" size="lg" disabled={disabled} onClick={onAdd} className="w-full">{label}</Button></div>
+}
+
 export default function ProductDetailPage() {
   const [loginModalOpen, setLoginModalOpen] = useState(false)
   const isLoggedIn = useAuthStore((s) => s.isLoggedIn)
@@ -127,7 +133,10 @@ export default function ProductDetailPage() {
   const router = useRouter()
   const { fadeUp, staggerContainer, staggerItem, fadeIn, viewport, reducedMotion } = useRevealAnimation()
   const allProducts = useProductStore((s) => s.products)
+  const productsLoading = useProductStore((s) => s.loading)
+  const productsError = useProductStore((s) => s.error)
   const product = allProducts.find((p) => p.slug === params.slug)
+  const [catalogHydrated, setCatalogHydrated] = useState(false)
 
   const addToCart = useCartStore((s) => s.addToCart)
   const addToWishlist = useWishlistStore((s) => s.addToWishlist)
@@ -146,9 +155,17 @@ export default function ProductDetailPage() {
   // Real units sold, fetched from GET /api/products/[slug] (DELIVERED/COMPLETED
   // order-item quantities). null = not yet loaded → show nothing rather than 0.
   const [soldCount, setSoldCount] = useState<number | null>(null)
+  const recordRecentlyViewed = useRecentlyViewedStore((s) => s.record)
 
   useEffect(() => {
-    useProductStore.getState().hydrate()
+    recordRecentlyViewed(params.slug)
+  }, [params.slug, recordRecentlyViewed])
+
+  useEffect(() => {
+    const productLoad = useProductStore.getState().products.length > 0
+      ? Promise.resolve()
+      : useProductStore.getState().hydrate()
+    void productLoad.finally(() => setCatalogHydrated(true))
     useCartStore.getState().hydrate()
     useWishlistStore.getState().hydrate()
     useCompareStore.getState().hydrate()
@@ -175,6 +192,14 @@ export default function ProductDetailPage() {
       active = false
     }
   }, [params.slug])
+
+  if (!catalogHydrated || (productsLoading && allProducts.length === 0)) {
+    return <div className="min-h-screen bg-repixl-bg px-4 pt-24"><Container><FeedbackState kind="loading" title="Loading camera details" message="Preparing the camera archive…" /></Container></div>
+  }
+
+  if (productsError) {
+    return <div className="min-h-screen bg-repixl-bg px-4 pt-24"><Container><FeedbackState kind="error" title="We couldn't load this camera" message="The camera details are temporarily unavailable. Please try again." action={<Button type="button" variant="primary" size="sm" onClick={() => { setCatalogHydrated(false); void useProductStore.getState().hydrate().finally(() => setCatalogHydrated(true)) }}>Try again</Button>} /></Container></div>
+  }
 
   if (!product) {
     return (
@@ -204,6 +229,21 @@ export default function ProductDetailPage() {
     })
     .slice(0, 4)
 
+  const handleAddToCart = async () => {
+    try {
+      if (!isLoggedIn) {
+        setLoginModalOpen(true)
+        return
+      }
+      if (product && product.stock > 0 && cartQty < product.stock) {
+        await addToCart(product.slug, selectedQty)
+        addToast(`Added ${selectedQty} to cart: ${product.name}`, 'success', { label: 'View Cart', href: '/cart' }, 5000, product.image)
+      }
+    } catch {
+      reportActionFailure()
+    }
+  }
+
   return (
     <div className="burn-subtle min-h-screen pb-20 pt-24">
       <Container>
@@ -224,7 +264,7 @@ export default function ProductDetailPage() {
               <li aria-hidden="true" className="text-repixl-muted/40">/</li>
               <li><Link href={`/products?brand=${product.brand.toLowerCase()}`} className="transition-colors hover:text-repixl-text-light">{product.brand}</Link></li>
               <li aria-hidden="true" className="text-repixl-muted/40">/</li>
-              <li className="max-w-[160px] truncate text-repixl-text-light/50">{product.name}</li>
+              <li aria-current="page" className="max-w-[160px] truncate text-repixl-text-light/50">{product.name}</li>
             </ol>
           </nav>
         </motion.div>
@@ -267,7 +307,7 @@ export default function ProductDetailPage() {
             variants={staggerContainer}
             initial="hidden"
             animate="show"
-            className="flex flex-col"
+            className="flex flex-col lg:sticky lg:top-24 lg:self-start"
           >
             {/* Brand + series eyebrow */}
             <motion.span variants={staggerItem} className="font-mono text-xs uppercase tracking-widest text-repixl-muted">
@@ -315,26 +355,7 @@ export default function ProductDetailPage() {
                 size="lg"
                 disabled={product.stock === 0 || cartQty >= product.stock}
                 className={product.stock === 0 || cartQty >= product.stock ? 'opacity-50 cursor-not-allowed' : ''}
-                onClick={async () => {
-                  try {
-                    if (!isLoggedIn) {
-                      setLoginModalOpen(true)
-                      return
-                    }
-                    if (product && product.stock > 0 && cartQty < product.stock) {
-                      await addToCart(product.slug, selectedQty)
-                      addToast(
-                        `Added ${selectedQty} to cart: ${product.name}`,
-                        'success',
-                        { label: 'View Cart', href: '/cart' },
-                        5000,
-                        product.image
-                      )
-                    }
-                  } catch {
-                    reportActionFailure()
-                  }
-                }}
+                onClick={handleAddToCart}
               >
                 {product.stock === 0 ? 'Out of Stock' : cartQty >= product.stock ? `Max in Cart (${cartQty})` : inCart ? `Add More (${cartQty} in cart)` : 'Add to Cart'}
               </Button>
@@ -558,8 +579,10 @@ export default function ProductDetailPage() {
             ))}
           </motion.div>
         </motion.section>
+        <RecentlyViewed compact />
       </Container>
       <Footer />
+      <MobilePurchaseBar disabled={product.stock === 0 || cartQty >= product.stock} label={product.stock === 0 ? 'Out of Stock' : cartQty >= product.stock ? `Max in Cart (${cartQty})` : 'Add to Cart'} onAdd={handleAddToCart} />
     </div>
   )
 }
@@ -687,6 +710,7 @@ function ProductReviews({ slug }: { slug: string }) {
   const searchParams = useSearchParams()
   const [reviews, setReviews] = useState<PdpReview[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(false)
 
   const [ratingFilter, setRatingFilter] = useState<RatingFilter>(() => parseRatingFilter(searchParams.get('rating')))
   const [page, setPage] = useState<number>(() => {
@@ -698,16 +722,17 @@ function ProductReviews({ slug }: { slug: string }) {
   useEffect(() => {
     let active = true
     setLoading(true)
+    setError(false)
     // Fetch the full set so distribution + filtered pagination are accurate.
     fetch(`/api/reviews?productSlug=${encodeURIComponent(slug)}&limit=1000`)
-      .then((r) => r.json())
+      .then((r) => { if (!r.ok) throw new Error('Reviews unavailable'); return r.json() })
       .then((json) => {
         if (!active) return
         setReviews((json.data ?? []) as PdpReview[])
         setLoading(false)
       })
       .catch(() => {
-        if (active) setLoading(false)
+        if (active) { setLoading(false); setError(true) }
       })
     return () => {
       active = false
@@ -759,10 +784,20 @@ function ProductReviews({ slug }: { slug: string }) {
         </h2>
       </div>
 
-      {loading && <p className="mt-6 text-sm text-repixl-muted">Loading reviews…</p>}
+      {loading && <InlineLoader label="Loading reviews…" className="justify-start py-8" />}
+
+      {!loading && error && (
+        <FeedbackState
+          kind="error"
+          className="mt-8"
+          title="We couldn't load reviews"
+          message="Please try again to view customer experiences for this camera."
+          action={<Button type="button" variant="secondary" size="sm" onClick={() => { setError(false); setLoading(true); fetch(`/api/reviews?productSlug=${encodeURIComponent(slug)}&limit=1000`).then((r) => { if (!r.ok) throw new Error('Reviews unavailable'); return r.json() }).then((json) => { setReviews((json.data ?? []) as PdpReview[]); setLoading(false) }).catch(() => { setLoading(false); setError(true) }) }}>Try again</Button>}
+        />
+      )}
 
       {/* Empty: product has no reviews at all */}
-      {!loading && summary.count === 0 && (
+      {!loading && !error && summary.count === 0 && (
         <div className="mt-8 rounded-2xl border border-dashed border-repixl-muted/20 px-6 py-14 text-center">
           <StarDisplay rating={0} size={20} />
           <p className="mt-4 font-display text-display-sm text-repixl-text-light/70">No ratings yet</p>
@@ -770,7 +805,7 @@ function ProductReviews({ slug }: { slug: string }) {
         </div>
       )}
 
-      {!loading && summary.count > 0 && (
+      {!loading && !error && summary.count > 0 && (
         <>
           {/* Summary + distribution + filters. Desktop: summary | distribution.
               Mobile: stacks cleanly. */}

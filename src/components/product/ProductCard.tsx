@@ -20,6 +20,8 @@ export interface ProductCardProps {
   product: Product
   /** Optional deterministic geometry variant (0-3). Defaults to hashing product.slug */
   variant?: number
+  /** Compact editorial treatment for dense homepage rails. */
+  compact?: boolean
   className?: string
 }
 
@@ -254,6 +256,7 @@ function CardGeometry({ variant, isLight }: { variant: number; isLight: boolean 
 export function ProductCard({
   product,
   variant,
+  compact = false,
   className = '',
 }: ProductCardProps) {
   const [loginModalOpen, setLoginModalOpen] = useState(false)
@@ -371,7 +374,7 @@ export function ProductCard({
   return (
     <>
       <article
-        className={`group relative flex h-full min-h-[440px] flex-col overflow-hidden rounded-2xl border transition-all duration-300 ${
+        className={`group relative flex h-full ${compact ? 'min-h-[340px]' : 'min-h-[440px]'} flex-col overflow-hidden rounded-xl border transition-all duration-300 ${
           isLight
             ? 'border-neutral-200/90 bg-white shadow-sm hover:border-[#B91C1C]/50 hover:shadow-[0_12px_32px_-8px_rgba(185,28,28,0.15)]'
             : 'border-white/10 bg-[#110F13] hover:border-[#B91C1C]/50 hover:shadow-[0_12px_32px_-8px_rgba(185,28,28,0.3)]'
@@ -388,7 +391,7 @@ export function ProductCard({
         />
 
         {/* ── 1. CONTROLLED VISUAL STAGE (Layered composition) ── */}
-        <div className="relative h-64 sm:h-72 w-full overflow-hidden flex-shrink-0">
+        <div className={`relative ${compact ? 'h-44 sm:h-52' : 'h-64 sm:h-72'} w-full overflow-hidden flex-shrink-0`}>
           {/* Top Controls: Condition badge & Minimal Heart */}
           <div className="absolute inset-x-0 top-0 z-10 flex items-center justify-between p-4">
             {/* Condition badge — top left */}

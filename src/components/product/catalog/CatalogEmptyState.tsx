@@ -4,7 +4,7 @@
  * Professional no-results state for the catalog. Only suggests adjusting the
  * filters that actually exist — never fabricated categories.
  */
-export function CatalogEmptyState({ onClearFilters }: { onClearFilters: () => void }) {
+export function CatalogEmptyState({ onClearFilters, hasFilters = true }: { onClearFilters: () => void; hasFilters?: boolean }) {
   return (
     <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-repixl-muted/20 py-24 text-center">
       <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-repixl-charcoal/50">
@@ -12,17 +12,15 @@ export function CatalogEmptyState({ onClearFilters }: { onClearFilters: () => vo
           <circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" /><path d="M8 11h6" />
         </svg>
       </div>
-      <p className="font-display text-display-sm text-repixl-text-light/70">No cameras match your filters</p>
+      <p className="font-display text-display-sm text-repixl-text-light/70">{hasFilters ? 'No cameras match your filters' : 'No cameras are available right now'}</p>
       <p className="mt-1.5 max-w-sm text-sm text-repixl-muted">
-        Try adjusting your price range, brand, condition, or rating.
+        {hasFilters ? 'Try adjusting your price range, brand, condition, or rating.' : 'Please check back soon, or browse the collection again later.'}
       </p>
-      <button
+      {hasFilters && <button
         type="button"
         onClick={onClearFilters}
-        className="mt-5 rounded-xl border border-repixl-muted/25 px-5 py-2.5 text-sm text-repixl-red transition-colors hover:border-repixl-red/50 hover:bg-repixl-red/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-repixl-red/40"
-      >
-        Clear Filters
-      </button>
+        className="mt-5 min-h-11 rounded-xl border border-repixl-muted/25 px-5 py-2.5 text-sm text-repixl-red transition-colors hover:border-repixl-red/50 hover:bg-repixl-red/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-repixl-red/40"
+      >Clear Filters</button>}
     </div>
   )
 }

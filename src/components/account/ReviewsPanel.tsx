@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { Button, ImageLightbox } from '@/components/ui'
+import { Button, FeedbackState, ImageLightbox } from '@/components/ui'
 import { useAuthStore } from '@/stores/authStore'
 import { type Review } from '@/stores/reviewStore'
 
@@ -18,6 +18,7 @@ export default function ReviewsPanel() {
     images: { id: string; secureUrl: string }[]
   }[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [lightboxReviewId, setLightboxReviewId] = useState<string | null>(null)
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null)
@@ -25,13 +26,14 @@ export default function ReviewsPanel() {
   useEffect(() => {
     // ?mine=true — server enforces WHERE userId = session.user.id
     // Never fetches another user's reviews
+    setLoadError(false)
     fetch('/api/reviews?mine=true&limit=100', { credentials: 'include' })
-      .then((r) => r.json())
+      .then((r) => { if (!r.ok) throw new Error('Reviews unavailable'); return r.json() })
       .then((json) => {
         setDbReviews(json.data ?? [])
         setLoading(false)
       })
-      .catch(() => setLoading(false))
+      .catch(() => { setLoading(false); setLoadError(true) })
   }, [])
 
   const filtered = searchQuery.trim()
@@ -80,14 +82,18 @@ export default function ReviewsPanel() {
         </div>
       )}
 
-      {!loading && filtered.length === 0 && (
+      {!loading && loadError && (
+        <FeedbackState kind="error" title="We couldn't load your reviews" message="Your reviews are temporarily unavailable. Please try again." action={<Button type="button" variant="primary" size="sm" onClick={() => { setLoading(true); fetch('/api/reviews?mine=true&limit=100', { credentials: 'include' }).then((r) => { if (!r.ok) throw new Error('Reviews unavailable'); return r.json() }).then((json) => { setDbReviews(json.data ?? []); setLoading(false); setLoadError(false) }).catch(() => { setLoading(false); setLoadError(true) }) }}>Try again</Button>} />
+      )}
+
+      {!loading && !loadError && filtered.length === 0 && (
         <div className="rounded-xl border border-repixl-muted/10 bg-repixl-charcoal p-10 text-center">
           <p className="text-sm text-repixl-text-light/60">No reviews yet.</p>
           <Link href="/products" className="mt-3 inline-block"><Button variant="secondary" size="md">Browse Cameras</Button></Link>
         </div>
       )}
 
-      {!loading && filtered.length > 0 && (
+      {!loading && !loadError && filtered.length > 0 && (
         <div className="space-y-3">
           {filtered.map((review) => (
             <div key={review.id} className="rounded-xl border border-repixl-muted/10 bg-repixl-charcoal p-4">
@@ -148,4 +154,3 @@ export default function ReviewsPanel() {
     </div>
   )
 }
-

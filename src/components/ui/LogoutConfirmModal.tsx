@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Button } from './Button'
 import { useScrollLock } from '@/hooks/useScrollLock'
+import { useFocusTrap } from '@/hooks/useFocusTrap'
 
 interface LogoutConfirmModalProps {
   isOpen: boolean
@@ -17,6 +18,7 @@ interface LogoutConfirmModalProps {
  */
 export function LogoutConfirmModal({ isOpen, onCancel, onConfirm }: LogoutConfirmModalProps) {
   const overlayRef = useRef<HTMLDivElement>(null)
+  const triggerRef = useRef<HTMLElement | null>(null)
   const [mounted, setMounted] = useState(false)
 
   useEffect(() => { setMounted(true) }, [])
@@ -25,29 +27,19 @@ export function LogoutConfirmModal({ isOpen, onCancel, onConfirm }: LogoutConfir
   useEffect(() => {
     if (!isOpen) return
 
-    const overlay = overlayRef.current
-    if (!overlay) return
+    if (isOpen) triggerRef.current = document.activeElement as HTMLElement | null
+  }, [isOpen])
 
-    // Focus the Cancel button by default — the safe action is immediately reachable
-    const cancelBtn = overlay.querySelector<HTMLElement>('[data-cancel]')
-    cancelBtn?.focus()
+  useFocusTrap({
+    active: isOpen && mounted,
+    containerRef: overlayRef,
+    initialFocusSelector: '[data-cancel]',
+    restoreFocusRef: triggerRef,
+  })
 
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') { onCancel(); return }
-      if (e.key === 'Tab') {
-        const focusables = overlay.querySelectorAll<HTMLElement>(
-          'button, [tabindex]:not([tabindex="-1"])'
-        )
-        const first = focusables[0]
-        const last = focusables[focusables.length - 1]
-        if (e.shiftKey && document.activeElement === first) {
-          e.preventDefault(); last?.focus()
-        } else if (!e.shiftKey && document.activeElement === last) {
-          e.preventDefault(); first?.focus()
-        }
-      }
-    }
-
+  useEffect(() => {
+    if (!isOpen) return
+    const handleKeyDown = (e: KeyboardEvent) => { if (e.key === 'Escape') onCancel() }
     document.addEventListener('keydown', handleKeyDown)
     return () => document.removeEventListener('keydown', handleKeyDown)
   }, [isOpen, onCancel])
@@ -79,7 +71,7 @@ export function LogoutConfirmModal({ isOpen, onCancel, onConfirm }: LogoutConfir
           type="button"
           onClick={onCancel}
           aria-label="Cancel and close"
-          className="absolute right-3 top-3 flex h-7 w-7 items-center justify-center rounded-full text-repixl-muted transition-colors hover:bg-repixl-charcoal hover:text-repixl-text-light"
+          className="absolute right-3 top-3 flex h-11 w-11 items-center justify-center rounded-full text-repixl-muted transition-colors hover:bg-repixl-charcoal hover:text-repixl-text-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-repixl-red/50"
         >
           <svg
             xmlns="http://www.w3.org/2000/svg"

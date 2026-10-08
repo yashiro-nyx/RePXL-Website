@@ -148,7 +148,7 @@ function AllCamerasTile({ selected, onClick }: { selected: boolean; onClick: () 
           : 'bg-repixl-charcoal/60 hover:bg-repixl-charcoal',
       ].join(' ')}
     >
-      <span className="flex h-[72px] w-full items-center justify-center text-repixl-text-light/85" aria-hidden="true">
+      <span className={`flex h-[72px] w-full items-center justify-center ${selected ? 'text-repixl-text-light' : 'text-repixl-muted'}`} aria-hidden="true">
         <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
           <rect x="3" y="4" width="8" height="7" rx="1.5" /><rect x="13" y="4" width="8" height="7" rx="1.5" />
           <rect x="3" y="13" width="8" height="7" rx="1.5" /><rect x="13" y="13" width="8" height="7" rx="1.5" />
