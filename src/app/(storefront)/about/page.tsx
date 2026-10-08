@@ -99,45 +99,33 @@ export default function AboutPage() {
 }
 
 /* ================================================================== */
-/*  Hero — oversized watermark type + word-by-word heading reveal      */
+/*  Hero — cinematic background + word-by-word heading reveal          */
 /* ================================================================== */
 
 function AboutHero({ reducedMotion }: { reducedMotion: boolean }) {
-  const sectionRef = useRef<HTMLDivElement>(null)
   const theme = useThemeStore((s) => s.theme)
   const isLight = theme === 'light'
-
-  const { scrollYProgress } = useScroll({
-    target: sectionRef,
-    offset: ['start start', 'end start'],
-  })
-  const watermarkY = useTransform(scrollYProgress, [0, 1], reducedMotion ? [0, 0] : [0, 80])
-  const watermarkOpacity = useTransform(scrollYProgress, [0, 1], [1, 0.3])
 
   const { container, item } = useVariants(reducedMotion)
 
   return (
-    <section ref={sectionRef} className="relative overflow-hidden pb-20 pt-32 md:pb-28 md:pt-40">
-      {/* 1 — Theme-specific photographic environment matching homepage hero */}
-      <div className="pointer-events-none absolute inset-0 -z-20 overflow-hidden" aria-hidden="true">
+    <section className="relative min-h-[560px] overflow-hidden pb-12 pt-24 md:min-h-[620px] md:pt-28">
+      {/* The supplied still is the About-page hero visual. */}
+      <div className="pointer-events-none absolute inset-0 -z-20 overflow-hidden">
         <Image
-          src={isLight ? '/images/lightmodebg.png' : '/images/darkmodebg.png'}
-          alt=""
+          src="/images/aboutbg.png"
+          alt="Vintage Canon film camera resting beside a roll of film in a darkroom"
           fill
           priority
           sizes="100vw"
-          className="object-cover opacity-20 transition-opacity duration-500"
+          className="object-cover object-[68%_center]"
         />
-        <div
-          className={`absolute inset-0 ${
-            isLight
-              ? 'bg-gradient-to-b from-[#F5F1EC]/85 via-[#F5F1EC]/95 to-[#F5F1EC]'
-              : 'bg-gradient-to-b from-repixl-bg/85 via-repixl-bg/95 to-repixl-bg'
-          }`}
-        />
+        <div className={`absolute inset-0 ${isLight ? 'bg-[#F5F1EC]/45' : 'bg-repixl-bg/25'}`} />
+        <div className={`absolute inset-0 bg-gradient-to-r ${isLight ? 'from-[#F5F1EC] via-[#F5F1EC]/90 to-transparent' : 'from-repixl-bg via-repixl-bg/85 to-transparent'}`} />
+        <div className={`absolute inset-0 bg-gradient-to-t ${isLight ? 'from-[#F5F1EC] via-transparent to-[#F5F1EC]/20' : 'from-repixl-bg via-transparent to-repixl-bg/20'}`} />
       </div>
 
-      {/* 2 — Viewfinder corner accents matching homepage hero and deal banner */}
+      {/* Viewfinder corner accents matching the rest of the About page */}
       <div className="pointer-events-none absolute inset-4 z-0 md:inset-8" aria-hidden="true">
         <span className={`absolute left-0 top-0 h-6 w-6 sm:h-10 sm:w-10 border-l border-t ${isLight ? 'border-neutral-400/30' : 'border-white/15'}`} />
         <span className={`absolute right-0 top-0 h-6 w-6 sm:h-10 sm:w-10 border-r border-t ${isLight ? 'border-neutral-400/30' : 'border-white/15'}`} />
@@ -145,214 +133,128 @@ function AboutHero({ reducedMotion }: { reducedMotion: boolean }) {
         <span className={`absolute bottom-0 right-0 h-6 w-6 sm:h-10 sm:w-10 border-b border-r ${isLight ? 'border-neutral-400/30' : 'border-white/15'}`} />
       </div>
 
-      {/* 3 — Oversized watermark type echoing the homepage hero */}
-      <motion.div
-        style={{ y: reducedMotion ? 0 : watermarkY, opacity: watermarkOpacity }}
-        className="pointer-events-none absolute inset-0 -z-10 flex select-none items-center justify-center"
-        aria-hidden="true"
-      >
-        <span
-          className={`whitespace-nowrap font-display font-bold uppercase leading-none tracking-normal ${
-            isLight ? 'text-black/[0.03]' : 'text-white/[0.04]'
-          }`}
-          style={{ fontSize: 'clamp(8rem, 18vw, 20rem)' }}
-        >
-          REPIXL
-        </span>
-      </motion.div>
-
       <Container className="relative z-10">
-        <motion.div
-          variants={container}
-          initial="hidden"
-          animate="show"
-          className="mx-auto max-w-2xl text-center"
-        >
-          <motion.div variants={item} className="mb-4 flex items-center justify-center gap-2.5">
-            <span className="h-px w-8 bg-repixl-red" aria-hidden="true" />
-            <span className="font-mono text-xs uppercase tracking-widest text-repixl-muted">
-              About RePXL
-            </span>
-            <span className="h-px w-8 bg-repixl-red" aria-hidden="true" />
-          </motion.div>
-          <motion.div variants={item}>
-            <CornerBracket size={14} color={isLight ? 'rgba(26, 22, 16, 0.2)' : 'rgba(245, 241, 236, 0.25)'} className="inline-block px-6 py-4">
-              <h1 className="font-display text-display-lg text-repixl-text-light md:text-display-xl">
-                <RevealText text="By collectors," as="span" className="block" />
-                <span className="block italic text-repixl-rose">
+        <div className="relative grid min-h-[440px] grid-cols-1 items-center lg:min-h-[500px] lg:grid-cols-12">
+          <motion.div variants={container} initial="hidden" animate="show" className="relative z-10 lg:col-span-6">
+            <motion.div variants={item} className="mb-5 flex items-center gap-2.5">
+              <span className="h-px w-8 bg-repixl-red" aria-hidden="true" />
+              <span className="font-mono text-xs uppercase tracking-widest text-repixl-muted">
+                About RePXL
+              </span>
+            </motion.div>
+            <motion.div variants={item}>
+              <h1 className="max-w-[620px] font-display text-[clamp(3.25rem,4.5vw,4.5rem)] leading-[0.94] text-repixl-text-light">
+                <RevealText text="By collectors," as="span" className="block sm:whitespace-nowrap" />
+                <span className="block italic text-repixl-red sm:whitespace-nowrap">
                   <RevealText text="for collectors." as="span" delay={0.15} />
                 </span>
               </h1>
-            </CornerBracket>
+            </motion.div>
+
+            <motion.p variants={item} className="mt-6 max-w-md text-base leading-relaxed text-repixl-text-light/75">
+              RePXL is more than just a store — it&apos;s a community built for people who
+              see beauty in the details, the stories behind every shot, and the timeless
+              value of vintage cameras.
+            </motion.p>
+
+            <motion.div variants={item} className="mt-7 flex flex-wrap gap-2">
+              <a href="#our-story" className="rounded-full border border-repixl-muted/20 px-3.5 py-2 font-mono text-[10px] uppercase tracking-widest text-repixl-muted transition-colors hover:border-repixl-red/40 hover:bg-repixl-red/5 hover:text-repixl-red">Our story</a>
+              <a href="#how-we-grade" className="rounded-full border border-repixl-muted/20 px-3.5 py-2 font-mono text-[10px] uppercase tracking-widest text-repixl-muted transition-colors hover:border-repixl-red/40 hover:bg-repixl-red/5 hover:text-repixl-red">How we grade</a>
+              <a href="#what-we-believe" className="rounded-full border border-repixl-muted/20 px-3.5 py-2 font-mono text-[10px] uppercase tracking-widest text-repixl-muted transition-colors hover:border-repixl-red/40 hover:bg-repixl-red/5 hover:text-repixl-red">What we believe</a>
+              <a href="#timeline" className="rounded-full border border-repixl-muted/20 px-3.5 py-2 font-mono text-[10px] uppercase tracking-widest text-repixl-muted transition-colors hover:border-repixl-red/40 hover:bg-repixl-red/5 hover:text-repixl-red">Timeline</a>
+            </motion.div>
           </motion.div>
 
-          <motion.p variants={item} className="mx-auto mt-6 max-w-lg text-base text-repixl-text-light/70">
-            The story behind RePXL — and why we grade every camera
-            before it reaches you.
-          </motion.p>
-
-          {/* Quick-jump chips */}
-          <motion.div variants={item} className="mt-8 flex flex-wrap items-center justify-center gap-2">
-            {[
-              { label: 'Our story', href: '#our-story' },
-              { label: 'How we grade', href: '#how-we-grade' },
-              { label: 'What we believe', href: '#what-we-believe' },
-              { label: 'Timeline', href: '#timeline' },
-            ].map((chip) => (
-              <a
-                key={chip.href}
-                href={chip.href}
-                className="rounded-full border border-repixl-muted/20 px-3.5 py-1.5 font-mono text-[10px] uppercase tracking-widest text-repixl-muted transition-colors duration-200 hover:border-repixl-red/40 hover:text-repixl-red hover:bg-repixl-red/5"
-              >
-                {chip.label}
-              </a>
-            ))}
-          </motion.div>
-        </motion.div>
+        </div>
       </Container>
     </section>
   )
 }
 
 /* ================================================================== */
-/*  Our Story — parallax image stack, matching EditorialSection        */
+/*  Our Story — editorial copy and metadata list                         */
 /* ================================================================== */
+
+const storyFeatures = [
+  {
+    title: 'Curated selection',
+    description: 'Authentic, functional, and carefully inspected vintage cameras.',
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <path d="M14.5 5h-5L7.5 8H5a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7a2 2 0 0 0-2-2h-2.5l-2-3Z" />
+        <circle cx="12" cy="13" r="3.25" />
+      </svg>
+    ),
+  },
+  {
+    title: 'Transparent grading',
+    description: 'Clear condition grades and real photos — no surprises.',
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z" />
+        <path d="m9 12 2 2 4-4" />
+      </svg>
+    ),
+  },
+  {
+    title: 'A growing community',
+    description: 'For collectors, dreamers, and creators who value analog charm.',
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+        <circle cx="9" cy="7" r="4" />
+        <path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" />
+      </svg>
+    ),
+  },
+  {
+    title: 'Timeless value',
+    description: 'Because great photos never go out of style.',
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <path d="m12 3 1.35 4.15L17.5 8.5l-4.15 1.35L12 14l-1.35-4.15L6.5 8.5l4.15-1.35L12 3Z" />
+        <path d="m19 14 .8 2.2L22 17l-2.2.8L19 20l-.8-2.2L16 17l2.2-.8L19 14Z" />
+      </svg>
+    ),
+  },
+] as const
 
 function OurStory({ reducedMotion }: { reducedMotion: boolean }) {
   const sectionRef = useRef<HTMLDivElement>(null)
-  const theme = useThemeStore((s) => s.theme)
-  const isLight = theme === 'light'
 
   const { scrollYProgress } = useScroll({
     target: sectionRef,
     offset: ['start end', 'end start'],
   })
 
-  const backImgY = useTransform(scrollYProgress, [0, 1], reducedMotion ? [0, 0] : [20, -40])
-  const frontImgY = useTransform(scrollYProgress, [0, 1], reducedMotion ? [0, 0] : [45, -20])
-  const textY = useTransform(scrollYProgress, [0, 1], reducedMotion ? [0, 0] : [20, -20])
+  const textY = useTransform(scrollYProgress, [0, 1], reducedMotion ? [0, 0] : [12, -12])
 
   const { container, item } = useVariants(reducedMotion)
 
   return (
-    <section id="our-story" ref={sectionRef} className="py-20 md:py-32">
+    <section id="our-story" ref={sectionRef} className="relative isolate overflow-hidden py-20 md:py-24">
       <Container>
-        <div className="grid grid-cols-1 items-center gap-12 lg:grid-cols-12 lg:gap-14">
-          {/* Left: Overlapping archival photographic collage matching EditorialSection */}
-          <div className="relative flex items-center justify-center lg:col-span-6 xl:col-span-5">
-            <div className="relative mx-auto w-full max-w-[380px] sm:max-w-[420px] md:max-w-[440px]">
-              {/* Decorative top-left archive metadata */}
-              <div
-                className="pointer-events-none absolute -top-8 left-1 z-0 flex items-center gap-2 select-none"
-                aria-hidden="true"
-              >
-                <span className="h-1.5 w-1.5 rounded-full bg-[#EF4444] animate-pulse" />
-                <span
-                  className={`font-mono text-[9px] uppercase tracking-widest ${
-                    isLight ? 'text-neutral-500' : 'text-neutral-400'
-                  }`}
-                >
-                  DIGICAM ARCHIVE // REF. 01 — CANON A520
-                </span>
-              </div>
-
-              {/* Decorative corner brackets matching EditorialSection */}
-              <div
-                className={`pointer-events-none absolute -top-4 -left-4 h-6 w-6 border-t border-l ${
-                  isLight ? 'border-neutral-400/40' : 'border-white/20'
-                }`}
-                aria-hidden="true"
-              />
-              <div
-                className={`pointer-events-none absolute -bottom-6 -right-4 h-6 w-6 border-b border-r ${
-                  isLight ? 'border-neutral-400/40' : 'border-white/20'
-                }`}
-                aria-hidden="true"
-              />
-
-              {/* Rear Card: Canon PowerShot 2003 (digicamera1.png) */}
-              <motion.div
-                style={{ y: reducedMotion ? 0 : backImgY }}
-                className="group/card1 relative z-10 w-[82%] sm:w-[80%] -rotate-[4deg] transition-all duration-500 ease-out hover:-translate-y-2 hover:rotate-[-1deg]"
-              >
-                <Image
-                  src="/images/digicamera1.png"
-                  alt="Vintage Canon PowerShot digital camera archival card"
-                  width={1374}
-                  height={1145}
-                  sizes="(max-width: 640px) 75vw, (max-width: 1024px) 45vw, 420px"
-                  quality={90}
-                  className="h-auto w-full object-contain drop-shadow-[0_16px_32px_rgba(0,0,0,0.65)] drop-shadow-[0_4px_12px_rgba(239,68,68,0.12)] select-none"
-                  priority={false}
-                />
-              </motion.div>
-
-              {/* Foreground Card: Authentic CCD Sample Print in Polaroid Mount */}
-              <motion.div
-                style={{ y: reducedMotion ? 0 : frontImgY }}
-                whileHover={reducedMotion ? undefined : { rotate: 0, scale: 1.03 }}
-                initial={{ rotate: 3 }}
-                transition={{ duration: 0.3, ease: 'easeOut' }}
-                className="absolute -bottom-6 right-0 z-20 w-[62%] sm:w-[58%] overflow-hidden rounded-sm bg-white p-2.5 sm:p-3 shadow-2xl drop-shadow-[0_24px_48px_rgba(0,0,0,0.85)] drop-shadow-[0_8px_20px_rgba(239,68,68,0.18)]"
-              >
-                <div className="relative aspect-square w-full overflow-hidden rounded-sm bg-neutral-900">
-                  <Image
-                    src="/images/canonsample.png"
-                    alt="Authentic 2004 CCD point-and-shoot direct-flash sample photograph"
-                    fill
-                    sizes="(max-width: 640px) 45vw, 220px"
-                    quality={90}
-                    className="object-cover"
-                  />
-                </div>
-                <div className="mt-2 flex items-center justify-between px-0.5">
-                  <p className="font-mono text-[9px] uppercase tracking-wider text-neutral-800 font-medium">
-                    First camera graded · 2024
-                  </p>
-                  <span className="font-mono text-[8px] uppercase tracking-widest text-neutral-500">
-                    CANON A520
-                  </span>
-                </div>
-              </motion.div>
-
-              {/* Decorative bottom metadata mark */}
-              <div
-                className="pointer-events-none absolute -bottom-10 left-2 flex items-center gap-2 select-none"
-                aria-hidden="true"
-              >
-                <span className={`font-mono text-[10px] ${isLight ? 'text-neutral-400' : 'text-white/30'}`}>
-                  +
-                </span>
-                <span
-                  className={`font-mono text-[9px] uppercase tracking-wider ${
-                    isLight ? 'text-neutral-500' : 'text-neutral-400'
-                  }`}
-                >
-                  HISTORIC PROVENANCE [4.0MP · CCD · 2004]
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {/* Right: story text, staggered per paragraph */}
+        <div className="relative grid grid-cols-1 items-start gap-12 lg:grid-cols-12 lg:gap-14 xl:gap-20">
+          <div className="pointer-events-none absolute bottom-0 left-1/2 top-0 hidden w-px bg-repixl-muted/15 lg:block" aria-hidden="true" />
+          {/* Left: story text anchored to the page grid */}
           <motion.div
             style={{ y: reducedMotion ? 0 : textY }}
             variants={container}
             initial="hidden"
             whileInView="show"
             viewport={{ once: true, margin: '-80px' }}
-            className="lg:col-span-6 xl:col-span-7 lg:pl-6"
+            className="relative z-10 lg:col-span-5 xl:col-span-5"
           >
-            <motion.div variants={item} className="flex items-center gap-2 mb-2">
+            <motion.div variants={item} className="mb-3 flex items-center gap-2">
               <span className="h-px w-8 bg-repixl-red" aria-hidden="true" />
               <span className="font-mono text-[10px] uppercase tracking-widest text-repixl-muted">
                 Our Story
               </span>
             </motion.div>
-            <motion.h2 variants={item} className="mt-3 font-display text-display-md text-repixl-text-light">
+            <motion.h2 variants={item} className="font-display text-[clamp(2.6rem,4vw,3.25rem)] leading-tight text-repixl-text-light">
               Built from frustration.
             </motion.h2>
-            <div className="mt-5 space-y-4 text-sm leading-relaxed text-repixl-text-light/75">
+            <div className="mt-6 max-w-xl space-y-4 text-sm leading-relaxed text-repixl-text-light/75 md:text-base">
               <motion.p variants={item}>
                 RePXL started with a frustration every collector knows too well:
                 scrolling through secondhand marketplaces, squinting at blurry photos,
@@ -371,7 +273,45 @@ function OurStory({ reducedMotion }: { reducedMotion: boolean }) {
                 history — is never hidden behind a stock photo.
               </motion.p>
             </div>
+
+            <motion.div variants={item} className="mt-8 flex items-center gap-3" aria-hidden="true">
+              <span className="font-mono text-[10px] tracking-[0.24em] text-repixl-muted/40">
+                01 / ARCHIVE
+              </span>
+              <span className="h-px w-16 bg-repixl-muted/20" />
+            </motion.div>
           </motion.div>
+
+          {/* Right: editorial feature list, not a card grid */}
+          <motion.div
+            variants={container}
+            initial="hidden"
+            whileInView="show"
+            viewport={{ once: true, margin: '-80px' }}
+            className="relative z-10 lg:col-span-6 lg:col-start-7"
+          >
+            <p className="relative mb-6 font-mono text-[10px] uppercase tracking-[0.22em] text-repixl-muted">What we stand for</p>
+            <ul className="relative space-y-5">
+              {storyFeatures.map(({ icon, title, description }) => (
+                <motion.li key={title} variants={item} className="group">
+                  <div className="flex gap-4">
+                    <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg border border-repixl-red/45 bg-repixl-charcoal/30 text-repixl-red transition-colors duration-300 group-hover:border-repixl-red group-hover:bg-repixl-red/10" aria-hidden="true">
+                      <span className="h-6 w-6">{icon}</span>
+                    </span>
+                    <div>
+                      <h3 className="font-mono text-sm uppercase tracking-[0.12em] text-repixl-text-light">{title}</h3>
+                      <p className="mt-1 max-w-sm text-sm leading-relaxed text-repixl-text-light/60">{description}</p>
+                    </div>
+                  </div>
+                </motion.li>
+              ))}
+            </ul>
+          </motion.div>
+        </div>
+        <div className="mt-12 flex items-center gap-4 border-t border-repixl-muted/15 pt-4 font-mono text-[9px] uppercase tracking-[0.2em] text-repixl-muted/50">
+          <span>RePXL — Vintage cameras for modern creators</span>
+          <span className="h-px flex-1 bg-repixl-muted/15" aria-hidden="true" />
+          <span>02 / 04</span>
         </div>
       </Container>
     </section>
