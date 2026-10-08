@@ -120,7 +120,7 @@ export function PromoDuo() {
             variants={fadeUp}
             initial="hidden"
             whileInView="show"
-            viewport={{ once: false, margin: '-60px' }}
+            viewport={{ once: true, margin: '-60px' }}
             className={`group relative flex min-h-[460px] sm:min-h-[480px] md:min-h-[500px] flex-col justify-between overflow-hidden rounded-2xl border transition-all duration-300 ${
               isLight
                 ? 'border-neutral-200/90 bg-gradient-to-br from-white via-[#FCFCFD] to-[#F5F5F7] shadow-sm hover:border-[#B91C1C]/40 hover:shadow-[0_12px_32px_-8px_rgba(185,28,28,0.12)]'
@@ -320,7 +320,7 @@ export function PromoDuo() {
             variants={fadeUp}
             initial="hidden"
             whileInView="show"
-            viewport={{ once: false, margin: '-60px' }}
+            viewport={{ once: true, margin: '-60px' }}
             transition={{ delay: reducedMotion ? 0 : 0.1 }}
             className={`group relative flex min-h-[460px] sm:min-h-[480px] md:min-h-[500px] flex-col justify-between overflow-hidden rounded-2xl border transition-all duration-300 ${
               isLight

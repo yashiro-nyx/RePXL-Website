@@ -59,7 +59,7 @@ export function ConditionExplainer() {
         <motion.div
           initial={reducedMotion ? { opacity: 1 } : { opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: false, margin: '-60px' }}
+          viewport={{ once: true, margin: '-60px' }}
           transition={{ duration: reducedMotion ? 0 : 0.6, ease: 'easeOut' }}
         >
           {/* Section header */}
@@ -81,7 +81,7 @@ export function ConditionExplainer() {
               variants={container}
               initial="hidden"
               whileInView="show"
-              viewport={{ once: false, margin: '-40px' }}
+              viewport={{ once: true, margin: '-40px' }}
               className="grid grid-cols-1 gap-6 sm:grid-cols-2"
             >
               {grades.map((grade) => (

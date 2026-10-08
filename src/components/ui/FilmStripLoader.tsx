@@ -2,6 +2,7 @@
 
 import Image from 'next/image'
 import { useEffect, useRef, useState } from 'react'
+import { useThemeStore } from '@/stores/themeStore'
 
 /**
  * FilmStripLoader — A camera-roll / film-strip loading animation.
@@ -49,6 +50,8 @@ export function FilmStripLoader({
   const [reducedMotion, setReducedMotion] = useState(false)
   const [centerIdx, setCenterIdx] = useState(2)
   const animFrameRef = useRef<number | null>(null)
+  const theme = useThemeStore((state) => state.theme)
+  const isLight = theme === 'light'
 
   // Detect prefers-reduced-motion once on mount
   useEffect(() => {
@@ -113,12 +116,12 @@ export function FilmStripLoader({
         {/* ── Gradient fade masks on left/right edges ── */}
         <div
           className="pointer-events-none absolute inset-y-0 left-0 z-10 w-12"
-          style={{ background: 'linear-gradient(to right, #121012 0%, transparent 100%)' }}
+          style={{ background: `linear-gradient(to right, ${isLight ? '#f5f0ea' : '#121012'} 0%, transparent 100%)` }}
           aria-hidden="true"
         />
         <div
           className="pointer-events-none absolute inset-y-0 right-0 z-10 w-12"
-          style={{ background: 'linear-gradient(to left, #121012 0%, transparent 100%)' }}
+          style={{ background: `linear-gradient(to left, ${isLight ? '#f5f0ea' : '#121012'} 0%, transparent 100%)` }}
           aria-hidden="true"
         />
 
@@ -161,11 +164,11 @@ export function FilmStripLoader({
                 aria-hidden="true"
               >
                 {/* Top sprocket holes row */}
-                <div className="flex h-4 items-center justify-around bg-[#0a0809] px-1">
+                <div className={`flex h-4 items-center justify-around px-1 ${isLight ? 'bg-[#ded7cf]' : 'bg-[#0a0809]'}`}>
                   {Array.from({ length: FILM_HOLE_COUNT }).map((_, h) => (
                     <div
                       key={h}
-                      className="rounded-sm bg-[#1e1a1e]"
+                      className={`rounded-sm ${isLight ? 'bg-[#b9afa4]' : 'bg-[#1e1a1e]'}`}
                       style={{ width: 10, height: 8 }}
                     />
                   ))}
@@ -177,8 +180,8 @@ export function FilmStripLoader({
                   style={{
                     width: FRAME_W,
                     height: FRAME_H,
-                    background: '#1a1618',
-                    outline: isFocused ? '2px solid rgba(194,44,44,0.5)' : '1px solid rgba(140,133,128,0.12)',
+                    background: isLight ? '#ede7df' : '#1a1618',
+                    outline: isFocused ? '2px solid rgba(194,44,44,0.5)' : `1px solid ${isLight ? 'rgba(107,99,87,0.28)' : 'rgba(140,133,128,0.12)'}`,
                     outlineOffset: -1,
                     opacity: reducedMotion
                       ? 1
@@ -199,11 +202,11 @@ export function FilmStripLoader({
                 </div>
 
                 {/* Bottom sprocket holes row */}
-                <div className="flex h-4 items-center justify-around bg-[#0a0809] px-1">
+                <div className={`flex h-4 items-center justify-around px-1 ${isLight ? 'bg-[#ded7cf]' : 'bg-[#0a0809]'}`}>
                   {Array.from({ length: FILM_HOLE_COUNT }).map((_, h) => (
                     <div
                       key={h}
-                      className="rounded-sm bg-[#1e1a1e]"
+                      className={`rounded-sm ${isLight ? 'bg-[#b9afa4]' : 'bg-[#1e1a1e]'}`}
                       style={{ width: 10, height: 8 }}
                     />
                   ))}
@@ -215,10 +218,10 @@ export function FilmStripLoader({
 
         {/* Reduced-motion fallback: single pulsing frame */}
         {reducedMotion && (
-          <div className="absolute inset-0 flex items-center justify-center bg-[#121012]">
+          <div className={`absolute inset-0 flex items-center justify-center ${isLight ? 'bg-[#f5f0ea]' : 'bg-[#121012]'}`}>
             <div
               className="animate-pulse rounded"
-              style={{ width: FRAME_W, height: FRAME_H, background: '#1a1618' }}
+              style={{ width: FRAME_W, height: FRAME_H, background: isLight ? '#ede7df' : '#1a1618' }}
             >
               <Image
                 src={FRAMES[0].src}

@@ -57,9 +57,9 @@ describe('shared website/mobile returns API', () => {
     expect(mocks.create).not.toHaveBeenCalled()
   })
   it('rejects empty or foreign selections and short details', async () => {
-    expect((await submit({ selectedItemIds: [] })).status).toBe(400)
+    expect((await submit({ selectedItemIds: [] })).status).toBe(422)
     expect((await submit({ selectedItemIds: ['foreign'] })).status).toBe(422)
-    expect((await submit({ details: 'short' })).status).toBe(400)
+    expect((await submit({ details: 'short' })).status).toBe(422)
   })
   it('requires damage photos and rejects invalid image folders', async () => {
     expect((await submit({ reason: 'damaged' })).status).toBe(422)

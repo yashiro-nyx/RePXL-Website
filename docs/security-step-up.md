@@ -275,6 +275,36 @@ longer links to it.
 
 ## Verification and remaining work
 
+### Diagnostic validation — 2026-10-08
+
+The current source was re-audited against the historical `GET
+/api/auth/recent-auth → 403` report. The GET handler does not apply CSRF or
+recent-auth guards: it returns **401** when no customer session is recognized,
+and **200** with `verified: false` or `verified: true` for an authenticated
+customer. The port-3001 issue is limited to security POST origin validation;
+development explicitly permits matching `localhost:3000` and `localhost:3001`
+and still rejects cross-port requests. No additional security code change was
+required in this validation pass.
+
+The focused rerun below passed **105 tests** with **23 database-backed MFA
+tests skipped**. `npx tsc --noEmit`, `npm run build` (68/68 static pages), and
+`git diff --check` passed. No browser or authenticated live-MFA session was
+available in this environment, so enrollment, authenticator confirmation,
+logout/login challenge, and disable remain unverified end to end.
+
+### Live end-to-end verification attempt — 2026-10-08
+
+The environment preflight found `NEXTAUTH_URL`, `NEXT_PUBLIC_SITE_URL`,
+`MFA_ENCRYPTION_KEY`, `DATABASE_URL`, and `NEXTAUTH_SECRET` present locally;
+the MFA key format was valid. `TEST_MFA_DATABASE_URL` was missing, and a
+read-only Prisma `SELECT 1` connectivity check reported the database as
+unavailable. Following the verification safety rules, no live enrollment, QR
+generation, TOTP confirmation, logout/login challenge, or MFA disable mutation
+was started.
+
+Result: live MFA remains **BLOCKED BY ENVIRONMENT**. No credentials, secrets,
+cookies, tokens, schema, migrations, or database records were changed.
+
 - Focused auth/security/MFA/OTP/OAuth tests: **152 passed, 23 skipped** across
   14 files (13 passed, one fully skipped). Route-through-service coverage uses
   real bcrypt, cookies/signatures, QR, AES and TOTP with persistence/provider

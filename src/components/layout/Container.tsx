@@ -7,7 +7,7 @@ interface ContainerProps {
 
 const Container: FC<ContainerProps> = ({ children, className = '' }) => {
   return (
-    <div className={`mx-auto w-full max-w-container px-6 md:px-10 lg:px-16 ${className}`}>
+    <div className={`mx-auto w-full max-w-container px-5 sm:px-6 md:px-10 lg:px-16 ${className}`}>
       {children}
     </div>
   )

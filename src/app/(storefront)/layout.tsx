@@ -1,3 +1,5 @@
+import { FloatingCart } from '@/components/layout/FloatingCart'
+
 /**
  * Storefront layout — pass-through only.
  * Footer is included per-page via the shared Footer/MinimalFooter components.
@@ -8,5 +10,5 @@ export default function StorefrontLayout({
 }: {
   children: React.ReactNode
 }) {
-  return <>{children}</>
+  return <>{children}<FloatingCart /></>
 }

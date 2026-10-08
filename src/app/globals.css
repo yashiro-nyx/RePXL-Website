@@ -17,6 +17,14 @@
     --color-red-hover: #a82525;
     --color-success: #5A6E4E;
     --color-warning: #C98A2B;
+    /* Shared surface system: the camera imagery carries the drama; UI surfaces
+       stay quiet, legible, and deliberately layered. */
+    --surface-raised: #1b171f;
+    --surface-inset: #0f0d11;
+    --control-height: 2.75rem;
+    --focus-ring: rgba(194, 44, 44, 0.55);
+    --navbar-surface: rgb(5 3 3 / 0.82);
+    --shadow-panel: 0 18px 48px rgba(0, 0, 0, 0.22);
     --burn-opacity: 1;
     --grain-opacity: 0.12;
     --grain-blend: overlay;
@@ -35,6 +43,12 @@
     --color-red-hover: #9a2222;
     --color-success: #4a7a3a;
     --color-warning: #b07520;
+    --surface-raised: #ffffff;
+    --surface-inset: #f5f0ea;
+    --control-height: 2.75rem;
+    --focus-ring: rgba(181, 42, 42, 0.45);
+    --navbar-surface: rgb(250 247 242 / 0.82);
+    --shadow-panel: 0 18px 48px rgba(30, 25, 20, 0.10);
     --burn-opacity: 0;
     --grain-opacity: 0.06;
     --grain-blend: multiply;
@@ -66,6 +80,48 @@
     background: transparent;
     color: var(--color-text);
     position: relative;
+    line-height: 1.5;
+  }
+
+  /* Shared vocabulary for storefront surfaces and controls. Components can
+     opt in without replacing their existing page-specific composition. */
+  .repixl-surface {
+    background: var(--color-panel);
+    border: 1px solid var(--color-border);
+    box-shadow: var(--shadow-panel);
+  }
+
+  .repixl-inset {
+    background: var(--surface-inset);
+    border: 1px solid var(--color-border);
+  }
+
+  .repixl-control {
+    min-height: var(--control-height);
+    border: 1px solid var(--color-border-strong);
+    background: var(--surface-inset);
+    color: var(--color-text);
+    transition: border-color 160ms ease, background-color 160ms ease;
+  }
+
+  .repixl-control:hover { border-color: var(--color-text-secondary); }
+  .repixl-control:focus-visible,
+  .repixl-surface :is(a, button, input, select, textarea):focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 2px;
+  }
+
+  .site-header {
+    border-bottom: 1px solid transparent;
+    background-color: var(--navbar-surface);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    transition: background-color 180ms ease, border-color 180ms ease;
+  }
+
+  .site-header:hover,
+  .site-header:focus-within {
+    border-color: var(--color-border);
   }
 
   /* Film grain overlay */

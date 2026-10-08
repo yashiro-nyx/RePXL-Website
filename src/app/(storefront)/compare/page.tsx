@@ -6,7 +6,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { motion } from 'framer-motion'
 import { Container } from '@/components/layout/Container'
-import { Button, ConditionBadge } from '@/components/ui'
+import { Button, ConditionBadge, FeedbackState } from '@/components/ui'
 import { Footer } from '@/components/layout/Footer'
 import { useCompareStore } from '@/stores/compareStore'
 import { useProductStore } from '@/stores/productStore'
@@ -64,10 +64,11 @@ function CompareContent() {
   const storeSlugs = useCompareStore((s) => s.slugs)
   const storeAdd = useCompareStore((s) => s.addToCompare)
   const storeRemove = useCompareStore((s) => s.removeFromCompare)
+  const [productsHydrated, setProductsHydrated] = useState(false)
 
   useEffect(() => {
     useCompareStore.getState().hydrate()
-    useProductStore.getState().hydrate()
+    const productLoad = useProductStore.getState().products.length > 0 ? Promise.resolve() : useProductStore.getState().hydrate()
     useReviewStore.getState().hydrate()
     const current = useCompareStore.getState().slugs
     if (current.length === 0 && paramSlugs.length > 0) {
@@ -77,6 +78,7 @@ function CompareContent() {
         }
       })
     }
+    void productLoad.finally(() => setProductsHydrated(true))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -97,6 +99,8 @@ function CompareContent() {
   }, [pickerOpen])
 
   const allProducts = useProductStore((s) => s.products)
+  const productsLoading = useProductStore((s) => s.loading)
+  const productsError = useProductStore((s) => s.error)
   const activeProducts = useMemo(() => allProducts.filter((p) => p.status === 'active'), [allProducts])
 
   const selectedProducts = useMemo(
@@ -128,6 +132,14 @@ function CompareContent() {
   const sections = useMemo(() => buildSections(getAverageRating), [getAverageRating])
 
   const totalCols = selectedProducts.length + (selectedProducts.length < MAX_COMPARE ? 1 : 0)
+
+  if (!productsHydrated || (productsLoading && allProducts.length === 0)) {
+    return <div className="burn-subtle min-h-screen pb-20 pt-24"><Container><FeedbackState kind="loading" title="Loading cameras to compare" message="Preparing the archive…" /></Container></div>
+  }
+
+  if (productsError) {
+    return <div className="burn-subtle min-h-screen pb-20 pt-24"><Container><FeedbackState kind="error" title="We couldn't load cameras to compare" message="Comparison data is temporarily unavailable. Please try again." action={<Button type="button" variant="primary" size="sm" onClick={() => { void useProductStore.getState().hydrate() }}>Try again</Button>} /></Container></div>
+  }
 
   return (
     <div className="burn-subtle min-h-screen pb-20 pt-24">
@@ -300,7 +312,7 @@ function CompareContent() {
                 <p className="mt-0.5 text-sm text-repixl-text-light/60">Search by name or brand</p>
               </div>
               <button type="button" onClick={() => { setPickerOpen(false); setSearchQuery('') }}
-                className="flex h-8 w-8 items-center justify-center rounded-full text-repixl-muted transition-colors hover:bg-repixl-bg hover:text-repixl-text-light" aria-label="Close picker">
+                className="flex h-11 w-11 items-center justify-center rounded-full text-repixl-muted transition-colors hover:bg-repixl-bg hover:text-repixl-text-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-repixl-red/50" aria-label="Close picker">
                 <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden="true"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg>
               </button>
             </div>
@@ -342,7 +354,7 @@ export default function ComparePage() {
     <>
       <Suspense fallback={
         <div className="burn-subtle min-h-screen pb-20 pt-24">
-          <Container><p className="text-sm text-repixl-muted">Loading…</p></Container>
+          <Container><FeedbackState kind="loading" title="Loading cameras to compare" message="Preparing the archive…" /></Container>
         </div>
       }>
         <CompareContent />

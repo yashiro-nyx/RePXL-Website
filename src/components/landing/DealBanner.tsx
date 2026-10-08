@@ -66,7 +66,7 @@ export function DealBanner() {
         <motion.div
           initial={reducedMotion ? { opacity: 1 } : { opacity: 0, y: 24 }}
           whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: false, margin: '-80px' }}
+          viewport={{ once: true, margin: '-80px' }}
           transition={{ duration: reducedMotion ? 0 : 0.6, ease: [0.22, 1, 0.36, 1] }}
           className="deal-banner relative min-h-[48rem] overflow-hidden rounded-xl border min-[360px]:min-h-[44rem] md:min-h-[34rem]"
         >

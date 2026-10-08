@@ -148,7 +148,7 @@ export default function AccountShell({ children }: { children: React.ReactNode }
                 <div className="border-b border-repixl-muted/10 px-3 py-2">
                   <Link
                     href="/account/profile"
-                    className="flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs text-repixl-muted transition-colors hover:bg-repixl-bg hover:text-repixl-text-light"
+                    className="flex min-h-11 items-center gap-2 rounded-lg px-3 py-1.5 text-xs text-repixl-muted transition-colors hover:bg-repixl-bg hover:text-repixl-text-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-repixl-red/50"
                   >
                     <IconUser />
                     Edit Profile
@@ -170,7 +170,7 @@ export default function AccountShell({ children }: { children: React.ReactNode }
                   <button
                     type="button"
                     onClick={() => setMobileNavOpen((v) => !v)}
-                    className="flex w-full items-center justify-between rounded-lg bg-repixl-bg px-3 py-2.5 text-sm text-repixl-text-light"
+                    className="flex min-h-11 w-full items-center justify-between rounded-lg bg-repixl-bg px-3 py-2.5 text-sm text-repixl-text-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-repixl-red/50"
                     aria-expanded={mobileNavOpen}
                     aria-controls="mobile-account-nav"
                   >
@@ -302,7 +302,7 @@ function NavItemRow({
         href={item.href}
         onClick={onNavigate}
         aria-current={isActive ? 'page' : undefined}
-        className={`flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm transition-colors ${
+                className={`flex min-h-11 items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-repixl-red/50 ${
           isActive
             ? 'bg-repixl-red/10 font-medium text-repixl-red'
             : 'text-repixl-text-light/70 hover:bg-repixl-bg hover:text-repixl-text-light'
@@ -338,7 +338,7 @@ function NavItemRow({
                 href={child.href}
                 onClick={onNavigate}
                 aria-current={childActive ? 'page' : undefined}
-                className={`flex items-center gap-2 rounded-md px-2 py-1.5 text-xs transition-colors ${
+                className={`flex min-h-11 items-center gap-2 rounded-md px-2 py-1.5 text-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-repixl-red/50 ${
                   childActive
                     ? 'bg-repixl-red/5 font-medium text-repixl-red'
                     : 'text-repixl-muted hover:bg-repixl-bg hover:text-repixl-text-light'

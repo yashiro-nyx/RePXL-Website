@@ -3,7 +3,7 @@
 import { reportActionFailure } from '@/lib/action-error'
 import { useState, useEffect } from 'react'
 import dynamic from 'next/dynamic'
-import { Button } from '@/components/ui'
+import { Button, FeedbackState } from '@/components/ui'
 import { PhoneInput } from '@/components/ui/PhoneInput'
 import { emptyPHAddress, type PHAddressValue } from '@/components/ui/PHAddressSelect'
 import { useAddressStore, type Address } from '@/stores/addressStore'
@@ -81,7 +81,7 @@ export default function AddressesPanel() {
   }
 
   if (loading) return <AddressesSkeleton />
-  if (loadError) return <p role="alert" className="text-red-400">Unable to load addresses. Please refresh to retry.</p>
+  if (loadError) return <FeedbackState kind="error" title="We couldn't load your addresses" message="Your saved addresses are temporarily unavailable. Please try again." action={<Button type="button" variant="primary" size="sm" onClick={() => { setLoadError(false); setLoading(true); void useAddressStore.getState().hydrate().catch(() => setLoadError(true)).finally(() => setLoading(false)) }}>Try again</Button>} />
 
   const editingAddress = editingId ? addresses.find((a) => a.id === editingId) : undefined
 

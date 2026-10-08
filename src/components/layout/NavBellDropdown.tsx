@@ -128,7 +128,7 @@ export function NavBellDropdown({
         aria-expanded={open}
         aria-haspopup="dialog"
         onClick={handleToggle}
-        className="relative flex h-10 w-10 items-center justify-center rounded-full text-repixl-text-light/80 transition-colors hover:text-repixl-text-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-repixl-red/50"
+        className="relative flex h-11 w-11 items-center justify-center rounded-full text-repixl-text-light/80 transition-colors hover:text-repixl-text-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-repixl-red/50"
       >
         <NotificationIcon icon="update" size={20} />
         {unreadCount > 0 && (

@@ -55,7 +55,7 @@ export function WhyUs() {
           variants={container}
           initial="hidden"
           whileInView="show"
-          viewport={{ once: false, margin: '-60px' }}
+          viewport={{ once: true, margin: '-60px' }}
           className="grid grid-cols-1 gap-10 border-t border-repixl-muted/15 pt-10 sm:grid-cols-3 sm:gap-8"
         >
           {reasons.map((r) => (

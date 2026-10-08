@@ -1,3 +1,17 @@
+# Phase 4 commerce UX note (2026-10-08)
+
+Brand discovery remains text-led and uses the existing catalog camera photography;
+this implementation does not render SVG brand/logo assets.
+
+The sticky result toolbar and sort control also use the shared theme-aware
+control tokens, and the All Cameras icon uses semantic foreground colors so the
+catalog remains readable in both dark and warm light modes.
+
+The catalog keeps its existing real-data filter pipeline and pagination. The
+desktop filter sidebar and result/sort toolbar now remain contextually visible
+while browsing long result sets; mobile continues to use the accessible bottom
+sheet filter drawer. No filter taxonomy or backend behavior changed.
+
 # RePXL — Cameras Catalog (`/products`)
 
 The customer-facing camera catalog: centered brand discovery, a modular filter

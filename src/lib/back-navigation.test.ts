@@ -277,7 +277,7 @@ describe('BackButton component — design, a11y, and history-aware wiring', () =
   })
 
   it('meets a minimum touch-target height and uses themeable design tokens', () => {
-    expect(src).toContain('min-h-[40px]')
+    expect(src).toContain('min-h-11')
     // repixl-* tokens automatically adapt to light theme via globals.css.
     expect(src).toContain('text-repixl-muted')
     expect(src).toContain('bg-repixl-charcoal')

@@ -42,6 +42,7 @@ import { termsContent, privacyContent } from '@/data/legal'
 import type { Product, CartItem } from '@/types'
 import { formatPrice } from '@/lib/format'
 import { usePaymentStore } from '@/stores/paymentStore'
+import { toUserMessage } from '@/lib/errors/client-errors'
 
 // Lazy-load the PH address component — keeps the address dataset out of the
 // initial checkout bundle; it loads only when the form renders.
@@ -520,11 +521,7 @@ function CheckoutFlow() {
       await useCartStore.getState().hydrate()
       router.push(`/checkout/success?order=${encodeURIComponent(res.orderNumber)}`)
     } catch (err) {
-      setPaymentError(
-        err instanceof Error
-          ? err.message
-          : 'We could not confirm your order. Check your order history before trying again.'
-      )
+      setPaymentError(toUserMessage(err, 'SERVER'))
     } finally {
       setSubmitting(false)
     }
@@ -748,6 +745,12 @@ function CheckoutFlow() {
 
         {/* Progress stepper */}
         <CheckoutStepper current={step} canNavigate={canNavigate} onNavigate={handleStepperNavigate} />
+
+        <div aria-label="Checkout assurances" className="mb-8 grid grid-cols-1 gap-2 border-y border-repixl-muted/10 py-3 text-xs text-repixl-muted sm:grid-cols-3 sm:gap-4">
+          <span className="flex items-center gap-2"><span className="text-repixl-success" aria-hidden="true">✓</span> Condition-graded cameras</span>
+          <span className="flex items-center gap-2"><span className="text-repixl-success" aria-hidden="true">✓</span> Secure payment processing</span>
+          <span className="flex items-center gap-2"><span className="text-repixl-success" aria-hidden="true">✓</span> 14-day returns</span>
+        </div>
 
         {/* Mobile collapsible order summary (above the step content) */}
         <div className="mb-6 lg:hidden">

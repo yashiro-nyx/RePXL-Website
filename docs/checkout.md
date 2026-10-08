@@ -1,3 +1,10 @@
+# Phase 4 commerce UX note (2026-10-08)
+
+The existing Information → Shipping → Payment → Review state machine remains the
+source of truth. Checkout now adds a compact assurance row for condition grading,
+secure payment processing, and the documented 14-day return window. This is
+presentational only; payment, order, inventory, and validation logic are unchanged.
+
 # RePXL — Checkout (Multi-Step Flow)
 
 The customer checkout at `/checkout` is a guided four-step flow:

@@ -8,7 +8,7 @@ import { useRouter } from 'next/navigation'
 import { createPortal } from 'react-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Container } from '@/components/layout/Container'
-import { Button, ConditionBadge, LoginRequiredModal } from '@/components/ui'
+import { Button, ConditionBadge, FeedbackState, LoginRequiredModal } from '@/components/ui'
 import { Footer } from '@/components/layout/Footer'
 import { useAuthStore } from '@/stores/authStore'
 import { useCartStore } from '@/stores/cartStore'
@@ -33,20 +33,22 @@ export default function CartPage() {
 
   const isLoggedIn = useAuthStore((s) => s.isLoggedIn)
   const cartItems = useCartStore((s) => s.items)
+  const cartLoading = useCartStore((s) => s.loading)
+  const cartError = useCartStore((s) => s.error)
   const removeFromCart = useCartStore((s) => s.removeFromCart)
   const updateQuantity = useCartStore((s) => s.updateQuantity)
   const clearCart = useCartStore((s) => s.clearCart)
   const allProducts = useProductStore((s) => s.products)
+  const productsLoading = useProductStore((s) => s.loading)
+  const productsError = useProductStore((s) => s.error)
   const validateCode = useVoucherStore((s) => s.validateCode)
   const router = useRouter()
+  const [hydrated, setHydrated] = useState(false)
 
   useEffect(() => {
-    if (useCartStore.getState().items.length === 0) {
-      useCartStore.getState().hydrate()
-    }
-    if (useProductStore.getState().products.length === 0) {
-      useProductStore.getState().hydrate()
-    }
+    const cart = useCartStore.getState().items.length === 0 ? useCartStore.getState().hydrate() : Promise.resolve()
+    const products = useProductStore.getState().products.length === 0 ? useProductStore.getState().hydrate() : Promise.resolve()
+    void Promise.all([cart, products]).finally(() => setHydrated(true))
   }, [])
 
   const resolvedItems = cartItems.map((item) => {
@@ -96,6 +98,14 @@ export default function CartPage() {
   const totalQty = resolvedItems.reduce((s, i) => s + i.quantity, 0)
   const selectedQty = selectedItems.reduce((s, i) => s + i.quantity, 0)
 
+  const retryCart = () => {
+    setHydrated(false)
+    void Promise.all([
+      useCartStore.getState().hydrate(),
+      useProductStore.getState().hydrate(),
+    ]).finally(() => setHydrated(true))
+  }
+
   const handleCheckoutClick = () => {
     if (!isLoggedIn) { setLoginModalOpen(true); return }
     if (noneSelected) return
@@ -128,6 +138,18 @@ export default function CartPage() {
       setPromoError('Unable to validate this code. Please try again.')
     }
 
+  }
+
+  if (!hydrated || cartLoading || (productsLoading && allProducts.length === 0)) {
+    return <div className="burn-subtle min-h-screen pb-20 pt-24"><Container><FeedbackState kind="loading" title="Loading your cart" message="Checking your saved cameras…" /></Container></div>
+  }
+
+  if (cartError || productsError) {
+    return <div className="burn-subtle min-h-screen pb-20 pt-24"><Container><FeedbackState kind="error" title="We couldn't load your cart" message="Your cart is temporarily unavailable. Please try again." action={<Button type="button" variant="primary" size="sm" onClick={retryCart}>Try again</Button>} /></Container></div>
+  }
+
+  if (cartItems.length > 0 && resolvedItems.length === 0) {
+    return <div className="burn-subtle min-h-screen pb-20 pt-24"><Container><FeedbackState kind="empty" title="Those cameras are no longer available" message="The items saved in your cart are no longer in the current collection. Browse cameras to find another option." action={<Link href="/products" className="inline-flex min-h-11 items-center rounded-md bg-repixl-red px-4 text-sm font-medium text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-repixl-red/50">Browse cameras</Link>} /></Container></div>
   }
 
   // ── Empty state ──
@@ -278,27 +300,27 @@ export default function CartPage() {
                               try {
                                 await await updateQuantity(product.slug, quantity - 1)
                               } catch {
-                                reportActionFailure()
+                                reportActionFailure("We couldn't update your cart. Please try again.")
                               }
                             }} disabled={quantity <= 1}
                               aria-label="Decrease quantity"
-                              className="flex h-8 w-8 items-center justify-center text-sm text-repixl-text-light/70 transition-colors hover:text-repixl-text-light disabled:cursor-not-allowed disabled:text-repixl-muted/30">−</button>
+                              className="flex h-11 w-11 items-center justify-center text-sm text-repixl-text-light/70 transition-colors hover:text-repixl-text-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-repixl-red/50 disabled:cursor-not-allowed disabled:text-repixl-muted/30">−</button>
                             <span className="flex h-8 w-9 items-center justify-center border-x border-repixl-muted/20 font-mono text-xs text-repixl-text-light">{quantity}</span>
                             <button type="button" onClick={async () => {
                               try {
                                 await await updateQuantity(product.slug, quantity + 1)
                               } catch {
-                                reportActionFailure()
+                                reportActionFailure("We couldn't update your cart. Please try again.")
                               }
                             }} disabled={quantity >= product.stock}
                               aria-label="Increase quantity"
-                              className="flex h-8 w-8 items-center justify-center text-sm text-repixl-text-light/70 transition-colors hover:text-repixl-text-light disabled:cursor-not-allowed disabled:text-repixl-muted/30">+</button>
+                              className="flex h-11 w-11 items-center justify-center text-sm text-repixl-text-light/70 transition-colors hover:text-repixl-text-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-repixl-red/50 disabled:cursor-not-allowed disabled:text-repixl-muted/30">+</button>
                           </div>
                           <button type="button" onClick={async () => {
                             try {
                               await await removeFromCart(product.slug)
                             } catch {
-                              reportActionFailure()
+                              reportActionFailure("We couldn't remove that camera from your cart. Please try again.")
                             }
                           }}
                             className="font-mono text-[10px] uppercase tracking-wider text-repixl-muted transition-colors hover:text-repixl-red">
@@ -410,7 +432,7 @@ export default function CartPage() {
                   await clearCart()
                   setClearModalOpen(false)
                 } catch {
-                  reportActionFailure()
+                  reportActionFailure("We couldn't clear your cart. Please try again.")
                 }
               }}
                 className="flex-1 rounded-xl bg-repixl-red px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-red-700">

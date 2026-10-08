@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom'
 import Link from 'next/link'
 import { Button } from './Button'
 import { useScrollLock } from '@/hooks/useScrollLock'
+import { useFocusTrap } from '@/hooks/useFocusTrap'
 
 interface LoginRequiredModalProps {
   isOpen: boolean
@@ -13,35 +14,23 @@ interface LoginRequiredModalProps {
 
 export function LoginRequiredModal({ isOpen, onClose }: LoginRequiredModalProps) {
   const overlayRef = useRef<HTMLDivElement>(null)
+  const triggerRef = useRef<HTMLElement | null>(null)
   const [mounted, setMounted] = useState(false)
 
   useEffect(() => { setMounted(true) }, [])
   useScrollLock(isOpen)
 
   useEffect(() => {
+    if (isOpen) triggerRef.current = document.activeElement as HTMLElement | null
+  }, [isOpen])
+
+  useFocusTrap({ active: isOpen && mounted, containerRef: overlayRef, restoreFocusRef: triggerRef })
+
+  useEffect(() => {
     if (!isOpen) return
-
-    const overlay = overlayRef.current
-    if (!overlay) return
-
-    const firstBtn = overlay.querySelector<HTMLElement>('a, button')
-    firstBtn?.focus()
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') { onClose(); return }
-      if (e.key === 'Tab') {
-        const focusables = overlay.querySelectorAll<HTMLElement>('a, button, [tabindex]:not([tabindex="-1"])')
-        const first = focusables[0]
-        const last = focusables[focusables.length - 1]
-        if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last?.focus() }
-        else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first?.focus() }
-      }
-    }
-
+    const handleKeyDown = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
     document.addEventListener('keydown', handleKeyDown)
-    return () => {
-      document.removeEventListener('keydown', handleKeyDown)
-    }
+    return () => document.removeEventListener('keydown', handleKeyDown)
   }, [isOpen, onClose])
 
   if (!isOpen || !mounted) return null
@@ -54,8 +43,8 @@ export function LoginRequiredModal({ isOpen, onClose }: LoginRequiredModalProps)
         <button
           type="button"
           onClick={onClose}
-          aria-label="Close"
-          className="absolute right-3 top-3 flex h-7 w-7 items-center justify-center rounded-full text-repixl-muted hover:bg-repixl-charcoal hover:text-repixl-text-light"
+          aria-label="Close login required dialog"
+          className="absolute right-3 top-3 flex h-11 w-11 items-center justify-center rounded-full text-repixl-muted hover:bg-repixl-charcoal hover:text-repixl-text-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-repixl-red/50"
         >
           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M18 6 6 18" /><path d="m6 6 12 12" />

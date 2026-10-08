@@ -8,6 +8,7 @@ import { productService } from '@/lib/data/productService'
 interface ProductState {
   products: Product[]
   loading: boolean
+  error: boolean
   addProduct: (product: Product) => Promise<void>
   updateProduct: (slug: string, updates: Partial<Product>) => Promise<void>
   deleteProduct: (slug: string) => Promise<void>
@@ -31,6 +32,7 @@ let hydrateInFlight: Promise<void> | null = null
 export const useProductStore = create<ProductState>((set, get) => ({
   products: [],
   loading: false,
+  error: false,
 
   addProduct: async (product) => {
     const created = await productService.create(product)
@@ -53,14 +55,14 @@ export const useProductStore = create<ProductState>((set, get) => ({
     // If a fetch is already in flight, all callers share it — no duplicate requests.
     if (hydrateInFlight) return hydrateInFlight
 
-    set({ loading: true })
+    set({ loading: true, error: false })
     hydrateInFlight = productService
       .listActive()
       .then((products) => {
         set({ products })
       })
       .catch(() => {
-        set({ products: [] })
+        set({ products: [], error: true })
         reportActionFailure()
       })
       .finally(() => {

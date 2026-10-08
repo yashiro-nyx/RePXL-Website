@@ -140,7 +140,7 @@ export function FeaturedCarousel() {
             onClick={goPrev}
             disabled={!canPrev}
             aria-label="Previous cameras"
-            className="flex h-10 w-10 items-center justify-center border border-repixl-muted/30 text-repixl-text-light/70 transition-all hover:border-repixl-muted/60 hover:text-repixl-text-light disabled:cursor-not-allowed disabled:opacity-20"
+            className="flex h-11 w-11 items-center justify-center border border-repixl-muted/30 text-repixl-text-light/70 transition-all hover:border-repixl-muted/60 hover:text-repixl-text-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-repixl-red/50 disabled:cursor-not-allowed disabled:opacity-20"
           >
             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6" /></svg>
           </button>
@@ -152,7 +152,7 @@ export function FeaturedCarousel() {
             onClick={goNext}
             disabled={!canNext}
             aria-label="Next cameras"
-            className="flex h-10 w-10 items-center justify-center border border-repixl-muted/30 text-repixl-text-light/70 transition-all hover:border-repixl-muted/60 hover:text-repixl-text-light disabled:cursor-not-allowed disabled:opacity-20"
+            className="flex h-11 w-11 items-center justify-center border border-repixl-muted/30 text-repixl-text-light/70 transition-all hover:border-repixl-muted/60 hover:text-repixl-text-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-repixl-red/50 disabled:cursor-not-allowed disabled:opacity-20"
           >
             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6" /></svg>
           </button>

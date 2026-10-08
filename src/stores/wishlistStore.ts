@@ -5,6 +5,8 @@ import { wishlistService } from '@/lib/data/wishlistService'
 import { useToastStore } from './toastStore'
 interface WishlistState {
   slugs: string[]
+  loading: boolean
+  error: boolean
   addToWishlist: (slug: string) => Promise<void>
   removeFromWishlist: (slug: string) => Promise<void>
   isInWishlist: (slug: string) => boolean
@@ -22,6 +24,8 @@ export const useWishlistStore = create<WishlistState>((set, get) => {
   }
   return {
     slugs: [],
+    loading: false,
+    error: false,
     addToWishlist: (slug) =>
       mutate((owner) => wishlistService.add(owner, slug)),
     removeFromWishlist: (slug) =>
@@ -30,14 +34,15 @@ export const useWishlistStore = create<WishlistState>((set, get) => {
     hydrate: () => {
       if (wishlistHydrateInFlight) return wishlistHydrateInFlight
       const owner = email()
+      set({ loading: true, error: false })
       wishlistHydrateInFlight = wishlistService
         .list(owner)
         .then((slugs) => {
-          if (owner === email()) set({ slugs })
+          if (owner === email()) set({ slugs, error: false })
         })
         .catch(() => {
           if (owner === email()) {
-            set({ slugs: [] })
+            set({ slugs: [], error: true })
             useToastStore
               .getState()
               .addToast(
@@ -47,6 +52,7 @@ export const useWishlistStore = create<WishlistState>((set, get) => {
           }
         })
         .finally(() => {
+          set({ loading: false })
           wishlistHydrateInFlight = null
         })
       return wishlistHydrateInFlight
@@ -55,5 +61,5 @@ export const useWishlistStore = create<WishlistState>((set, get) => {
 })
 useAuthStore.subscribe((state, previous) => {
   if (state.userEmail !== previous.userEmail)
-    useWishlistStore.setState({ slugs: [] })
+    useWishlistStore.setState({ slugs: [], error: false })
 })

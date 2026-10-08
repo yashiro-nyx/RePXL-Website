@@ -7,6 +7,7 @@ import { useToastStore } from './toastStore'
 
 interface CartState {
   items: CartItem[]
+  loading: boolean
   error: string | null
   addToCart: (slug: string, quantity?: number) => Promise<void>
   updateQuantity: (slug: string, newQty: number) => Promise<void>
@@ -28,6 +29,7 @@ export const useCartStore = create<CartState>((set, get) => {
   }
   return {
     items: [],
+    loading: false,
     error: null,
     addToCart: (slug, quantity = 1) =>
       mutate(async (owner) => {
@@ -48,6 +50,7 @@ export const useCartStore = create<CartState>((set, get) => {
     hydrate: () => {
       if (cartHydrateInFlight) return cartHydrateInFlight
       const owner = email()
+      set({ loading: true, error: null })
       cartHydrateInFlight = cartService
         .list(owner)
         .then((items) => {
@@ -65,6 +68,7 @@ export const useCartStore = create<CartState>((set, get) => {
           }
         })
         .finally(() => {
+          set({ loading: false })
           cartHydrateInFlight = null
         })
       return cartHydrateInFlight
