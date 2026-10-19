@@ -33,10 +33,16 @@ function generateOrderNumber(): string {
 }
 
 function siteUrl(): string {
-  const raw =
+  const raw = (
     process.env.NEXT_PUBLIC_SITE_URL ??
     (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000')
-  return raw.replace(/\/+$/, '')
+  )
+    .trim()
+    .replace(/\/+$/, '')
+  if (raw && !/^https?:\/\//i.test(raw)) {
+    return `https://${raw}`
+  }
+  return raw || 'http://localhost:3000'
 }
 
 export async function POST(request: NextRequest) {
@@ -165,7 +171,7 @@ export async function POST(request: NextRequest) {
         })
 
         return newOrder
-      })
+      }, { maxWait: 10_000, timeout: 30_000 })
 
       // Non-blocking acknowledgement notification to customer
       emitNotification({
@@ -398,7 +404,17 @@ export async function POST(request: NextRequest) {
           data: { paymentReference: paidPaymentId },
         })?.catch(() => {})
       }
-      await finalizePaidOrder(order.orderNumber)
+      try {
+        await finalizePaidOrder(order.orderNumber)
+      } catch (finErr) {
+        if (finErr instanceof InsufficientStockError) {
+          throw finErr
+        }
+        console.error(
+          `[process-payment] finalizePaidOrder failed after payment succeeded for ${order.orderNumber} (will reconcile on verify/order poll):`,
+          finErr
+        )
+      }
       return successResponse({
         success: true,
         orderNumber: order.orderNumber,

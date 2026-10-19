@@ -529,4 +529,63 @@ describe('POST /api/checkout/process-payment', () => {
     expect(json.success).toBe(false)
     expect(json.error).toBe('Your card was declined.')
   })
+
+  it('still returns 200 PAID if finalizePaidOrder hits a transient DB timeout after PayMongo capture succeeds', async () => {
+    vi.spyOn(paymongoLib, 'isPaymongoConfigured').mockReturnValue(true)
+    vi.spyOn(paymongoLib, 'createPaymentIntent').mockResolvedValue({
+      id: 'pi_paid_timeout_1',
+      attributes: {
+        status: 'awaiting_payment_method',
+        amount: 865000,
+        currency: 'PHP',
+        client_key: 'pi_paid_timeout_1_client_key',
+      },
+    })
+    vi.spyOn(paymongoLib, 'createPaymentMethod').mockResolvedValue({
+      id: 'pm_card_paid_timeout_1',
+      type: 'card',
+    })
+    vi.spyOn(paymongoLib, 'attachPaymentMethod').mockResolvedValue({
+      id: 'pi_paid_timeout_1',
+      attributes: {
+        status: 'succeeded',
+        amount: 865000,
+        currency: 'PHP',
+        client_key: 'pi_paid_timeout_1_client_key',
+        payments: [{ id: 'pay_captured_123', attributes: { status: 'paid' } }],
+      },
+    })
+    vi.spyOn(purchaseFinalization, 'finalizePaidOrder').mockRejectedValueOnce(
+      new Error('PrismaClientKnownRequestError: P2028: Transaction already closed')
+    )
+
+    const req = new NextRequest('http://localhost:3000/api/checkout/process-payment', {
+      method: 'POST',
+      body: JSON.stringify({
+        fullName: 'Buyer Customer',
+        address: '123 Main St',
+        city: 'Manila',
+        province: 'Metro Manila',
+        postalCode: '1000',
+        courierName: 'J&T Express',
+        courierEstimate: '2-3 days',
+        paymentMethod: 'Credit / Debit Card',
+        shippingCost: 150,
+        selectedProductIds: ['canon-ixy-930-is'],
+        card: {
+          cardNumber: '4343434343434345',
+          expMonth: 12,
+          expYear: 2028,
+          cvc: '123',
+        },
+      }),
+    })
+
+    const res = await POST(req)
+    expect(res.status).toBe(200)
+    const json = await res.json()
+    expect(json.success).toBe(true)
+    expect(json.data.isPaid).toBe(true)
+    expect(json.data.status).toBe('PAID')
+  })
 })

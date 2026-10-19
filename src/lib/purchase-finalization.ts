@@ -79,7 +79,7 @@ export async function finalizePaidOrder(orderNumber: string) {
       })
     }
     return order
-  })
+  }, { maxWait: 10_000, timeout: 30_000 })
   if (!order) return false
   // Non-blocking: notification + email — failures do NOT roll back the order
   await emitNotification({
