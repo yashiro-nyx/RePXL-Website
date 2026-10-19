@@ -436,7 +436,7 @@ export async function checkPaymongoPaymentStatus(ids: {
 
       return { isPaid: false, status: intent.attributes?.status || 'pending' }
     } catch (err) {
-      console.warn(`[paymongo] Failed to retrieve intent ${paymentIntentId}:`, err)
+      console.warn(`[paymongo] Failed to retrieve intent ${resolvedIntentId}:`, err)
       return { isPaid: false, status: 'error' }
     }
   }

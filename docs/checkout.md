@@ -219,3 +219,10 @@ PayMongo rejects non-PayMongo test numbers (such as `1234 5678 9012 3456`, `4343
 - **Non-3DS Card (Immediate Paid):** `4343 4343 4343 4345`
 - **3D Secure (3DS) Visa:** `4111 1111 1111 1111` or `4408 0400 0000 0041`
 - **3D Secure (3DS) Mastercard:** `5555 5555 5555 4444`
+
+### Live PayMongo API Verification (2026-10-19)
+Executed live end-to-end tests against `src/lib/paymongo.ts` using `node --env-file=.env`:
+- **Non-3DS Visa (`4343 4343 4343 4345`, `12/29`, CVC `123`):** `createPaymentIntent` → `createPaymentMethod` → `attachPaymentMethod` returned `status: "succeeded"` with a captured `pay_...` payment ID; `checkPaymongoPaymentStatus({ paymentSessionId: pi.id })` and `checkPaymongoPaymentStatus({ paymentIntentId: pi.id })` both returned `{"isPaid":true,"status":"succeeded","paymentId":"pay_..."}` without hitting `/checkout_sessions/pi_...`.
+- **3DS Visa (`4111 1111 1111 1111`, `12/29`, CVC `123`):** `attachPaymentMethod` returned `status: "awaiting_next_action"` with a valid 3DS `next_action.redirect.url`, and `checkPaymongoPaymentStatus({ paymentSessionId: pi.id })` returned `{"isPaid":false,"status":"awaiting_next_action"}`.
+- **Invalid / Non-PayMongo / Expired Cards (`1234 5678 9012 3456`, `4000 0000 0000 0002`, and `4343 4343 4343 4345` with `01/24`):** Rejected at `createPaymentMethod` before any database order is created, returning `details.card_number format is invalid.`, `Please use PayMongo test cards only...`, and `details.exp_year must be at least this year...` (which `POST /api/checkout/process-payment` translates into customer-safe messages).
+- **Limitations:** `node_modules` is not currently installed in the local workspace (`Test-Path node_modules` is `False`), so `npx tsc --noEmit`, `npx vitest run`, `npm run build`, and a live local Next.js browser checkout click-through were not run in this environment.
