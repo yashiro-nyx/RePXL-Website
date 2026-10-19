@@ -58,6 +58,60 @@ refreshed native build remain pending.
 
 ## Development commands
 
+### Standalone APK rebuild (2026-10-19)
+
+Completed the requested EAS Android rebuild using the existing `preview` profile,
+which produces a standalone APK for `com.repxl.mobile`. Restored 655 packages
+with `npm.cmd ci --no-audit --no-fund`; no application, dependency, lockfile, or
+EAS configuration changes were made.
+
+Verification from this directory:
+
+- `npm.cmd run typecheck`: passed (exit 0).
+- `npx.cmd expo export --platform android --output-dir .expo/eas-rebuild-2026-10-19`:
+  passed (exit 0, 1,543 modules). This is an ignored Hermes bundle export, not an APK.
+- `npx.cmd expo install --check`: failed (exit 1), reporting newer recommended
+  patches for `expo`, `expo-constants`, `expo-dev-client`, `expo-linking`,
+  `expo-notifications`, `expo-router`, and `expo-splash-screen`. The existing
+  lockfile was preserved for this rebuild.
+- Expo device login completed successfully as `vaelarr` after the initial
+  `whoami` check reported `Not logged in`.
+
+Submitted from this directory with:
+
+```powershell
+npx.cmd --yes eas-cli build --platform android --profile preview --non-interactive --no-wait
+```
+
+Upload (101.7 MB) and fingerprinting succeeded. EAS reused the existing remote
+Android signing credentials. [Build fb9514ba](https://expo.dev/accounts/vaelarr/projects/repxl/builds/fb9514ba-55e4-470a-8ffa-9346f5831ccf)
+finished successfully (`FINISHED`, 2026-10-19 at 19:23 Philippine time), profile `preview`, package
+`com.repxl.mobile`, SDK 57, app version 1.0.0, version code 1, source commit
+`538ff62c1802dced3bd5775d08128e9900b1b72c`. No plain-text/sensitive preview
+environment variables were reported by EAS; the app retains its hosted API fallback
+in source.
+
+Artifact: [download the standalone APK](https://expo.dev/artifacts/eas/3BKGKPNsFMlVuAebXUwOu0qId8US13kDniiLmgktnxk.apk).
+A complete local copy is saved at
+`.expo/eas-rebuild-2026-10-19/RePXL-preview-2026-10-19.apk` (133,400,465 bytes,
+ignored by Git). Download used `curl.exe --location --fail`; the `.partial` file
+was renamed only after a successful download.
+
+Artifact checks (Android SDK build-tools 35.0.0):
+
+- `aapt.exe dump badging`: passed (exit 0); label `RePXL`, package
+  `com.repxl.mobile`, version 1.0.0/code 1, minimum API 24, target API 36,
+  architectures `arm64-v8a`, `armeabi-v7a`, `x86`, and `x86_64`.
+- `apksigner.jar verify --verbose --print-certs`: passed (exit 0), one signer,
+  APK Signature Scheme v2 verified. Used Android Studio's bundled Java runtime
+  directly because `java`/`JAVA_HOME` were unavailable in the shell.
+- `Get-FileHash -Algorithm SHA256`: passed; APK SHA-256:
+  `8C254F9EA81108EA0DF60A0288A80580CF79B111B71CC968E8D15BE8E2DDB20F`.
+
+Device installation/runtime, payment-return/provider journeys, and store acceptance
+remain unverified. Vitest and root `npm run build` were not rerun: no application logic
+changed, and the separate Next.js build does not compile the native app.
+
 ### Startup diagnostic (2026-10-01)
 
 The installed app dependencies passed `npx.cmd expo install --check` and all

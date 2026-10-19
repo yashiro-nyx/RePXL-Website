@@ -167,6 +167,28 @@ _Maintained per the documentation-synchronization rule in [`AGENTS.md`](../AGENT
 
 ### Verification snapshot (latest documentation audit)
 
+- [x] **Standalone APK rebuild preflight (2026-10-19):** restored 655 mobile
+  packages from the unchanged lockfile; `npm.cmd run typecheck` passed (exit 0);
+  Android production export passed (exit 0, **1,543 modules**) in ignored
+  `.expo/eas-rebuild-2026-10-19`. `npx.cmd expo install --check` failed (exit 1),
+  identifying seven packages with newer recommended SDK 57 patches. No source,
+  dependency, or EAS configuration changes; Vitest and root Next.js build were
+  not rerun because this task only rebuilds the separate native app.
+- [x] **Requested EAS APK rebuild (2026-10-19):** Expo login completed as
+  `vaelarr`; existing `preview` profile and remote Android signing credentials
+  reused. Upload (101.7 MB) and fingerprinting succeeded;
+  [build fb9514ba](https://expo.dev/accounts/vaelarr/projects/repxl/builds/fb9514ba-55e4-470a-8ffa-9346f5831ccf)
+  is `FINISHED`, package `com.repxl.mobile`, SDK 57, app version 1.0.0, version
+  code 1, source commit `538ff62c1802dced3bd5775d08128e9900b1b72c`.
+- [x] **APK artifact verification (2026-10-19):** downloaded the complete
+  133,400,465-byte APK to ignored `.expo/eas-rebuild-2026-10-19/` under
+  `react-native/`. Android SDK `aapt` passed (exit 0): correct RePXL package,
+  version 1.0.0/code 1, minimum API 24, target API 36, four Android architectures.
+  `apksigner` passed (exit 0): one signer, APK Signature Scheme v2 verified.
+  SHA-256 recorded in [mobile rebuild notes](../react-native/README.md#standalone-apk-rebuild-2026-10-19).
+- [ ] **Device acceptance (2026-10-19):** installation/runtime, payment-return/
+  provider journeys, and store acceptance remain unverified for this APK.
+
 - **Requested standalone APK rebuild (2026-10-01):** EAS preview build
   `37422cf1-4fb7-452e-a0cd-41761aa351d6` uploaded and submitted successfully;
   last checked cloud status `IN_PROGRESS`, package `com.repxl.mobile`, version

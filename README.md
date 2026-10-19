@@ -164,9 +164,14 @@ For an Expo-style development launcher versus a standalone APK, see the
 The supplied EAS build was confirmed as a completed RePXL development client;
 completed preview APKs also exist, while the reported parsing failure remains
 unverified pending artifact and device details.
-A fresh [standalone preview build](https://expo.dev/accounts/vaelarr/projects/repxl/builds/37422cf1-4fb7-452e-a0cd-41761aa351d6)
-was submitted on 2026-10-01; its last checked status was `IN_PROGRESS`, with
-device installation still pending.
+The [2026-10-19 standalone APK rebuild](./react-native/README.md#standalone-apk-rebuild-2026-10-19)
+has passed mobile TypeScript and Android production bundling (1,543 modules).
+[EAS preview build fb9514ba](https://expo.dev/accounts/vaelarr/projects/repxl/builds/fb9514ba-55e4-470a-8ffa-9346f5831ccf)
+finished successfully; the [APK is available to download](https://expo.dev/artifacts/eas/3BKGKPNsFMlVuAebXUwOu0qId8US13kDniiLmgktnxk.apk).
+Downloaded APK package metadata and signature verification passed. The compatibility
+check still flags seven packages with newer recommended SDK 57 patches; dependencies
+remain at their existing lockfile versions. Device installation/runtime remains
+unverified.
 
 For the Expo development-client install error involving
 `autoAddConfigPlugins.js`, see the [mobile CLI recovery steps](./react-native/README.md#recovery-after-expo-installs-the-development-client).

@@ -91,6 +91,18 @@ not verify signing, store acceptance, or successful release. Rebuild native
 binaries when dependencies/plugins such as camera or image picker change, and
 deploy corresponding backend contracts/migrations alongside mobile changes.
 
+The requested **2026-10-19 standalone APK rebuild** uses the existing `preview`
+profile. Mobile TypeScript and Android production export passed (1,543 modules).
+[EAS build fb9514ba](https://expo.dev/accounts/vaelarr/projects/repxl/builds/fb9514ba-55e4-470a-8ffa-9346f5831ccf)
+finished successfully; existing remote signing credentials were reused. The APK
+was downloaded, package metadata checked, and its v2 signature verified with
+Android SDK tools (minimum API 24, target API 36, version 1.0.0/code 1). The dependency
+compatibility check reported seven packages with newer recommended SDK 57 patches;
+the existing lockfile is unchanged. Device installation/runtime, provider journeys,
+and store acceptance remain pending. Artifact links, checksum, commands, and results are recorded in the
+[mobile rebuild notes](../react-native/README.md#standalone-apk-rebuild-2026-10-19).
+Vitest and the root website build were not rerun for this build-only request.
+
 ## Acceptance and verification
 
 The release candidate must pass device journeys for registration/login/Google/MFA,
