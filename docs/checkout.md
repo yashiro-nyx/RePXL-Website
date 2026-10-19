@@ -221,9 +221,95 @@ PayMongo rejects non-PayMongo test numbers (such as `1234 5678 9012 3456`, `4343
 - **3D Secure (3DS) Mastercard:** `5555 5555 5555 4444`
 
 ### Live PayMongo API Verification (2026-10-19)
-Executed live end-to-end tests against `src/lib/paymongo.ts` using `node --env-file=.env`:
+Executed gateway-level tests against `src/lib/paymongo.ts` using `node --env-file=.env` (website order/browser verification is recorded separately in section 11):
 - **Non-3DS Visa (`4343 4343 4343 4345`, `12/29`, CVC `123`):** `createPaymentIntent` → `createPaymentMethod` → `attachPaymentMethod` returned `status: "succeeded"` with a captured `pay_...` payment ID; `checkPaymongoPaymentStatus({ paymentSessionId: pi.id })` and `checkPaymongoPaymentStatus({ paymentIntentId: pi.id })` both returned `{"isPaid":true,"status":"succeeded","paymentId":"pay_..."}` without hitting `/checkout_sessions/pi_...`.
 - **3DS Visa (`4111 1111 1111 1111`, `12/29`, CVC `123`):** `attachPaymentMethod` returned `status: "awaiting_next_action"` with a valid 3DS `next_action.redirect.url`, and `checkPaymongoPaymentStatus({ paymentSessionId: pi.id })` returned `{"isPaid":false,"status":"awaiting_next_action"}`.
 - **Invalid / Non-PayMongo / Expired Cards (`1234 5678 9012 3456`, `4000 0000 0000 0002`, and `4343 4343 4343 4345` with `01/24`):** Rejected at `createPaymentMethod` before any database order is created, returning `details.card_number format is invalid.`, `Please use PayMongo test cards only...`, and `details.exp_year must be at least this year...` (which `POST /api/checkout/process-payment` translates into customer-safe messages).
 - **Post-capture `finalizePaidOrder` transaction timeout (`P2028`) & resilience (`src/lib/purchase-finalization.ts`, `src/app/api/checkout/process-payment/route.ts`):** Added `{ maxWait: 10_000, timeout: 30_000 }` to interactive `prisma.$transaction` calls in `finalizePaidOrder` and the COD order creation flow so multi-item carts over the remote Supabase connection pooler do not hit Prisma's 5-second default timeout (`P2028`), wrapped post-capture `finalizePaidOrder` in `POST /api/checkout/process-payment` in `try/catch` (re-throwing only `InsufficientStockError`) so transient DB timeouts after `attachedStatus === 'succeeded'` still return `200 PAID` and let `/checkout/success` (`POST /api/checkout/verify` / `GET /api/orders/[orderNumber]`) reconcile the order, and normalized `siteUrl()` to always include `http://` or `https://`.
-- **Limitations:** `node_modules` is not currently installed in the local workspace (`Test-Path node_modules` is `False`), so `npx tsc --noEmit`, `npx vitest run`, and `npm run build` were not run locally in this environment.
+- **Build, TypeScript & Test Verification:** Restored `package.json` and `package-lock.json` to `tailwindcss@3.4.13`, `next@15.5.25`, and `eslint-config-next@15.5.25` (reverting the accidental Tailwind v4 upgrade in `9bd798c` that broke PostCSS on Vercel) and added an ambient declaration in `src/types/expo-secure-store.d.ts` so root TypeScript checks succeed when `react-native/node_modules` is absent on Vercel CI. Verified with `npx tsc --noEmit` (clean, exit 0), `npx vitest run src/lib/paymongo-process-payment.test.ts src/lib/paymongo-verify.test.ts src/lib/checkout-steps.test.ts src/components/checkout/checkout-flow.test.ts` (**50/50 passed** across 4 test files), and `npm run build` (exit 0, 68/68 static pages).
+
+---
+
+## 11. Card payment simulation audit (2026-10-19)
+
+### Repeatable real sandbox check
+
+Run `npm run test:paymongo` from the repository root after installing dependencies
+using Node 24 (the version used in this audit; the command uses `--env-file`).
+It loads `.env` and runs `scripts/test-paymongo-cards.ts` using the existing
+application client in `src/lib/paymongo.ts`. A missing or non-`sk_test_` secret
+stops execution before any network call. The live-key refusal was also exercised
+with a dummy live-prefixed value and passed.
+
+This runner makes real calls to PayMongo's test API with a PHP 100.00 intent
+and a future expiry, and logs no credentials, client keys, CVCs or full card
+numbers. It creates sandbox gateway records, but does not create website orders
+or write to the application database. **9/9 scenarios passed:**
+
+| Scenario | Test card/input | Observed result |
+|---|---|---|
+| Immediate Visa capture | `4343 4343 4343 4345` | `succeeded`, `pay_` reference; both intent-ID and session-ID verification return paid |
+| Mastercard 3DS handoff | `5555 5555 5555 4444` | HTTPS authentication URL; unpaid before authorization |
+| Visa 3DS handoff | `4120 0000 0000 0007` | HTTPS authentication URL; unpaid before authorization |
+| Expired-card decline | `4200 0000 0000 0018` | Attach rejected; intent remains unpaid / `awaiting_payment_method` |
+| CVC decline | `4300 0000 0000 0017` | Attach rejected; intent remains unpaid / `awaiting_payment_method` |
+| Insufficient funds | `5100 0000 0000 0198` | Attach rejected; intent remains unpaid / `awaiting_payment_method` |
+| Invalid card number | `1234 5678 9012 3456` | Rejected during payment-method creation |
+| Expired input | Immediate-capture Visa with expiry year 2020 | Rejected during payment-method creation |
+| Short CVC | Immediate-capture Visa with two-digit CVC | Rejected during payment-method creation |
+
+The actual gateway can reject a declined attach as an HTTP error; it need not
+return a successful attach response with `awaiting_payment_method`. The runner
+accepts the expected decline reason and then independently verifies the intent
+is unpaid. Unexpected errors still fail the scenario.
+
+The [current PayMongo testing guide](https://docs.paymongo.com/docs/payment-acceptance-testing)
+was checked for the test cases. Its listed immediate Mastercard number
+`5123 0000 0000 0002` was rejected by the current API as an invalid card number.
+It is not treated as a successful Mastercard test. The accepted Mastercard
+above was verified to require 3DS. The older Visa `4111 1111 1111 1111` was
+accepted for payment-method creation, but this audit uses `4120…0007` for 3DS.
+
+### Website and database checks
+
+Browser checks use a temporary customer with a saved Manila address lacking
+PSGC codes, a private INACTIVE PHP 100.00 product and a one-item cart. The
+browser's catalog response alone includes that private product, so it does not
+appear in the public active catalog. Authentication, checkout requests, payment
+requests, orders, verification and database finalization are real. Test orders
+total PHP 106.00 including J&T shipping.
+
+- Immediate Visa: the four checkout steps reach **Payment Successful**; the DB
+  order is PAID with a `pay_` reference, stock decreases by one and the cart is
+  cleared. Two repeat verification calls leave stock and notification count
+  unchanged.
+- Expired-card, CVC and insufficient-funds declines: the Review step displays the
+  specific safe message, the order is FAILED/CANCELLED, stock is unchanged and
+  the cart is retained. The alert contains no raw provider paths or stack traces.
+- Further browser outcomes are recorded after the current run completes.
+
+The browser driver must wait for cart/catalog hydration before advancing steps.
+An initial attempt that submitted before data was ready received the safe
+"Select at least one item" validation message; it did not exercise a gateway
+decline and is not counted as a successful payment scenario.
+
+### Build and regression verification
+
+- Focused Vitest run: **99 passed across 7 files** — PayMongo process-payment,
+  status verification, refunds, checkout steps/structure, order payment guards
+  and payment expiry.
+- `npx tsc --noEmit`: **passed** on the final workspace dependency/type state.
+- The new sandbox runner also passes a separate strict TypeScript check (it is
+  outside the root tsconfig's `src`/`prisma` includes).
+- `npm run build`: **passed**, including **68/68 static pages**. An earlier
+  attempt was blocked by missing `expo-secure-store` types; the workspace now
+  includes the ambient declaration described in section 10.
+- Full Vitest suite and isolated `TEST_DATABASE_URL` concurrency suite were
+  not run for this audit. Existing focused tests use mocks; the separate sandbox
+  and browser checks above supply the real-provider evidence.
+
+Remaining limits: PayMongo webhook delivery was not exercised (no local webhook
+secret configured), and production/live-key payments, Gmail inbox rendering,
+mobile checkout and real-bank OTP delivery were not tested. Test-mode records
+remain in the PayMongo dashboard. Application test fixtures are removed after
+each browser run; existing customers, products and inventory are untouched.

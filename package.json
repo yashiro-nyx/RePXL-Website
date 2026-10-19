@@ -11,6 +11,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:stress": "node scripts/stress-test.mjs",
+    "test:paymongo": "node --env-file=.env --import tsx scripts/test-paymongo-cards.ts",
     "postinstall": "prisma generate",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate deploy",

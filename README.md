@@ -8,7 +8,7 @@ Live at: **https://repxlph.vercel.app**
 
 ## Documentation
 
-The `docs/` folder contains seven maintained guides:
+The `docs/` folder contains maintained guides:
 
 | Guide | Covers |
 |---|---|
@@ -18,6 +18,7 @@ The `docs/` folder contains seven maintained guides:
 | [Navigation and support](./docs/customer-experience.md) | Back-navigation rules and website AI Concierge |
 | [Mobile implementation and release](./docs/mobile-app-development-plan.md) | Implemented native workflows and remaining acceptance/release work |
 | [Returns and refunds](./docs/returns.md) | Shared cancellation/return/refund flow and verification limits |
+| [Checkout and card testing](./docs/checkout.md) | Website checkout, PayMongo sandbox scenarios and current verification results |
 | [Project progress checklist](./docs/Group2_ProjectChecklist.md) | Completion status, dated checks and known limitations |
 
 ---
@@ -85,7 +86,8 @@ The `docs/` folder contains seven maintained guides:
 - DB-backed cart per authenticated user
 - Voucher/discount code validation
 - Courier selection (J&T, LBC, Ninja Van, Grab Express)
-- Direct checkout (demo/offline) or PayMongo Hosted Checkout
+- Embedded PayMongo card/GCash payments, with a 3DS redirect when required; demo fallback when PayMongo is unconfigured
+- Repeatable card sandbox checks: `npm run test:paymongo` (requires a test secret in `.env`; refuses live keys)
 - Order confirmation email via Gmail SMTP
 
 ### Admin Dashboard
@@ -127,7 +129,7 @@ The `docs/` folder contains seven maintained guides:
 | Database | PostgreSQL via **Prisma ORM** (Supabase) |
 | Auth | Custom HTTP-only cookie sessions + NextAuth (Google) + mobile bearer sessions; customer MFA (TOTP) |
 | Email | Nodemailer + Gmail SMTP (shared branded email design system) |
-| Payments | PayMongo Hosted Checkout |
+| Payments | PayMongo Payment Intents/Methods (website) and Hosted Checkout (mobile) |
 | Deployment | Vercel |
 | Mobile | Expo SDK 57, Expo Router, React Native, TypeScript, Expo SecureStore |
 
@@ -386,7 +388,8 @@ prisma generate && prisma migrate deploy && next build
 ### Verification snapshot (last audit)
 - `npx tsc --noEmit` — clean
 - `npm run build` — succeeds
-- `npx vitest run` — core backend, security, error handling, returns, checkout, and catalog test suites pass. Live MFA enrollment/login/disable, Gmail rendering, and PayMongo payment remain unverified.
+- Focused payment/checkout regression run — **99/99 passed** across seven files (2026-10-19).
+- `npm run test:paymongo` — **9/9 passed** against the real test API, including capture, 3DS handoffs, declines and invalid input. Browser/order verification and remaining limits are recorded in [checkout testing](./docs/checkout.md#11-card-payment-simulation-audit-2026-10-19). Live MFA enrollment/login/disable and Gmail rendering remain unverified.
 
 For full developer context, see [`HANDOFF.md`](./HANDOFF.md).
 
