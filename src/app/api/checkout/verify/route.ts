@@ -140,7 +140,10 @@ export async function POST(request: NextRequest) {
 
   try {
     await finalizePaidOrder(resolvedOrderNumber)
-    if (verification.paymentId && !order.paymentReference) {
+    if (
+      verification.paymentId &&
+      (!order.paymentReference || order.paymentReference === resolvedOrderNumber)
+    ) {
       await prisma.order
         .update({
           where: { orderNumber: resolvedOrderNumber },

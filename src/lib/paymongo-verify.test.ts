@@ -117,6 +117,30 @@ describe('checkPaymongoPaymentStatus', () => {
     expect(res.paymentId).toBe('pay_pi_direct')
   })
 
+  it('routes pi_ paymentSessionId directly to retrievePaymentIntent without calling /checkout_sessions', async () => {
+    const fetchSpy = vi.spyOn(global, 'fetch').mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        data: {
+          id: 'pi_as_session',
+          attributes: {
+            status: 'succeeded',
+            payments: [{ id: 'pay_from_pi_session', attributes: { status: 'paid' } }],
+          },
+        },
+      }),
+    } as Response)
+
+    const res = await checkPaymongoPaymentStatus({
+      paymentIntentId: 'pi_as_session',
+      paymentSessionId: 'pi_as_session',
+    })
+    expect(res.isPaid).toBe(true)
+    expect(res.paymentId).toBe('pay_from_pi_session')
+    expect(fetchSpy).toHaveBeenCalledTimes(1)
+    expect(fetchSpy.mock.calls[0][0]).toBe('https://api.paymongo.com/v1/payment_intents/pi_as_session')
+  })
+
   it('returns isPaid: false when neither ID is provided', async () => {
     const res = await checkPaymongoPaymentStatus({})
     expect(res).toEqual({ isPaid: false, status: 'none' })

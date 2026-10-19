@@ -197,3 +197,25 @@ logic was **not modified** by this task. A live browser click-through of the ful
 payment flow was **not performed**; the multi-step UI was verified via unit +
 structural tests, type-check, and a production build only. No database
 config/schema/migrations were changed.
+
+---
+
+## 10. Card Payment Testing & Hardening (2026-10-19)
+
+### Fixes applied to card checkout & PayMongo PIPM flow
+- **Saved-address `city`/`province`/`barangay` hydration (`src/app/(storefront)/checkout/page.tsx`):**
+  `defaultAddress` prefill and `applyAddress` now always populate `phAddr.city`, `phAddr.province`, and `phAddr.barangay` even when `regionCode` is empty (e.g., addresses created on mobile or seeded without PSGC codes), and `handleConfirmAndPay` falls back to the selected saved address record so `POST /api/checkout/process-payment` never fails with a missing `city` validation error on the Review step.
+- **Payment method creation before DB order creation (`src/app/api/checkout/process-payment/route.ts`):**
+  `createPaymentMethod` now runs *before* `prisma.order.create`, preventing invalid card numbers/expiry/CVC from leaving orphan `PROCESSING` / `PENDING` orders in the database. Raw PayMongo `details.card_number`, `details.exp_month`/`details.exp_year`, and `details.cvc` error strings are translated into customer-safe messages.
+- **Declined card attach handling (`src/app/api/checkout/process-payment/route.ts`):**
+  When `attachPaymentMethod` returns `status === 'awaiting_payment_method'` (PayMongo's status when a card attach is declined) or `'failed'`, or throws, the order is marked `paymentStatus: 'FAILED'` and `status: 'CANCELLED'` and a 400 error with the decline reason is returned instead of redirecting to `/checkout/success`.
+- **Captured `pay_...` payment reference (`src/app/api/checkout/process-payment/route.ts`, `src/app/api/checkout/verify/route.ts`, `src/app/api/orders/[orderNumber]/route.ts`, `src/app/api/webhooks/paymongo/route.ts`, `src/lib/paymongo.ts`):**
+  Direct non-3DS card payments and post-3DS/webhook verification now replace the placeholder `orderNumber` reference with the actual PayMongo `pay_...` payment ID for downstream refund compatibility, and `checkPaymongoPaymentStatus` skips calling `/v1/checkout_sessions` when `paymentSessionId` is a `pi_` Payment Intent ID.
+- **Card input UX (`src/components/ui/CardExpiryInput.tsx`, `src/components/ui/CardNumberInput.tsx`):**
+  Fixed Backspace across `/` in `CardExpiryInput` (pressing Backspace on `"MM/"` now removes the second month digit instead of re-appending `'/'`) and allowed typing over selected text when inputs are at max length.
+
+### Official PayMongo Test Cards (`sk_test_` mode)
+PayMongo rejects non-PayMongo test numbers (such as `1234 5678 9012 3456`, `4343 4343 4343 4343`, or Stripe's `4242 4242 4242 4242`). Use any future `MM/YY` (e.g., `12/28`) and any 3-digit CVC (`123`):
+- **Non-3DS Card (Immediate Paid):** `4343 4343 4343 4345`
+- **3D Secure (3DS) Visa:** `4111 1111 1111 1111` or `4408 0400 0000 0041`
+- **3D Secure (3DS) Mastercard:** `5555 5555 5555 4444`

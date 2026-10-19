@@ -72,7 +72,10 @@ export async function POST(request: NextRequest) {
         await finalizePaidOrder(orderNumber)
         if (paymentId) {
           await prisma.order.updateMany({
-            where: { orderNumber, paymentReference: null },
+            where: {
+              orderNumber,
+              OR: [{ paymentReference: null }, { paymentReference: orderNumber }],
+            },
             data: { paymentReference: paymentId },
           }).catch(() => {})
         }
@@ -91,7 +94,10 @@ export async function POST(request: NextRequest) {
         await finalizePaidOrder(orderNumber)
         if (paymentId) {
           await prisma.order.updateMany({
-            where: { orderNumber, paymentReference: null },
+            where: {
+              orderNumber,
+              OR: [{ paymentReference: null }, { paymentReference: orderNumber }],
+            },
             data: { paymentReference: paymentId },
           }).catch(() => {})
         }

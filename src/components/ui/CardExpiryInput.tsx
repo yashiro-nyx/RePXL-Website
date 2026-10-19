@@ -40,25 +40,36 @@ export const CardExpiryInput = forwardRef<HTMLInputElement, CardExpiryInputProps
 
       const current = value
       const digits = current.replace(/\D/g, '')
+      const hasSelection = e.currentTarget.selectionStart !== e.currentTarget.selectionEnd
 
-      // Already at 4 raw digits — block more input
-      if (digits.length >= 4) { e.preventDefault() }
+      // Already at 4 raw digits — block more input unless overwriting selection
+      if (!hasSelection && digits.length >= 4) { e.preventDefault() }
     }
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
       const raw = e.target.value
 
+      // If user backspaced the trailing "/" on "MM/", also drop the 2nd month digit
+      // so they aren't trapped by auto-appending "/" again.
+      const backspacedSlash =
+        value.endsWith('/') &&
+        raw === value.slice(0, -1) &&
+        raw.replace(/\D/g, '').length === 2
+
       // Strip everything except digits
       let digits = raw.replace(/\D/g, '').slice(0, 4)
+      if (backspacedSlash) {
+        digits = digits.slice(0, 1)
+      }
 
       if (digits.length === 0) {
         onChange('')
         return
       }
 
-      // Month auto-correction: first digit > 1 → prefix "0"
+      // Month auto-correction: first digit > 1 → prefix "0" (only when typing forward, not backspacing)
       // e.g. user types "9" → treat as "09/"
-      if (digits.length === 1 && parseInt(digits[0], 10) > 1) {
+      if (!backspacedSlash && digits.length === 1 && parseInt(digits[0], 10) > 1) {
         digits = '0' + digits
       }
 

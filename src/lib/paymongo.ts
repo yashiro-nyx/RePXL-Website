@@ -353,11 +353,16 @@ export async function checkPaymongoPaymentStatus(ids: {
   }
 
   const { paymentSessionId, paymentIntentId } = ids
+  const resolvedIntentId =
+    paymentIntentId ||
+    (paymentSessionId && paymentSessionId.startsWith('pi_') ? paymentSessionId : null)
+  const resolvedSessionId =
+    paymentSessionId && !paymentSessionId.startsWith('pi_') ? paymentSessionId : null
 
   // 1. Check Checkout Session first if present
-  if (paymentSessionId) {
+  if (resolvedSessionId) {
     try {
-      const session = await retrieveCheckoutSession(paymentSessionId)
+      const session = await retrieveCheckoutSession(resolvedSessionId)
       const attrs = session.attributes || {}
 
       // Check payments array (PayMongo returns payments: [{ id, attributes: { status: 'paid' } }])
@@ -403,15 +408,15 @@ export async function checkPaymongoPaymentStatus(ids: {
       const sessionStatus = (piStatus || attrs.status || 'pending') as string
       return { isPaid: false, status: sessionStatus }
     } catch (err) {
-      console.warn(`[paymongo] Failed to retrieve session ${paymentSessionId}:`, err)
+      console.warn(`[paymongo] Failed to retrieve session ${resolvedSessionId}:`, err)
       // If session lookup failed, fall through to paymentIntentId check if provided
     }
   }
 
   // 2. Check Payment Intent directly if present
-  if (paymentIntentId) {
+  if (resolvedIntentId) {
     try {
-      const intent = await retrievePaymentIntent(paymentIntentId)
+      const intent = await retrievePaymentIntent(resolvedIntentId)
       const iStatus = (intent.attributes?.status || '').toLowerCase()
       if (iStatus === 'succeeded') {
         const firstPayment = intent.attributes?.payments?.[0]?.id

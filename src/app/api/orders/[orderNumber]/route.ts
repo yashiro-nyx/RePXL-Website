@@ -74,7 +74,10 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
         if (statusResult.isPaid) {
           console.log(`[GET order] Auto-reconciling paid order from PayMongo: ${orderNumber}`)
           await finalizePaidOrder(orderNumber)
-          if (statusResult.paymentId && !activeOrder.paymentReference) {
+          if (
+            statusResult.paymentId &&
+            (!activeOrder.paymentReference || activeOrder.paymentReference === orderNumber)
+          ) {
             await prisma.order.update({
               where: { orderNumber },
               data: { paymentReference: statusResult.paymentId },

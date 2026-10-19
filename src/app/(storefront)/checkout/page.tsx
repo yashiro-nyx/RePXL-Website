@@ -219,19 +219,17 @@ function CheckoutFlow() {
       if (defaultAddress.address) setStreetAddress(defaultAddress.address)
       if (defaultAddress.postalCode) setPostalCode(defaultAddress.postalCode)
       if (defaultAddress.phone) setPhone(defaultAddress.phone)
-      // If the saved address has PSGC codes, populate the cascading dropdowns.
-      // NCR has province='' and provinceCode=regionCode — both are handled correctly.
-      if (defaultAddress.regionCode) {
-        setPhAddr({
-          region: defaultAddress.city ? '' : '', // display name resolved by PHAddressSelect
-          province: defaultAddress.province ?? '',
-          city: defaultAddress.city,
-          barangay: defaultAddress.barangay,
-          regionCode: defaultAddress.regionCode,
-          provinceCode: defaultAddress.provinceCode ?? defaultAddress.regionCode ?? '',
-          cityCode: defaultAddress.cityCode ?? '',
-        })
-      }
+      // Always populate city/province/barangay from the saved address, even if
+      // the address was created on mobile or seeded without PSGC regionCode.
+      setPhAddr({
+        region: '',
+        province: defaultAddress.province ?? '',
+        city: defaultAddress.city ?? '',
+        barangay: defaultAddress.barangay ?? '',
+        regionCode: defaultAddress.regionCode ?? '',
+        provinceCode: defaultAddress.provinceCode ?? defaultAddress.regionCode ?? '',
+        cityCode: defaultAddress.cityCode ?? '',
+      })
       setSelectedAddressId(defaultAddress.id)
     }
     // Pre-select default saved card if one exists
@@ -247,17 +245,15 @@ function CheckoutFlow() {
     setStreetAddress(addr.address)
     setPostalCode(addr.postalCode)
     setPhone(addr.phone)
-    if (addr.regionCode) {
-      setPhAddr({
-        region: '',
-        province: addr.province ?? '',
-        city: addr.city,
-        barangay: addr.barangay,
-        regionCode: addr.regionCode,
-        provinceCode: addr.provinceCode ?? addr.regionCode ?? '',
-        cityCode: addr.cityCode ?? '',
-      })
-    }
+    setPhAddr({
+      region: '',
+      province: addr.province ?? '',
+      city: addr.city ?? '',
+      barangay: addr.barangay ?? '',
+      regionCode: addr.regionCode ?? '',
+      provinceCode: addr.provinceCode ?? addr.regionCode ?? '',
+      cityCode: addr.cityCode ?? '',
+    })
     setSelectedAddressId(addr.id)
   }
 
@@ -475,14 +471,18 @@ function CheckoutFlow() {
         return yy < 100 ? yy + 2000 : yy
       })()
 
+      const selectedAddr = selectedAddressId
+        ? addresses.find((a) => a.id === selectedAddressId)
+        : undefined
+
       const res = await processPayment({
-        fullName,
-        address: streetAddress,
-        barangay: phAddr.barangay,
-        city: phAddr.city,
-        province: phAddr.province,
-        postalCode,
-        phone,
+        fullName: fullName || selectedAddr?.fullName || '',
+        address: streetAddress || selectedAddr?.address || '',
+        barangay: phAddr.barangay || selectedAddr?.barangay || '',
+        city: phAddr.city || selectedAddr?.city || '',
+        province: phAddr.province || selectedAddr?.province || '',
+        postalCode: postalCode || selectedAddr?.postalCode || '',
+        phone: phone || selectedAddr?.phone || '',
         courierName: courier.name,
         courierEstimate: courier.estimate,
         paymentMethod: paymentLabels[paymentMethod],

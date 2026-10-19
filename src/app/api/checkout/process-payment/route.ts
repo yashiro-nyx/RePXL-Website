@@ -276,6 +276,10 @@ export async function POST(request: NextRequest) {
     }
 
     // ── PayMongo PIPM In-App Payment Flow ──────────────────────────────────────
+    if (isCard && !data.card) {
+      return errorResponse('Card details are required for card payments.', 400)
+    }
+
     const pmType = isGcash ? 'gcash' : 'card'
 
     // Create Payment Intent
@@ -287,46 +291,10 @@ export async function POST(request: NextRequest) {
       metadata: { orderNumber, userId: user.id },
     })
 
-    // Create DB Order with PENDING status
-    const order = await prisma.order.create({
-      data: {
-        orderNumber,
-        userId: user.id,
-        status: 'PROCESSING',
-        subtotal,
-        shippingCost: data.shippingCost,
-        discount,
-        total,
-        courierName: data.courierName,
-        courierEstimate: data.courierEstimate,
-        paymentMethod: isGcash ? 'GCash' : 'Credit / Debit Card',
-        paymentStatus: 'PENDING',
-        paymentIntentId: intent.id,
-        paymentSessionId: intent.id,
-        paymentReference: orderNumber,
-        voucherCode,
-        fullName: data.fullName,
-        address: data.address,
-        barangay: data.barangay || '',
-        city: data.city,
-        province: data.province || '',
-        postalCode: data.postalCode,
-        items: {
-          create: cartItems.map((item) => ({
-            productId: item.productId,
-            quantity: item.quantity,
-            price: item.product.price,
-          })),
-        },
-      },
-    })
-
-    // Create PayMongo Payment Method using customer input
+    // Create PayMongo Payment Method BEFORE persisting the DB order so invalid
+    // card numbers/expiry/CVC never leave orphan pending orders in the database.
     let paymentMethodRes
-    if (isCard) {
-      if (!data.card) {
-        return errorResponse('Card details are required for card payments.', 400)
-      }
+    if (isCard && data.card) {
       paymentMethodRes = await createPaymentMethod({
         type: 'card',
         card: {
@@ -362,6 +330,40 @@ export async function POST(request: NextRequest) {
       })
     }
 
+    // Create DB Order with PENDING status now that the payment method is valid
+    const order = await prisma.order.create({
+      data: {
+        orderNumber,
+        userId: user.id,
+        status: 'PROCESSING',
+        subtotal,
+        shippingCost: data.shippingCost,
+        discount,
+        total,
+        courierName: data.courierName,
+        courierEstimate: data.courierEstimate,
+        paymentMethod: isGcash ? 'GCash' : 'Credit / Debit Card',
+        paymentStatus: 'PENDING',
+        paymentIntentId: intent.id,
+        paymentSessionId: intent.id,
+        paymentReference: orderNumber,
+        voucherCode,
+        fullName: data.fullName,
+        address: data.address,
+        barangay: data.barangay || '',
+        city: data.city,
+        province: data.province || '',
+        postalCode: data.postalCode,
+        items: {
+          create: cartItems.map((item) => ({
+            productId: item.productId,
+            quantity: item.quantity,
+            price: item.product.price,
+          })),
+        },
+      },
+    })
+
     let returnUrl =
       data.returnUrl || `${siteUrl()}/checkout/success`
     if (!returnUrl.includes('order=')) {
@@ -370,16 +372,32 @@ export async function POST(request: NextRequest) {
     }
 
     // Attach Payment Method to Payment Intent
-    const attached = await attachPaymentMethod(intent.id, {
-      paymentMethodId: paymentMethodRes.id,
-      clientKey: intent.attributes.client_key,
-      returnUrl,
-    })
+    let attached
+    try {
+      attached = await attachPaymentMethod(intent.id, {
+        paymentMethodId: paymentMethodRes.id,
+        clientKey: intent.attributes.client_key,
+        returnUrl,
+      })
+    } catch (attachErr) {
+      await prisma.order.update?.({
+        where: { id: order.id },
+        data: { paymentStatus: 'FAILED', status: 'CANCELLED' },
+      })?.catch(() => {})
+      throw attachErr
+    }
 
     const attachedStatus = attached.attributes.status
 
     if (attachedStatus === 'succeeded') {
       // Direct payment succeeded (e.g. non-3DS or test mode)
+      const paidPaymentId = attached.attributes.payments?.[0]?.id
+      if (paidPaymentId) {
+        await prisma.order.update?.({
+          where: { id: order.id },
+          data: { paymentReference: paidPaymentId },
+        })?.catch(() => {})
+      }
       await finalizePaidOrder(order.orderNumber)
       return successResponse({
         success: true,
@@ -404,10 +422,14 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    if (attachedStatus === 'failed') {
+    if (attachedStatus === 'failed' || attachedStatus === 'awaiting_payment_method') {
+      await prisma.order.update?.({
+        where: { id: order.id },
+        data: { paymentStatus: 'FAILED', status: 'CANCELLED' },
+      })?.catch(() => {})
       const failReason =
         attached.attributes.last_payment_error?.failed_message ||
-        'Payment could not be processed. Please check your details and try again.'
+        'Your card was declined. Please check your card details or try a different payment method.'
       return errorResponse(failReason, 400)
     }
 
@@ -429,7 +451,17 @@ export async function POST(request: NextRequest) {
     // (e.g. "Your card was declined."); otherwise fall back to a safe message so
     // no gateway/DB/internal text ever reaches the customer.
     const raw = error instanceof Error ? error.message : ''
-    const msg = raw && !looksTechnical(raw) ? raw : 'We couldn’t process your payment. Please check your details and try again.'
+    let safeRaw = raw
+    if (/details\.card_number/i.test(raw)) {
+      safeRaw = 'Invalid card number. Please check your 16-digit card number and try again.'
+    } else if (/details\.exp_month|details\.exp_year/i.test(raw)) {
+      safeRaw = 'Invalid or expired card expiration date. Please check MM/YY and try again.'
+    } else if (/details\.cvc/i.test(raw)) {
+      safeRaw = 'Invalid security code (CVC). Please check your CVC and try again.'
+    }
+    const msg = safeRaw && !looksTechnical(safeRaw)
+      ? safeRaw
+      : 'We couldn’t process your payment. Please check your details and try again.'
     return errorResponse(msg, 400)
   }
 }

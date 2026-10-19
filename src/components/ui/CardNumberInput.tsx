@@ -42,8 +42,9 @@ export const CardNumberInput = forwardRef<HTMLInputElement, CardNumberInputProps
       if (e.ctrlKey || e.metaKey || e.key.length > 1) return
       // Block anything that isn't a digit
       if (!/^\d$/.test(e.key)) { e.preventDefault(); return }
-      // Block if already at 16 raw digits
-      if (value.length >= 16) { e.preventDefault() }
+      const hasSelection = e.currentTarget.selectionStart !== e.currentTarget.selectionEnd
+      // Block if already at 16 raw digits unless overwriting a selection
+      if (!hasSelection && value.length >= 16) { e.preventDefault() }
     }
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {

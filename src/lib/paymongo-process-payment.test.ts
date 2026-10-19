@@ -423,5 +423,110 @@ describe('POST /api/checkout/process-payment', () => {
     const json = await res.json()
     expect(json.success).toBe(false)
     expect(json.error).toBe('Card number is invalid.')
+    // Ensure no orphan order was created when createPaymentMethod failed
+    expect(prisma.order.create).not.toHaveBeenCalled()
+  })
+
+  it('translates raw PayMongo details.card_number error into a customer-safe message', async () => {
+    vi.spyOn(paymongoLib, 'isPaymongoConfigured').mockReturnValue(true)
+    vi.spyOn(paymongoLib, 'createPaymentIntent').mockResolvedValue({
+      id: 'pi_fail_raw',
+      attributes: {
+        status: 'awaiting_payment_method',
+        amount: 865000,
+        currency: 'PHP',
+        client_key: 'pi_fail_raw_client_key',
+      },
+    })
+    vi.spyOn(paymongoLib, 'createPaymentMethod').mockRejectedValue(
+      new Error('details.card_number format is invalid.')
+    )
+
+    const req = new NextRequest('http://localhost:3000/api/checkout/process-payment', {
+      method: 'POST',
+      body: JSON.stringify({
+        fullName: 'Buyer Customer',
+        address: '123 Main St',
+        city: 'Manila',
+        province: 'Metro Manila',
+        postalCode: '1000',
+        courierName: 'J&T Express',
+        courierEstimate: '2-3 days',
+        paymentMethod: 'Credit / Debit Card',
+        shippingCost: 150,
+        selectedProductIds: ['canon-ixy-930-is'],
+        card: {
+          cardNumber: '1234567890123456',
+          expMonth: 12,
+          expYear: 2028,
+          cvc: '123',
+        },
+      }),
+    })
+
+    const res = await POST(req)
+    expect(res.status).toBe(400)
+    const json = await res.json()
+    expect(json.success).toBe(false)
+    expect(json.error).toBe('Invalid card number. Please check your 16-digit card number and try again.')
+    expect(prisma.order.create).not.toHaveBeenCalled()
+  })
+
+  it('returns 400 when attachPaymentMethod returns awaiting_payment_method (declined card)', async () => {
+    vi.spyOn(paymongoLib, 'isPaymongoConfigured').mockReturnValue(true)
+    vi.spyOn(paymongoLib, 'createPaymentIntent').mockResolvedValue({
+      id: 'pi_declined_1',
+      attributes: {
+        status: 'awaiting_payment_method',
+        amount: 865000,
+        currency: 'PHP',
+        client_key: 'pi_declined_1_client_key',
+      },
+    })
+    vi.spyOn(paymongoLib, 'createPaymentMethod').mockResolvedValue({
+      id: 'pm_card_declined_1',
+      type: 'card',
+    })
+    vi.spyOn(paymongoLib, 'attachPaymentMethod').mockResolvedValue({
+      id: 'pi_declined_1',
+      attributes: {
+        status: 'awaiting_payment_method',
+        amount: 865000,
+        currency: 'PHP',
+        client_key: 'pi_declined_1_client_key',
+        last_payment_error: {
+          failed_code: 'card_declined',
+          failed_message: 'Your card was declined.',
+        },
+      },
+    })
+
+    const req = new NextRequest('http://localhost:3000/api/checkout/process-payment', {
+      method: 'POST',
+      body: JSON.stringify({
+        fullName: 'Buyer Customer',
+        address: '123 Main St',
+        city: 'Manila',
+        province: 'Metro Manila',
+        postalCode: '1000',
+        courierName: 'J&T Express',
+        courierEstimate: '2-3 days',
+        paymentMethod: 'Credit / Debit Card',
+        shippingCost: 150,
+        selectedProductIds: ['canon-ixy-930-is'],
+        card: {
+          cardNumber: '4343434343434345',
+          expMonth: 12,
+          expYear: 2028,
+          cvc: '123',
+        },
+      }),
+    })
+
+    const res = await POST(req)
+    expect(res.status).toBe(400)
+    const json = await res.json()
+    expect(json.success).toBe(false)
+    expect(json.error).toBe('Your card was declined.')
   })
 })
