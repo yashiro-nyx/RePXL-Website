@@ -11,6 +11,7 @@ import { LogoutConfirmModal } from '@/components/ui/LogoutConfirmModal'
 import { Logo } from '@/components/ui/Logo'
 import { ThemeToggle } from '@/components/ui/ThemeToggle'
 import { NavBellDropdown } from '@/components/layout/NavBellDropdown'
+import { MobileAppBanner } from '@/components/ui/MobileAppBanner'
 import { useAuthStore } from '@/stores/authStore'
 import { useCartStore } from '@/stores/cartStore'
 import { useWishlistStore } from '@/stores/wishlistStore'
@@ -170,6 +171,7 @@ export function Navbar() {
   return (
     <>
       <header className="site-header fixed left-0 right-0 top-0 z-50">
+        <MobileAppBanner />
         <nav className="mx-auto flex max-w-container items-center justify-between px-4 py-4 sm:px-6 md:px-10 lg:px-16">
           {/* Logo */}
           <Link href="/" className="rounded text-repixl-text-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-repixl-red/50">
@@ -182,6 +184,7 @@ export function Navbar() {
             <li><Link href="/" className={navLinkClass('/')} aria-current={isNavActive('/') ? 'page' : undefined}>Home</Link></li>
             <li><Link href="/products" className={navLinkClass('/products')} aria-current={isNavActive('/products') ? 'page' : undefined}>Cameras</Link></li>
             <li><Link href="/compare" className={navLinkClass('/compare')} aria-current={isNavActive('/compare') ? 'page' : undefined}>Compare</Link></li>
+            <li><Link href="/download" className={navLinkClass('/download')} aria-current={isNavActive('/download') ? 'page' : undefined}>App</Link></li>
             <li><Link href="/about" className={navLinkClass('/about')} aria-current={isNavActive('/about') ? 'page' : undefined}>About</Link></li>
           </ul>
 
@@ -410,6 +413,19 @@ export function Navbar() {
               <li><Link href="/" onClick={() => setMobileMenuOpen(false)} aria-current={isNavActive('/') ? 'page' : undefined} className={`${navLinkClass('/')} w-full`}>Home</Link></li>
               <li><Link href="/products" onClick={() => setMobileMenuOpen(false)} aria-current={isNavActive('/products') ? 'page' : undefined} className={`${navLinkClass('/products')} w-full`}>Cameras</Link></li>
               <li><Link href="/compare" onClick={() => setMobileMenuOpen(false)} aria-current={isNavActive('/compare') ? 'page' : undefined} className={`${navLinkClass('/compare')} w-full`}>Compare</Link></li>
+              <li>
+                <Link
+                  href="/download"
+                  onClick={() => setMobileMenuOpen(false)}
+                  aria-current={isNavActive('/download') ? 'page' : undefined}
+                  className={`${navLinkClass('/download')} flex items-center justify-between w-full`}
+                >
+                  <span>Mobile App</span>
+                  <span className="rounded bg-repixl-red/20 px-2 py-0.5 font-mono text-[10px] font-bold text-repixl-red">
+                    APK
+                  </span>
+                </Link>
+              </li>
               <li><Link href="/about" onClick={() => setMobileMenuOpen(false)} aria-current={isNavActive('/about') ? 'page' : undefined} className={`${navLinkClass('/about')} w-full`}>About</Link></li>
               <li className="flex items-center justify-between text-sm text-repixl-text-light/80 sm:hidden">
                 <span>Appearance</span>

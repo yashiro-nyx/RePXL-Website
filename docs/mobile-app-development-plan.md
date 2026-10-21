@@ -105,6 +105,22 @@ Vitest and the root website build were not rerun for this build-only request.
 
 ## Acceptance and verification
 
+The **2026-10-21 Pixel 10 Pro rebuild** is tracked in the
+[native installation notes](../react-native/README.md#pixel-10-pro-apk-rebuild-and-installation-2026-10-21).
+Native TypeScript and Android bundling (1,543 modules) passed.
+[EAS build 525fbef3](https://expo.dev/accounts/vaelarr/projects/repxl/builds/525fbef3-7090-4229-b7bc-5f6c20c115a4)
+finished successfully with the existing preview/signing configuration; Gradle
+`:app:assembleRelease` passed (831 tasks). APK metadata and v2 signature checks
+passed. The APK was installed in place on Pixel 10 Pro (`emulator-5554`, Android
+17/API 37, x86_64); the installed APK checksum matches the downloaded artifact.
+The standalone customer Home screen rendered, the app remained in the foreground,
+and the process-filtered startup crash check found zero entries. No Metro server
+was required. Documentation-reference and diff checks passed. Full customer
+journeys, physical devices, providers, and store acceptance were not exercised;
+Vitest and the separate website build were not rerun for this native-build task.
+
+The October 21 standalone APK is now linked directly from the client website via `/download` (and `/mobile` redirect), `/api/download/mobile`, and `/api/download/qr`. The storefront includes an interactive download page with SHA-256 verification, an APK installation walkthrough, an on-the-fly QR code for camera scanning, a homepage promotional CTA, and a dismissible mobile browser banner.
+
 The release candidate must pass device journeys for registration/login/Google/MFA,
 shopping/cart/address/voucher workflows, checkout/payment return, order tracking,
 cancellation, returns/refunds, notification opening, and logout. Also check

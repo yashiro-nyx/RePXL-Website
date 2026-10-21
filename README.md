@@ -20,6 +20,7 @@ The `docs/` folder contains maintained guides:
 | [Returns and refunds](./docs/returns.md) | Shared cancellation/return/refund flow and verification limits |
 | [Checkout and card testing](./docs/checkout.md) | Website checkout, PayMongo sandbox scenarios and current verification results |
 | [Project progress checklist](./docs/Group2_ProjectChecklist.md) | Completion status, dated checks and known limitations |
+| [Final IT 009 project documentation](<./docs/Group2_IT009_FinalProject Documentation_9.19.25.docx.md>) | Phase 1/2 and code-based report, architecture, manual, contributions, 29-product snapshot, verification, and outstanding submission evidence |
 | [Demo recording script](./docs/demo-recording-script.md) | Three-video user tour, login, and admin CRUD scripts; mobile shopping, database evidence, submission links, and combined-video guidance |
 
 ---
@@ -119,6 +120,7 @@ The `docs/` folder contains maintained guides:
   inspection/refund milestones ([workflow and verification](docs/returns.md))
 - In-app review submission with star ratings and review deletion
 - In-app notification polling and optional Expo push-token registration
+- **Storefront mobile download feature**: dedicated `/download` page (and `/mobile` redirect), `/api/download/mobile` redirect endpoint to the October 21 standalone APK (`133.4 MB`, SHA-256 verified), dynamic QR code generation (`/api/download/qr`), installation walkthrough, homepage `MobileAppCTA` showcase, dismissible mobile browser banner, and navbar/footer navigation integration.
 
 ---
 
@@ -174,8 +176,16 @@ has passed mobile TypeScript and Android production bundling (1,543 modules).
 finished successfully; the [APK is available to download](https://expo.dev/artifacts/eas/3BKGKPNsFMlVuAebXUwOu0qId8US13kDniiLmgktnxk.apk).
 Downloaded APK package metadata and signature verification passed. The compatibility
 check still flags seven packages with newer recommended SDK 57 patches; dependencies
-remain at their existing lockfile versions. Device installation/runtime remains
-unverified.
+remain at their existing lockfile versions. Device installation/runtime was not
+verified during that 2026-10-19 task.
+
+The fresh [2026-10-21 Pixel 10 Pro rebuild and installation](./react-native/README.md#pixel-10-pro-apk-rebuild-and-installation-2026-10-21)
+completed successfully: native TypeScript, Android bundling (1,543 modules),
+Gradle release build, APK metadata/signature checks, and installation passed.
+The installed APK checksum matches the build artifact. RePXL is open on the
+Android 17/API 37 emulator's customer Home screen with no startup crash entries
+captured. Full customer journeys and physical-device/provider checks remain
+unverified for this rebuild; see the native notes for the APK download and logs.
 
 For the Expo development-client install error involving
 `autoAddConfigPlugins.js`, see the [mobile CLI recovery steps](./react-native/README.md#recovery-after-expo-installs-the-development-client).
@@ -395,6 +405,10 @@ prisma generate && prisma migrate deploy && next build
 - **Correct Vercel `NEXTAUTH_URL`** — set to the canonical absolute HTTPS RePXL origin, then redeploy and re-run the production recent-auth/MFA flow.
 
 ### Verification snapshot (last audit)
+- Final-documentation audit (2026-10-21): root TypeScript and production build
+  passed (**68/68 static pages**); full Vitest **1,415 passed, 47 skipped**.
+  [Final report](<./docs/Group2_IT009_FinalProject Documentation_9.19.25.docx.md>)
+  distinguishes these checks from pending browser/device/provider and stress evidence.
 - `npx tsc --noEmit` — clean
 - `npm run build` — succeeds
 - Focused payment/checkout regression run — **99/99 passed** across seven files (2026-10-19).

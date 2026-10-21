@@ -58,6 +58,62 @@ refreshed native build remain pending.
 
 ## Development commands
 
+### Pixel 10 Pro APK rebuild and installation (2026-10-21)
+
+Completed a fresh standalone Android APK using the unchanged `preview` profile:
+[EAS build 525fbef3](https://expo.dev/accounts/vaelarr/projects/repxl/builds/525fbef3-7090-4229-b7bc-5f6c20c115a4).
+EAS reported `FINISHED` on 2026-10-21; the existing remote Android signing key
+was reused. No native source, dependency, lockfile, or EAS configuration changed.
+
+The local AVD `Pixel_10_Pro` was started and identified through ADB as
+`emulator-5554`, Android 17/API 37, x86_64; boot completion was confirmed.
+The existing `com.repxl.mobile` installation was updated in place with
+`adb install -r` (`Success`), without uninstalling or clearing data. Version
+remains 1.0.0/code 1; Android's original install timestamp was retained and its
+update timestamp changed.
+
+Artifact: [download the rebuilt APK](https://expo.dev/artifacts/eas/7vFGQ0OfnS6Sr6jA72oS71R2f9cHWiGMQ2SloBDUqCs.apk).
+Local copy: `.expo/apk-rebuild-2026-10-21/RePXL-preview-2026-10-21.apk`
+(133,400,465 bytes, ignored by Git). SHA-256:
+`9253381E0963BFC377D4864E193F5B742A76184056546CCFAC69B99E65DBA331`.
+
+Verification:
+
+- Native `npm.cmd run typecheck`: passed (exit 0).
+- EAS Android bundling: passed, 1,543 modules. Gradle `:app:assembleRelease`:
+  `BUILD SUCCESSFUL in 12m 58s`; 831 tasks executed.
+- Android SDK `aapt dump badging`: RePXL / `com.repxl.mobile`, version 1.0.0/code 1,
+  minimum API 24, target API 36; includes x86_64 and the three other supported ABIs.
+- `apksigner.jar verify --verbose --print-certs`: passed, one signer,
+  APK Signature Scheme v2 verified.
+- Installed `/data/app/.../base.apk` SHA-256 matches the downloaded build exactly.
+- Launch command returned `Status: ok`; `com.repxl.mobile/.MainActivity` is the
+  foreground activity and the app process remains running. Visually confirmed
+  the standalone customer Home screen; no Metro server was started.
+- The app's process-filtered crash-buffer check found zero crash entries during
+  this startup check. Screenshot and build/package/signature/install/launch logs
+  are saved under ignored `.expo/apk-rebuild-2026-10-21/` (`launch.png` included).
+- Documentation references and `git diff --check`: passed.
+
+Submitted from `react-native/` with:
+
+```powershell
+npx.cmd --yes eas-cli build --platform android --profile preview --non-interactive --no-wait
+```
+
+Installation and launch from this directory after the Pixel AVD is running:
+
+```powershell
+& "$env:LOCALAPPDATA\Android\Sdk\platform-tools\adb.exe" -s emulator-5554 install -r .expo/apk-rebuild-2026-10-21/RePXL-preview-2026-10-21.apk
+& "$env:LOCALAPPDATA\Android\Sdk\platform-tools\adb.exe" -s emulator-5554 shell am start -W -n com.repxl.mobile/.MainActivity
+```
+
+Vitest and the root website build were not rerun for this native-build request;
+neither native application logic nor dependencies changed. This verifies emulator
+installation and Home-screen startup, not full customer-journey acceptance.
+Physical-device, authentication/payment/provider, and store-release checks remain
+unverified for this rebuild. The emulator was left with RePXL open.
+
 ### Standalone APK rebuild (2026-10-19)
 
 Completed the requested EAS Android rebuild using the existing `preview` profile,

@@ -8,6 +8,7 @@ import { WhyUs } from '@/components/landing/WhyUs'
 import { DealBanner } from '@/components/landing/DealBanner'
 import { FeaturedCarousel } from '@/components/landing/FeaturedCarousel'
 import { ConditionExplainer } from '@/components/landing/ConditionExplainer'
+import { MobileAppCTA } from '@/components/landing/MobileAppCTA'
 import { Testimonials } from '@/components/landing/Testimonials'
 import { HomeFAQ } from '@/components/landing/HomeFAQ'
 import { NewsletterCTA } from '@/components/landing/NewsletterCTA'
@@ -31,6 +32,7 @@ export default function HomePage() {
      <WhyUs />
      <DealBanner />
      <ConditionExplainer />
+     <MobileAppCTA />
      <Testimonials />
      <HomeFAQ />
      <NewsletterCTA />

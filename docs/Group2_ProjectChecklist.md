@@ -15,6 +15,72 @@
 
 **PROJECT CHECKLIST**
 
+### Final IT 009 documentation consolidation (2026-10-21)
+
+- [x] Filled [Final Project Documentation](<./Group2_IT009_FinalProject Documentation_9.19.25.docx.md>)
+  from Phase 1, Phase 2, this checklist, maintained guides, and inspected source.
+  Added introduction/objectives, literature and verified references, architecture
+  and data diagrams, module/integration descriptions, manual, two-column source
+  excerpts, conclusions, contributions, appendices, and an honest stress section.
+- [x] Preserved the academic title/team/instructor; identified conflicting school
+  year/section for confirmation. Reused five supplied Phase 1 portraits and the
+  existing October 21 emulator Home screenshot with provenance.
+- [x] Read the public product API without authentication/mutations: HTTP 200,
+  **29 active products** with prices/descriptions/images. Documented all 29 and
+  extracted their existing media unchanged into `docs/assets/final-project/`.
+  Distinguished the **12-product** committed seed/fixture from live inventory.
+- [x] Reconciled actual scope: shared Next.js modules/database rather than
+  independent internal microservices; PayMongo/COD/demo distinctions; configured
+  shipping fees/tracking simulation; reports placeholder and absent named student
+  profile module. Preserved existing notifications and other approved features.
+- [x] Fresh root verification: `npx.cmd tsc --noEmit` passed; full
+  `npx.cmd vitest run` **1,415 passed, 47 skipped** (87 files passed, 2 skipped);
+  `npm.cmd run build` passed, **68/68 static pages**. Vite emitted a configuration
+  loader compatibility warning. Skips are not passed DB integration checks.
+- [ ] Submission evidence remains: 30th fully documented active product, module
+  screenshots, measured runtime stress/JMeter views, member reflections/signatures,
+  activity/presentation photos, final slides/video links, library holdings and
+  consultation, and confirmed school year/section. New Edge screenshot capture
+  was rejected by execution policy; no fresh browser or authenticated E2E claimed.
+  Native build/typecheck, provider payment tests, migrations, and runtime stress
+  were not rerun for this documentation task.
+
+### Client website mobile download feature (2026-10-21)
+
+- [x] Implemented dedicated mobile download landing page at `/download` (with `/mobile` alias redirect), showcasing standalone Android APK v1.0.0 (October 21, 2026 build), SHA-256 integrity verification, 4-step Android APK installation walkthrough, authentic Pixel 10 Pro app preview capture, feature highlights, and transparent iOS TestFlight preview roadmap notice.
+- [x] Added permanent download endpoint `/api/download/mobile` configured to stream the APK directly with `Content-Disposition: attachment; filename="RePXL.apk"` (and `?redirect=true` / `?info=true` fallback support), ensuring browser downloads save cleanly as `RePXL.apk` rather than Expo's internal build name.
+- [x] Added on-the-fly QR code generation endpoint `/api/download/qr` (PNG & SVG) for direct phone camera scanning to install the mobile APK.
+- [x] Integrated `MobileAppCTA` promotional showcase section on the homepage with app preview, direct download CTA, and QR scan thumbnail.
+- [x] Added "App" navigation link in desktop `Navbar` and "Mobile App" with "APK" badge in the mobile drawer menu.
+- [x] Added dismissible responsive `MobileAppBanner` smart banner for mobile browsers with session storage persistence.
+- [x] Added "Mobile App" navigation link under Company and "Download App (APK)" quick badge in `Footer`.
+- [x] Added unit tests in `src/lib/mobile-download.test.ts` (8/8 passed). Full Vitest suite passed (88 test files, 1,423 tests passed, 0 failures).
+- [x] Root TypeScript (`npx tsc --noEmit`) passed with 0 errors.
+- [x] Production build passed (**69/69 static pages**, `/download`, `/mobile`, `/api/download/mobile`, `/api/download/qr` included).
+- [ ] Physical-device end-to-end QR scan and mobile browser download prompts were verified via emulator artifacts and unit/API tests; live Google Play Store and Apple App Store public listings remain pending per release plan.
+
+### Pixel 10 Pro APK rebuild and installation (2026-10-21)
+
+- [x] Native `npm.cmd run typecheck` passed. Started and verified the
+  `Pixel_10_Pro` AVD (`emulator-5554`, Android 17/API 37, x86_64).
+- [x] Submitted fresh standalone [EAS preview build 525fbef3](https://expo.dev/accounts/vaelarr/projects/repxl/builds/525fbef3-7090-4229-b7bc-5f6c20c115a4)
+  using existing remote signing credentials; no source/dependency/EAS settings
+  changed. Build status is `FINISHED`: Android bundling **1,543 modules**, Gradle
+  `:app:assembleRelease` passed in **12m 58s**, **831 tasks executed**.
+- [x] Downloaded the 133,400,465-byte APK; package metadata and v2 signature
+  verification passed. Updated `com.repxl.mobile` 1.0.0/code 1 using
+  `adb install -r` (`Success`) without clearing app data. Installed APK SHA-256
+  matches the new artifact. APK link, checksum, commands, and logs are documented
+  in `react-native/README.md`.
+- [x] Launch returned `Status: ok`; visually confirmed the standalone customer
+  Home screen and foreground MainActivity/running process. Process-filtered
+  startup crash check found zero entries. Screenshot/logs retained under ignored
+  `.expo/apk-rebuild-2026-10-21/`; emulator left with RePXL open. Documentation
+  reference checks and `git diff --check` passed.
+- [ ] Full customer journeys, physical-device, authentication, payments/providers,
+  and store acceptance were not exercised for this rebuild. Vitest and the root
+  website build were not rerun for this native-build-only request.
+
 ### Realistic flat delivery fees (2026-10-21)
 
 - [x] Replaced website checkout's ₱5–₱12 placeholder delivery fees with the
@@ -128,9 +194,10 @@
 - [x] ~~5\. User Management~~  
       - [x] ~~Manage customer accounts (view, edit, suspend).~~  
       - [x] ~~Manage admin accounts (view, add, edit, delete).~~  
-- [x] ~~6\. Sales & Analytics Reports~~  
-      - [x] ~~Access to sales data, revenue, product performance reports.~~  
-      - [x] ~~Customer insights.~~  
+- [ ] 6\. Sales & Analytics Reports — partial; standalone reports not delivered.
+      - [x] Dashboard sales/revenue/product/customer summaries are implemented.
+      - [ ] Dedicated reports and expanded customer insights: `/admin/reports`
+        currently displays “Sales analytics coming soon.”
 - [x] ~~7\. Content Management System (CMS)~~  
       - [x] ~~Manage static pages (About Us, Contact, FAQs, Privacy Policy).~~  
       - [x] ~~Manage promotions, banners, and homepage content.~~  
@@ -262,7 +329,7 @@ _Maintained per the documentation-synchronization rule in [`AGENTS.md`](../AGENT
 |---|---|---|
 | Type check | `npx tsc --noEmit` | ✅ Clean |
 | Production build | `npm run build` | ✅ Succeeds — 68/68 static pages generated |
-| Test suite | `npx vitest run` | ⚠️ **1232 passed, 9 failed, 47 skipped** (1288 tests across 79 files) |
+| Test suite | `npx vitest run` | ✅ **1415 passed, 47 skipped** (1462 tests across 89 files; 2026-10-21 documentation audit) |
 
 Deployment: live on Vercel at `https://repxlph.vercel.app`; database on Supabase (PostgreSQL) with 14 tracked Prisma migrations applied on deploy.
 

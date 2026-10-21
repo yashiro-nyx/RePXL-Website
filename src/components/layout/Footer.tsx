@@ -18,6 +18,7 @@ const supportLinks = [
 
 const companyLinks = [
   { label: 'About', href: '/about' },
+  { label: 'Mobile App', href: '/download' },
   { label: 'My Account', href: '/account' },
   { label: 'Sign In', href: '/login' },
 ]
@@ -37,6 +38,28 @@ export function Footer() {
               The curated marketplace for vintage digital cameras.
               Condition-graded, serial-verified, and trusted by collectors.
             </p>
+            <div className="mt-4">
+              <Link
+                href="/download"
+                className="inline-flex items-center gap-2 rounded-lg border border-repixl-muted/30 bg-repixl-charcoal/60 px-3 py-1.5 font-mono text-xs text-repixl-text-light/85 transition-colors hover:border-repixl-red/50 hover:bg-repixl-charcoal hover:text-white"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  className="text-repixl-red"
+                  aria-hidden="true"
+                >
+                  <rect width="14" height="20" x="5" y="2" rx="2" ry="2" />
+                  <path d="M12 18h.01" />
+                </svg>
+                <span>Download App (APK)</span>
+              </Link>
+            </div>
           </div>
 
           {/* Shop column */}
