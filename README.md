@@ -20,6 +20,7 @@ The `docs/` folder contains maintained guides:
 | [Returns and refunds](./docs/returns.md) | Shared cancellation/return/refund flow and verification limits |
 | [Checkout and card testing](./docs/checkout.md) | Website checkout, PayMongo sandbox scenarios and current verification results |
 | [Project progress checklist](./docs/Group2_ProjectChecklist.md) | Completion status, dated checks and known limitations |
+| [Demo recording script](./docs/demo-recording-script.md) | Three-video user tour, login, and admin CRUD scripts; mobile shopping, database evidence, submission links, and combined-video guidance |
 
 ---
 
@@ -86,6 +87,9 @@ The `docs/` folder contains maintained guides:
 - DB-backed cart per authenticated user
 - Voucher/discount code validation
 - Courier selection (J&T, LBC, Ninja Van, Grab Express)
+- Matching website/mobile flat delivery fees: J&T ₱150, LBC ₱200, Ninja Van
+  ₱120, and Grab Express ₱300. These configured demo fees do not use live courier
+  quotes; see [checkout](./docs/checkout.md#delivery-fees-2026-10-21).
 - Embedded PayMongo card/GCash payments, with a 3DS redirect when required; demo fallback when PayMongo is unconfigured
 - Repeatable card sandbox checks: `npm run test:paymongo` (requires a test secret in `.env`; refuses live keys)
 - Order confirmation email via Gmail SMTP

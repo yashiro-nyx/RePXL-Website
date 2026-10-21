@@ -15,6 +15,42 @@
 
 **PROJECT CHECKLIST**
 
+### Realistic flat delivery fees (2026-10-21)
+
+- [x] Replaced website checkout's ₱5–₱12 placeholder delivery fees with the
+  existing mobile schedule: J&T ₱150, LBC ₱200, Ninja Van ₱120, Grab Express ₱300.
+  The selected fee continues into the order summary and submitted shipping cost.
+  Documented the configured flat-fee scope and preserved historical audit totals
+  in `docs/checkout.md`; synchronized `README.md`.
+- [x] Root TypeScript passed; focused checkout/payment tests **50/50 passed across
+  4 files**; direct website/mobile courier-fee source comparison passed (4/4).
+- [x] Production build passed (**68/68 static pages**); documentation-reference
+  checks and `git diff --check` passed.
+- [ ] Browser/device checkout, provider charges, and courier bookings were not
+  exercised; fees remain fixed
+  configuration without destination/weight-based quotation or new serviceability
+  enforcement.
+
+### Three-video customer, login, and admin CRUD demo script (2026-10-21)
+
+- [x] Restructured [demo-recording-script.md](./demo-recording-script.md) into
+  Website Tour (User Module), Log-in Module, and Admin Module (Create, Read,
+  Update, Delete) - Connected to Database. Includes per-video narration/actions,
+  15-18 minute combined timing, submission-link placeholders, recording/editing
+  order, brief customer website coverage, and the main mobile shopping journey.
+- [x] Added a complete custom draft-page CRUD cycle, matching `static_pages`
+  database checkpoints, login/validation/logout coverage, and continuity for the
+  mobile order processed in admin. Distinguished actual CMS deletion from camera
+  archiving; retained COD/payment/receipt-review behavior and optional scenes.
+- [x] Checked login/CMS/archive source, Prisma table mappings, relevant guides,
+  relative documentation links/heading targets, and module route-file references;
+  `git diff --check` passed. Synchronized the `README.md` guide description.
+- [ ] Rehearsal, actual device/browser journeys, database evidence capture,
+  provider payments, return-migration deployment, recording/editing/upload, and
+  the submission links remain unverified. This
+  documentation-only task did not run TypeScript, Vitest, or production builds
+  and does not change earlier implementation/acceptance results.
+
 ### Expo development-client CLI recovery (2026-10-01)
 
 - [x] Verified the installed SDK 57 CLI contains `autoAddConfigPlugins.js` in

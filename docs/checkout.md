@@ -44,10 +44,10 @@ when navigating between steps.
 1. **Information** — contact + delivery address. Reuses the existing saved-address
    picker (`applyAddress`), the PSGC cascading `PHAddressSelect`, email/phone, and
    "enter a new address". A saved address prefills all fields.
-2. **Shipping** — the delivery method (the four existing couriers: J&T ₱6, LBC ₱8,
-   Ninja Van ₱5, Grab ₱12, with their estimate strings). No new methods/fees were
-   invented; the selection flows to the server as `shippingCost` +
-   `courierName`/`courierEstimate` exactly as before.
+2. **Shipping** — select J&T ₱150, LBC ₱200, Ninja Van ₱120, or Grab Express ₱300,
+   matching the mobile app's configured flat fees. The selection flows to the
+   server as `shippingCost` + `courierName`/`courierEstimate`. See the current
+   [delivery fee notes](#delivery-fees-2026-10-21).
 3. **Payment** — the existing payment methods (Credit/Debit Card, GCash, PayPal →
    card via PayMongo, Cash on Delivery), saved-card picker, and card fields. A
    short note accurately explains the PayMongo flow (a secure window opens only
@@ -277,7 +277,9 @@ PSGC codes, a private INACTIVE PHP 100.00 product and a one-item cart. The
 browser's catalog response alone includes that private product, so it does not
 appear in the public active catalog. Authentication, checkout requests, payment
 requests, orders, verification and database finalization are real. Test orders
-total PHP 106.00 including J&T shipping.
+totaled PHP 106.00 including the then-configured PHP 6.00 J&T shipping fee.
+This is a historical 2026-10-19 result; the same PHP 100.00 item would total
+PHP 250.00 with the current PHP 150.00 J&T fee, before any discount.
 
 - Immediate Visa: the four checkout steps reach **Payment Successful**; the DB
   order is PAID with a `pay_` reference, stock decreases by one and the cart is
@@ -313,3 +315,34 @@ secret configured), and production/live-key payments, Gmail inbox rendering,
 mobile checkout and real-bank OTP delivery were not tested. Test-mode records
 remain in the PayMongo dashboard. Application test fixtures are removed after
 each browser run; existing customers, products and inventory are untouched.
+
+## Delivery fees (2026-10-21)
+
+Website checkout now matches the existing mobile checkout flat fees:
+
+| Courier | Delivery fee | Displayed delivery estimate |
+|---|---|---|
+| J&T Express | ₱150 | 2–3 business days |
+| LBC Express | ₱200 | 1–2 business days |
+| Ninja Van | ₱120 | 3–5 business days |
+| Grab Express | ₱300 | Same day (metro only) |
+
+The website's previous ₱6/₱8/₱5/₱12 placeholders were replaced in
+`src/app/(storefront)/checkout/page.tsx`. The existing amounts in
+`react-native/app/checkout.tsx` already matched these values. The chosen fee feeds
+the order summaries and submitted `shippingCost`; new-order totals include it.
+Historical orders keep their recorded shipping amounts.
+
+These are configured RePXL flat fees for the demonstration, not verified carrier
+tariffs or live quotations. For pricing context, [LBC's official rate guide](https://www.lbcexpress.com/us/cod-cop-rates)
+lists different charges by origin, destination, parcel size, and service, while
+[GrabExpress](https://www.grab.com/ph/express/) provides booking fares. The change
+keeps the existing mobile fee schedule; it does not add address/weight-based
+pricing, live courier quoting, or new same-day serviceability checks.
+
+Verification: root `npx tsc --noEmit` passed; the focused checkout/payment Vitest
+run passed **50/50 tests across 4 files**. A direct source comparison confirmed
+all four website/mobile courier IDs and fees match. `npm run build` passed,
+including **68/68 static pages**; documentation-reference and `git diff --check`
+checks passed. Browser/device checkout, provider charges, and live courier
+bookings were not exercised for this fee-only change.

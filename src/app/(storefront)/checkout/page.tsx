@@ -63,10 +63,10 @@ interface CourierOption {
 }
 
 const couriers: CourierOption[] = [
-  { id: 'jnt', name: 'J&T Express', price: 6, estimate: '2–3 business days' },
-  { id: 'lbc', name: 'LBC Express', price: 8, estimate: '1–2 business days' },
-  { id: 'ninja', name: 'Ninja Van', price: 5, estimate: '3–5 business days' },
-  { id: 'grab', name: 'Grab Express', price: 12, estimate: 'Same day (metro only)' },
+  { id: 'jnt', name: 'J&T Express', price: 150, estimate: '2–3 business days' },
+  { id: 'lbc', name: 'LBC Express', price: 200, estimate: '1–2 business days' },
+  { id: 'ninja', name: 'Ninja Van', price: 120, estimate: '3–5 business days' },
+  { id: 'grab', name: 'Grab Express', price: 300, estimate: 'Same day (metro only)' },
 ]
 
 interface FormErrors {
