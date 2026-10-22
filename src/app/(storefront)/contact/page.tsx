@@ -1,14 +1,12 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Container } from '@/components/layout/Container'
 import { PageBackLink } from '@/components/ui'
 import { RevealText } from '@/components/ui/RevealText'
 import { useReducedMotion } from '@/hooks/useReducedMotion'
 import { useToastStore } from '@/stores/toastStore'
-import { CmsPageLayout } from '@/components/layout/CmsPageLayout'
-import { DEFAULT_CONTACT_BODY } from '@/lib/cms-defaults'
 
 interface ContactFormData {
   name: string
@@ -58,30 +56,6 @@ const infoItems = [
 
 export default function ContactPage() {
   const reducedMotion = useReducedMotion()
-  const [customPage, setCustomPage] = useState<{
-    title: string
-    body: string
-    updatedAt: string
-    status: string
-  } | null>(null)
-
-  useEffect(() => {
-    let isMounted = true
-    fetch('/api/pages/contact')
-      .then((res) => (res.ok ? res.json() : null))
-      .then((res) => {
-        if (!isMounted) return
-        const page = res?.data
-        if (page?.body && page.body.trim() !== DEFAULT_CONTACT_BODY.trim()) {
-          setCustomPage(page)
-        }
-      })
-      .catch(() => {})
-    return () => {
-      isMounted = false
-    }
-  }, [])
-
   const [formData, setFormData] = useState<ContactFormData>({
     name: '',
     email: '',
@@ -92,17 +66,6 @@ export default function ContactPage() {
   const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle')
   const [apiError, setApiError] = useState('')
   const addToast = useToastStore((state) => state.addToast)
-
-  if (customPage) {
-    return (
-      <CmsPageLayout
-        title={customPage.title}
-        body={customPage.body}
-        updatedAt={customPage.updatedAt}
-        isDraft={customPage.status === 'DRAFT'}
-      />
-    )
-  }
 
   const validateEmail = (email: string) => {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)

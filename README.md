@@ -35,7 +35,7 @@ The `docs/` folder contains maintained guides:
 - Full-text search with a responsive navbar combobox whose input remains visible
   above live camera suggestions on desktop and mobile
 - Contact page with client/server validation, loading/error/success feedback,
-  CMS-authored content support, and stable hook ordering across CMS transitions
+  permanent redesigned form layout, responsive support cards, and stable hooks
 - Shared storefront UI system with dark/light RePXL tokens, consistent controls,
   keyboard focus states, responsive framing, and refined product-card surfaces
   — see [`docs/ui-ux-design-system.md`](./docs/ui-ux-design-system.md). Browser

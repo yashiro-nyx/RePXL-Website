@@ -199,13 +199,13 @@ application tests were rerun for this documentation-only cleanup.
 
 ## Contact page
 
-`/contact` initially renders the interactive RePXL contact form while requesting
-the optional `contact` CMS page. If the API returns published custom content
-that differs from `DEFAULT_CONTACT_BODY`, the route switches to
-`CmsPageLayout`; otherwise the form remains available. The page declares its
-reduced-motion, CMS, form, feedback, and toast hooks before that conditional
-render, so the initial form and later CMS state always execute the same hook
-sequence.
+`/contact` always renders the redesigned interactive RePXL contact experience:
+the centered heading and introduction, support-information card, quick subject
+buttons, and name/email/subject/message form. It does not request
+`/api/pages/contact` or render `CmsPageLayout`, so a delayed, customized, failed,
+or fallback Contact CMS response cannot replace the form. This exception is
+local to `/contact`; the shared CMS API and the CMS-backed About, FAQ,
+condition-grading, shipping/returns, and generic page routes remain unchanged.
 
 The default form retains name, email, subject, and message validation; safe
 loading, error, and success feedback; quick subject choices; and the
@@ -214,12 +214,16 @@ server-side validation, rate limiting, HTML escaping, and customer-safe error
 responses. No mailer credentials or delivery configuration changed.
 
 Verification on 2026-10-22: focused Contact/back-navigation tests passed
-**93/93**; `npx tsc --noEmit` passed; the production build passed with **69/69
-static pages**; and `git diff --check` passed. Headless Chrome exercised a
-delayed default-form → custom-CMS transition, empty validation, controlled API
-error and success responses, editable fields, the support link, and desktop
-1440×1000/mobile 390×844 layouts with no React hook/runtime console errors or
-mobile horizontal overflow. Real email delivery was not triggered.
+**95/95**; the full suite passed **1,430 tests** with **47 skipped** after its
+network-dependent APK test was rerun with network access; `npx tsc --noEmit`
+passed; the production build passed with **69/69 static pages**; and
+`git diff --check` passed. Headless Chrome verified the form before and after a
+deliberately delayed custom Contact CMS response at **1440×1000** and
+**390×844**. It also covered quick subject selection, invalid-email feedback,
+controlled submission error/success responses, duplicate-submit prevention,
+support email, AI Assistant presence, no console errors, and no horizontal
+overflow. Both responsive form layouts were visually inspected. Real email
+delivery was not triggered.
 
 ## AI Concierge
 

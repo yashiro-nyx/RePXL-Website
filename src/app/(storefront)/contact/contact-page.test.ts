@@ -4,13 +4,19 @@ import { readFileSync } from 'node:fs'
 const contactPage = readFileSync('src/app/(storefront)/contact/page.tsx', 'utf8')
 const contactRoute = readFileSync('src/app/api/contact/route.ts', 'utf8')
 
-describe('Contact page hook-order regression', () => {
-  it('declares every ContactPage hook before the custom CMS early return', () => {
-    const customPageReturn = contactPage.indexOf('if (customPage)')
+describe('Contact page permanent redesigned form', () => {
+  it('does not request or render Contact CMS content that can replace the form', () => {
+    expect(contactPage).not.toContain("fetch('/api/pages/contact')")
+    expect(contactPage).not.toContain('setCustomPage')
+    expect(contactPage).not.toContain('if (customPage)')
+    expect(contactPage).not.toContain('<CmsPageLayout')
+    expect(contactPage).not.toContain('DEFAULT_CONTACT_BODY')
+  })
+
+  it('keeps every page hook unconditional before the redesigned form render', () => {
+    const formRender = contactPage.indexOf('<motion.form')
     const pageHookCalls = [
       'useReducedMotion()',
-      'useState<{',
-      'useEffect(() =>',
       'useState<ContactFormData>',
       'useState<Partial<ContactFormData>>',
       "useState<'idle' | 'loading' | 'success' | 'error'>",
@@ -18,11 +24,11 @@ describe('Contact page hook-order regression', () => {
       'useToastStore((state) => state.addToast)',
     ]
 
-    expect(customPageReturn).toBeGreaterThan(-1)
+    expect(formRender).toBeGreaterThan(-1)
     for (const hookCall of pageHookCalls) {
       const hookIndex = contactPage.indexOf(hookCall)
       expect(hookIndex, `${hookCall} should exist`).toBeGreaterThan(-1)
-      expect(hookIndex, `${hookCall} must run before the CMS return`).toBeLessThan(customPageReturn)
+      expect(hookIndex, `${hookCall} must run before rendering the form`).toBeLessThan(formRender)
     }
   })
 
@@ -43,6 +49,16 @@ describe('Contact page hook-order regression', () => {
     }
     expect(contactPage).toContain("value: 'repxl.support@gmail.com'")
     expect(contactPage).toContain("href: 'mailto:repxl.support@gmail.com'")
+  })
+
+  it('keeps loading, error, and subject-shortcut updates inside the form flow', () => {
+    expect(contactPage).toContain("status === 'success' ?")
+    expect(contactPage).toContain("disabled={status === 'loading'}")
+    expect(contactPage).toContain("status === 'loading' ?")
+    expect(contactPage).toContain('{apiError && (')
+    expect(contactPage).toContain('onClick={() => pickSubject(option)}')
+    expect(contactPage).toContain('setFormData((prev) => ({ ...prev, subject }))')
+    expect(contactPage).toContain("fetch('/api/contact'")
   })
 
   it('preserves server-side validation and customer-safe submission responses', () => {
