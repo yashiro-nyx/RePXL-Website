@@ -283,6 +283,12 @@ any other caller inherit the new look with the same props and output contract.
 The Gmail SMTP transport (`createTransporter`, `sendNotificationEmail`) and all
 notification event triggers are unchanged.
 
+The customer-facing support identity is `repxl.support@gmail.com`. Security
+emails and order/return/refund notification copy use that address, with
+`mailto:repxl.support@gmail.com` for clickable links. SMTP credentials, sender
+configuration, administrator recipients, and unrelated email addresses are not
+changed by this support-contact update.
+
 ---
 
 ### 3. Design tokens (`tokens.ts`)

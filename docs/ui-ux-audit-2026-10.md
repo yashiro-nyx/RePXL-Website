@@ -777,3 +777,33 @@ Verification limits: no full Playwright interaction pass or screen-reader test
 was available. Populated product, account, order, cart, and checkout behavior
 remained limited by local Supabase/Postgres connectivity. Chrome’s host-level
 headless display/task-policy diagnostics were not application errors.
+
+### Navbar search dropdown regression fix (2026-10-22)
+
+The desktop search form previously used `top: 50%` plus a negative 50% vertical
+translation. Because that translation was calculated from the form's complete
+dynamic height, mounting the suggestion list re-centered the whole form and
+moved the input upward into the navbar instead of keeping the list below it.
+The form is now anchored by its input row (`top: 0` at the desktop breakpoint),
+the suggestions remain in normal flow beneath the input, and the list has a
+viewport-aware maximum height. The search layer remains above page content,
+the toggle exposes a labeled close state, and a second Escape after dismissing
+suggestions closes the search. Existing product matching, product routes,
+combobox/listbox semantics, arrow-key navigation, and normal query submission
+remain intact.
+
+Verification:
+
+- Focused search/email/concierge/mobile tests: **91 passed across 4 files**.
+- `npx tsc --noEmit` passed.
+- `npm run build` passed with **69/69 static pages** after the sandboxed first
+  attempt could not reach Google Fonts and the permitted network rerun succeeded.
+- Headless Chrome interaction checks at **1440×1000** and **390×844**, using
+  controlled active-product API fixtures, confirmed the input stayed visible
+  and focused above four Kodak suggestions, further typing narrowed results,
+  clearing removed the list without closing the input, selection navigated to
+  `/products/kodak-easyshare-v570`, the close control dismissed the search, and
+  neither viewport overflowed horizontally. Both open-search states were also
+  visually inspected.
+- The controlled fixtures verified component behavior independently of live
+  inventory. A live database-backed populated search pass was not performed.

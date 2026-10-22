@@ -243,7 +243,7 @@ describe('Mobile AI Concierge & Support Features', () => {
     const query = 'Can I speak to a human representative?'
     const reply = generateAiResponse(query).text
     expect(reply).toContain('Contact Us')
-    expect(reply).toContain('support@repxl.com')
+    expect(reply).toContain('repxl.support@gmail.com')
   })
 
   it('responds to consignment/trade queries with submission guidance', () => {

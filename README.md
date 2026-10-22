@@ -32,7 +32,10 @@ The `docs/` folder contains maintained guides:
 - Product listing with filters (brand, condition, price range, in-stock only), sort controls, skeleton loading
 - Product detail — specs, condition badge, rating summary (`4.9 ★ (N ratings) · N sold`), paginated & star-filterable Customer Reviews, Add to Cart / Wishlist / Compare, live webcam CSS-filter demo
 - Camera comparison tool (up to 3 side-by-side)
-- Full-text search
+- Full-text search with a responsive navbar combobox whose input remains visible
+  above live camera suggestions on desktop and mobile
+- Contact page with client/server validation, loading/error/success feedback,
+  CMS-authored content support, and stable hook ordering across CMS transitions
 - Shared storefront UI system with dark/light RePXL tokens, consistent controls,
   keyboard focus states, responsive framing, and refined product-card surfaces
   — see [`docs/ui-ux-design-system.md`](./docs/ui-ux-design-system.md). Browser
@@ -94,6 +97,7 @@ The `docs/` folder contains maintained guides:
 - Embedded PayMongo card/GCash payments, with a 3DS redirect when required; demo fallback when PayMongo is unconfigured
 - Repeatable card sandbox checks: `npm run test:paymongo` (requires a test secret in `.env`; refuses live keys)
 - Order confirmation email via Gmail SMTP
+- Customer support contact: [repxl.support@gmail.com](mailto:repxl.support@gmail.com)
 
 ### Admin Dashboard
 - Login at `/admin/login` (separate session, 1-hour expiry)

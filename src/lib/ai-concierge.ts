@@ -222,7 +222,7 @@ You can ask me anything about:
       text: `I can connect you directly with our human support team! 👥
 
 • **In-App Message**: Switch to the **Contact Us** tab to send a ticket with your details.
-• **Email**: Reach us directly at **support@repxl.com**.
+• **Email**: Reach us directly at **repxl.support@gmail.com**.
 • **Operating Hours**: Monday to Saturday, 9:00 AM – 6:00 PM PHT.
 • **Response Time**: Usually within 24 hours on business days.`,
       suggestedFollowUps: [
@@ -725,7 +725,7 @@ Track your package status step-by-step in the **Orders** tab!`,
 
 Need your camera today for a shoot or weekend event?
 • We can arrange same-day courier dispatch via **Grab Express or Lalamove** for Metro Manila addresses!
-• After placing your order, message us immediately with your order number via the **Contact Us** tab or email \`support@repxl.com\`.
+• After placing your order, message us immediately with your order number via the **Contact Us** tab or email \`repxl.support@gmail.com\`.
 • Courier booking fee is settled directly upon courier pickup/arrival.`,
       suggestedFollowUps: [
         'Where is my order?',

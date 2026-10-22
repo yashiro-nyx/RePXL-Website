@@ -58,7 +58,7 @@ describe('email format helpers', () => {
   it('safeUrl accepts internal paths and http(s)/mailto, rejects unsafe', () => {
     expect(safeUrl('/account/orders/RPX-1', 'https://x.test')).toBe('https://x.test/account/orders/RPX-1')
     expect(safeUrl('https://x.test/a')).toBe('https://x.test/a')
-    expect(safeUrl('mailto:support@repxl.com')).toBe('mailto:support@repxl.com')
+    expect(safeUrl('mailto:repxl.support@gmail.com')).toBe('mailto:repxl.support@gmail.com')
     expect(safeUrl('javascript:alert(1)')).toBeNull()
     expect(safeUrl('//evil.com')).toBeNull()
     expect(safeUrl('')).toBeNull()
@@ -227,7 +227,7 @@ describe('auth & security emails', () => {
   it('security notice states the event and support contact', () => {
     const built = buildSecurityNoticeEmail({ event: 'phone number was updated' })
     expect(built.html).toContain('phone number was updated')
-    expect(built.html).toContain('support@repxl.com')
+    expect(built.html).toContain('repxl.support@gmail.com')
     assertNoRawContent(built)
   })
 })

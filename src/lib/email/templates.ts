@@ -229,7 +229,7 @@ export function buildPasswordChangedEmail(input: { email: string; name?: string;
     greeting(name),
     paragraph(`This is a confirmation that the password for your RePXL account (<strong>${escapeHtml(input.email)}</strong>) was changed on <strong>${escapeHtml(input.changedAtLabel)}</strong>.`),
     callout(
-      `<strong>Didn't make this change?</strong> Your account may be at risk. Reset your password now and contact <a href="mailto:support@repxl.com" style="color:inherit;text-decoration:underline;">support@repxl.com</a>.`
+      `<strong>Didn't make this change?</strong> Your account may be at risk. Reset your password now and contact <a href="mailto:repxl.support@gmail.com" style="color:inherit;text-decoration:underline;">repxl.support@gmail.com</a>.`
     ),
     ctaButton('Secure My Account', input.resetUrl),
   ]
@@ -253,7 +253,7 @@ export function buildPasswordChangedEmail(input: { email: string; name?: string;
       `The password for your RePXL account (${input.email}) was changed on ${input.changedAtLabel}.`,
       ``,
       `If you made this change, no action is needed.`,
-      `If you did NOT make this change, reset your password now and contact support@repxl.com:`,
+      `If you did NOT make this change, reset your password now and contact repxl.support@gmail.com:`,
       href,
     ].join('\n')
   )
@@ -299,7 +299,7 @@ export function buildSecurityNoticeEmail(input: { event: string }): BuiltEmail {
   const event = input.event
   const bodyHtml = [
     paragraph(`This is a confirmation that your RePXL account ${escapeHtml(event)}.`),
-    callout(`<strong>Didn't make this change?</strong> Please contact <a href="mailto:support@repxl.com" style="color:inherit;text-decoration:underline;">support@repxl.com</a> right away.`),
+    callout(`<strong>Didn't make this change?</strong> Please contact <a href="mailto:repxl.support@gmail.com" style="color:inherit;text-decoration:underline;">repxl.support@gmail.com</a> right away.`),
   ].join('\n')
 
   const html = renderEmailLayout({
@@ -315,7 +315,7 @@ export function buildSecurityNoticeEmail(input: { event: string }): BuiltEmail {
       `RePXL security notice`,
       ``,
       `Your RePXL account ${event}.`,
-      `If you did not make this change, contact support@repxl.com immediately.`,
+      `If you did not make this change, contact repxl.support@gmail.com immediately.`,
     ].join('\n')
   )
 

@@ -185,7 +185,7 @@ const contactBody = `## Contact & Support
 Questions about an order, condition grade, or selling your cameras? We're here to help.
 
 ### Ways to Reach Us
-- **Email:** support@repxl.com
+- **Email:** repxl.support@gmail.com
 - **Response Time:** Within 24 hours on business days
 - **Condition Disputes:** Prioritized — we respond same-day with dedicated resolution
 - **Support Hours:** Monday to Friday, 9:00 AM – 6:00 PM PHT
@@ -246,4 +246,3 @@ export const DEFAULT_CONDITION_GRADING_BODY = conditionGradingBody
 export const DEFAULT_ABOUT_BODY = aboutBody
 export const DEFAULT_FAQ_BODY = faqBody
 export const DEFAULT_CONTACT_BODY = contactBody
-

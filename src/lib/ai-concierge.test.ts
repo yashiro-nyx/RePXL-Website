@@ -113,7 +113,7 @@ describe('AI concierge — content expectations', () => {
 
   it('routes human-agent requests to Contact + email (no fake human presence)', () => {
     const r = generateAiResponse('I want to talk to a real person')
-    expect(r.text).toContain('support@repxl.com')
+    expect(r.text).toContain('repxl.support@gmail.com')
     expect(r.action?.type).toBe('contact')
   })
 

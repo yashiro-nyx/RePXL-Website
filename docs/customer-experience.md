@@ -5,6 +5,7 @@ It replaces the separate back-navigation and chat-widget guides. Checkout,
 returns, notification delivery, and mobile release details have their own guides.
 
 - [Back navigation](#back-navigation)
+- [Contact page](#contact-page)
 - [AI Concierge](#ai-concierge)
 - [Returns](./returns.md)
 - [Notifications](./communications.md#in-app-notifications)
@@ -196,6 +197,30 @@ current behavior. Logged-in account/admin navigation and hydrated catalog/
 checkout interactions still require a browser check. No browser checks or
 application tests were rerun for this documentation-only cleanup.
 
+## Contact page
+
+`/contact` initially renders the interactive RePXL contact form while requesting
+the optional `contact` CMS page. If the API returns published custom content
+that differs from `DEFAULT_CONTACT_BODY`, the route switches to
+`CmsPageLayout`; otherwise the form remains available. The page declares its
+reduced-motion, CMS, form, feedback, and toast hooks before that conditional
+render, so the initial form and later CMS state always execute the same hook
+sequence.
+
+The default form retains name, email, subject, and message validation; safe
+loading, error, and success feedback; quick subject choices; and the
+`repxl.support@gmail.com` support link. `POST /api/contact` continues to enforce
+server-side validation, rate limiting, HTML escaping, and customer-safe error
+responses. No mailer credentials or delivery configuration changed.
+
+Verification on 2026-10-22: focused Contact/back-navigation tests passed
+**93/93**; `npx tsc --noEmit` passed; the production build passed with **69/69
+static pages**; and `git diff --check` passed. Headless Chrome exercised a
+delayed default-form → custom-CMS transition, empty validation, controlled API
+error and success responses, editable fields, the support link, and desktop
+1440×1000/mobile 390×844 layouts with no React hook/runtime console errors or
+mobile horizontal overflow. Real email delivery was not triggered.
+
 ## AI Concierge
 
 A floating support widget on the customer storefront that reuses the mobile
@@ -209,7 +234,7 @@ and what is intentionally out of scope.
 - **It is** an *automated* AI concierge — a pure, local, rule-based responder.
   The UI labels it "Automated assistant" and never implies a live human is
   online. When a question needs a person, it routes the customer to **Contact**
-  (`/contact`) / `support@repxl.com`.
+  (`/contact`) / `repxl.support@gmail.com`.
 - **It is not** human live chat, and there is **no chat backend, database table,
   network call, or message queue**. Responses are generated client-side.
 

@@ -194,9 +194,9 @@ export function Navbar() {
             <div className="hidden sm:block"><ThemeToggle /></div>
 
             {/* Search */}
-            <div className="relative flex items-center">
+            <div className="relative z-20 flex items-center">
               {searchOpen && (
-                <form onSubmit={handleSearchSubmit} className="fixed left-4 right-4 top-[4.5rem] z-10 sm:absolute sm:left-auto sm:right-10 sm:top-1/2 sm:w-56 sm:-translate-y-1/2 md:w-64" role="search">
+                <form onSubmit={handleSearchSubmit} className="fixed left-4 right-4 top-[4.5rem] z-10 sm:absolute sm:left-auto sm:right-10 sm:top-0 sm:w-56 md:w-64" role="search">
                   <label htmlFor="nav-search" className="sr-only">Search cameras</label>
                   <input
                     ref={inputRef}
@@ -219,7 +219,7 @@ export function Navbar() {
                         setHighlightedSuggestion((current) => (current <= 0 ? searchSuggestions.length - 1 : current - 1))
                       } else if (e.key === 'Escape') {
                         e.preventDefault()
-                        if (searchSuggestions.length > 0) { setHighlightedSuggestion(-1); setSuggestionsOpen(false) }
+                        if (suggestionsOpen && searchSuggestions.length > 0) { setHighlightedSuggestion(-1); setSuggestionsOpen(false) }
                         else { setSearchOpen(false); setQuery('') }
                       }
                     }}
@@ -227,7 +227,7 @@ export function Navbar() {
                     className="w-full rounded border border-repixl-muted/30 bg-repixl-bg/95 px-3 py-2.5 text-sm text-repixl-text-light shadow-xl placeholder:text-repixl-muted/60 backdrop-blur-md focus:border-repixl-muted/50 focus:outline-none focus:ring-2 focus:ring-repixl-red/40 sm:py-2 sm:shadow-none"
                   />
                   {suggestionsOpen && searchSuggestions.length > 0 && (
-                    <ul id="nav-search-suggestions" role="listbox" aria-label="Camera suggestions" className="mt-2 max-h-72 overflow-y-auto rounded border border-repixl-muted/20 bg-repixl-bg/95 p-1 shadow-xl backdrop-blur-md">
+                    <ul id="nav-search-suggestions" role="listbox" aria-label="Camera suggestions" className="mt-2 max-h-[min(18rem,calc(100dvh-8rem))] overflow-y-auto rounded border border-repixl-muted/20 bg-repixl-bg/95 p-1 shadow-xl backdrop-blur-md">
                       {searchSuggestions.map((product, index) => (
                         <li key={product.slug} id={`nav-search-option-${index}`} role="option" aria-selected={index === highlightedSuggestion}>
                           <button
@@ -249,8 +249,12 @@ export function Navbar() {
                   )}
                 </form>
               )}
-              <button type="button" aria-label="Search" onClick={() => setSearchOpen((prev) => !prev)} className="flex h-11 w-11 items-center justify-center text-repixl-text-light/80 transition-colors hover:text-repixl-text-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-repixl-red/50">
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" /></svg>
+              <button type="button" aria-label={searchOpen ? 'Close search' : 'Search'} aria-expanded={searchOpen} aria-controls={searchOpen ? 'nav-search' : undefined} onClick={() => setSearchOpen((prev) => !prev)} className="relative z-20 flex h-11 w-11 items-center justify-center text-repixl-text-light/80 transition-colors hover:text-repixl-text-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-repixl-red/50">
+                {searchOpen ? (
+                  <svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg>
+                ) : (
+                  <svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" /></svg>
+                )}
               </button>
             </div>
 

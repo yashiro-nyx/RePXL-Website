@@ -33,8 +33,8 @@ const infoItems = [
       </svg>
     ),
     label: 'Email',
-    value: 'support@repxl.com',
-    href: 'mailto:support@repxl.com',
+    value: 'repxl.support@gmail.com',
+    href: 'mailto:repxl.support@gmail.com',
   },
   {
     icon: (
@@ -82,17 +82,6 @@ export default function ContactPage() {
     }
   }, [])
 
-  if (customPage) {
-    return (
-      <CmsPageLayout
-        title={customPage.title}
-        body={customPage.body}
-        updatedAt={customPage.updatedAt}
-        isDraft={customPage.status === 'DRAFT'}
-      />
-    )
-  }
-
   const [formData, setFormData] = useState<ContactFormData>({
     name: '',
     email: '',
@@ -103,6 +92,17 @@ export default function ContactPage() {
   const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle')
   const [apiError, setApiError] = useState('')
   const addToast = useToastStore((state) => state.addToast)
+
+  if (customPage) {
+    return (
+      <CmsPageLayout
+        title={customPage.title}
+        body={customPage.body}
+        updatedAt={customPage.updatedAt}
+        isDraft={customPage.status === 'DRAFT'}
+      />
+    )
+  }
 
   const validateEmail = (email: string) => {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)

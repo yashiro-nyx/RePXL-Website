@@ -384,10 +384,10 @@ export default function ShippingReturnsPage() {
                 <p className="mt-2 text-sm text-repixl-text-light">
                   Reach us at{' '}
                   <a
-                    href="mailto:support@repxl.com"
+                    href="mailto:repxl.support@gmail.com"
                     className="text-repixl-red transition-colors hover:text-repixl-red/80"
                   >
-                    support@repxl.com
+                    repxl.support@gmail.com
                   </a>{' '}
                   or visit our{' '}
                   <a

@@ -247,7 +247,7 @@ https://repxl.com/account/orders/{{orderNumber}}
 
 Warmly,
 The RePXL Archive Team
-Need help? Contact us at support@repxl.com`,
+Need help? Contact us at repxl.support@gmail.com`,
     channel: 'BOTH',
     isEnabled: true,
     description: 'Sent automatically right after a customer completes checkout.',
@@ -291,7 +291,7 @@ https://repxl.com/account/orders/{{orderNumber}}
 
 Warmly,
 The RePXL Support Team
-support@repxl.com`,
+repxl.support@gmail.com`,
     channel: 'BOTH',
     isEnabled: true,
     description: 'Sent when a customer initiates a return request.',
@@ -308,7 +308,7 @@ New Status: {{status}}
 Please log in to your RePXL account to review the latest notes, instructions, or resolution details from our team:
 https://repxl.com/account/orders/{{orderNumber}}
 
-If you have any questions or need immediate assistance, simply reply to this message or contact support@repxl.com.
+If you have any questions or need immediate assistance, simply reply to this message or contact repxl.support@gmail.com.
 
 Best regards,
 The RePXL Returns Department`,
@@ -332,7 +332,7 @@ Thank you for your patience throughout this process. We look forward to serving 
 
 Sincerely,
 The RePXL Finance Team
-support@repxl.com`,
+repxl.support@gmail.com`,
     channel: 'BOTH',
     isEnabled: true,
     description: 'Sent when an admin or automated processor marks a refund as completed.',
@@ -408,4 +408,3 @@ export const SAMPLE_TEMPLATE_CONTEXT: Record<string, string> = {
   updateTitle: 'Introducing the Vintage CCD Sensor Grading Guide',
   updateBody: 'We have updated our grading standard with raw CCD sensor test frames for every camera listed.',
 }
-

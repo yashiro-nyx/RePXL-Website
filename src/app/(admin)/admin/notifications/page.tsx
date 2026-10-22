@@ -852,7 +852,7 @@ export default function NotificationTemplatesPage() {
                       </p>
                       <p className="mt-1">
                         Need assistance? Contact our team at{' '}
-                        <span className="text-repixl-text-light underline">support@repxl.com</span>.
+                        <span className="text-repixl-text-light underline">repxl.support@gmail.com</span>.
                       </p>
                     </div>
                   </div>

@@ -35,6 +35,14 @@ describe('Navbar search — keyboard-complete suggestions', () => {
     expect(navbar).toContain('`/products/${product.slug}`')
     expect(navbar).toContain('`/search?q=${encodeURIComponent(query.trim())}`')
   })
+
+  it('keeps the input anchored above the suggestion list as results appear', () => {
+    expect(navbar).toContain('sm:top-0 sm:w-56')
+    expect(navbar).not.toContain('sm:-translate-y-1/2')
+    expect(navbar.indexOf('id="nav-search"')).toBeLessThan(navbar.indexOf('id="nav-search-suggestions"'))
+    expect(navbar).toContain("searchOpen ? 'Close search' : 'Search'")
+    expect(navbar).toContain('suggestionsOpen && searchSuggestions.length > 0')
+  })
 })
 
 describe('Product store — search feedback contract', () => {

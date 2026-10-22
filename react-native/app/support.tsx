@@ -793,12 +793,12 @@ How can I help you today? Feel free to ask about:
             <View style={styles.infoRow}>
               <TouchableOpacity
                 style={styles.infoCard}
-                onPress={() => Linking.openURL('mailto:support@repxl.com')}
+                onPress={() => Linking.openURL('mailto:repxl.support@gmail.com')}
                 activeOpacity={0.8}
               >
                 <Feather name="mail" size={18} color="#c62828" />
                 <Text style={styles.infoCardTitle}>Email Support</Text>
-                <Text style={styles.infoCardValue}>support@repxl.com</Text>
+                <Text style={styles.infoCardValue}>repxl.support@gmail.com</Text>
               </TouchableOpacity>
 
               <View style={styles.infoCard}>
